@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "core/log.h"
+#include "core/selfcheck.h"
 
 PSP_MODULE_INFO("Pocketwatch", PSP_MODULE_KERNEL, 0, 1);
 
@@ -16,7 +17,7 @@ PSP_MODULE_INFO("Pocketwatch", PSP_MODULE_KERNEL, 0, 1);
 
 #define PW_DEFAULT_PATH     "ms0:/seplugins/pocketwatch/pocketwatch.prx"
 #define PW_THREAD_PRIORITY  0x20
-#define PW_THREAD_STACK     0x1000
+#define PW_THREAD_STACK     0x2000 /* stb_sprintf alone needs ~0.6 KB per call */
 
 static char g_module_path[256];
 
@@ -42,6 +43,7 @@ static int main_thread(SceSize args, void *argp)
 
     pw_log_init(g_module_path);
     pw_log("Pocketwatch %s loaded from %s", PW_VERSION, g_module_path);
+    pw_selfcheck_imports();
 
     /* Complications (States, ...) are started from here. */
 
