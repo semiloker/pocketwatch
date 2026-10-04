@@ -113,3 +113,15 @@ Changes for run 2:
   session's last stage and traces (`post_mortem`), including records from the run-1 build
   (`PWS1` layout) if that memory survived.
 - If decompression fails the game stays frozen instead of running on corrupt RAM.
+
+**Run 2 — 2026-10-05, NFS Most Wanted:** the load again ended in the XMB. No data: the user
+restarted NFS (as instructed, to trigger the post-mortem), which truncated the log, and the P11
+record did not survive the trip through the XMB. Lessons and changes for run 3:
+- The log now appends sessions (`==== new session ====`) and only restarts past 256 KB.
+- The P11 post-mortem is not reliable across a return to the XMB; the card log is the channel.
+- Partition 8 (1 MB at `0x8BB00000`, 343 KB used since boot by something we have not identified)
+  is outside the kernel range but holds live data. It is now copied with the kernel image at the
+  save's PHASE0_0 and put back at the load's PHASE0_0, before the kernel. PSPFatSave never had to:
+  the PSP-1000 has no P8.
+- finish_load logs before each step, and for 5 s after the thaw logs how many game threads are
+  still alive.

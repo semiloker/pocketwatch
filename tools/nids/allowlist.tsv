@@ -12,3 +12,4 @@ IoFileMgrForKernel	0x6A638D83	sceIoRead	verified	PSP-3000 (model 3), ARK-4 6.61,
 IoFileMgrForKernel	0x06A70004	sceIoMkdir	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved, mkdir worked; also used by ARK-4 core
 IoFileMgrForKernel	0xB2A628C1	sceIoAssign	assumed	used with this NID by ARK-4 core (3 calls) and PSPFatSave on 6.61
 IoFileMgrForKernel	0x6D08A871	sceIoUnassign	assumed	used with this NID by ARK-4 core (3 calls) and PSPFatSave on 6.61
+IoFileMgrForKernel	0xACE946E8	sceIoGetstat	assumed	used with this NID by ARK-4 core (22 calls)

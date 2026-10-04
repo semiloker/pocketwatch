@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /* Host implementation of core/platform.h for unit tests. */
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "core/platform.h"
 
@@ -24,4 +25,13 @@ int pw_file_write(const char *path, const void *data, unsigned int len, int appe
     written = len > 0 ? fwrite(data, 1, len, f) : 0;
     fclose(f);
     return (int)written;
+}
+
+int pw_file_size(const char *path)
+{
+    struct stat st;
+
+    if (stat(path, &st) != 0)
+        return -1;
+    return (int)st.st_size;
 }

@@ -18,6 +18,15 @@ static const char *fake_module_path(char *log_path, size_t log_len)
     return module;
 }
 
+/* Sessions now append, so every test starts from a missing file. */
+static void fresh_log(char *log_path, size_t log_len)
+{
+    const char *module = fake_module_path(log_path, log_len);
+
+    remove(log_path);
+    pw_log_init(module);
+}
+
 static size_t read_file(const char *path, char *out, size_t cap)
 {
     FILE *f = fopen(path, "rb");
@@ -35,30 +44,47 @@ PW_TEST(log_writes_formatted_lines)
 {
     char log_path[512], content[1024];
 
-    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
+    fresh_log(log_path, sizeof(log_path));
     pw_log("Pocketwatch %s loaded", "v0.0.0");
     pw_log("slot=%d size=%u hex=%08X", 2, 15u * 1024 * 1024, 0xDEADBEEFu);
     read_file(log_path, content, sizeof(content));
     CHECK_STR(content, "Pocketwatch v0.0.0 loaded\nslot=2 size=15728640 hex=DEADBEEF\n");
 }
 
-PW_TEST(log_init_truncates_previous_boot)
+PW_TEST(log_sessions_are_appended_after_a_mark)
 {
     char log_path[512], content[256];
 
-    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
-    pw_log("old boot");
-    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
-    pw_log("new boot");
+    fresh_log(log_path, sizeof(log_path));
+    pw_log("crashed session");
+    pw_log_init(fake_module_path(log_path, sizeof(log_path))); /* the user restarts a game */
+    pw_log("next session");
     read_file(log_path, content, sizeof(content));
-    CHECK_STR(content, "new boot\n");
+    CHECK_STR(content, "crashed session\n\n==== new session ====\nnext session\n");
+}
+
+PW_TEST(log_restarts_once_past_the_cap)
+{
+    char log_path[512], content[256];
+    FILE *f;
+
+    fake_module_path(log_path, sizeof(log_path));
+    f = fopen(log_path, "wb");
+    for (int i = 0; i < 300 * 1024 / 16; i++)
+        fputs("0123456789abcde\n", f);
+    fclose(f);
+
+    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
+    pw_log("fresh");
+    read_file(log_path, content, sizeof(content));
+    CHECK_STR(content, "fresh\n");
 }
 
 PW_TEST(log_deferred_keeps_lines_in_ram_until_flush)
 {
     char log_path[512], content[256];
 
-    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
+    fresh_log(log_path, sizeof(log_path));
     pw_log_set_deferred(1);
     pw_log("inside sysevent");
     read_file(log_path, content, sizeof(content));
@@ -73,10 +99,10 @@ PW_TEST(log_deferred_keeps_lines_in_ram_until_flush)
 PW_TEST(log_reports_dropped_lines_when_ring_overflows)
 {
     char log_path[512];
-    static char content[16384];
+    static char content[32768];
     char line[200];
 
-    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
+    fresh_log(log_path, sizeof(log_path));
     pw_log_set_deferred(1);
     memset(line, 'x', sizeof(line) - 1);
     line[sizeof(line) - 1] = '\0';
@@ -94,7 +120,7 @@ PW_TEST(log_truncates_overlong_line)
 {
     char log_path[512], content[1024], big[600];
 
-    pw_log_init(fake_module_path(log_path, sizeof(log_path)));
+    fresh_log(log_path, sizeof(log_path));
     memset(big, 'y', sizeof(big) - 1);
     big[sizeof(big) - 1] = '\0';
     pw_log("%s", big);

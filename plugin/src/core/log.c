@@ -8,11 +8,13 @@
 #include "core/platform.h"
 #include "core/ring.h"
 
-#define PW_LOG_NAME      "pocketwatch.log"
-#define PW_LOG_PATH_MAX  256
-#define PW_LOG_LINE_MAX  256
-#define PW_LOG_RING_SIZE 16384 /* holds a few loads worth of lines while a state is held */
-#define PW_LOG_CHUNK     512
+#define PW_LOG_NAME         "pocketwatch.log"
+#define PW_LOG_PATH_MAX     256
+#define PW_LOG_LINE_MAX     256
+#define PW_LOG_RING_SIZE    16384 /* holds a few loads worth of lines while a state is held */
+#define PW_LOG_CHUNK        512
+#define PW_LOG_MAX_BYTES    (256 * 1024)
+#define PW_LOG_SESSION_MARK "\n==== new session ====\n"
 
 /* Empty path means logging is disabled. */
 static char g_log_path[PW_LOG_PATH_MAX];
@@ -42,7 +44,20 @@ void pw_log_init(const char *module_path)
     memcpy(g_log_path, module_path, dir_len);
     strcpy(g_log_path + dir_len, PW_LOG_NAME);
 
-    if (pw_file_write(g_log_path, "", 0, 0) < 0)
+    /*
+     * Keep earlier sessions: when a game crashes, the evidence is in the previous session's
+     * lines, and the user restarts a game before the card is read. Start over only past the cap.
+     */
+    int size = pw_file_size(g_log_path);
+    int ret;
+
+    if (size < 0 || size > PW_LOG_MAX_BYTES)
+        ret = pw_file_write(g_log_path, "", 0, 0);
+    else if (size > 0)
+        ret = pw_file_write(g_log_path, PW_LOG_SESSION_MARK, sizeof(PW_LOG_SESSION_MARK) - 1, 1);
+    else
+        ret = 0;
+    if (ret < 0)
         g_log_path[0] = '\0';
 }
 

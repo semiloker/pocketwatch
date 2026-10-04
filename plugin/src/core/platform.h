@@ -14,4 +14,7 @@ void pw_irq_unlock(unsigned int state);
 /* Write len bytes to path, appending or truncating first. Returns bytes written or < 0. */
 int pw_file_write(const char *path, const void *data, unsigned int len, int append);
 
+/* Size of a file in bytes, or < 0 if it does not exist. */
+int pw_file_size(const char *path);
+
 #endif

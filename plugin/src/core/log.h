@@ -5,7 +5,8 @@
 /*
  * Plain-text log written next to the PRX (e.g. ms0:/seplugins/pocketwatch/pocketwatch.log).
  * Lines go into a RAM ring buffer first, so logging is safe where file I/O is not
- * (sysevent handlers, suspend/resume). The file is truncated on every boot.
+ * (sysevent handlers, suspend/resume). Sessions are appended after a "==== new session ===="
+ * mark, so a crash report survives restarting a game; the file restarts once it passes 256 KB.
  */
 
 /* module_path: full path of the running PRX, as passed to module_start. */

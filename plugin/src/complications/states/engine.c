@@ -28,6 +28,8 @@
 #define SCRATCH_BASE 0x00010000u
 #define SCRATCH_SIZE 0x00004000u
 #define KSEG1        0x20000000u /* kseg0 address + KSEG1 = uncached alias */
+#define P8_PID       8
+#define P8_SPACE     0x00100000u /* P8 (1 MB on the PSP-3000) is outside the kernel range */
 
 #define EV_POWER_LOCK_PHASE1 0x00000401
 #define EV_SUSPEND_PHASE0_0  0x00004000
@@ -125,6 +127,9 @@ static unsigned int g_cycles_per_ms;
 static pw_flash_report g_flash_report; /* filled at RESUME_COMPLETED after a rollback */
 static volatile int g_flash_result;
 static int g_registered;
+/* Partition 8 holds live data of something loaded at boot (343 KB used on the PSP-3000) but sits
+   outside 0x88000000-0x88400000: it is captured and restored together with the kernel image. */
+static unsigned int g_p8_base, g_p8_size;
 
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
@@ -271,6 +276,8 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
 
             h->save_dmac_left = dmac_drain();
             memcpy(g_kernel_image, (const void *)KERNEL_BASE, KERNEL_SIZE);
+            if (g_p8_size)
+                memcpy(g_kernel_image + KERNEL_SIZE, (const void *)g_p8_base, g_p8_size);
             sceKernelDcacheWritebackAll(); /* the image must be in DRAM before power-down */
             h->save_capture_cycles = cycles() - c0;
             g_captured = 1;
@@ -281,6 +288,8 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
 
             g_applying = 1;
             crumb(h, S_LOAD_APPLY); /* written back by the blob's cache flush */
+            if (g_p8_size)          /* nothing else runs at PHASE0_0: safe to put P8 back first */
+                memcpy((void *)g_p8_base, g_kernel_image + KERNEL_SIZE, g_p8_size);
             dmac_drain();
             sceKernelCpuSuspendIntr();
             apply(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
@@ -327,6 +336,18 @@ static int check_environment(void)
         pw_log("engine: the game uses volatile memory (P5): not supported yet");
         return -1;
     }
+
+    PspSysmemPartitionInfo p8;
+
+    memset(&p8, 0, sizeof(p8));
+    p8.size = sizeof(p8);
+    if (sceKernelQueryMemoryPartitionInfo(P8_PID, &p8) >= 0 && p8.memsize <= P8_SPACE) {
+        g_p8_base = p8.startaddr;
+        g_p8_size = p8.memsize;
+    } else {
+        g_p8_base = 0;
+        g_p8_size = 0;
+    }
     return 0;
 }
 
@@ -354,7 +375,8 @@ static int ensure_staging(void)
         return -1;
     size_a = pw_mem_max_free(PW_MEM_PARTITION_EXTRA) & ~0xFFFFu;
     size_b = pw_mem_max_free(PW_MEM_PARTITION_SPARE) & ~0xFFFFu;
-    if (size_a < KERNEL_SIZE + 0x100000 || size_b < HEADER_SPACE + BLOB_SPACE + 0x10000) {
+    if (size_a < KERNEL_SIZE + P8_SPACE + 0x100000 ||
+        size_b < HEADER_SPACE + BLOB_SPACE + 0x10000) {
         pw_log("engine: not enough spare RAM (P9 %u KB, P11 %u KB)", size_a / 1024, size_b / 1024);
         return -1;
     }
@@ -369,8 +391,8 @@ static int ensure_staging(void)
     g_hdr = g_stage_b.ptr;
     g_blob = (unsigned char *)g_stage_b.ptr + size_b - BLOB_SPACE;
     pw_stream_set_workspace((unsigned char *)g_stage_b.ptr + WORKSPACE_START);
-    g_arena.base[0] = (unsigned char *)g_stage_a.ptr + KERNEL_SIZE;
-    g_arena.size[0] = size_a - KERNEL_SIZE;
+    g_arena.base[0] = (unsigned char *)g_stage_a.ptr + KERNEL_SIZE + P8_SPACE;
+    g_arena.size[0] = size_a - KERNEL_SIZE - P8_SPACE;
     g_arena.base[1] = (unsigned char *)g_stage_b.ptr + HEADER_SPACE;
     g_arena.size[1] = size_b - HEADER_SPACE - BLOB_SPACE;
     return 0;
@@ -486,12 +508,14 @@ static int finish_load(void)
     log_trace(h, TRACE_AFTER_ROLLBACK, "load (after rollback)");
 
     t0 = now_ms();
+    pw_log("engine: load: restoring game RAM...");
     ok_ram = pw_stream_read(&g_arena, &h->user, (void *)USER_BASE, USER_SIZE) >= 0;
     crumb(h, S_RB_RAM);
     pw_log("engine: load: game RAM %s in %u ms", ok_ram ? "restored" : "DECOMPRESSION FAILED",
            now_ms() - t0);
 
     t0 = now_ms();
+    pw_log("engine: load: restoring eDRAM...");
     ok_vram = pw_stream_read(&g_arena, &h->vram, (void *)VRAM_BASE, h->vram_size) >= 0;
     crumb(h, S_RB_VRAM);
     pw_log("engine: load: eDRAM %s in %u ms", ok_vram ? "restored" : "DECOMPRESSION FAILED",
@@ -520,6 +544,9 @@ static int finish_load(void)
         return -1;
     }
 
+    pw_freeze_set watched = g_save_freeze; /* thawing clears the set */
+
+    pw_log("engine: load: thawing %d game thread(s)...", watched.count);
     pw_thaw_game(&g_save_freeze);
     crumb(h, S_RB_THAWED);
     sceRtcGetCurrentTick(&now);
@@ -529,6 +556,22 @@ static int finish_load(void)
 
     /* The card changed after the rollback: this state's view of it is stale now. */
     pw_engine_discard();
+
+    if (VERIFY) /* if the game dies after the load, show for how long it lived */
+        for (int tick = 1; tick <= 10; tick++) {
+            int alive = 0;
+
+            sceKernelDelayThread(500 * 1000);
+            for (int i = 0; i < watched.count; i++) {
+                SceKernelThreadInfo info;
+
+                memset(&info, 0, sizeof(info));
+                info.size = sizeof(info);
+                alive += sceKernelReferThreadStatus(watched.ids[i], &info) >= 0;
+            }
+            pw_log("engine: after load +%d ms: %d/%d game thread(s) alive", tick * 500, alive,
+                   watched.count);
+        }
     return PW_ENGINE_LOADED;
 }
 
@@ -586,6 +629,8 @@ int pw_engine_save(void)
     log_stream("game", &h->user);
     log_stream("eDRAM", &h->vram);
     log_stream("scratch", &h->scratch);
+    pw_log("engine:   P8      %6u KB at 0x%08X, copied with the kernel image", g_p8_size / 1024,
+           g_p8_base);
     pw_log("engine: state record at %p (post-mortem if a load goes wrong)", (void *)h);
 
     /* From the kernel snapshot on, the Memory Stick must not change until the state is dropped. */

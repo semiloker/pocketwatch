@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <pspintrman.h>
 #include <pspiofilemgr.h>
+#include <string.h>
 
 #include "core/platform.h"
 
@@ -26,4 +27,16 @@ int pw_file_write(const char *path, const void *data, unsigned int len, int appe
         written = sceIoWrite(fd, data, len);
     sceIoClose(fd);
     return written;
+}
+
+int pw_file_size(const char *path)
+{
+    SceIoStat st;
+    int ret;
+
+    memset(&st, 0, sizeof(st));
+    ret = sceIoGetstat(path, &st);
+    if (ret < 0)
+        return ret;
+    return st.st_size > 0x7FFFFFFF ? 0x7FFFFFFF : (int)st.st_size;
 }
