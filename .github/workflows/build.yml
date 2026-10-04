@@ -12,7 +12,7 @@ jobs:
     name: Host tests and formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install clang-format 18.1.8
         run: pipx install clang-format==18.1.8
@@ -35,7 +35,7 @@ jobs:
       - name: Install tools
         run: apk add --no-cache zip python3
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so `git describe` sees tags
 
