@@ -9,6 +9,10 @@
 #include "core/log.h"
 #include "core/selfcheck.h"
 
+#ifdef PW_DEBUG
+#include "core/probe.h"
+#endif
+
 PSP_MODULE_INFO("Pocketwatch", PSP_MODULE_KERNEL, 0, 1);
 
 #ifndef PW_VERSION
@@ -44,6 +48,11 @@ static int main_thread(SceSize args, void *argp)
     pw_log_init(g_module_path);
     pw_log("Pocketwatch %s loaded from %s", PW_VERSION, g_module_path);
     pw_selfcheck_imports();
+
+#ifdef PW_DEBUG
+    pw_probe_boot();
+    pw_probe_start();
+#endif
 
     /* Complications (States, ...) are started from here. */
 

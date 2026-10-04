@@ -14,6 +14,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Boot-time self-check that logs imports the CFW could not resolve.
 - `make check`: import NIDs verified against ARK-4's 6.61 resolver table, PRX size and memory budgets.
 - Host unit tests (ASan + UBSan), clang-format check, `.cmd` wrappers for Windows.
+- Debug build profile (`DEBUG=1`) with a hardware probe: memory partitions, modules and threads
+  dumped to the log on L+R+SELECT+UP.
+- `tools/sfo.py` (PARAM.SFO reader/writer, byte-exact with real saves) and the S2 savedata spike.
 
 ### Changed
 - Relicensed from MIT to GPL-3.0-or-later.

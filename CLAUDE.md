@@ -30,4 +30,5 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
 - `.ps1` files must stay ASCII-only (Windows PowerShell 5.1 reads them as ANSI).
 - License is GPL-3.0-or-later: start every new source file with `// SPDX-License-Identifier: GPL-3.0-or-later`
   (third-party files keep their own SPDX line). Never copy code from PSPStates (no license) or intraFont (CC BY-SA).
-- Commit after each logical step (Conventional Commits). No `Co-Authored-By` or other AI attribution lines.
+- One commit per substantial finished chunk (code + tests + docs together), not per micro-step
+  (Conventional Commits). No `Co-Authored-By` or other AI attribution lines.

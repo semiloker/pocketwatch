@@ -10,6 +10,12 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/core/selfcheck.o \
          lib/stb_sprintf.o exports.o
 
+# DEBUG=1 (default while developing) adds the hardware probe; DEBUG=0 is the release build.
+DEBUG ?= 1
+ifeq ($(DEBUG),1)
+OBJS   += src/core/probe.o
+endif
+
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Budgets enforced by `make check`; raise them deliberately, not by accident.
@@ -21,10 +27,13 @@ USE_KERNEL_LIBS = 1
 
 INCDIR  = src lib
 CFLAGS  = -Os -G0 -Wall -Wextra -Werror -fno-pic -fno-builtin-printf -DPW_VERSION=\"$(VERSION)\"
+ifeq ($(DEBUG),1)
+CFLAGS += -DPW_DEBUG
+endif
 ASFLAGS = $(CFLAGS)
 
 LIBDIR =
-LIBS   = -lgcc
+LIBS   = -lgcc -lpspge_driver
 
 PSPSDK = $(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build_prx.mak
@@ -32,10 +41,13 @@ include $(PSPSDK)/lib/build_prx.mak
 # Third-party code: keep upstream sources untouched, silence their known warnings.
 lib/stb_sprintf.o: CFLAGS += -Wno-sign-compare
 
-# Rebuild main.o whenever the version string changes.
+# Rebuild main.o whenever the version string changes, and everything when the profile changes.
 src/core/main.o: .version
 .version: FORCE
 	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
+$(OBJS): .buildflags
+.buildflags: FORCE
+	@echo 'DEBUG=$(DEBUG)' | cmp -s - $@ || echo 'DEBUG=$(DEBUG)' > $@
 
 check: $(FINAL_TARGET)
 	python3 ../tools/check_prx.py --elf $(TARGET).elf --prx $(TARGET).prx \
@@ -44,6 +56,6 @@ check: $(FINAL_TARGET)
 
 clean: clean-local
 clean-local:
-	-rm -f exports.c .version
+	-rm -f exports.c .version .buildflags src/core/probe.o
 
 .PHONY: FORCE check clean-local
