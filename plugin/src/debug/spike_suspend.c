@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "core/crc32.h"
+#include "core/freeze.h"
 #include "core/log.h"
 #include "core/mem.h"
 #include "stb_sprintf.h"
@@ -18,9 +19,10 @@
 #define EV_SUSPEND_PHASE0_0  0x00004000
 #define EV_RESUME_COMPLETED  0x00400000
 
-#define MAX_EVENTS     256
-#define WAKE_DELAY_US  100000ull
-#define RESUME_TIMEOUT 2000 /* polls of 5 ms of *active* time; the sleep itself does not count */
+#define MAX_EVENTS        256
+#define WAKE_DELAY_US     100000ull
+#define FREEZE_TIMEOUT_MS 500
+#define RESUME_TIMEOUT    2000 /* polls of 5 ms of *active* time; the sleep itself does not count */
 
 int sceRtcSetAlarmTick(u64 *tick); /* sceRtc_driver, not declared by PSPSDK */
 
@@ -208,6 +210,10 @@ void pw_spike_suspend(void)
     sceKernelDelayThread(100 * 1000);
     cycles_per_ms = (cycles() - c0) / 100;
 
+    /* Freeze the game first, as the engine will: no disc streaming, no power-lock retries. */
+    pw_freeze_set frozen;
+    pw_freeze_game(&frozen, FREEZE_TIMEOUT_MS);
+
     sceRtcGetCurrentTick(&t_start);
     ret = scePowerRequestSuspend();
     while (!g_resumed && polls++ < RESUME_TIMEOUT)
@@ -216,6 +222,9 @@ void pw_spike_suspend(void)
     g_armed = 0;
     g_stage = NULL;
 
+    pw_thaw_game(&frozen); /* before any logging: the game must not wait on our file I/O */
+
+    pw_freeze_log(&frozen);
     pw_log("E1: scePowerRequestSuspend=0x%08X resumed=%d alarm=%d captured=%d", ret, g_resumed,
            g_alarm_set, g_captured);
     pw_log("E1: request->resume %u ms (wall clock), capture %u ms, dmac_left=0x%X",
