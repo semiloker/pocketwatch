@@ -11,15 +11,14 @@
 
 #include "core/log.h"
 #include "debug/probe.h"
-#include "debug/spike_savedata.h"
-#include "debug/spike_suspend.h"
+#include "complications/states/engine.h"
 
-#define COMBO_BASE           (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
-#define PROBE_COMBO          (COMBO_BASE | PSP_CTRL_UP)
-#define SPIKE_SAVEDATA_COMBO (COMBO_BASE | PSP_CTRL_LEFT)
-#define SPIKE_SUSPEND_COMBO  (COMBO_BASE | PSP_CTRL_RIGHT)
-#define PROBE_MAX_IDS        128
-#define PROBE_PARTITIONS     12
+#define COMBO_BASE       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
+#define PROBE_COMBO      (COMBO_BASE | PSP_CTRL_UP)    /* drop state, flush log, dump */
+#define SAVE_COMBO       (COMBO_BASE | PSP_CTRL_RIGHT) /* engine: save to RAM */
+#define LOAD_COMBO       (COMBO_BASE | PSP_CTRL_LEFT)  /* engine: load from RAM */
+#define PROBE_MAX_IDS    128
+#define PROBE_PARTITIONS 12
 
 static SceUID g_ids[PROBE_MAX_IDS];
 static int g_dump_count;
@@ -159,6 +158,8 @@ static int probe_thread(SceSize args, void *argp)
             continue;
 
         if ((pad.Buttons & PROBE_COMBO) == PROBE_COMBO) {
+            if (pw_engine_has_state())
+                pw_engine_discard(); /* a dump writes to the card: the held state would go stale */
             pw_log("probe: ---- dump %d ----", ++g_dump_count);
             dump_system();
             dump_partitions();
@@ -166,12 +167,12 @@ static int probe_thread(SceSize args, void *argp)
             dump_threads();
             pw_log("probe: ---- end of dump %d ----", g_dump_count);
             wait_release(PROBE_COMBO);
-        } else if ((pad.Buttons & SPIKE_SAVEDATA_COMBO) == SPIKE_SAVEDATA_COMBO) {
-            pw_spike_savedata();
-            wait_release(SPIKE_SAVEDATA_COMBO);
-        } else if ((pad.Buttons & SPIKE_SUSPEND_COMBO) == SPIKE_SUSPEND_COMBO) {
-            wait_release(SPIKE_SUSPEND_COMBO); /* do not hold buttons across the sleep */
-            pw_spike_suspend();
+        } else if ((pad.Buttons & SAVE_COMBO) == SAVE_COMBO) {
+            wait_release(SAVE_COMBO); /* do not hold buttons across the sleep */
+            pw_engine_save();         /* also returns here, a second time, after a load */
+        } else if ((pad.Buttons & LOAD_COMBO) == LOAD_COMBO) {
+            wait_release(LOAD_COMBO);
+            pw_engine_load(); /* returns only on failure */
         }
     }
     return 0;
@@ -179,10 +180,6 @@ static int probe_thread(SceSize args, void *argp)
 
 void pw_probe_start(void)
 {
-    int ret = pw_spike_suspend_init();
-
-    if (ret < 0)
-        pw_log("probe: sysevent handler registration failed 0x%08X", ret);
     g_probe_stop = 0;
     g_probe_thread = sceKernelCreateThread("PocketwatchProbe", probe_thread, 0x30, 0x2000, 0, NULL);
     if (g_probe_thread >= 0)
@@ -200,5 +197,4 @@ void pw_probe_stop(void)
         sceKernelTerminateThread(g_probe_thread);
     sceKernelDeleteThread(g_probe_thread);
     g_probe_thread = -1;
-    pw_spike_suspend_shutdown();
 }

@@ -13,7 +13,8 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
 - Format: `bash scripts/format.sh` (`--check` in CI; clang-format 18.1.8, set `CLANG_FORMAT` to override)
 - Deploy to the USB-connected PSP: `scripts\deploy.cmd` (add `-Enable` to register in `PLUGINS.TXT`)
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
-- Debug-build combos in a game: L+R+SELECT+UP = memory/module/thread dump, L+R+SELECT+LEFT = savedata spike
+- Debug-build combos in a game: L+R+SELECT+RIGHT = save state to RAM, LEFT = load it,
+  UP = drop the state, write the held log lines and dump memory/modules/threads
 - From PowerShell, call WSL with `wsl -d Ubuntu --exec bash <script>`; inline `bash -c '...$VAR...'`
   gets mangled by the outer shell.
 
@@ -26,6 +27,8 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
 - Portable logic must not include PSP headers; OS access goes through `core/platform.h` so it is
   host-testable. Add tests in `tests/test_*.c` and list new portable sources in `tests/Makefile`.
 - Never do file I/O in sysevent/suspend paths: use `pw_log_set_deferred(1)` and flush later.
+- While the engine holds a state, nothing may write to the Memory Stick (the saved kernel's FAT
+  view would go stale): logging is deferred until `pw_engine_discard`.
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).
 - New source files must be added to `OBJS` in `plugin/Makefile`.
 - `.ps1` files must stay ASCII-only (Windows PowerShell 5.1 reads them as ANSI).

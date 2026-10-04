@@ -80,7 +80,7 @@ PW_TEST(log_reports_dropped_lines_when_ring_overflows)
     pw_log_set_deferred(1);
     memset(line, 'x', sizeof(line) - 1);
     line[sizeof(line) - 1] = '\0';
-    for (int i = 0; i < 60; i++) /* 60 * 200 bytes > 8 KB ring */
+    for (int i = 0; i < 100; i++) /* 100 * 200 bytes > 16 KB ring */
         pw_log("%s", line);
     pw_log_set_deferred(0);
     pw_log_flush();

@@ -18,6 +18,12 @@ typedef struct {
 
 /* Allocate size bytes (64-byte aligned) from partition 9, falling back to 11. Returns 0 or < 0. */
 int pw_mem_alloc(pw_mem_block *b, const char *name, unsigned int size);
+/* Allocate exactly from one partition. Returns 0 or < 0. */
+int pw_mem_alloc_in(pw_mem_block *b, int partition, const char *name, unsigned int size);
+
+/* Largest size pw_mem_alloc_in can currently get from a partition (alignment slack removed). */
+unsigned int pw_mem_max_free(int partition);
+
 void pw_mem_free(pw_mem_block *b);
 
 #endif

@@ -6,6 +6,7 @@
 #include <pspkernel.h>
 #include <string.h>
 
+#include "complications/states/engine.h"
 #include "core/log.h"
 #include "core/selfcheck.h"
 
@@ -51,6 +52,10 @@ static int main_thread(SceSize args, void *argp)
     pw_log("Pocketwatch %s loaded from %s", PW_VERSION, g_module_path);
     pw_selfcheck_imports();
 
+    int ret = pw_engine_init();
+    if (ret < 0)
+        pw_log("engine: sysevent handler registration failed 0x%08X", ret);
+
 #ifdef PW_DEBUG
     pw_probe_boot();
     pw_probe_start();
@@ -86,6 +91,7 @@ int module_stop(SceSize args, void *argp)
 #ifdef PW_DEBUG
     pw_probe_stop();
 #endif
+    pw_engine_shutdown();
 
     if (g_main_thread >= 0) {
         SceUInt timeout = PW_STOP_TIMEOUT_US;

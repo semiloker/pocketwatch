@@ -7,15 +7,17 @@
 
 TARGET = pocketwatch
 OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o \
-         src/core/selfcheck.o src/core/stubinfo.o src/core/freeze.o src/core/mem.o src/core/crc32.o src/core/png.o \
-         src/core/stubs/SystemCtrlForKernel.o \
+         src/core/selfcheck.o src/core/stubinfo.o src/core/freeze.o src/core/mem.o \
+         src/core/crc32.o src/core/png.o src/core/flash.o src/core/stubs/SystemCtrlForKernel.o \
          src/complications/states/sfo.o src/complications/states/savedata_hash.o \
-         lib/stb_sprintf.o exports.o
+         src/complications/states/stream.o src/complications/states/engine.o \
+         src/complications/states/handoff.o \
+         lib/stb_sprintf.o lib/fastlz/fastlz.o exports.o
 
-# DEBUG=1 (default while developing) adds the hardware probe and spikes.
+# DEBUG=1 (default while developing) adds the hardware probe and its button triggers.
 DEBUG ?= 1
 ifeq ($(DEBUG),1)
-OBJS   += src/debug/probe.o src/debug/spike_savedata.o src/debug/spike_suspend.o
+OBJS   += src/debug/probe.o
 endif
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -44,6 +46,8 @@ include $(PSPSDK)/lib/build_prx.mak
 
 # Third-party code: keep upstream sources untouched, silence their known warnings.
 lib/stb_sprintf.o: CFLAGS += -Wno-sign-compare
+# FastLZ: no memmove in kernel sysclib; the hash table comes from the engine, not the stack.
+lib/fastlz/fastlz.o: CFLAGS += -DFASTLZ_USE_MEMMOVE=0 -DFASTLZ_EXTERNAL_HTAB
 
 # Rebuild main.o whenever the version string changes, and everything when the profile or libs change.
 src/core/main.o: .version

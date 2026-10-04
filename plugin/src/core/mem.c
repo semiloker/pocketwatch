@@ -33,6 +33,21 @@ int pw_mem_alloc(pw_mem_block *b, const char *name, unsigned int size)
     return ret;
 }
 
+int pw_mem_alloc_in(pw_mem_block *b, int partition, const char *name, unsigned int size)
+{
+    b->block = -1;
+    b->ptr = 0;
+    b->size = 0;
+    return alloc_from(b, partition, name, size);
+}
+
+unsigned int pw_mem_max_free(int partition)
+{
+    unsigned int max = (unsigned int)sceKernelPartitionMaxFreeMemSize(partition);
+
+    return max > ALIGNMENT ? max - ALIGNMENT : 0;
+}
+
 void pw_mem_free(pw_mem_block *b)
 {
     if (b->block >= 0)

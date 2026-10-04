@@ -5,8 +5,8 @@ Each rung is proven on the device before the next one is built. Design inputs: M
 
 | Rung | What it proves | Status |
 |---|---|---|
-| E1 | real suspend + RTC auto-wake + kernel copy at PHASE0_0, no restore | in progress |
-| E2 | load in the same boot (restore kernel + RAM + VRAM) | |
+| E1 | real suspend + RTC auto-wake + kernel copy at PHASE0_0, no restore | done (run 1) |
+| E2 | load in the same boot (restore kernel + RAM + VRAM) | built, awaiting device test |
 | E3 | load after a reboot (environment fingerprint) | |
 | E4 | file-system integrity gate (100 cycles + FAT check) | |
 
@@ -50,3 +50,45 @@ Nothing is restored; for the game it is a quick sleep/wake.
   importing a *user* library gets `jr $ra; syscall N` stubs, which the check took for the
   placeholder. The classifier is now a tested function (`core/stubinfo.c`) that reports direct,
   syscall and unresolved stubs separately.
+
+## E2 — save and load within one boot
+
+Code: `plugin/src/complications/states/engine.c` (+ `handoff.S`, `stream.c`, `core/freeze.c`,
+`core/flash.c`). Debug-build triggers in a game: **L+R+SELECT+RIGHT** save, **L+R+SELECT+LEFT**
+load, **L+R+SELECT+UP** drop the state and write the held log lines (then a probe dump).
+
+Memory: P9 (24 MB) = kernel image 4 MB + arena; P11 (4 MB) = header + FastLZ workspace + arena +
+200-byte apply blob. Nothing large in kernel RAM (module: 53 KB loaded).
+
+SAVE
+1. Refuse unless P2 is 24 MB (no highmem) and P5 (volatile) is unused.
+2. Freeze the game's threads (`core/freeze.c`), wait for the GE to finish or stall.
+3. FastLZ-compress game RAM (`0x88800000`, 24 MB), eDRAM (`0x84000000`, 2 MB) and the
+   scratchpad (`0x00010000`, 16 KB) into the arena; debug builds also CRC the raw data.
+4. Flush the log, switch it to RAM-only, request a suspend. At `0x401` arm the RTC alarm; at
+   PHASE0_0 drain DMA and copy the 4 MB kernel image. `pw_sysevent_shim` (handoff.S) recorded the
+   dispatcher's registers just before, inside the image.
+5. After resume: thaw. The state stays in RAM; log lines stay in RAM too, because any Memory Stick
+   write would make the saved kernel's file-system view stale.
+
+LOAD
+1. Freeze the game, wait for the GE.
+2. Set `g_restore_pending = 1` *inside the staged kernel image*, copy the apply blob to P11.
+3. Request a suspend. At PHASE0_0: drain DMA, mask interrupts, jump to the blob (uncached alias):
+   it copies the image over `0x88000000`, flushes both caches, reloads the save-time registers and
+   returns 0 into the save-time dispatcher.
+4. The system finishes the *save's* suspend, sleeps, the RTC wakes it, every driver resumes from
+   the restored kernel. The save-time thread wakes inside `pw_engine_save`, sees
+   `g_restore_pending`, decompresses RAM/eDRAM/scratchpad, invalidates the caches, re-initialises
+   the flash drivers, thaws the save-time frozen threads and logs the result (CRC check of game RAM
+   against the save in debug builds).
+
+Test protocol (NFS Most Wanted or any ISO):
+1. In gameplay: L+R+SELECT+RIGHT, release. ~2 s black screen, game continues.
+2. Play 20-30 s (drive somewhere else). Do not save the game in between.
+3. L+R+SELECT+LEFT, release. Black screen, then the game must be back at the saved moment.
+4. Optionally load again (the state stays valid).
+5. L+R+SELECT+UP to write the log, then exit the game normally.
+
+### Results
+_Pending._

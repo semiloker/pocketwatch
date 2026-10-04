@@ -21,6 +21,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   allocator, ARK SystemCtrl stubs, and SFO hashing through the firmware's chnnlsv.prx.
 - Spike S2b (L+R+SELECT+LEFT in debug builds): verifies the hashing against ARK_01234 and writes
   hashed test saves.
+- Savestate engine, in-RAM edition (E2): freeze the game, compress game RAM/eDRAM/scratchpad into
+  spare RAM, capture the kernel during a real suspend; load rolls the kernel back through an
+  assembly handoff and restores everything after the wake-up. Debug triggers L+R+SELECT+RIGHT/LEFT.
+- Chunked FastLZ streams over a two-region arena, flash driver re-initialisation after a load.
 
 ### Changed
 - Relicensed from MIT to GPL-3.0-or-later.

@@ -8,9 +8,10 @@
  *
  * pw_probe_boot  - short snapshot at plugin start: model, firmware, game, memory partitions.
  * pw_probe_start - starts a thread that, during gameplay,
- *                  on L + R + SELECT + UP   dumps partitions, modules and threads;
- *                  on L + R + SELECT + LEFT runs spike S2b (debug/spike_savedata.h).
- *                  on L + R + SELECT + RIGHT runs spike E1 (debug/spike_suspend.h).
+ *                  on L + R + SELECT + UP    drops a held state (flushing the log) and dumps
+ *                                            partitions, modules and threads;
+ *                  on L + R + SELECT + RIGHT saves a state to RAM (engine.h);
+ *                  on L + R + SELECT + LEFT  loads it back.
  * pw_probe_stop  - stops and deletes that thread; must be called from module_stop.
  */
 void pw_probe_boot(void);

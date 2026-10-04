@@ -11,7 +11,7 @@
 #define PW_LOG_NAME      "pocketwatch.log"
 #define PW_LOG_PATH_MAX  256
 #define PW_LOG_LINE_MAX  256
-#define PW_LOG_RING_SIZE 8192
+#define PW_LOG_RING_SIZE 16384 /* holds a few loads worth of lines while a state is held */
 #define PW_LOG_CHUNK     512
 
 /* Empty path means logging is disabled. */
