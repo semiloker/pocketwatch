@@ -11,7 +11,7 @@
 /* module_path: full path of the running PRX, as passed to module_start. */
 void pw_log_init(const char *module_path);
 
-/* Append one line. Formatting is done by sysclib's prnt (%s %d %u %x %p %c). */
+/* Append one line (printf-style via stb_sprintf, no floating point). */
 void pw_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #endif

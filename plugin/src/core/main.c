@@ -6,7 +6,7 @@
 #include <pspkernel.h>
 #include <string.h>
 
-#include "log.h"
+#include "core/log.h"
 
 PSP_MODULE_INFO("Pocketwatch", PSP_MODULE_KERNEL, 0, 1);
 
