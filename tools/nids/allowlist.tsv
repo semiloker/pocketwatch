@@ -9,4 +9,4 @@ IoFileMgrForKernel	0x810C4BC3	sceIoClose	verified	PSP-3000 (model 3), ARK-4 6.61
 InterruptManagerForKernel	0x092968F4	sceKernelCpuSuspendIntr	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
 InterruptManagerForKernel	0x5F10D406	sceKernelCpuResumeIntr	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
 IoFileMgrForKernel	0x6A638D83	sceIoRead	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
-IoFileMgrForKernel	0x06A70004	sceIoMkdir	assumed	used with this NID by ARK-4's own kernel modules (4 calls in core/)
+IoFileMgrForKernel	0x06A70004	sceIoMkdir	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved, mkdir worked; also used by ARK-4 core

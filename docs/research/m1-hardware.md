@@ -135,4 +135,28 @@ Debug build, in a game hold **L + R + SELECT + LEFT** (`plugin/src/debug/spike_s
 Then check **Game -> Saved Data Utility** for "Pocketwatch test" C and D.
 
 ### Results
-_Pending._
+
+**2026-10-04, PSP-3000, in NFS Most Wanted.** Raw log:
+[`logs/2026-10-04-s2b-nfs-most-wanted.log`](logs/2026-10-04-s2b-nfs-most-wanted.log).
+
+- **The XMB lists PWTEST00C and PWTEST00D with icon and files** (user report). Saves written
+  entirely by the plugin are accepted: the native Saved Data Utility can be the state browser.
+- `chnnlsv.prx` loaded on demand as module `sceChnnlsv`; functions resolved via ARK. The 398 KB
+  work buffer came from P9 at `0x8A000000`. Import self-check: 41 imports, 0 unresolved.
+- Timings (game running, 222/333 MHz as set by the game):
+
+  | Step | Time |
+  |---|---|
+  | build + hash PARAM.SFO | 2 ms |
+  | encode ICON0 (34.7 KB) / write | 9 ms / 23-27 ms |
+  | encode PIC1 (392 KB) / write | 95 ms / 129-213 ms (about 2-3 MB/s) |
+
+- Both PNGs per folder verified on the PC with zlib (CRCs, inflate, dimensions).
+- A second press re-ran the spike: `sceIoMkdir` returned `0x80010011` (already exists) and the
+  files were overwritten — fine.
+- **Open question:** re-hashing `ARK_01234/PARAM.SFO` gave **MISMATCH** with its stored hashes,
+  while our own (firmware-computed) hashes are accepted. Either ARK's file was hashed differently
+  and the XMB does not check the MAC values when listing, or the XMB checks only part of the
+  protection data. Test **PWTEST00E** (made on the PC from C's SFO with a changed title and
+  directory, i.e. a stale hash) decides it: listed normally = the XMB does not verify the hash.
+  Either way Pocketwatch keeps computing real hashes (2 ms, correct by construction).

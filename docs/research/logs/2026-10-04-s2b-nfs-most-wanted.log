@@ -1,0 +1,174 @@
+Pocketwatch b56f769 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 41 import(s) checked, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   408 KB maxfree=   372 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   408 KB maxfree=   372 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: ---- dump 1 ----
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=-
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   303 KB maxfree=   288 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free=   517 KB maxfree=   345 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   303 KB maxfree=   288 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=   875 KB maxfree=   875 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free=   517 KB maxfree=   345 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: 71 module(s)
+probe: module sceSystemMemoryManager      attr=0x0007 text=0x88000000+80652 data=148 bss=2608 seg0=0x88000000+80652
+probe: module sceLoaderCore               attr=0x2007 text=0x88017000+32920 data=20 bss=8856 seg0=0x88017000+32920
+probe: module sceExceptionManager         attr=0x0007 text=0x88021400+3348 data=0 bss=2892 seg0=0x88021400+3348
+probe: module sceInterruptManager         attr=0x0007 text=0x88022D00+14032 data=280 bss=12776 seg0=0x88022D00+14032
+probe: module sceThreadManager            attr=0x0007 text=0x8802E800+106180 data=0 bss=2116 seg0=0x8802E800+106180
+probe: module sceDMAManager               attr=0x0007 text=0x8804BA00+8164 data=0 bss=2176 seg0=0x8804BA00+8164
+probe: module sceSystimer                 attr=0x0007 text=0x8804E300+2844 data=132 bss=60 seg0=0x8804E300+2844
+probe: module sceIOFileManager            attr=0x0007 text=0x8804EF00+27332 data=32 bss=328 seg0=0x8804EF00+27332
+probe: module sceMemlmd                   attr=0x6007 text=0x88057C00+9592 data=116 bss=524 seg0=0x88057C00+9592
+probe: module sceModuleManager            attr=0x2007 text=0x8805A400+39320 data=0 bss=232 seg0=0x8805A400+39320
+probe: module SystemControl               attr=0x2007 text=0x88065F00+43705 data=8980 bss=468 seg0=0x88065F00+53420
+probe: module ARKCompatLayer              attr=0x2007 text=0x88073000+10634 data=4505 bss=152 seg0=0x88073000+15572
+probe: module sceLoadExec                 attr=0x2007 text=0x88079700+15996 data=36948 bss=124 seg0=0x88079700+15996
+probe: module sceLowIO_Driver             attr=0x0007 text=0x88086800+50688 data=520 bss=6200 seg0=0x88086800+50688
+probe: module sceGE_Manager               attr=0x0007 text=0x88096300+26684 data=72 bss=7608 seg0=0x88096300+26684
+probe: module sceIdStorage_Service        attr=0x0007 text=0x8809F300+8252 data=64 bss=1184 seg0=0x8809F300+8252
+probe: module sceSYSCON_Driver            attr=0x0007 text=0x880A5A00+19980 data=64 bss=480 seg0=0x880A5A00+19980
+probe: module sceRTC_Service              attr=0x0007 text=0x880AAB00+18096 data=64 bss=112 seg0=0x880AAB00+18096
+probe: module sceLFatFs_Driver            attr=0x0007 text=0x880B0300+47016 data=772 bss=17852 seg0=0x880B0300+47016
+probe: module sceClockgen_Driver          attr=0x0007 text=0x880CA600+2280 data=80 bss=0 seg0=0x880CA600+2280
+probe: module PRO_Inferno_Driver          attr=0x0006 text=0x880D3700+13719 data=228 bss=536 seg0=0x880D3700+14744
+probe: module sceDisplay_Service          attr=0x0007 text=0x880D7100+53284 data=484 bss=2584 seg0=0x880D7100+53284
+probe: module sceController_Service       attr=0x0007 text=0x880E5700+10320 data=64 bss=2848 seg0=0x880E5700+10320
+probe: module sceLED_Service              attr=0x0007 text=0x880E8B00+3596 data=64 bss=244 seg0=0x880E8B00+3596
+probe: module scePower_Service            attr=0x0007 text=0x880E9B00+28676 data=64 bss=22032 seg0=0x880E9B00+28676
+probe: module sceMSstor_Driver            attr=0x0007 text=0x880F8A00+62196 data=492 bss=22112 seg0=0x880F8A00+62196
+probe: module sceCodepage_Service         attr=0x0007 text=0x8810DE00+13452 data=0 bss=816 seg0=0x8810DE00+13452
+probe: module sceMSFAT_Driver             attr=0x0007 text=0x88112600+53240 data=700 bss=60 seg0=0x88112600+53240
+probe: module sceWM1801_Driver            attr=0x0007 text=0x88136500+3900 data=244 bss=12 seg0=0x88136500+3900
+probe: module sceAudio_Driver             attr=0x0007 text=0x88137600+13588 data=64 bss=1400 seg0=0x88137600+13588
+probe: module sceHP_Remote_Driver         attr=0x0007 text=0x8813B900+13876 data=84 bss=1124 seg0=0x8813B900+13876
+probe: module sceOpenPSID_Service         attr=0x4007 text=0x8813F400+14968 data=4 bss=2752 seg0=0x8813F400+14968
+probe: module sceUSB_Driver               attr=0x0007 text=0x88145A00+38856 data=584 bss=1148 seg0=0x88145A00+38856
+probe: module sceWlan_Driver              attr=0x0007 text=0x88150900+103004 data=64 bss=2420 seg0=0x88150900+103004
+probe: module sceWlanFirmVoyager_driver   attr=0x0007 text=0x88178E00+97720 data=0 bss=0 seg0=0x88178E00+97720
+probe: module sceRegistry_Service         attr=0x0007 text=0x88190C00+28408 data=8 bss=108 seg0=0x88190C00+28408
+probe: module sceMgr_Driver               attr=0x0006 text=0x8819FC00+49084 data=2788 bss=1364 seg0=0x8819FC00+49084
+probe: module sceMesgLed                  attr=0x6007 text=0x881ACC00+42348 data=120 bss=1736 seg0=0x881ACC00+42348
+probe: module sceAmctrl_driver            attr=0x4007 text=0x881B9300+7444 data=20 bss=2220 seg0=0x881B9300+7444
+probe: module scePspNpDrm_Driver          attr=0x4006 text=0x881C3A00+17248 data=0 bss=4248 seg0=0x881C3A00+17248
+probe: module sceIoFilemgrDNAS            attr=0x0007 text=0x881C8E00+6504 data=816 bss=1616 seg0=0x881C8E00+6504
+probe: module sceIsofs_driver             attr=0x0007 text=0x881CB100+28228 data=0 bss=4220 seg0=0x881CB100+28228
+probe: module sceUtility_Driver           attr=0x0007 text=0x881E5000+45112 data=1716 bss=320 seg0=0x881E5000+45112
+probe: module Stargate                    attr=0x0007 text=0x881F3900+12645 data=912 bss=1484 seg0=0x881F3900+15372
+probe: module sceMeCodecWrapper           attr=0x0007 text=0x881F7600+11264 data=64 bss=20 seg0=0x881F7600+11264
+probe: module sceImpose_Driver            attr=0x0007 text=0x881FA300+41416 data=68 bss=900 seg0=0x881FA300+41416
+probe: module bright                      attr=0x0000 text=0x88209400+7104 data=0 bss=16 seg0=0x88209400+7376
+probe: module battery_icon                attr=0x0000 text=0x8820C100+19876 data=164 bss=300 seg0=0x8820C100+20632
+probe: module Hold                        attr=0x0000 text=0x88211200+3984 data=28 bss=140 seg0=0x88211200+4508
+probe: module CWCHEATPRX                  attr=0x0000 text=0x88212400+74944 data=9216 bss=8836 seg0=0x88212400+93268
+probe: module RemoteJoyLite               attr=0x0000 text=0x8822B100+10988 data=584 bss=263068 seg0=0x8822B100+275356
+probe: module noumd                       attr=0x0000 text=0x88270800+896 data=0 bss=28 seg0=0x88270800+1224
+probe: module Pocketwatch                 attr=0x0000 text=0x88270D00+23844 data=256 bss=14996 seg0=0x88270D00+39392
+probe: module sceKernelLibrary            attr=0x0007 text=0x08800000+2944 data=64 bss=13376 seg0=0x08800000+2944
+probe: module nfsGame                     attr=0x0000 text=0x08804000+3112752 data=217377 bss=306592 seg0=0x08804000+3318192
+probe: module sceAudiocodec_Driver        attr=0x0006 text=0x88076D00+3416 data=0 bss=0 seg0=0x88076D00+3416
+probe: module sceNet_Service              attr=0x0006 text=0x8827B700+15600 data=8 bss=128 seg0=0x8827B700+15600
+probe: module sceMemab                    attr=0x0006 text=0x8827F500+11752 data=20 bss=4268 seg0=0x8827F500+11752
+probe: module sceMpegbase_Driver          attr=0x0006 text=0x88207100+6176 data=0 bss=1656 seg0=0x88207100+6176
+probe: module sceNetAdhocAuth_Service     attr=0x0006 text=0x88283400+18284 data=12 bss=820 seg0=0x88283400+18284
+probe: module sceSAScore                  attr=0x0006 text=0x88287F00+11872 data=0 bss=8 seg0=0x88287F00+11872
+probe: module sceVideocodec_Driver        attr=0x0006 text=0x8828AE00+4176 data=0 bss=0 seg0=0x8828AE00+4176
+probe: module sceATRAC3plus_Library       attr=0x0006 text=0x09EB7B00+14880 data=156 bss=1312 seg0=0x09EB7B00+14884
+probe: module sceMpeg_library             attr=0x0006 text=0x09EBBB00+34400 data=132 bss=528 seg0=0x09EBBB00+34404
+probe: module sceNet_Library              attr=0x0006 text=0x09EC4500+41176 data=192 bss=5312 seg0=0x09EC4500+41176
+probe: module sceNetAdhoc_Library         attr=0x0006 text=0x09ECFC00+30944 data=4 bss=228 seg0=0x09ECFC00+30952
+probe: module sceNetAdhocctl_Library      attr=0x0006 text=0x09ED7600+23120 data=140 bss=5752 seg0=0x09ED7600+23132
+probe: module sceNetInet_Library          attr=0x0006 text=0x09EDE800+182192 data=1716 bss=6760 seg0=0x09EDE800+182204
+probe: module sceNetApctl_Library         attr=0x0006 text=0x09F0D100+32324 data=248 bss=7752 seg0=0x09F0D100+32332
+probe: module sceNetApDialogDummy_Library attr=0x0006 text=0x09F16F00+2468 data=4 bss=16 seg0=0x09F16F00+2480
+probe: module sceNetResolver_Library      attr=0x0006 text=0x09F17900+8772 data=132 bss=14 seg0=0x09F17900+8784
+probe: 28 thread(s)
+probe: thread SceKernelModmgrWorker           attr=0x00000000 prio=  1 status=0x10 wait=0 stack=0x882F9F00+4096
+probe: thread ScePowerMain                    attr=0x00100001 prio=  4 status=0x04 wait=4 stack=0x882FD700+2048
+probe: thread ScePowerBattery                 attr=0x00100001 prio= 64 status=0x04 wait=4 stack=0x882FCF00+2048
+probe: thread SceMScmMedia                    attr=0x00100000 prio= 16 status=0x04 wait=4 stack=0x882FC300+3072
+probe: thread SceFatmsMedia                   attr=0x00100001 prio= 16 status=0x04 wait=4 stack=0x882F4E00+2048
+probe: thread SceAudioMixer                   attr=0x00100000 prio=  5 status=0x04 wait=4 stack=0x882F4800+1536
+probe: thread SceAudioInput                   attr=0x00100000 prio=  6 status=0x04 wait=4 stack=0x882F4400+1024
+probe: thread SceHpRemote                     attr=0x00100001 prio= 16 status=0x04 wait=4 stack=0x882F3C00+2048
+probe: thread SceWlanMac                      attr=0x00100001 prio= 39 status=0x04 wait=5 stack=0x882F3000+3072
+probe: thread SceMSstorFlush                  attr=0x00100000 prio= 15 status=0x04 wait=4 stack=0x882FFC00+1024
+probe: thread SceImpose                       attr=0x00100000 prio= 20 status=0x04 wait=4 stack=0x882FF400+2048
+probe: thread battery_icon                    attr=0x00000000 prio= 24 status=0x04 wait=2 stack=0x882EEF00+4096
+probe: thread main_thread                     attr=0x00000000 prio= 18 status=0x04 wait=2 stack=0x882FE200+1280
+probe: thread tick_thread                     attr=0x00000000 prio= 18 status=0x04 wait=2 stack=0x882EEA00+1280
+probe: thread cwcheat_main                    attr=0x00000000 prio= 56 status=0x04 wait=4 stack=0x882EC900+8448
+probe: thread USBThread                       attr=0x00000000 prio= 10 status=0x04 wait=4 stack=0x882DC900+65536
+probe: thread ScreenThread                    attr=0x00004000 prio= 17 status=0x04 wait=1 stack=0x882DC100+2048
+probe: thread RemoteJoyLite                   attr=0x00000000 prio= 16 status=0x04 wait=4 stack=0x882DB900+2048
+probe: thread noumd_main                      attr=0x00000000 prio= 24 status=0x04 wait=2 stack=0x882DA900+4096
+probe: thread PocketwatchMain                 attr=0x00000000 prio= 32 status=0x10 wait=0 stack=0x882D8900+8192
+probe: thread PocketwatchProbe                attr=0x00000000 prio= 48 status=0x01 wait=0 stack=0x882F1000+8192
+probe: thread user_main                       attr=0x800000FF prio= 32 status=0x04 wait=1 stack=0x09F80000+262144
+probe: thread main                            attr=0x800040FF prio=111 status=0x02 wait=0 stack=0x09F70000+65536
+probe: thread DVDUMD_READ                     attr=0x800000FF prio= 21 status=0x04 wait=1 stack=0x09FFD000+12288
+probe: thread SND                             attr=0x800040FF prio= 18 status=0x04 wait=4 stack=0x09FF5000+32768
+probe: thread SND_SAS                         attr=0x800000FF prio= 17 status=0x04 wait=4 stack=0x09FF3000+8192
+probe: thread SceIofileAsync                  attr=0x08100000 prio=107 status=0x04 wait=4 stack=0x882F7E00+2048
+probe: thread SND ATRAC PLAYER                attr=0x800000FF prio= 18 status=0x04 wait=4 stack=0x09FEB000+32768
+probe: ---- end of dump 1 ----
+S2b: ---- start ----
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+S2b: buffer 398462 bytes at 8a000000
+S2b: ARK_01234 re-hash MISMATCH (mode byte 01/01)
+S2b:   stored 11C0 72dc6dc637ce294bdb79cc54255c2fcd
+S2b:   ours   11C0 73c99f970e7e4a566b1df118264356ea
+S2b:   stored 11D0 37dc61c3b67b2fda2e779f61c89827bb
+S2b:   ours   11D0 db09aacf31ebb2200b3692ef71c46b54
+S2b: PWTEST00C mkdir 0x00000000
+S2b: PWTEST00C sfo build+hash 0 (2 ms)
+S2b: PWTEST00C ICON0 34708 bytes encoded in 9 ms
+S2b: PWTEST00C ICON0 written in 23 ms
+S2b: PWTEST00C PIC1 392045 bytes encoded in 95 ms
+S2b: PWTEST00C PIC1 written in 129 ms
+S2b: PWTEST00C done
+S2b: PWTEST00D mkdir 0x00000000
+S2b: PWTEST00D sfo build+hash 0 (2 ms)
+S2b: PWTEST00D ICON0 34708 bytes encoded in 9 ms
+S2b: PWTEST00D ICON0 written in 23 ms
+S2b: PWTEST00D PIC1 392045 bytes encoded in 95 ms
+S2b: PWTEST00D PIC1 written in 130 ms
+S2b: PWTEST00D done
+S2b: ---- end ----
+S2b: ---- start ----
+S2b: buffer 398462 bytes at 8a000000
+S2b: ARK_01234 re-hash MISMATCH (mode byte 01/01)
+S2b:   stored 11C0 72dc6dc637ce294bdb79cc54255c2fcd
+S2b:   ours   11C0 73c99f970e7e4a566b1df118264356ea
+S2b:   stored 11D0 37dc61c3b67b2fda2e779f61c89827bb
+S2b:   ours   11D0 db09aacf31ebb2200b3692ef71c46b54
+S2b: PWTEST00C mkdir 0x80010011
+S2b: PWTEST00C sfo build+hash 0 (2 ms)
+S2b: PWTEST00C ICON0 34708 bytes encoded in 8 ms
+S2b: PWTEST00C ICON0 written in 27 ms
+S2b: PWTEST00C PIC1 392045 bytes encoded in 94 ms
+S2b: PWTEST00C PIC1 written in 212 ms
+S2b: PWTEST00C done
+S2b: PWTEST00D mkdir 0x80010011
+S2b: PWTEST00D sfo build+hash 0 (3 ms)
+S2b: PWTEST00D ICON0 34708 bytes encoded in 8 ms
+S2b: PWTEST00D ICON0 written in 25 ms
+S2b: PWTEST00D PIC1 392045 bytes encoded in 94 ms
+S2b: PWTEST00D PIC1 written in 213 ms
+S2b: PWTEST00D done
+S2b: ---- end ----
