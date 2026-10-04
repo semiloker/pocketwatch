@@ -15,7 +15,7 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
 # DEBUG=1 (default while developing) adds the hardware probe and spikes.
 DEBUG ?= 1
 ifeq ($(DEBUG),1)
-OBJS   += src/debug/probe.o src/debug/spike_savedata.o
+OBJS   += src/debug/probe.o src/debug/spike_savedata.o src/debug/spike_suspend.o
 endif
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -35,7 +35,9 @@ endif
 ASFLAGS = $(CFLAGS)
 
 LIBDIR =
-LIBS   = -lgcc -lpspge_driver
+# Order matters: sceRtcGetCurrentTick resolves from the user library sceRtc (NIDs not randomized,
+# as PSPFatSave does on 6.61); sceRtcSetAlarmTick exists only in sceRtc_driver (ARK-mapped).
+LIBS   = -lgcc -lpspge_driver -lpsppower_driver -lpsprtc -lpsprtc_driver
 
 PSPSDK = $(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build_prx.mak
@@ -43,13 +45,13 @@ include $(PSPSDK)/lib/build_prx.mak
 # Third-party code: keep upstream sources untouched, silence their known warnings.
 lib/stb_sprintf.o: CFLAGS += -Wno-sign-compare
 
-# Rebuild main.o whenever the version string changes, and everything when the profile changes.
+# Rebuild main.o whenever the version string changes, and everything when the profile or libs change.
 src/core/main.o: .version
 .version: FORCE
 	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
 $(OBJS): .buildflags
 .buildflags: FORCE
-	@echo 'DEBUG=$(DEBUG)' | cmp -s - $@ || echo 'DEBUG=$(DEBUG)' > $@
+	@echo 'DEBUG=$(DEBUG) LIBS=$(LIBS)' | cmp -s - $@ || echo 'DEBUG=$(DEBUG) LIBS=$(LIBS)' > $@
 
 check: $(FINAL_TARGET)
 	python3 ../tools/check_prx.py --elf $(TARGET).elf --prx $(TARGET).prx \

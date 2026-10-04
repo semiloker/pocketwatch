@@ -10,6 +10,7 @@
  * pw_probe_start - starts a thread that, during gameplay,
  *                  on L + R + SELECT + UP   dumps partitions, modules and threads;
  *                  on L + R + SELECT + LEFT runs spike S2b (debug/spike_savedata.h).
+ *                  on L + R + SELECT + RIGHT runs spike E1 (debug/spike_suspend.h).
  * pw_probe_stop  - stops and deletes that thread; must be called from module_stop.
  */
 void pw_probe_boot(void);
