@@ -47,25 +47,35 @@ Requires the [PSPDEV toolchain](https://pspdev.github.io/) (`PSPDEV` defaults to
 ```sh
 # Linux / macOS / WSL
 bash scripts/build.sh            # -> plugin/pocketwatch.prx
+bash scripts/build.sh check      # import NIDs vs ARK-4 6.61 + size budgets
 bash scripts/build.sh clean
+make -C tests                    # host unit tests (ASan + UBSan)
+bash scripts/format.sh --check   # clang-format 18.1.8
 ```
 
-```powershell
-# Windows, toolchain installed in WSL
-.\scripts\build.ps1
-.\scripts\deploy.ps1 -Enable     # copy to the PSP over USB and register in PLUGINS.TXT
+```bat
+:: Windows, toolchain installed in WSL (the .cmd wrappers bypass the PowerShell script policy)
+scripts\build.cmd
+scripts\build.cmd -Target check
+scripts\deploy.cmd -Enable       :: copy to the PSP over USB and register in PLUGINS.TXT
 ```
 
-Every push is built by GitHub Actions; pushing a `v*` tag publishes a release with the zip.
+Every push runs the host tests, the format check, the PSP build and `make check` on GitHub
+Actions; pushing a `v*` tag publishes a release with the zip.
 
 ## Project layout
 
 ```
-plugin/            kernel PRX (Makefile, exports.exp)
-  src/main.c       module entry, starts the complications
-  src/log.c        pocketwatch.log next to the PRX
-scripts/           build (WSL/Linux) and deploy (USB) helpers
-.github/           CI, issue templates
+plugin/                  kernel PRX (Makefile, exports.exp)
+  src/core/main.c        module entry, starts the complications
+  src/core/log.c         RAM ring-buffer log -> pocketwatch.log next to the PRX
+  src/core/selfcheck.c   on-device check that every import resolved
+  src/core/platform*.c   OS services, so portable modules also build on the host
+  lib/                   third-party code (stb_sprintf)
+tests/                   host unit tests
+tools/check_prx.py       static import/size checks; NID tables in tools/nids/
+scripts/                 build, deploy and format helpers
+.github/                 CI, issue templates
 ```
 
 ## Prior art
