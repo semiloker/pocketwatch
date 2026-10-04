@@ -8,15 +8,32 @@ on:
   workflow_dispatch:
 
 jobs:
+  host:
+    name: Host tests and formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format 18.1.8
+        run: pipx install clang-format==18.1.8
+
+      - name: Check formatting
+        run: bash scripts/format.sh --check
+
+      - name: Unit tests (ASan + UBSan)
+        run: make -C tests
+
   build:
+    name: PSP build
+    needs: host
     runs-on: ubuntu-latest
     container: pspdev/pspdev:latest
     permissions:
       contents: write # publish releases on v* tags
 
     steps:
-      - name: Install packaging tools
-        run: apk add --no-cache zip
+      - name: Install tools
+        run: apk add --no-cache zip python3
 
       - uses: actions/checkout@v4
         with:
@@ -26,6 +43,9 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           bash scripts/build.sh
+
+      - name: Check imports and size budgets
+        run: bash scripts/build.sh check
 
       - name: Package
         id: package
