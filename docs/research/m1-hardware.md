@@ -160,3 +160,20 @@ Then check **Game -> Saved Data Utility** for "Pocketwatch test" C and D.
   protection data. Test **PWTEST00E** (made on the PC from C's SFO with a changed title and
   directory, i.e. a stale hash) decides it: listed normally = the XMB does not verify the hash.
   Either way Pocketwatch keeps computing real hashes (2 ms, correct by construction).
+- **Answer (same day): PWTEST00E is not listed as "Save State test E" — it shows as
+  "Corrupted Data". The XMB verifies the SFO MAC.** Therefore our chnnlsv hashes are valid, the
+  hashing is mandatory, and ARK_01234's stored hash is most likely invalid itself (its entry would
+  then be one of the "Corrupted Data" items the user saw). The ARK re-hash comparison is not a
+  usable oracle; a folder written by the plugin and listed by the XMB is.
+
+## M1 conclusions
+
+1. States will be native save folders: `PW<GAMEID><NN>` with a chnnlsv-hashed (mode 0x01)
+   PARAM.SFO, ICON0, PIC1 and the state data. Browsing and deleting come from the XMB for free.
+2. In a retail game on this PSP-3000 there are 28 MB of free RAM (P9 24 MB + P11 4 MB) to stage a
+   state; kernel RAM (P1) has ~300 KB free and must stay untouched by big buffers.
+3. Snapshot ranges: kernel `0x88000000-0x88400000` (4 MB), game `0x08800000-0x0A000000` (24 MB),
+   eDRAM 2 MB. Game threads are the `0x80000000`-attribute ones.
+4. The Memory Stick writes at roughly 2-3 MB/s in a game: a compressed state of ~10-15 MB takes
+   several seconds, so it must be written after the game is resumed or behind a native
+   "Saving..." screen.
