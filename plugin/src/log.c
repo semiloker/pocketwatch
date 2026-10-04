@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 #include <pspiofilemgr.h>
 #include <pspkernel.h>
 #include <pspsysclib.h>

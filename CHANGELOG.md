@@ -10,3 +10,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Kernel PRX skeleton for the `GAME` runlevel that writes its version to `pocketwatch.log`.
 - Build scripts for Linux/WSL and Windows, USB deploy script.
 - GitHub Actions build with release packaging on `v*` tags.
+
+### Changed
+- Relicensed from MIT to GPL-3.0-or-later.

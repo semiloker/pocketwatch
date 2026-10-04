@@ -79,4 +79,8 @@ Pocketwatch is written from scratch, but stands on the shoulders of:
 
 ## License
 
-[MIT](LICENSE)
+Pocketwatch is free software, licensed under the
+[GNU General Public License v3.0 or later](LICENSE) (`GPL-3.0-or-later`).
+Bundled third-party code keeps its own license (noted in each file's header).
+Sony firmware assets (fonts, icons) are never redistributed - they are read at runtime
+from the user's own PSP.

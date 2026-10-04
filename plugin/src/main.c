@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * Pocketwatch - Pause. Save. Play.
  * Kernel-mode PRX entry point, loaded by the CFW in the GAME runlevel.

@@ -17,4 +17,6 @@ Features are called *complications*; the first one is States (savestates).
 - Public symbols use the `pw_` prefix; one module per `.c`/`.h` pair in `plugin/src/`.
 - New source files must be added to `OBJS` in `plugin/Makefile`.
 - `.ps1` files must stay ASCII-only (Windows PowerShell 5.1 reads them as ANSI).
-- Commit after each logical step (Conventional Commits).
+- License is GPL-3.0-or-later: start every new source file with `// SPDX-License-Identifier: GPL-3.0-or-later`
+  (third-party files keep their own SPDX line). Never copy code from PSPStates (no license) or intraFont (CC BY-SA).
+- Commit after each logical step (Conventional Commits). No `Co-Authored-By` or other AI attribution lines.
