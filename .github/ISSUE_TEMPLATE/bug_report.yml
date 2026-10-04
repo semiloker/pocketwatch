@@ -1,0 +1,54 @@
+name: Bug report
+description: Something went wrong in a game or in the menu
+labels: [bug]
+body:
+  - type: dropdown
+    id: model
+    attributes:
+      label: PSP model
+      options:
+        - PSP-1000
+        - PSP-2000
+        - PSP-3000
+        - PSP Go (N1000)
+        - PSP Street (E1000)
+    validations:
+      required: true
+  - type: input
+    id: cfw
+    attributes:
+      label: Custom firmware
+      placeholder: ARK-4 (version) on 6.61
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Pocketwatch version
+      description: First line of seplugins/pocketwatch/pocketwatch.log
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game ID and title
+      placeholder: ULUS12345 - Game title
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened?
+      description: Steps to reproduce, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: pocketwatch.log
+      description: Paste the contents of seplugins/pocketwatch/pocketwatch.log
+      render: text
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Other enabled plugins
+      description: Relevant lines from seplugins/PLUGINS.TXT
+      render: text
