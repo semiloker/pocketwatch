@@ -7,7 +7,7 @@
 
 TARGET = pocketwatch
 OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o \
-         src/core/selfcheck.o src/core/mem.o src/core/crc32.o src/core/png.o \
+         src/core/selfcheck.o src/core/stubinfo.o src/core/mem.o src/core/crc32.o src/core/png.o \
          src/core/stubs/SystemCtrlForKernel.o \
          src/complications/states/sfo.o src/complications/states/savedata_hash.o \
          lib/stb_sprintf.o exports.o

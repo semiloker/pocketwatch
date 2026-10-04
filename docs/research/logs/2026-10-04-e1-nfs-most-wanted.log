@@ -1,0 +1,34 @@
+Pocketwatch 0b29cbf-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: unresolved import sceRtc 0x3F7AD767
+selfcheck: 47 import(s) checked, 1 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   405 KB maxfree=   369 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   405 KB maxfree=   369 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+E1: ---- start ----
+E1: staging 4096 KB at 8a000000
+E1: scePowerRequestSuspend=0x00000000 resumed=1 alarm=1 captured=1
+E1: request->resume 6097 ms (wall clock), capture 8008569 cycles, dmac_left=0x0
+E1: 96 sysevent(s):
+E1:   00000100 00000102 00000210 0000020F 0000020E 0000020D 0000020C 0000020B
+E1:   0000020A 00000209 00000208 00000207 00000206 00000205 00000204 00000203
+E1:   00000202 00000201 00000200 00000400 00000401 00000402 00000401 00000402
+E1:   00000401 00000402 00000401 00000402 00000401 00000402 00000401 00000402
+E1:   00000401 00000402 00000401 00000402 00000401 00000402 00000401 00000402
+E1:   00000401 00000402 00000401 00000402 00000401 00000402 00000401 00000402
+E1:   00000401 00000402 00000401 00000402 00000401 00000402 00000401 00000402
+E1:   00000401 00000402 00000401 00000402 00000401 00000402 00000401 00000402
+E1:   00001000 0000400F 0000400E 0000400D 0000400C 0000400B 0000400A 00004009
+E1:   00004008 00004007 00004006 00004005 00004004 00004003 00004002 00004001
+E1:   00004000 00010000 00010001 00010002 00010003 00010004 00010005 00010006
+E1:   00010007 00010008 00010009 0001000A 0001000B 0001000C 0001000D 0001000E
+E1: snapshot crc32=4BDA4480, sysmem text matches live memory
+E1: ---- end ----

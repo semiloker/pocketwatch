@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/log.h"
 #include "core/selfcheck.h"
+#include "core/stubinfo.h"
 
 /* Provided by the PSPSDK link script around the .lib.stub section. */
 extern char __lib_stub_top[], __lib_stub_bottom[];
@@ -17,13 +18,10 @@ typedef struct {
     const unsigned int *stubs; /* two instructions per function */
 } StubEntry;
 
-#define STUB_UNRESOLVED  0x0000054Cu /* syscall 0x15, written by ARK-4 for unknown NIDs */
-#define STUB_PLACEHOLDER 0x03E00008u /* jr $ra: the stub was never linked at all */
-
 int pw_selfcheck_imports(void)
 {
     const char *p = __lib_stub_top;
-    int checked = 0, missing = 0;
+    int checked = 0, direct = 0, syscalls = 0, bad = 0;
 
     while (p < __lib_stub_bottom) {
         const StubEntry *e = (const StubEntry *)p;
@@ -31,17 +29,31 @@ int pw_selfcheck_imports(void)
         if (e->len == 0)
             break;
         for (unsigned int i = 0; i < e->func_count; i++) {
-            unsigned int insn = e->stubs[i * 2];
+            const unsigned int *stub = e->stubs + i * 2;
 
             checked++;
-            if (insn == STUB_UNRESOLVED || insn == STUB_PLACEHOLDER) {
+            switch (pw_stub_classify(stub[0], stub[1])) {
+            case PW_STUB_DIRECT:
+                direct++;
+                break;
+            case PW_STUB_SYSCALL:
+                syscalls++;
+                break;
+            case PW_STUB_UNRESOLVED:
                 pw_log("selfcheck: unresolved import %s 0x%08X", e->name, e->nids[i]);
-                missing++;
+                bad++;
+                break;
+            default:
+                pw_log("selfcheck: unexpected stub for %s 0x%08X: %08X %08X", e->name, e->nids[i],
+                       stub[0], stub[1]);
+                bad++;
+                break;
             }
         }
         p += e->len * 4;
     }
 
-    pw_log("selfcheck: %d import(s) checked, %d unresolved", checked, missing);
-    return missing;
+    pw_log("selfcheck: %d import(s): %d direct, %d via syscall, %d unresolved", checked, direct,
+           syscalls, bad);
+    return bad;
 }

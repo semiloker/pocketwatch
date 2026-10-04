@@ -8,6 +8,7 @@
 #include "core/crc32.h"
 #include "core/log.h"
 #include "core/mem.h"
+#include "stb_sprintf.h"
 #include "debug/spike_suspend.h"
 
 #define KERNEL_RAM_BASE 0x88000000u
@@ -17,7 +18,7 @@
 #define EV_SUSPEND_PHASE0_0  0x00004000
 #define EV_RESUME_COMPLETED  0x00400000
 
-#define MAX_EVENTS     96
+#define MAX_EVENTS     256
 #define WAKE_DELAY_US  100000ull
 #define RESUME_TIMEOUT 2000 /* polls of 5 ms of *active* time; the sleep itself does not count */
 
@@ -31,6 +32,7 @@ static volatile int g_resumed;
 static volatile unsigned int g_capture_cycles;
 static volatile unsigned int g_dmac_left;
 static volatile unsigned int g_events[MAX_EVENTS];
+static volatile unsigned int g_event_cycles[MAX_EVENTS];
 static volatile int g_event_count;
 static void *volatile g_stage;
 
@@ -64,8 +66,10 @@ static int on_sysevent(int ev_id, char *ev_name, void *param, int *result)
 
     if (!g_armed)
         return 0;
-    if (g_event_count < MAX_EVENTS)
+    if (g_event_count < MAX_EVENTS) {
+        g_event_cycles[g_event_count] = cycles();
         g_events[g_event_count++] = (unsigned int)ev_id;
+    }
 
     if (ev_id == EV_POWER_LOCK_PHASE1 && !g_alarm_set) {
         u64 tick;
@@ -108,25 +112,67 @@ void pw_spike_suspend_shutdown(void)
     g_registered = 0;
 }
 
-static void log_events(void)
+static int find_event(unsigned int id)
 {
+    for (int i = 0; i < g_event_count; i++)
+        if (g_events[i] == id)
+            return i;
+    return -1;
+}
+
+/* Logs the trace; runs of a repeated 1- or 2-event pattern are folded into "A B xN". */
+static void log_events(unsigned int cycles_per_ms)
+{
+    static const char digits[] = "0123456789ABCDEF";
     char line[200];
-    int n = 0, len = 0;
+    int len = 0, i = 0;
 
     pw_log("E1: %d sysevent(s):", g_event_count);
-    for (int i = 0; i < g_event_count; i++) {
-        static const char digits[] = "0123456789ABCDEF";
-        unsigned int v = g_events[i];
+    while (i < g_event_count) {
+        int width = 1, repeats = 1;
 
-        line[len++] = ' ';
-        for (int s = 28; s >= 0; s -= 4)
-            line[len++] = digits[(v >> s) & 15];
-        if (++n == 8 || i == g_event_count - 1) {
+        for (int w = 2; w >= 1; w--) {
+            int r = 1;
+
+            while (i + (r + 1) * w <= g_event_count && g_events[i + r * w] == g_events[i] &&
+                   (w == 1 || g_events[i + r * w + 1] == g_events[i + 1]))
+                r++;
+            if (r >= 3) {
+                width = w;
+                repeats = r;
+                break;
+            }
+        }
+        for (int k = 0; k < width; k++) {
+            unsigned int v = g_events[i + k];
+
+            line[len++] = ' ';
+            for (int sft = 20; sft >= 0; sft -= 4)
+                line[len++] = digits[(v >> sft) & 15];
+        }
+        if (repeats > 1)
+            len += stbsp_snprintf(line + len, sizeof(line) - (unsigned int)len, " x%d", repeats);
+        i += width * repeats;
+        if (len > 150 || i >= g_event_count) {
             line[len] = '\0';
-            pw_log("E1:  %s", line);
-            n = len = 0;
+            pw_log("E1: %s", line);
+            len = 0;
         }
     }
+
+    if (cycles_per_ms == 0)
+        return;
+    int q = find_event(0x100), start = find_event(0x1000), cap = find_event(EV_SUSPEND_PHASE0_0);
+    int res = find_event(0x10000);
+    if (q >= 0 && start >= 0)
+        pw_log("E1: query -> suspend start %u ms",
+               (g_event_cycles[start] - g_event_cycles[q]) / cycles_per_ms);
+    if (start >= 0 && cap >= 0)
+        pw_log("E1: suspend start -> PHASE0_0 %u ms",
+               (g_event_cycles[cap] - g_event_cycles[start]) / cycles_per_ms);
+    if (res >= 0 && g_event_count > res)
+        pw_log("E1: resume phases logged %u ms",
+               (g_event_cycles[g_event_count - 1] - g_event_cycles[res]) / cycles_per_ms);
 }
 
 void pw_spike_suspend(void)
@@ -157,6 +203,11 @@ void pw_spike_suspend(void)
     sceKernelDcacheWritebackAll();
     g_armed = 1;
 
+    /* Calibrate CP0 Count against the kernel clock (the rate depends on the CPU clock). */
+    unsigned int c0 = cycles(), cycles_per_ms;
+    sceKernelDelayThread(100 * 1000);
+    cycles_per_ms = (cycles() - c0) / 100;
+
     sceRtcGetCurrentTick(&t_start);
     ret = scePowerRequestSuspend();
     while (!g_resumed && polls++ < RESUME_TIMEOUT)
@@ -167,9 +218,11 @@ void pw_spike_suspend(void)
 
     pw_log("E1: scePowerRequestSuspend=0x%08X resumed=%d alarm=%d captured=%d", ret, g_resumed,
            g_alarm_set, g_captured);
-    pw_log("E1: request->resume %u ms (wall clock), capture %u cycles, dmac_left=0x%X",
-           (unsigned int)((t_end - t_start) / 1000), g_capture_cycles, g_dmac_left);
-    log_events();
+    pw_log("E1: request->resume %u ms (wall clock), capture %u ms, dmac_left=0x%X",
+           (unsigned int)((t_end - t_start) / 1000),
+           cycles_per_ms ? g_capture_cycles / cycles_per_ms : 0, g_dmac_left);
+    pw_log("E1: CP0 Count runs at %u cycles/ms", cycles_per_ms);
+    log_events(cycles_per_ms);
 
     if (g_captured) {
         /* sysmem's code (first 64 KB) never changes: the copy must match it exactly. */
