@@ -59,7 +59,40 @@ Fix: `module_stop` now signals and joins every plugin thread (terminate after 50
 abortable between lines, `disc0:` is only touched for retail apitypes, and the plugin loads for
 retail games only.
 
-**Next:** repeat with a retail ISO (expected: P2 = 24 MB, P9 present with Inferno's 8 MB cache).
+**Run 2 — 2026-10-04, retail ISO: Need for Speed Most Wanted 5-1-0 (ULUS-10036, apitype 0x123).**
+Raw log: [`logs/2026-10-04-s1-nfs-most-wanted.log`](logs/2026-10-04-s1-nfs-most-wanted.log).
+Two dumps in gameplay (identical). Exit back to the XMB with the fixed build: no hang reported.
+
+| Partition | Start | Size | Free at boot | Free in game | Role |
+|---|---|---|---|---|---|
+| 1 (+3 mirror) | 0x88000000 | 3072 KB | 423 KB | **319 KB** | kernel |
+| 4 | 0x88300000 | 1024 KB | 1024 KB | 875 KB | kernel (game-loaded drivers) |
+| 2 (+6 mirror) | 0x08800000 | 24576 KB | 20303 KB | **517 KB** | game |
+| 5 | 0x08400000 | 4096 KB | 4096 KB | 4096 KB | volatile (unused by this game) |
+| 8 (+12 mirror) | 0x8BB00000 | 1024 KB | 681 KB | 681 KB | |
+| **9** | **0x8A000000** | **24576 KB** | 24576 KB | **24576 KB** | **entirely free** |
+| 11 | 0x8BC00000 | 4096 KB | 4096 KB | 4096 KB | free |
+
+Findings that shape the engine:
+- **28 MB of free RAM during gameplay (P9 + P11).** Inferno's ISO cache did not take P9 in this
+  game. A complete state (4 MB kernel + 24 MB user + 2 MB VRAM, compressed) can be staged in RAM,
+  so the slow Memory Stick write can happen outside the frozen/suspended window.
+- **The game uses ~98% of P2** (517 KB free): "save only allocated blocks" would gain nothing; save
+  all 24 MB and let compression handle the rest.
+- **Kernel = 0x88000000..0x88400000 (P1 + P4, 4 MB)**: this is the kernel snapshot range. The game
+  loaded 7 drivers into kernel RAM at runtime (sceSAScore, sceMpegbase_Driver, sceNet_Service,
+  sceVideocodec_Driver, ...) and 9 user libraries into the top of P2 (sceNet*, sceMpeg,
+  ATRAC3plus) — all covered by "kernel 4 MB + P2 24 MB".
+- **eDRAM = 2048 KB** on this PSP-3000 (not 4 MB).
+- **Game threads** (`user_main`, `main`, `DVDUMD_READ`, `SND`, `SND_SAS`, `SND ATRAC PLAYER`)
+  all have attr bit `0x80000000`. `SceIofileAsync` (attr `0x08100000`) is a kernel worker for the
+  game's async I/O: the freeze must wait until it is idle rather than suspend it.
+- Kernel P1 free: 319 KB. Pocketwatch occupies 23 KB there today; everything large goes to P9/P11.
+- Plugins sharing kernel RAM: HUD, bright, battery_icon, Hold, CWCheat, RemoteJoyLite (263 KB bss),
+  noumd.
+
+**Still open:** a game that uses the volatile partition (P5) and a game where Inferno's cache does
+claim P9 (it is `infernocache:lru` in SETTINGS.TXT), to size the worst case.
 
 ## S2 — are hash-less saves listed by the XMB?
 
@@ -86,3 +119,20 @@ with valid SFO hashes (mode 0x01, as ARK_01234 does) — generated on the PSP it
 detail text (date, slot) changes per save. Next spike: hash a PARAM.SFO on-device (sceChnnlsv or
 the KIRK engine) and confirm the XMB lists it. Test folders removed with `--remove`;
 to confirm, the "Corrupted Data" entries should now be gone.
+
+## S2b — hashed saves written on the PSP
+
+Debug build, in a game hold **L + R + SELECT + LEFT** (`plugin/src/debug/spike_savedata.c`):
+1. Loads `flash0:/kd/chnnlsv.prx` if needed and resolves `sceSdSetIndex` / `sceSdRemoveValue` /
+   `sceSdGetLastIndex` through ARK's `sctrlHENFindFunction` — the firmware does the crypto,
+   Pocketwatch holds no keys.
+2. Re-hashes `ARK_01234/PARAM.SFO` (an SFO the XMB accepts) and logs MATCH/MISMATCH against its
+   stored hashes: an on-device check of the algorithm (PPSSPP `UpdateHash`, mode 0x01:
+   MAC mode 2 -> params+0x20, set flag, MAC mode 1 -> params+0x10).
+3. Writes `PWTEST00C` (empty file list) and `PWTEST00D` (`STATE.BIN` listed) with hashed SFOs and
+   ICON0/PIC1 from the plugin's own PNG encoder, logging the time of each step.
+
+Then check **Game -> Saved Data Utility** for "Pocketwatch test" C and D.
+
+### Results
+_Pending._

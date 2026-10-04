@@ -1,19 +1,21 @@
-# Pocketwatch - kernel-mode PRX plugin (GAME runlevel)
+# Pocketwatch - kernel-mode PRX plugin (UMD runlevel: retail games)
 #
-#   make                 build pocketwatch.prx
+#   make                 build pocketwatch.prx (DEBUG=0 for the release build)
 #   make check           verify import NIDs against ARK-4 6.61 and the size budgets
 #   make VERSION=v0.1.0  override the embedded version string
 #   make clean
 
 TARGET = pocketwatch
 OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o \
-         src/core/selfcheck.o \
+         src/core/selfcheck.o src/core/mem.o src/core/crc32.o src/core/png.o \
+         src/core/stubs/SystemCtrlForKernel.o \
+         src/complications/states/sfo.o src/complications/states/savedata_hash.o \
          lib/stb_sprintf.o exports.o
 
-# DEBUG=1 (default while developing) adds the hardware probe; DEBUG=0 is the release build.
+# DEBUG=1 (default while developing) adds the hardware probe and spikes.
 DEBUG ?= 1
 ifeq ($(DEBUG),1)
-OBJS   += src/core/probe.o
+OBJS   += src/debug/probe.o src/debug/spike_savedata.o
 endif
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -56,6 +58,6 @@ check: $(FINAL_TARGET)
 
 clean: clean-local
 clean-local:
-	-rm -f exports.c .version .buildflags src/core/probe.o
+	-rm -f exports.c .version .buildflags src/debug/*.o
 
 .PHONY: FORCE check clean-local

@@ -17,6 +17,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Debug build profile (`DEBUG=1`) with a hardware probe: memory partitions, modules and threads
   dumped to the log on L+R+SELECT+UP.
 - `tools/sfo.py` (PARAM.SFO reader/writer, byte-exact with real saves) and the S2 savedata spike.
+- PARAM.SFO writer in C (byte-identical to `tools/sfo.py`), PNG encoder, CRC-32, extra-RAM
+  allocator, ARK SystemCtrl stubs, and SFO hashing through the firmware's chnnlsv.prx.
+- Spike S2b (L+R+SELECT+LEFT in debug builds): verifies the hashing against ARK_01234 and writes
+  hashed test saves.
 
 ### Changed
 - Relicensed from MIT to GPL-3.0-or-later.

@@ -10,7 +10,7 @@
 #include "core/selfcheck.h"
 
 #ifdef PW_DEBUG
-#include "core/probe.h"
+#include "debug/probe.h"
 #endif
 
 PSP_MODULE_INFO("Pocketwatch", PSP_MODULE_KERNEL, 0, 1);

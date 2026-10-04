@@ -10,9 +10,12 @@
 #include <string.h>
 
 #include "core/log.h"
-#include "core/probe.h"
+#include "debug/probe.h"
+#include "debug/spike_savedata.h"
 
-#define PROBE_COMBO      (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT | PSP_CTRL_UP)
+#define PROBE_COMBO (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT | PSP_CTRL_UP)
+#define SPIKE_SAVEDATA_COMBO                                                                       \
+    (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT | PSP_CTRL_LEFT)
 #define PROBE_MAX_IDS    128
 #define PROBE_PARTITIONS 12
 
@@ -131,6 +134,17 @@ void pw_probe_boot(void)
     dump_partitions();
 }
 
+/* One action per press: wait until the combo is let go. */
+static void wait_release(unsigned int combo)
+{
+    SceCtrlData pad;
+
+    do {
+        sceKernelDelayThread(100 * 1000);
+        sceCtrlPeekBufferPositive(&pad, 1);
+    } while (!g_probe_stop && (pad.Buttons & combo) == combo);
+}
+
 static int probe_thread(SceSize args, void *argp)
 {
     SceCtrlData pad;
@@ -139,21 +153,21 @@ static int probe_thread(SceSize args, void *argp)
     (void)argp;
     while (!g_probe_stop) {
         sceKernelDelayThread(50 * 1000);
-        if (sceCtrlPeekBufferPositive(&pad, 1) < 0 || (pad.Buttons & PROBE_COMBO) != PROBE_COMBO)
+        if (sceCtrlPeekBufferPositive(&pad, 1) < 0)
             continue;
 
-        pw_log("probe: ---- dump %d ----", ++g_dump_count);
-        dump_system();
-        dump_partitions();
-        dump_modules();
-        dump_threads();
-        pw_log("probe: ---- end of dump %d ----", g_dump_count);
-
-        /* One dump per press. */
-        do {
-            sceKernelDelayThread(100 * 1000);
-            sceCtrlPeekBufferPositive(&pad, 1);
-        } while (!g_probe_stop && (pad.Buttons & PROBE_COMBO) == PROBE_COMBO);
+        if ((pad.Buttons & PROBE_COMBO) == PROBE_COMBO) {
+            pw_log("probe: ---- dump %d ----", ++g_dump_count);
+            dump_system();
+            dump_partitions();
+            dump_modules();
+            dump_threads();
+            pw_log("probe: ---- end of dump %d ----", g_dump_count);
+            wait_release(PROBE_COMBO);
+        } else if ((pad.Buttons & SPIKE_SAVEDATA_COMBO) == SPIKE_SAVEDATA_COMBO) {
+            pw_spike_savedata();
+            wait_release(SPIKE_SAVEDATA_COMBO);
+        }
     }
     return 0;
 }
