@@ -1,0 +1,10 @@
+# Imports from randomized libraries whose NID is NOT in ARK-4's resolver table (ark4_660.tsv),
+# i.e. NIDs that must be unchanged on 6.61 for the call to work.
+# status: assumed  = believed unchanged, not yet confirmed on hardware
+#         verified = pocketwatch.log selfcheck showed it resolved on a real PSP (note model + date)
+# library	nid	name	status	note
+IoFileMgrForKernel	0x109F50BC	sceIoOpen	assumed	used with this NID by ARK-4's own kernel modules
+IoFileMgrForKernel	0x42EC03AC	sceIoWrite	assumed	used with this NID by ARK-4's own kernel modules
+IoFileMgrForKernel	0x810C4BC3	sceIoClose	assumed	used with this NID by ARK-4's own kernel modules
+InterruptManagerForKernel	0x092968F4	sceKernelCpuSuspendIntr	assumed	used with this NID by ARK-4's own kernel modules
+InterruptManagerForKernel	0x5F10D406	sceKernelCpuResumeIntr	assumed	used with this NID by ARK-4's own kernel modules
