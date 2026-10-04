@@ -37,7 +37,7 @@
 #define HEADER_SPACE    0x10000u
 #define WORKSPACE_START 0x08000u
 #define BLOB_SPACE      0x01000u
-#define STATE_MAGIC     0x31535750u /* "PWS1" */
+#define STATE_MAGIC     0x32535750u /* "PWS2": layout with breadcrumbs */
 
 #define FREEZE_TIMEOUT_MS 500
 #define GE_TIMEOUT_MS     100
@@ -54,6 +54,37 @@
 enum { MODE_IDLE, MODE_SAVE, MODE_LOAD };
 enum { TRACE_SAVE, TRACE_LOAD, TRACE_AFTER_ROLLBACK, TRACE_KINDS };
 
+/*
+ * Breadcrumbs, kept in the P11 header: they survive the rollback and, with luck, a crash back to
+ * the XMB, so the next boot can report how far the previous save/load got (pw_engine_init).
+ */
+enum {
+    S_SAVE_START = 10,
+    S_SAVE_FROZEN,
+    S_SAVE_PACKED,
+    S_SAVE_SUSPEND,
+    S_SAVE_CAPTURED, /* handler, PHASE0_0 */
+    S_SAVE_RESUMED,  /* handler, RESUME_COMPLETED */
+    S_SAVE_DONE,
+    S_LOAD_START = 20,
+    S_LOAD_FROZEN,
+    S_LOAD_ARMED,
+    S_LOAD_SUSPEND,
+    S_LOAD_APPLY,    /* handler, PHASE0_0, jumping to the blob */
+    S_LOAD_FAILED,   /* suspend never reached PHASE0_0 */
+    S_RB_EVENT = 30, /* handler: first event after the rollback */
+    S_RB_RESUME,     /* handler: RESUME_COMPLETED after the rollback */
+    S_RB_FLASH,      /* handler: flash drivers re-initialised */
+    S_RB_THREAD,     /* the save-time thread is running again */
+    S_RB_RAM,        /* game RAM decompressed */
+    S_RB_VRAM,       /* eDRAM decompressed */
+    S_RB_CACHES,     /* caches written back / invalidated */
+    S_RB_THAWED,     /* game threads resumed */
+    S_LOAD_DONE,
+};
+
+#define CRUMB_MAX 48
+
 /* Lives in P11, outside the kernel range: survives the rollback, readable by both sides. */
 typedef struct {
     unsigned int magic;
@@ -68,6 +99,10 @@ typedef struct {
     int load_ge;
     unsigned long long load_start_tick;
     unsigned int loads;
+    unsigned int stage; /* last breadcrumb */
+    unsigned int crumb_count;
+    unsigned int crumb[CRUMB_MAX];
+    unsigned int crumb_cyc[CRUMB_MAX];
     unsigned int trace_count[TRACE_KINDS];
     unsigned int trace_ev[TRACE_KINDS][TRACE_MAX];
     unsigned int trace_cyc[TRACE_KINDS][TRACE_MAX];
@@ -125,6 +160,71 @@ static unsigned int dmac_drain(void)
     return *en0 | *en1;
 }
 
+/* Memory only: safe in the sysevent handler. */
+static void crumb(StateHeader *h, unsigned int stage)
+{
+    unsigned int n = h->crumb_count;
+
+    h->stage = stage;
+    if (n < CRUMB_MAX) {
+        h->crumb[n] = stage;
+        h->crumb_cyc[n] = cycles();
+        h->crumb_count = n + 1;
+    }
+}
+
+static const char *stage_name(unsigned int s)
+{
+    switch (s) {
+    case S_SAVE_START:
+        return "save:start";
+    case S_SAVE_FROZEN:
+        return "save:frozen";
+    case S_SAVE_PACKED:
+        return "save:packed";
+    case S_SAVE_SUSPEND:
+        return "save:suspend-requested";
+    case S_SAVE_CAPTURED:
+        return "save:kernel-captured";
+    case S_SAVE_RESUMED:
+        return "save:resumed";
+    case S_SAVE_DONE:
+        return "save:done(state held)";
+    case S_LOAD_START:
+        return "load:start";
+    case S_LOAD_FROZEN:
+        return "load:frozen";
+    case S_LOAD_ARMED:
+        return "load:armed";
+    case S_LOAD_SUSPEND:
+        return "load:suspend-requested";
+    case S_LOAD_APPLY:
+        return "load:applying-kernel";
+    case S_LOAD_FAILED:
+        return "load:failed(no PHASE0_0)";
+    case S_RB_EVENT:
+        return "rollback:first-event";
+    case S_RB_RESUME:
+        return "rollback:resume-completed";
+    case S_RB_FLASH:
+        return "rollback:flash-reinit";
+    case S_RB_THREAD:
+        return "rollback:save-thread-running";
+    case S_RB_RAM:
+        return "rollback:game-ram-restored";
+    case S_RB_VRAM:
+        return "rollback:edram-restored";
+    case S_RB_CACHES:
+        return "rollback:caches-flushed";
+    case S_RB_THAWED:
+        return "rollback:game-thawed";
+    case S_LOAD_DONE:
+        return "load:done";
+    default:
+        return "?";
+    }
+}
+
 static void trace(StateHeader *h, int kind, unsigned int ev)
 {
     unsigned int n = h->trace_count[kind];
@@ -155,6 +255,8 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
           : h->load_applying  ? TRACE_AFTER_ROLLBACK
                               : TRACE_SAVE,
           (unsigned int)ev_id);
+    if (g_mode == MODE_SAVE && h->load_applying && h->stage < S_RB_EVENT)
+        crumb(h, S_RB_EVENT); /* we are running inside the restored kernel */
 
     if (ev_id == EV_POWER_LOCK_PHASE1 && !g_alarm_set) {
         u64 tick;
@@ -172,11 +274,13 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
             sceKernelDcacheWritebackAll(); /* the image must be in DRAM before power-down */
             h->save_capture_cycles = cycles() - c0;
             g_captured = 1;
+            crumb(h, S_SAVE_CAPTURED);
         } else if (g_mode == MODE_LOAD && !g_applying) {
             void (*apply)(const void *, void *, unsigned int, const volatile void *) =
                 (void *)((unsigned int)g_blob | KSEG1);
 
             g_applying = 1;
+            crumb(h, S_LOAD_APPLY); /* written back by the blob's cache flush */
             dmac_drain();
             sceKernelCpuSuspendIntr();
             apply(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
@@ -184,8 +288,13 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         }
     } else if (ev_id == EV_RESUME_COMPLETED) {
         sceRtcSetAlarmTick(NULL); /* never wake the next natural sleep early */
-        if (g_restore_pending)    /* back from a rollback: fix flash before anyone else uses it */
+        if (g_restore_pending) {  /* back from a rollback: fix flash before anyone else uses it */
+            crumb(h, S_RB_RESUME);
             g_flash_result = pw_flash_reinit(&g_flash_report);
+            crumb(h, S_RB_FLASH);
+        } else if (g_mode == MODE_SAVE) {
+            crumb(h, S_SAVE_RESUMED);
+        }
         g_resumed = 1;
     }
     return 0;
@@ -223,6 +332,8 @@ static int check_environment(void)
 
 static void release_staging(void)
 {
+    if (g_hdr != NULL)
+        g_hdr->magic = 0; /* no post-mortem for a state we dropped on purpose */
     g_hdr = NULL;
     g_kernel_image = NULL;
     g_blob = NULL;
@@ -288,13 +399,16 @@ static void log_stream(const char *name, const pw_stream *s)
 }
 
 /* Event trace; runs of a repeated 1- or 2-event pattern are folded into "A B xN". */
-static void log_trace(const StateHeader *h, int kind, const char *label)
+static void log_trace_raw(const unsigned int *ev, const unsigned int *cyc, unsigned int count,
+                          const char *label)
 {
     static const char digits[] = "0123456789ABCDEF";
-    unsigned int count = h->trace_count[kind], i = 0;
+    unsigned int i = 0;
     char line[200];
     int len = 0;
 
+    if (count > TRACE_MAX)
+        count = TRACE_MAX;
     pw_log("engine: %s trace, %u event(s):", label, count);
     while (i < count) {
         unsigned int width = 1, repeats = 1;
@@ -302,9 +416,8 @@ static void log_trace(const StateHeader *h, int kind, const char *label)
         for (unsigned int w = 2; w >= 1; w--) {
             unsigned int r = 1;
 
-            while (i + (r + 1) * w <= count &&
-                   h->trace_ev[kind][i + r * w] == h->trace_ev[kind][i] &&
-                   (w == 1 || h->trace_ev[kind][i + r * w + 1] == h->trace_ev[kind][i + 1]))
+            while (i + (r + 1) * w <= count && ev[i + r * w] == ev[i] &&
+                   (w == 1 || ev[i + r * w + 1] == ev[i + 1]))
                 r++;
             if (r >= 3) {
                 width = w;
@@ -313,7 +426,7 @@ static void log_trace(const StateHeader *h, int kind, const char *label)
             }
         }
         for (unsigned int k = 0; k < width; k++) {
-            unsigned int v = h->trace_ev[kind][i + k];
+            unsigned int v = ev[i + k];
 
             line[len++] = ' ';
             for (int sft = 20; sft >= 0; sft -= 4)
@@ -330,48 +443,92 @@ static void log_trace(const StateHeader *h, int kind, const char *label)
     }
     if (count >= 2)
         pw_log("engine: %s trace spans %u ms (CPU time, the sleep itself excluded)", label,
-               (h->trace_cyc[kind][count - 1] - h->trace_cyc[kind][0]) / calibrate());
+               (cyc[count - 1] - cyc[0]) / calibrate());
 }
 
-/* Back in the SAVE-time thread after a LOAD rolled the kernel back. */
+static void log_trace(const StateHeader *h, int kind, const char *label)
+{
+    log_trace_raw(h->trace_ev[kind], h->trace_cyc[kind], h->trace_count[kind], label);
+}
+
+static void log_crumbs(const StateHeader *h, const char *who)
+{
+    pw_log("engine: %s: %u breadcrumb(s), last \"%s\"", who, h->crumb_count, stage_name(h->stage));
+    for (unsigned int i = 0; i < h->crumb_count && i < CRUMB_MAX; i++)
+        pw_log("engine:   %2u %s", h->crumb[i], stage_name(h->crumb[i]));
+}
+
+/*
+ * Back in the SAVE-time thread after a LOAD rolled the kernel back. Nothing was written to the
+ * card since the save, so the restored kernel and the card agree again: log lines go out right
+ * away, and if anything below crashes the log shows how far it got. Writing makes the state
+ * single-use (it is discarded at the end).
+ */
 static int finish_load(void)
 {
     StateHeader *h = g_hdr;
-    unsigned int t0 = now_ms(), unpack_ms, verify_crc = 0;
     const pw_flash_report *f = &g_flash_report;
-    int ok;
+    unsigned int t0, scratch_crc;
+    int ok_ram, ok_vram;
     u64 now;
 
-    ok = pw_stream_read(&g_arena, &h->user, (void *)USER_BASE, USER_SIZE) >= 0;
-    ok &= pw_stream_read(&g_arena, &h->vram, (void *)VRAM_BASE, h->vram_size) >= 0;
-    ok &= pw_stream_read(&g_arena, &h->scratch, (void *)SCRATCH_BASE, SCRATCH_SIZE) >= 0;
-    sceKernelDcacheWritebackInvalidateAll();
-    sceKernelIcacheInvalidateAll(); /* the game's code in RAM was replaced too */
-    unpack_ms = now_ms() - t0;
-    if (VERIFY)
-        verify_crc = pw_crc32(0, (const void *)USER_BASE, USER_SIZE);
-
-    g_restore_pending = 0;
-    h->load_applying = 0;
-    h->loads++;
-    pw_thaw_game(&g_save_freeze);
-
-    sceRtcGetCurrentTick(&now);
-    pw_log("engine: ---- LOAD #%u complete: %s ----", h->loads, ok ? "OK" : "DECOMPRESSION FAILED");
+    crumb(h, S_RB_THREAD);
+    pw_log_set_deferred(0);
+    pw_log("engine: ---- LOAD: back in the saved moment ----");
     pw_log("engine: load: froze %u thread(s) in %u ms (%u forced), GE %d", h->load_threads,
            h->load_freeze_ms, h->load_forced, h->load_ge);
-    pw_log("engine: load: request -> game running %u ms (wall clock), unpack %u ms",
-           (unsigned int)((now - h->load_start_tick) / 1000), unpack_ms);
     pw_log("engine: load: flash %d: drivers %d/%d, unassign %X/%X, exit %X/%X, init %X/%X, "
            "assign %X/%X",
            g_flash_result, f->found_lflash, f->found_flashfat, f->unassign0, f->unassign1,
            f->exit_lflash, f->exit_flashfat, f->init_lflash, f->init_flashfat, f->assign0,
            f->assign1);
-    if (VERIFY)
-        pw_log("engine: load: game RAM crc %08X, saved %08X: %s", verify_crc, h->user.crc32,
-               verify_crc == h->user.crc32 ? "IDENTICAL" : "DIFFERENT");
     log_trace(h, TRACE_LOAD, "load (before rollback)");
     log_trace(h, TRACE_AFTER_ROLLBACK, "load (after rollback)");
+
+    t0 = now_ms();
+    ok_ram = pw_stream_read(&g_arena, &h->user, (void *)USER_BASE, USER_SIZE) >= 0;
+    crumb(h, S_RB_RAM);
+    pw_log("engine: load: game RAM %s in %u ms", ok_ram ? "restored" : "DECOMPRESSION FAILED",
+           now_ms() - t0);
+
+    t0 = now_ms();
+    ok_vram = pw_stream_read(&g_arena, &h->vram, (void *)VRAM_BASE, h->vram_size) >= 0;
+    crumb(h, S_RB_VRAM);
+    pw_log("engine: load: eDRAM %s in %u ms", ok_vram ? "restored" : "DECOMPRESSION FAILED",
+           now_ms() - t0);
+
+    /* Not restored (PSPFatSave does not either); compared to learn whether games rely on it. */
+    scratch_crc = pw_crc32(0, (const void *)SCRATCH_BASE, SCRATCH_SIZE);
+    pw_log("engine: load: scratchpad crc now %08X, at save %08X (left as is)", scratch_crc,
+           h->scratch.crc32);
+
+    sceKernelDcacheWritebackInvalidateAll();
+    sceKernelIcacheInvalidateAll(); /* the game's code in RAM was replaced too */
+    crumb(h, S_RB_CACHES);
+    if (VERIFY) {
+        unsigned int crc = pw_crc32(0, (const void *)USER_BASE, USER_SIZE);
+
+        pw_log("engine: load: game RAM crc %08X, saved %08X: %s", crc, h->user.crc32,
+               crc == h->user.crc32 ? "IDENTICAL" : "DIFFERENT");
+    }
+
+    g_restore_pending = 0;
+    h->load_applying = 0;
+    h->loads++;
+    if (!ok_ram || !ok_vram) {
+        pw_log("engine: load: restore failed; the game stays frozen (power the PSP off)");
+        return -1;
+    }
+
+    pw_thaw_game(&g_save_freeze);
+    crumb(h, S_RB_THAWED);
+    sceRtcGetCurrentTick(&now);
+    crumb(h, S_LOAD_DONE);
+    pw_log("engine: ---- LOAD complete: request -> game running %u ms (wall clock) ----",
+           (unsigned int)((now - h->load_start_tick) / 1000));
+
+    /* The card changed after the rollback: this state's view of it is stale now. */
+    pw_engine_discard();
     return PW_ENGINE_LOADED;
 }
 
@@ -394,12 +551,14 @@ int pw_engine_save(void)
     h = g_hdr;
     memset(h, 0, sizeof(*h));
     h->magic = STATE_MAGIC;
+    crumb(h, S_SAVE_START);
     calibrate();
 
     pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
     h->save_threads = (unsigned int)g_save_freeze.count;
     h->save_forced = (unsigned int)g_save_freeze.forced;
     h->save_freeze_ms = g_save_freeze.ms;
+    crumb(h, S_SAVE_FROZEN);
     if (g_save_freeze.count == 0) {
         pw_log("engine: no game threads to freeze");
         release_staging();
@@ -421,11 +580,13 @@ int pw_engine_save(void)
         return -1;
     }
     h->save_pack_ms = now_ms() - t0;
+    crumb(h, S_SAVE_PACKED);
     pw_freeze_log(&g_save_freeze);
     pw_log("engine: save: GE %d, packed in %u ms:", h->save_ge, h->save_pack_ms);
     log_stream("game", &h->user);
     log_stream("eDRAM", &h->vram);
     log_stream("scratch", &h->scratch);
+    pw_log("engine: state record at %p (post-mortem if a load goes wrong)", (void *)h);
 
     /* From the kernel snapshot on, the Memory Stick must not change until the state is dropped. */
     pw_log_flush();
@@ -434,6 +595,7 @@ int pw_engine_save(void)
     g_restore_pending = 0;
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
     g_mode = MODE_SAVE;
+    crumb(h, S_SAVE_SUSPEND);
     sceKernelDcacheWritebackAll();
     sceRtcGetCurrentTick(&rt0);
     ret = scePowerRequestSuspend();
@@ -459,6 +621,7 @@ int pw_engine_save(void)
     }
 
     h->valid = 1;
+    crumb(h, S_SAVE_DONE);
     pw_log("engine: save OK: suspend %u ms (wall clock), kernel copy %u ms, dmac_left=0x%X",
            h->save_suspend_ms, h->save_capture_cycles / calibrate(), h->save_dmac_left);
     log_trace(h, TRACE_SAVE, "save");
@@ -477,6 +640,7 @@ int pw_engine_load(void)
         return -1;
     }
     pw_log("engine: ---- LOAD ----");
+    crumb(h, S_LOAD_START);
     pending_in_image = (volatile unsigned int *)(g_kernel_image +
                                                  ((unsigned int)&g_restore_pending - KERNEL_BASE));
 
@@ -484,6 +648,7 @@ int pw_engine_load(void)
     h->load_threads = (unsigned int)g_load_freeze.count;
     h->load_forced = (unsigned int)g_load_freeze.forced;
     h->load_freeze_ms = g_load_freeze.ms;
+    crumb(h, S_LOAD_FROZEN);
     h->load_ge = ge_wait_idle();
 
     /* The SAVE-time thread must learn it was brought back by a LOAD: flag it inside the image. */
@@ -493,9 +658,11 @@ int pw_engine_load(void)
     h->trace_count[TRACE_AFTER_ROLLBACK] = 0;
     h->load_applying = 1;
     sceRtcGetCurrentTick(&h->load_start_tick);
+    crumb(h, S_LOAD_ARMED);
 
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
     g_mode = MODE_LOAD;
+    crumb(h, S_LOAD_SUSPEND);
     sceKernelDcacheWritebackAll(); /* the blob and the flag must be in DRAM */
     ret = scePowerRequestSuspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
@@ -505,6 +672,7 @@ int pw_engine_load(void)
     g_mode = MODE_IDLE;
     h->load_applying = 0;
     *pending_in_image = 0;
+    crumb(h, S_LOAD_FAILED);
     if (!g_resumed)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&g_load_freeze);
@@ -529,9 +697,82 @@ void pw_engine_discard(void)
     pw_log_flush();
 }
 
+/* Record layout of the first engine build (magic "PWS1", no breadcrumbs). */
+typedef struct {
+    unsigned int magic, valid, load_applying;
+    pw_stream user, vram, scratch;
+    unsigned int vram_size;
+    unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
+    int save_ge;
+    unsigned int save_dmac_left, save_capture_cycles;
+    unsigned int load_threads, load_forced, load_freeze_ms;
+    int load_ge;
+    unsigned long long load_start_tick;
+    unsigned int loads;
+    unsigned int trace_count[TRACE_KINDS];
+    unsigned int trace_ev[TRACE_KINDS][TRACE_MAX];
+    unsigned int trace_cyc[TRACE_KINDS][TRACE_MAX];
+} StateHeaderV1;
+
+#define STATE_MAGIC_V1 0x31535750u /* "PWS1" */
+
+static void post_mortem_v1(StateHeaderV1 *old)
+{
+    pw_log("engine: post-mortem (v1 record at %p): valid=%u load_applying=%u loads=%u", (void *)old,
+           old->valid, old->load_applying, old->loads);
+    pw_log("engine: post-mortem: load froze %u thread(s) in %u ms, GE %d", old->load_threads,
+           old->load_freeze_ms, old->load_ge);
+    log_trace_raw(old->trace_ev[TRACE_SAVE], old->trace_cyc[TRACE_SAVE],
+                  old->trace_count[TRACE_SAVE], "post-mortem save");
+    log_trace_raw(old->trace_ev[TRACE_LOAD], old->trace_cyc[TRACE_LOAD],
+                  old->trace_count[TRACE_LOAD], "post-mortem load (before rollback)");
+    log_trace_raw(old->trace_ev[TRACE_AFTER_ROLLBACK], old->trace_cyc[TRACE_AFTER_ROLLBACK],
+                  old->trace_count[TRACE_AFTER_ROLLBACK], "post-mortem load (after rollback)");
+    old->magic = 0;
+    sceKernelDcacheWritebackAll();
+}
+
+/*
+ * The state record sits at the start of P11. If the previous game session died during a save or
+ * load (or left a state behind), the record may have survived the trip back through the XMB:
+ * report it once, then clear it.
+ */
+static void post_mortem(void)
+{
+    PspSysmemPartitionInfo p11;
+    StateHeader *old;
+
+    memset(&p11, 0, sizeof(p11));
+    p11.size = sizeof(p11);
+    if (sceKernelQueryMemoryPartitionInfo(PW_MEM_PARTITION_SPARE, &p11) < 0 ||
+        p11.memsize < sizeof(StateHeader))
+        return;
+    old = (StateHeader *)((p11.startaddr + 63) & ~63u);
+    if (old->magic == STATE_MAGIC_V1) {
+        post_mortem_v1((StateHeaderV1 *)old);
+        return;
+    }
+    if (old->magic != STATE_MAGIC || old->crumb_count == 0 || old->crumb_count > CRUMB_MAX)
+        return;
+
+    pw_log("engine: post-mortem: the previous session left a state record at %p", (void *)old);
+    log_crumbs(old, "post-mortem");
+    for (int k = 0; k < TRACE_KINDS; k++)
+        if (old->trace_count[k] > TRACE_MAX)
+            old->trace_count[k] = TRACE_MAX;
+    log_trace(old, TRACE_SAVE, "post-mortem save");
+    log_trace(old, TRACE_LOAD, "post-mortem load (before rollback)");
+    log_trace(old, TRACE_AFTER_ROLLBACK, "post-mortem load (after rollback)");
+    old->magic = 0;
+    sceKernelDcacheWritebackAll();
+}
+
 int pw_engine_init(void)
 {
-    int ret = sceKernelRegisterSysEventHandler(&g_handler);
+    int ret;
+
+    post_mortem();
+    ret = sceKernelRegisterSysEventHandler(&g_handler);
 
     g_registered = ret >= 0;
     return ret;

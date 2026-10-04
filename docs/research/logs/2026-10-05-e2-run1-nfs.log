@@ -1,0 +1,27 @@
+Pocketwatch de5193b-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 54 import(s): 53 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   394 KB maxfree=   358 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   394 KB maxfree=   358 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+engine: LOAD: no state
+engine: ---- SAVE ----
+freeze: 6 game thread(s) suspended in 107 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 32 status=0x0C wait=1
+freeze:   SND ATRAC PLAYER                prio= 18 status=0x08 wait=0
+freeze:   SND_SAS                         prio= 17 status=0x08 wait=0
+freeze:   SND                             prio= 18 status=0x08 wait=0
+freeze:   DVDUMD_READ                     prio= 21 status=0x0C wait=1
+freeze:   main                            prio=111 status=0x08 wait=0
+engine: save: GE 0, packed in 6171 ms:
+engine:   game     24576 KB ->  12688 KB (384 chunks, 10 raw) crc 900B9CF7
+engine:   eDRAM     2048 KB ->   1270 KB (32 chunks, 0 raw) crc ACBFE1F5
+engine:   scratch     16 KB ->      0 KB (1 chunks, 0 raw) crc 30AB59F4

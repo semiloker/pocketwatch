@@ -91,4 +91,25 @@ Test protocol (NFS Most Wanted or any ISO):
 5. L+R+SELECT+UP to write the log, then exit the game normally.
 
 ### Results
-_Pending._
+
+**Run 1 — 2026-10-05, NFS Most Wanted.** Raw log:
+[`logs/2026-10-05-e2-run1-nfs.log`](logs/2026-10-05-e2-run1-nfs.log).
+
+- SAVE worked: 6 game threads frozen in 107 ms (none forced), GE idle, game RAM 24 MB -> 12.7 MB,
+  eDRAM 2 MB -> 1.3 MB, scratchpad 16 KB. Packing (FastLZ + CRC at the game's CPU clock) took
+  **6.2 s** - to be optimised. The user saw a short freeze, then 2-3 s of black screen.
+- LOAD failed: about 10 s of black screen, then the PSP was back in the XMB. The log has nothing
+  about it: while a state is held, lines stay in RAM, and the session ended before they were
+  written. The timing fits "rollback + resume + restore happened, then the game crashed", but
+  that is unproven.
+- Differences from PSPFatSave's working load: we restored the scratchpad (it does not), and we
+  wrote nothing until the very end.
+
+Changes for run 2:
+- The scratchpad is no longer restored (only compared, to learn whether games use it).
+- After the rollback every step is logged and written immediately (safe: nothing was written
+  since the save, so card and restored kernel agree). States become single-use.
+- Breadcrumbs (`S_*` stages) in the P11 record; at the next boot the plugin reports a dead
+  session's last stage and traces (`post_mortem`), including records from the run-1 build
+  (`PWS1` layout) if that memory survived.
+- If decompression fails the game stays frozen instead of running on corrupt RAM.
