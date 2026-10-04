@@ -5,7 +5,8 @@
 #   make clean
 
 TARGET = pocketwatch
-OBJS   = src/core/main.o src/core/log.o lib/stb_sprintf.o exports.o
+OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o \
+         lib/stb_sprintf.o exports.o
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
