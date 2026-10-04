@@ -26,7 +26,40 @@ Questions it answers:
 - eDRAM size (2 MB or 4 MB) for the VRAM part of a state.
 
 ### Results
-_Pending: first run on the user's PSP-3000._
+
+**Run 1 — 2026-10-04, homebrew (raylib test, apitype 0x141), not a retail game.**
+Raw log: [`logs/2026-10-04-s1-homebrew-raylib.log`](logs/2026-10-04-s1-homebrew-raylib.log).
+The plugin was registered as `GAME`, which in ARK-4 also matches homebrew; it is now `UMD`.
+
+- Unit: `sceKernelGetModel() = 3` (PSP-3000), devkit `0x06060010`, eDRAM **2048 KB**.
+- Import self-check: 28 imports, **0 unresolved** — every allowlisted NID is now `verified`.
+- The homebrew requested large memory, so this is the *highmem* layout, not the game one:
+
+  | Partition | Start | Size | Free at boot | Free in app |
+  |---|---|---|---|---|
+  | 1 (kernel) | 0x88000000 | 3072 KB | 270 KB | 307 KB |
+  | 2 (user) | 0x08800000 | 52224 KB | 51033 KB | 764 KB |
+  | 4 (kernel) | 0x88300000 | 1024 KB | 1024 KB | 1024 KB |
+  | 5 (volatile) | 0x08400000 | 4096 KB | 4096 KB | 4096 KB |
+  | 8 | 0x8BB00000 | 1024 KB | 681 KB | 681 KB |
+  | 9 | 0x8BB00000 | **0 KB** | 0 | 0 |
+  | 11 | 0x8BC00000 | 4096 KB | 4096 KB | 4096 KB |
+
+  (3 mirrors 1, 6 mirrors 2, 12 mirrors 8.)
+- **Kernel RAM is nearly full: ~270 KB free in P1.** Other plugins are big (RemoteJoyLite alone has
+  263 KB of bss). Pocketwatch must keep its kernel footprint small and put every large buffer
+  elsewhere (P11 = 4 MB free here; P9 in retail games, to be measured).
+- Threads: the app's threads have attribute `0x80000000` (user); system and plugin threads are
+  kernel threads. Freezing "user threads only" is a clean criterion.
+- 57 modules; all kernel modules sit in 0x88000000–0x8828FFFF; the app's module is in P2.
+
+**Incident:** exiting the homebrew hung on "Please wait..." (needed a forced power-off).
+Cause: the probe thread kept running after `module_stop`, inside a module being unloaded.
+Fix: `module_stop` now signals and joins every plugin thread (terminate after 500 ms), dumps are
+abortable between lines, `disc0:` is only touched for retail apitypes, and the plugin loads for
+retail games only.
+
+**Next:** repeat with a retail ISO (expected: P2 = 24 MB, P9 present with Inferno's 8 MB cache).
 
 ## S2 — are hash-less saves listed by the XMB?
 
@@ -45,4 +78,11 @@ title "Pocketwatch test" / "Save State test A|B", detail text, background pictur
 generated files have exactly the layout of real saves.
 
 ### Results
-_Pending._
+
+**2026-10-04, PSP-3000:** neither folder appeared as "Pocketwatch test"; the Saved Data Utility
+showed "Corrupted Data" entries instead (both folders were still on the card afterwards).
+Conclusion: **mode 0x00 / hash-less saves are not accepted by the XMB.** States must be written
+with valid SFO hashes (mode 0x01, as ARK_01234 does) — generated on the PSP itself, since the
+detail text (date, slot) changes per save. Next spike: hash a PARAM.SFO on-device (sceChnnlsv or
+the KIRK engine) and confirm the XMB lists it. Test folders removed with `--remove`;
+to confirm, the "Corrupted Data" entries should now be gone.

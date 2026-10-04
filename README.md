@@ -35,9 +35,10 @@ Do not run Pocketwatch States together with another savestate plugin
 2. Add this line to `ms0:/seplugins/PLUGINS.TXT` (`ef0:` on the PSP Go internal storage):
 
    ```
-   GAME, ms0:/seplugins/pocketwatch/pocketwatch.prx, on
+   UMD, ms0:/seplugins/pocketwatch/pocketwatch.prx, on
    ```
 
+   `UMD` loads it for retail games only (UMD and ISO); ARK-4's `GAME` would include homebrew too.
 3. Start a game. `ms0:/seplugins/pocketwatch/pocketwatch.log` shows the loaded version.
 
 ## Build

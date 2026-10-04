@@ -9,8 +9,10 @@
  * pw_probe_boot  - short snapshot at plugin start: model, firmware, game, memory partitions.
  * pw_probe_start - starts a thread that dumps partitions, modules and threads whenever
  *                  L + R + SELECT + UP is held (do it during gameplay).
+ * pw_probe_stop  - stops and deletes that thread; must be called from module_stop.
  */
 void pw_probe_boot(void);
 void pw_probe_start(void);
+void pw_probe_stop(void);
 
 #endif

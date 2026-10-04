@@ -18,14 +18,26 @@
 
 static SceUID g_ids[PROBE_MAX_IDS];
 static int g_dump_count;
+static SceUID g_probe_thread = -1;
+static volatile int g_probe_stop;
+
+/* Retail disc/ISO apitypes (ARK-4 runlevel "umd"); disc0: is only mounted for these. */
+static int is_disc_apitype(int apitype)
+{
+    return apitype == 0x120 || (apitype >= 0x123 && apitype <= 0x126) || apitype == 0x130 ||
+           apitype == 0x160 || (apitype >= 0x110 && apitype <= 0x115);
+}
 
 /* Game ID from the disc header ("ULUS-10336|..."); empty for homebrew or when not mounted. */
 static void read_game_id(char *out, unsigned int cap)
 {
-    SceUID fd = sceIoOpen("disc0:/UMD_DATA.BIN", PSP_O_RDONLY, 0);
+    SceUID fd;
     int n = 0;
 
     out[0] = '\0';
+    if (!is_disc_apitype(sceKernelInitApitype()))
+        return;
+    fd = sceIoOpen("disc0:/UMD_DATA.BIN", PSP_O_RDONLY, 0);
     if (fd < 0)
         return;
     n = sceIoRead(fd, out, cap - 1);
@@ -78,7 +90,7 @@ static void dump_modules(void)
     if (count > PROBE_MAX_IDS)
         count = PROBE_MAX_IDS;
     pw_log("probe: %d module(s)", count);
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < count && !g_probe_stop; i++) {
         SceKernelModuleInfo m;
 
         memset(&m, 0, sizeof(m));
@@ -100,7 +112,7 @@ static void dump_threads(void)
     if (count > PROBE_MAX_IDS)
         count = PROBE_MAX_IDS;
     pw_log("probe: %d thread(s)", count);
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < count && !g_probe_stop; i++) {
         SceKernelThreadInfo t;
 
         memset(&t, 0, sizeof(t));
@@ -125,7 +137,7 @@ static int probe_thread(SceSize args, void *argp)
 
     (void)args;
     (void)argp;
-    for (;;) {
+    while (!g_probe_stop) {
         sceKernelDelayThread(50 * 1000);
         if (sceCtrlPeekBufferPositive(&pad, 1) < 0 || (pad.Buttons & PROBE_COMBO) != PROBE_COMBO)
             continue;
@@ -141,15 +153,28 @@ static int probe_thread(SceSize args, void *argp)
         do {
             sceKernelDelayThread(100 * 1000);
             sceCtrlPeekBufferPositive(&pad, 1);
-        } while ((pad.Buttons & PROBE_COMBO) == PROBE_COMBO);
+        } while (!g_probe_stop && (pad.Buttons & PROBE_COMBO) == PROBE_COMBO);
     }
     return 0;
 }
 
 void pw_probe_start(void)
 {
-    SceUID thid = sceKernelCreateThread("PocketwatchProbe", probe_thread, 0x30, 0x2000, 0, NULL);
+    g_probe_stop = 0;
+    g_probe_thread = sceKernelCreateThread("PocketwatchProbe", probe_thread, 0x30, 0x2000, 0, NULL);
+    if (g_probe_thread >= 0)
+        sceKernelStartThread(g_probe_thread, 0, NULL);
+}
 
-    if (thid >= 0)
-        sceKernelStartThread(thid, 0, NULL);
+void pw_probe_stop(void)
+{
+    SceUInt timeout = 500 * 1000;
+
+    if (g_probe_thread < 0)
+        return;
+    g_probe_stop = 1;
+    if (sceKernelWaitThreadEnd(g_probe_thread, &timeout) < 0)
+        sceKernelTerminateThread(g_probe_thread);
+    sceKernelDeleteThread(g_probe_thread);
+    g_probe_thread = -1;
 }

@@ -1,0 +1,113 @@
+Pocketwatch 97df966-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 28 import(s) checked, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x141 game=- init=ms0:/PSP/GAME/test_raylib/EBOOT.PBP
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   270 KB maxfree=   236 KB
+probe: partition  2 start=0x08800000 size= 52224 KB attr=0xF free= 51033 KB maxfree= 51033 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   270 KB maxfree=   236 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 52224 KB attr=0xF free= 51033 KB maxfree= 51033 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8BB00000 size=     0 KB attr=0xC free=     0 KB maxfree=     0 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: ---- dump 1 ----
+probe: model=3 devkit=0x06060010 apitype=0x141 game=- init=-
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   307 KB maxfree=   230 KB
+probe: partition  2 start=0x08800000 size= 52224 KB attr=0xF free=   764 KB maxfree=   512 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   307 KB maxfree=   230 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 52224 KB attr=0xF free=   764 KB maxfree=   512 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8BB00000 size=     0 KB attr=0xC free=     0 KB maxfree=     0 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: 57 module(s)
+probe: module sceSystemMemoryManager      attr=0x0007 text=0x88000000+80652 data=148 bss=2608 seg0=0x88000000+80652
+probe: module sceLoaderCore               attr=0x2007 text=0x88017000+32920 data=20 bss=8856 seg0=0x88017000+32920
+probe: module sceExceptionManager         attr=0x0007 text=0x88021400+3348 data=0 bss=2892 seg0=0x88021400+3348
+probe: module sceInterruptManager         attr=0x0007 text=0x88022D00+14032 data=280 bss=12776 seg0=0x88022D00+14032
+probe: module sceThreadManager            attr=0x0007 text=0x8802E800+106180 data=0 bss=2116 seg0=0x8802E800+106180
+probe: module sceDMAManager               attr=0x0007 text=0x8804BA00+8164 data=0 bss=2176 seg0=0x8804BA00+8164
+probe: module sceSystimer                 attr=0x0007 text=0x8804E300+2844 data=132 bss=60 seg0=0x8804E300+2844
+probe: module sceIOFileManager            attr=0x0007 text=0x8804EF00+27332 data=32 bss=328 seg0=0x8804EF00+27332
+probe: module sceMemlmd                   attr=0x6007 text=0x88057C00+9592 data=116 bss=524 seg0=0x88057C00+9592
+probe: module sceModuleManager            attr=0x2007 text=0x8805A400+39320 data=0 bss=232 seg0=0x8805A400+39320
+probe: module SystemControl               attr=0x2007 text=0x88065F00+43705 data=8980 bss=468 seg0=0x88065F00+53420
+probe: module ARKCompatLayer              attr=0x2007 text=0x88073000+10634 data=4505 bss=152 seg0=0x88073000+15572
+probe: module sceLoadExec                 attr=0x2007 text=0x88079700+15996 data=36948 bss=124 seg0=0x88079700+15996
+probe: module sceLowIO_Driver             attr=0x0007 text=0x88086700+50688 data=520 bss=6200 seg0=0x88086700+50688
+probe: module sceGE_Manager               attr=0x0007 text=0x88096300+26684 data=72 bss=7608 seg0=0x88096300+26684
+probe: module sceIdStorage_Service        attr=0x0007 text=0x8809F300+8252 data=64 bss=1184 seg0=0x8809F300+8252
+probe: module sceSYSCON_Driver            attr=0x0007 text=0x880A5900+19980 data=64 bss=480 seg0=0x880A5900+19980
+probe: module sceRTC_Service              attr=0x0007 text=0x880AB100+18096 data=64 bss=112 seg0=0x880AB100+18096
+probe: module sceLFatFs_Driver            attr=0x0007 text=0x880B0900+47016 data=772 bss=17852 seg0=0x880B0900+47016
+probe: module sceClockgen_Driver          attr=0x0007 text=0x880CAC00+2280 data=80 bss=0 seg0=0x880CAC00+2280
+probe: module sceUmd_driver               attr=0x0007 text=0x880D3C00+5184 data=0 bss=120 seg0=0x880D3C00+5184
+probe: module sceATA_ATAPI_driver         attr=0x0007 text=0x880D5100+16952 data=4 bss=244 seg0=0x880D5100+16952
+probe: module sceUmdMan_driver            attr=0x0007 text=0x880D9500+62284 data=144 bss=42276 seg0=0x880D9500+62284
+probe: module sceUmd9660_driver           attr=0x0007 text=0x880F2F00+31932 data=16 bss=7428 seg0=0x880F2F00+31932
+probe: module sceIsofs_driver             attr=0x0007 text=0x880FE900+28228 data=0 bss=4220 seg0=0x880FE900+28228
+probe: module sceDisplay_Service          attr=0x0007 text=0x8811A800+53284 data=484 bss=2584 seg0=0x8811A800+53284
+probe: module sceController_Service       attr=0x0007 text=0x88128500+10320 data=64 bss=2848 seg0=0x88128500+10320
+probe: module sceLED_Service              attr=0x0007 text=0x8812B900+3596 data=64 bss=244 seg0=0x8812B900+3596
+probe: module scePower_Service            attr=0x0007 text=0x8812C900+28676 data=64 bss=22032 seg0=0x8812C900+28676
+probe: module sceMSstor_Driver            attr=0x0007 text=0x8813A000+62196 data=492 bss=22112 seg0=0x8813A000+62196
+probe: module sceCodepage_Service         attr=0x0007 text=0x8814F400+13452 data=0 bss=816 seg0=0x8814F400+13452
+probe: module sceMSFAT_Driver             attr=0x0007 text=0x88152C00+53240 data=700 bss=60 seg0=0x88152C00+53240
+probe: module sceWM1801_Driver            attr=0x0007 text=0x88179100+3900 data=244 bss=12 seg0=0x88179100+3900
+probe: module sceAudio_Driver             attr=0x0007 text=0x8817A200+13588 data=64 bss=1400 seg0=0x8817A200+13588
+probe: module sceHP_Remote_Driver         attr=0x0007 text=0x8817ED00+13876 data=84 bss=1124 seg0=0x8817ED00+13876
+probe: module sceOpenPSID_Service         attr=0x4007 text=0x88182800+14968 data=4 bss=2752 seg0=0x88182800+14968
+probe: module sceUSB_Driver               attr=0x0007 text=0x88186E00+38856 data=584 bss=1148 seg0=0x88186E00+38856
+probe: module sceWlan_Driver              attr=0x0007 text=0x88190D00+103004 data=64 bss=2420 seg0=0x88190D00+103004
+probe: module sceWlanFirmVoyager_driver   attr=0x0007 text=0x881BA200+97720 data=0 bss=0 seg0=0x881BA200+97720
+probe: module sceRegistry_Service         attr=0x0007 text=0x881D2000+28408 data=8 bss=108 seg0=0x881D2000+28408
+probe: module sceMesgLed                  attr=0x6007 text=0x881E1000+42348 data=120 bss=1736 seg0=0x881E1000+42348
+probe: module sceAmctrl_driver            attr=0x4007 text=0x881EDD00+7444 data=20 bss=2220 seg0=0x881EDD00+7444
+probe: module sceIoFilemgrDNAS            attr=0x0007 text=0x881F0300+6504 data=816 bss=1616 seg0=0x881F0300+6504
+probe: module sceUtility_Driver           attr=0x0007 text=0x881F2600+45112 data=1716 bss=320 seg0=0x881F2600+45112
+probe: module Stargate                    attr=0x0007 text=0x881FEF00+12645 data=912 bss=1484 seg0=0x881FEF00+15372
+probe: module sceMeCodecWrapper           attr=0x0007 text=0x88202C00+11264 data=64 bss=20 seg0=0x88202C00+11264
+probe: module sceImpose_Driver            attr=0x0007 text=0x88205900+41416 data=68 bss=900 seg0=0x88205900+41416
+probe: module HUD 2.75 by:TIM2001         attr=0x0000 text=0x88219900+28828 data=7768 bss=5672 seg0=0x88219900+42536
+probe: module bright                      attr=0x0000 text=0x88226000+7104 data=0 bss=16 seg0=0x88226000+7376
+probe: module battery_icon                attr=0x0000 text=0x88227F00+19876 data=164 bss=300 seg0=0x88227F00+20632
+probe: module Hold                        attr=0x0000 text=0x8822D000+3984 data=28 bss=140 seg0=0x8822D000+4508
+probe: module CWCHEATPRX                  attr=0x0000 text=0x8822EA00+74944 data=9216 bss=8836 seg0=0x8822EA00+93268
+probe: module RemoteJoyLite               attr=0x0000 text=0x88246700+10988 data=584 bss=263068 seg0=0x88246700+275356
+probe: module noumd                       attr=0x0000 text=0x8828C300+896 data=0 bss=28 seg0=0x8828C300+1224
+probe: module Pocketwatch                 attr=0x0000 text=0x8828E900+12520 data=245 bss=9760 seg0=0x8828E900+22812
+probe: module sceKernelLibrary            attr=0x0007 text=0x08800000+2944 data=64 bss=13376 seg0=0x08800000+2944
+probe: module MiniMinecraftGrid60FPS      attr=0x0000 text=0x08804000+1100596 data=3616 bss=96992 seg0=0x08804000+1203168
+probe: 26 thread(s)
+probe: thread SceKernelModmgrWorker           attr=0x00000000 prio=  1 status=0x10 wait=0 stack=0x882F9F00+4096
+probe: thread SceUmdManMount                  attr=0x00100001 prio= 15 status=0x04 wait=4 stack=0x882FE400+3072
+probe: thread SceUmdManTask                   attr=0x00100001 prio= 14 status=0x04 wait=4 stack=0x882FD800+3072
+probe: thread SceUmdManTaskSPKStop            attr=0x00100001 prio= 14 status=0x10 wait=0 stack=0x882FCC00+3072
+probe: thread ScePowerMain                    attr=0x00100001 prio=  4 status=0x04 wait=4 stack=0x882FC400+2048
+probe: thread ScePowerBattery                 attr=0x00100001 prio= 64 status=0x04 wait=4 stack=0x882F4F00+2048
+probe: thread SceMScmMedia                    attr=0x00100000 prio= 16 status=0x04 wait=4 stack=0x882F4300+3072
+probe: thread SceFatmsMedia                   attr=0x00100001 prio= 16 status=0x04 wait=4 stack=0x882F3B00+2048
+probe: thread SceAudioMixer                   attr=0x00100000 prio=  5 status=0x04 wait=4 stack=0x882F3500+1536
+probe: thread SceAudioInput                   attr=0x00100000 prio=  6 status=0x04 wait=4 stack=0x882FC000+1024
+probe: thread SceHpRemote                     attr=0x00100001 prio= 16 status=0x04 wait=4 stack=0x882F2D00+2048
+probe: thread SceWlanMac                      attr=0x00100001 prio= 39 status=0x04 wait=5 stack=0x882F2100+3072
+probe: thread SceMSstorFlush                  attr=0x00100000 prio= 15 status=0x04 wait=4 stack=0x882FFC00+1024
+probe: thread SceImpose                       attr=0x00100000 prio= 20 status=0x04 wait=4 stack=0x882FF400+2048
+probe: thread main_thread                     attr=0x00000000 prio=  1 status=0x04 wait=4 stack=0x882E7000+32768
+probe: thread battery_icon                    attr=0x00000000 prio= 24 status=0x04 wait=2 stack=0x882E6000+4096
+probe: thread main_thread                     attr=0x00000000 prio= 18 status=0x04 wait=2 stack=0x882E5B00+1280
+probe: thread tick_thread                     attr=0x00000000 prio= 18 status=0x04 wait=2 stack=0x882E5600+1280
+probe: thread cwcheat_main                    attr=0x00000000 prio= 56 status=0x04 wait=2 stack=0x882E3500+8448
+probe: thread USBThread                       attr=0x00000000 prio= 10 status=0x04 wait=4 stack=0x882D3500+65536
+probe: thread ScreenThread                    attr=0x00004000 prio= 17 status=0x04 wait=1 stack=0x882D2D00+2048
+probe: thread RemoteJoyLite                   attr=0x00000000 prio= 16 status=0x04 wait=4 stack=0x882D2500+2048
+probe: thread noumd_main                      attr=0x00000000 prio= 24 status=0x04 wait=2 stack=0x882D1500+4096
+probe: thread PocketwatchProbe                attr=0x00000000 prio= 48 status=0x01 wait=0 stack=0x882EF100+8192
+probe: thread user_main                       attr=0x800040FF prio= 32 status=0x04 wait=4 stack=0x0BA80000+262144
+probe: thread update_thread                   attr=0x800000FF prio= 17 status=0x04 wait=1 stack=0x0BAFF000+4096
+probe: ---- end of dump 1 ----

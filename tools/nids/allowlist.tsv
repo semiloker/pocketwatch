@@ -3,9 +3,9 @@
 # status: assumed  = believed unchanged, not yet confirmed on hardware
 #         verified = pocketwatch.log selfcheck showed it resolved on a real PSP (note model + date)
 # library	nid	name	status	note
-IoFileMgrForKernel	0x109F50BC	sceIoOpen	assumed	used with this NID by ARK-4's own kernel modules
-IoFileMgrForKernel	0x42EC03AC	sceIoWrite	assumed	used with this NID by ARK-4's own kernel modules
-IoFileMgrForKernel	0x810C4BC3	sceIoClose	assumed	used with this NID by ARK-4's own kernel modules
-InterruptManagerForKernel	0x092968F4	sceKernelCpuSuspendIntr	assumed	used with this NID by ARK-4's own kernel modules
-InterruptManagerForKernel	0x5F10D406	sceKernelCpuResumeIntr	assumed	used with this NID by ARK-4's own kernel modules
-IoFileMgrForKernel	0x6A638D83	sceIoRead	assumed	used with this NID by ARK-4's own kernel modules
+IoFileMgrForKernel	0x109F50BC	sceIoOpen	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
+IoFileMgrForKernel	0x42EC03AC	sceIoWrite	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
+IoFileMgrForKernel	0x810C4BC3	sceIoClose	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
+InterruptManagerForKernel	0x092968F4	sceKernelCpuSuspendIntr	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
+InterruptManagerForKernel	0x5F10D406	sceKernelCpuResumeIntr	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core
+IoFileMgrForKernel	0x6A638D83	sceIoRead	verified	PSP-3000 (model 3), ARK-4 6.61, 2026-10-04: selfcheck 0 unresolved; also used by ARK-4 core

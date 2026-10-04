@@ -45,12 +45,25 @@ Copy-Item -Path $prx -Destination $dest -Force
 Write-Host "Copied pocketwatch.prx -> $dest"
 
 $pluginsTxt = Join-Path $pspRoot 'seplugins\PLUGINS.TXT'
-$line = "GAME, ${Device}:/seplugins/pocketwatch/pocketwatch.prx, on"
-$registered = (Test-Path $pluginsTxt) -and
-    (Select-String -Path $pluginsTxt -SimpleMatch 'seplugins/pocketwatch/pocketwatch.prx' -Quiet)
+# Runlevel UMD = retail games (UMD and ISO) only. GAME would also load it into homebrew.
+$line = "UMD, ${Device}:/seplugins/pocketwatch/pocketwatch.prx, on"
+$text = ''
+if (Test-Path $pluginsTxt) { $text = [IO.File]::ReadAllText($pluginsTxt, [Text.Encoding]::ASCII) }
+$pattern = '(?m)^[^#\r\n]*seplugins/pocketwatch/pocketwatch\.prx[^\r\n]*$'
+$existing = [regex]::Match($text, $pattern)
 
-if ($registered) {
+if ($existing.Success -and $existing.Value -eq $line) {
     Write-Host "Already listed in $pluginsTxt"
+}
+elseif ($existing.Success) {
+    if ($Enable) {
+        $text = $text.Remove($existing.Index, $existing.Length).Insert($existing.Index, $line)
+        [IO.File]::WriteAllText($pluginsTxt, $text, [Text.Encoding]::ASCII)
+        Write-Host "Updated in ${pluginsTxt}: '$($existing.Value)' -> '$line'"
+    }
+    else {
+        Write-Host "Listed as '$($existing.Value)'; expected '$line' (re-run with -Enable to fix)"
+    }
 }
 elseif ($Enable) {
     # Keep the file's LF line endings and make sure we start on a fresh line.

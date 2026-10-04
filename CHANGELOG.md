@@ -20,3 +20,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Relicensed from MIT to GPL-3.0-or-later.
+- Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
+
+### Fixed
+- Exiting a game hung on "Please wait...": `module_stop` now stops and joins all plugin threads.
