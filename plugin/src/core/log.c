@@ -105,8 +105,8 @@ void pw_log_flush(void)
 
             if (dropped > 0) {
                 char note[48];
-                int note_len = stbsp_snprintf(note, sizeof(note), "[log] %u line(s) dropped\n",
-                                              dropped);
+                int note_len =
+                    stbsp_snprintf(note, sizeof(note), "[log] %u line(s) dropped\n", dropped);
                 pw_file_write(g_log_path, note, (unsigned int)note_len, 1);
             }
             if (n == 0)

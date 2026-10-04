@@ -23,7 +23,7 @@ PW_TEST(ring_wraps_around)
 
     pw_ring_init(&r, buf, sizeof(buf));
     pw_ring_push(&r, "123456", 6);
-    CHECK_EQ(pw_ring_pop(&r, out, 4), 4); /* tail moves to 4, head stays at 6 */
+    CHECK_EQ(pw_ring_pop(&r, out, 4), 4);      /* tail moves to 4, head stays at 6 */
     CHECK_EQ(pw_ring_push(&r, "ABCDE", 5), 0); /* spans the end of the buffer */
     CHECK_EQ(r.len, 7);
     CHECK_EQ(pw_ring_pop(&r, out, sizeof(out)), 7);

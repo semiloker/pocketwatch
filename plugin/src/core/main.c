@@ -15,9 +15,9 @@ PSP_MODULE_INFO("Pocketwatch", PSP_MODULE_KERNEL, 0, 1);
 #define PW_VERSION "dev"
 #endif
 
-#define PW_DEFAULT_PATH     "ms0:/seplugins/pocketwatch/pocketwatch.prx"
-#define PW_THREAD_PRIORITY  0x20
-#define PW_THREAD_STACK     0x2000 /* stb_sprintf alone needs ~0.6 KB per call */
+#define PW_DEFAULT_PATH    "ms0:/seplugins/pocketwatch/pocketwatch.prx"
+#define PW_THREAD_PRIORITY 0x20
+#define PW_THREAD_STACK    0x2000 /* stb_sprintf alone needs ~0.6 KB per call */
 
 static char g_module_path[256];
 
