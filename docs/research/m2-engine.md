@@ -125,3 +125,24 @@ record did not survive the trip through the XMB. Lessons and changes for run 3:
   the PSP-1000 has no P8.
 - finish_load logs before each step, and for 5 s after the thaw logs how many game threads are
   still alive.
+
+**Run 3 — 2026-10-05, NFS Most Wanted.** Raw log:
+[`logs/2026-10-05-e2-run3-nfs.log`](logs/2026-10-05-e2-run3-nfs.log).
+- SAVE fine again (6 threads frozen, one forced: a video was playing, `PspMpegStreamer::Thread`;
+  game RAM 24 MB -> 9.1 MB, eDRAM -> 1.0 MB, P8 1 MB copied; packing 5.1 s).
+- LOAD: back to the XMB, and **not a single line after the rollback**, although finish_load now
+  writes its first line as soon as the save-time thread runs. The user saw only a black screen,
+  never the frozen game frame. So the failure is before the display comes back on: in the kernel
+  apply itself or in the early resume phases of the restored kernel, not in the RAM restore and not
+  in the game.
+
+Experiments for run 4 (the next build):
+- The kernel snapshot is taken with interrupts masked (a torn snapshot was one suspect).
+- The RTC wake-up for LOAD is armed 1.5 s ahead instead of 100 ms: the uncached apply loop runs
+  after the alarm is set and may outlast 100 ms.
+- Flash re-initialisation is off for same-session loads (`FLASH_REINIT_ON_LOAD`).
+- **Self-test, L+R+START+RIGHT:** at PHASE0_0, copy the live kernel and write it straight back
+  through the blob. No world switch: if the game survives, the blob, cache flushes and context
+  restore are sound and the problem is the saved world.
+- **Frozen save + load, L+R+START+LEFT:** save, keep the game frozen, load at once. The smallest
+  possible difference between the saved world and the one being replaced.

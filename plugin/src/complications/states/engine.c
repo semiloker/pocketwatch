@@ -45,7 +45,12 @@
 #define GE_TIMEOUT_MS     100
 #define RESUME_POLLS      2000 /* x 5 ms of active time; the sleep itself does not count */
 #define WAKE_DELAY_US     100000ull
-#define TRACE_MAX         128
+/* LOAD and the self-test spend up to ~1 s copying the kernel (uncached code) after the alarm is
+   armed; an alarm that expires before the CPU sleeps might never wake it. */
+#define WAKE_DELAY_SLOW_US 1500000ull
+/* Same-session loads do not need it (flash is unchanged); off while the load path is debugged. */
+#define FLASH_REINIT_ON_LOAD 0
+#define TRACE_MAX            128
 
 #ifdef PW_DEBUG
 #define VERIFY 1 /* checksum game RAM on save and after load */
@@ -53,7 +58,7 @@
 #define VERIFY 0
 #endif
 
-enum { MODE_IDLE, MODE_SAVE, MODE_LOAD };
+enum { MODE_IDLE, MODE_SAVE, MODE_LOAD, MODE_SELFTEST };
 enum { TRACE_SAVE, TRACE_LOAD, TRACE_AFTER_ROLLBACK, TRACE_KINDS };
 
 /*
@@ -83,6 +88,9 @@ enum {
     S_RB_CACHES,     /* caches written back / invalidated */
     S_RB_THAWED,     /* game threads resumed */
     S_LOAD_DONE,
+    S_ST_START = 40, /* rollback self-test: re-apply the live kernel through the blob */
+    S_ST_APPLY,
+    S_ST_BACK, /* first event after the blob returned */
 };
 
 #define CRUMB_MAX 48
@@ -101,6 +109,7 @@ typedef struct {
     int load_ge;
     unsigned long long load_start_tick;
     unsigned int loads;
+    int ge_selftest;
     unsigned int stage; /* last breadcrumb */
     unsigned int crumb_count;
     unsigned int crumb[CRUMB_MAX];
@@ -124,6 +133,7 @@ static pw_mem_block g_stage_a, g_stage_b;
 static pw_arena g_arena;
 static pw_freeze_set g_save_freeze, g_load_freeze;
 static unsigned int g_cycles_per_ms;
+static int g_keep_frozen;              /* debug: pw_engine_save leaves the game frozen */
 static pw_flash_report g_flash_report; /* filled at RESUME_COMPLETED after a rollback */
 static volatile int g_flash_result;
 static int g_registered;
@@ -225,6 +235,12 @@ static const char *stage_name(unsigned int s)
         return "rollback:game-thawed";
     case S_LOAD_DONE:
         return "load:done";
+    case S_ST_START:
+        return "selftest:start";
+    case S_ST_APPLY:
+        return "selftest:applying-live-kernel";
+    case S_ST_BACK:
+        return "selftest:back-in-dispatcher";
     default:
         return "?";
     }
@@ -262,22 +278,26 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
           (unsigned int)ev_id);
     if (g_mode == MODE_SAVE && h->load_applying && h->stage < S_RB_EVENT)
         crumb(h, S_RB_EVENT); /* we are running inside the restored kernel */
+    if (g_mode == MODE_SELFTEST && g_applying && h->stage == S_ST_APPLY)
+        crumb(h, S_ST_BACK);
 
     if (ev_id == EV_POWER_LOCK_PHASE1 && !g_alarm_set) {
         u64 tick;
 
         sceRtcGetCurrentTick(&tick);
-        tick += WAKE_DELAY_US;
+        tick += g_mode == MODE_SAVE ? WAKE_DELAY_US : WAKE_DELAY_SLOW_US;
         sceRtcSetAlarmTick(&tick);
         g_alarm_set = 1;
     } else if (ev_id == EV_SUSPEND_PHASE0_0) {
         if (g_mode == MODE_SAVE && !g_captured) {
-            unsigned int c0 = cycles();
+            unsigned int c0 = cycles(), intr;
 
             h->save_dmac_left = dmac_drain();
+            intr = sceKernelCpuSuspendIntr(); /* no interrupt may change the kernel mid-copy */
             memcpy(g_kernel_image, (const void *)KERNEL_BASE, KERNEL_SIZE);
             if (g_p8_size)
                 memcpy(g_kernel_image + KERNEL_SIZE, (const void *)g_p8_base, g_p8_size);
+            sceKernelCpuResumeIntr(intr);
             sceKernelDcacheWritebackAll(); /* the image must be in DRAM before power-down */
             h->save_capture_cycles = cycles() - c0;
             g_captured = 1;
@@ -294,13 +314,28 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
             sceKernelCpuSuspendIntr();
             apply(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
             /* not reached: execution continues in the SAVE's suspend */
+        } else if (g_mode == MODE_SELFTEST && !g_applying) {
+            void (*apply)(const void *, void *, unsigned int, const volatile void *) =
+                (void *)((unsigned int)g_blob | KSEG1);
+
+            g_applying = 1;
+            crumb(h, S_ST_APPLY);
+            dmac_drain();
+            sceKernelCpuSuspendIntr();
+            /* Snapshot the live kernel and put it straight back: the rollback minus the world
+             * switch. */
+            memcpy(g_kernel_image, (const void *)KERNEL_BASE, KERNEL_SIZE);
+            apply(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
+            /* not reached: the blob returns into this dispatch */
         }
     } else if (ev_id == EV_RESUME_COMPLETED) {
         sceRtcSetAlarmTick(NULL); /* never wake the next natural sleep early */
         if (g_restore_pending) {  /* back from a rollback: fix flash before anyone else uses it */
             crumb(h, S_RB_RESUME);
-            g_flash_result = pw_flash_reinit(&g_flash_report);
-            crumb(h, S_RB_FLASH);
+            if (FLASH_REINIT_ON_LOAD) {
+                g_flash_result = pw_flash_reinit(&g_flash_report);
+                crumb(h, S_RB_FLASH);
+            }
         } else if (g_mode == MODE_SAVE) {
             crumb(h, S_SAVE_RESUMED);
         }
@@ -652,9 +687,9 @@ int pw_engine_save(void)
     if (g_restore_pending)
         return finish_load();
 
-    pw_thaw_game(&g_save_freeze);
     h->save_suspend_ms = (unsigned int)((rt1 - rt0) / 1000);
     if (ret < 0 || !g_resumed || !g_captured) {
+        pw_thaw_game(&g_save_freeze);
         if (!g_resumed)
             sceRtcSetAlarmTick(NULL);
         pw_log_set_deferred(0);
@@ -665,6 +700,8 @@ int pw_engine_save(void)
         return -1;
     }
 
+    if (!g_keep_frozen) /* the frozen save+load test loads right away, game still frozen */
+        pw_thaw_game(&g_save_freeze);
     h->valid = 1;
     crumb(h, S_SAVE_DONE);
     pw_log("engine: save OK: suspend %u ms (wall clock), kernel copy %u ms, dmac_left=0x%X",
@@ -721,10 +758,80 @@ int pw_engine_load(void)
     if (!g_resumed)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&g_load_freeze);
+    pw_thaw_game(&g_save_freeze); /* still frozen after a frozen save+load test; no-op otherwise */
     pw_log("engine: LOAD FAILED: suspend=0x%08X resumed=%d applying=%d", ret, g_resumed,
            g_applying);
     log_trace(h, TRACE_LOAD, "load");
     return -1;
+}
+
+/*
+ * Debug: the rollback mechanics without the world switch. During a real suspend, at PHASE0_0,
+ * copy the live kernel and write it straight back through the apply blob, which then returns into
+ * the current dispatcher. If the game carries on afterwards, the blob, the cache flushes and the
+ * context restore work, and a failing load is about the saved world, not the mechanics.
+ */
+int pw_engine_selftest(void)
+{
+    StateHeader *h;
+    pw_freeze_set frozen;
+    int ret, polls = 0, ok;
+
+    if (!g_registered)
+        return -1;
+    if (pw_engine_has_state())
+        pw_engine_discard(); /* the test reuses the staging memory */
+    pw_log("engine: ---- ROLLBACK SELF-TEST ----");
+    if (check_environment() < 0 || ensure_staging() < 0)
+        return -1;
+
+    h = g_hdr;
+    memset(h, 0, sizeof(*h));
+    h->magic = STATE_MAGIC;
+    crumb(h, S_ST_START);
+    calibrate();
+
+    pw_freeze_game(&frozen, FREEZE_TIMEOUT_MS);
+    h->ge_selftest = ge_wait_idle();
+    memcpy(g_blob, pw_apply_handoff, (unsigned int)(pw_apply_handoff_end - pw_apply_handoff));
+    pw_log_flush();
+
+    g_alarm_set = g_resumed = g_captured = g_applying = 0;
+    g_mode = MODE_SELFTEST;
+    sceKernelDcacheWritebackAll(); /* the blob must be in DRAM */
+    ret = scePowerRequestSuspend();
+    while (!g_resumed && polls++ < RESUME_POLLS)
+        sceKernelDelayThread(5000);
+    g_mode = MODE_IDLE;
+    if (!g_resumed)
+        sceRtcSetAlarmTick(NULL);
+    pw_thaw_game(&frozen);
+
+    ok = g_applying && g_resumed;
+    pw_log("engine: self-test: froze %d thread(s), GE %d, suspend=0x%08X applied=%d resumed=%d: %s",
+           frozen.count, h->ge_selftest, ret, g_applying, g_resumed,
+           ok ? "ROLLBACK MECHANICS OK" : "FAILED");
+    log_crumbs(h, "self-test");
+    log_trace(h, TRACE_SAVE, "self-test");
+    release_staging();
+    return ok ? 0 : -1;
+}
+
+/*
+ * Debug: save, keep the game frozen, load immediately. The saved world and the world being left
+ * differ by as little as possible (only the save's own sleep/wake cycle).
+ */
+int pw_engine_save_load_frozen(void)
+{
+    int ret;
+
+    pw_log("engine: ---- FROZEN SAVE + LOAD ----");
+    g_keep_frozen = 1;
+    ret = pw_engine_save(); /* returns PW_ENGINE_LOADED a second time, after the rollback */
+    g_keep_frozen = 0;
+    if (ret != PW_ENGINE_SAVED)
+        return ret;
+    return pw_engine_load();
 }
 
 int pw_engine_has_state(void)

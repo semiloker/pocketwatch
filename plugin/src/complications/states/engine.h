@@ -30,6 +30,10 @@ int pw_engine_save(void);
 int pw_engine_load(void); /* returns only on failure (< 0) */
 
 int pw_engine_has_state(void);
+
+/* Debug experiments (see engine.c): rollback mechanics alone; save + immediate frozen load. */
+int pw_engine_selftest(void);
+int pw_engine_save_load_frozen(void);
 void pw_engine_discard(void); /* drop the state, flush the held log lines */
 
 #endif

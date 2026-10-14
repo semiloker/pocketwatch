@@ -13,10 +13,14 @@
 #include "debug/probe.h"
 #include "complications/states/engine.h"
 
-#define COMBO_BASE       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
-#define PROBE_COMBO      (COMBO_BASE | PSP_CTRL_UP)    /* drop state, flush log, dump */
-#define SAVE_COMBO       (COMBO_BASE | PSP_CTRL_RIGHT) /* engine: save to RAM */
-#define LOAD_COMBO       (COMBO_BASE | PSP_CTRL_LEFT)  /* engine: load from RAM */
+#define COMBO_BASE  (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
+#define PROBE_COMBO (COMBO_BASE | PSP_CTRL_UP)    /* drop state, flush log, dump */
+#define SAVE_COMBO  (COMBO_BASE | PSP_CTRL_RIGHT) /* engine: save to RAM */
+#define LOAD_COMBO  (COMBO_BASE | PSP_CTRL_LEFT)  /* engine: load from RAM */
+/* Experiments; L+R+START+DOWN is ARK's exit combo and stays untouched. */
+#define COMBO_TEST       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_START)
+#define SELFTEST_COMBO   (COMBO_TEST | PSP_CTRL_RIGHT) /* rollback mechanics alone */
+#define FROZEN_COMBO     (COMBO_TEST | PSP_CTRL_LEFT)  /* save + immediate frozen load */
 #define PROBE_MAX_IDS    128
 #define PROBE_PARTITIONS 12
 
@@ -173,6 +177,12 @@ static int probe_thread(SceSize args, void *argp)
         } else if ((pad.Buttons & LOAD_COMBO) == LOAD_COMBO) {
             wait_release(LOAD_COMBO);
             pw_engine_load(); /* returns only on failure */
+        } else if ((pad.Buttons & SELFTEST_COMBO) == SELFTEST_COMBO) {
+            wait_release(SELFTEST_COMBO);
+            pw_engine_selftest();
+        } else if ((pad.Buttons & FROZEN_COMBO) == FROZEN_COMBO) {
+            wait_release(FROZEN_COMBO);
+            pw_engine_save_load_frozen();
         }
     }
     return 0;

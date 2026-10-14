@@ -12,6 +12,8 @@
  *                                            partitions, modules and threads;
  *                  on L + R + SELECT + RIGHT saves a state to RAM (engine.h);
  *                  on L + R + SELECT + LEFT  loads it back.
+ *                  on L + R + START + RIGHT  runs the rollback self-test;
+ *                  on L + R + START + LEFT   saves and loads at once, game kept frozen.
  * pw_probe_stop  - stops and deletes that thread; must be called from module_stop.
  */
 void pw_probe_boot(void);
