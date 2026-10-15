@@ -9,7 +9,7 @@ TARGET = pocketwatch
 OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o \
          src/core/selfcheck.o src/core/stubinfo.o src/core/freeze.o src/core/mem.o \
          src/core/crc32.o src/core/png.o src/core/flash.o src/core/stubs/SystemCtrlForKernel.o \
-         src/core/stubs/scePower_driver.o \
+         src/core/stubs/scePower_driver.o src/core/stubs/sceSyscon_driver.o \
          src/complications/states/sfo.o src/complications/states/savedata_hash.o \
          src/complications/states/stream.o src/complications/states/engine.o \
          src/complications/states/handoff.o \

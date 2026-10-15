@@ -154,3 +154,29 @@ Changes for speed run 3:
   log lines stay in RAM from the start of the save (no card write while frozen). The load's
   pending flag is set in the image at PHASE0_0 after the guard (no second 9 MB checksum).
 - Each trace logs its slowest events, to find the handlers behind the remaining ~2 s.
+
+**Speed run 3 - 2026-10-15, Castlevania (fast mode, LZ4).** Raw log:
+[`logs/2026-10-15-speed3-castlevania.log`](logs/2026-10-15-speed3-castlevania.log).
+
+| | Speed run 1 | Speed run 3 |
+|---|---|---|
+| save, button to game running | 12.7 s | **4.0 s** (pack 1.52 s, sums 0.13 s, suspend 2.35 s) |
+| load, button to game running | 9.3 s | **3.9 s** (verify 0.25 s, suspend 3.07 s incl. flash rebuild 0.78 s, unpack 0.49 s, eDRAM 0.07 s) |
+
+Benchmark of the engine stream: LZ4 + FILL packs 24 MB in 1.39 s and unpacks in 0.50 s (41 %,
+98 FILL chunks). The suspend is now the floor; its slowest events (system timer, gap after the
+event): `0x200` 591 ms, `0x400A` 583 ms, `0x402` x30 retries ~340 ms; on resume `0x100000`
+268 ms, `0x1000A` 122 ms, `0x40000` 100 ms (the VBLANK wait).
+
+**Problem: after save + load the PSP went to sleep when the game was quit.** A touch-and-go
+suspend zeroes the resume info (`ScePowerResumeInfo`) that a real wake gets from the IPL, and
+`sceSysconResume` (event 0x10008) rebuilds the syscon driver's cached state from it: with zeroes
+it believes HOLD is on, the Memory Stick and Wi-Fi are unpowered, no headphones, and the battery
+driver sees no battery. Fix: before every suspend the engine reads the real state
+(`sceSysconGetHoldSwitch`, `GetWlanSwitch`, `GetHPConnect`, `GetMsPowerCtrl`, `GetWlanPowerCtrl`,
+`GetHRPowerCtrl`, `GetPowerSupplyStatus`, `BatteryGetStatusCap`, `BatteryGetFullCap`) and at the
+first resume event writes it into the resume info; bits no getter reports (UMD switch, two unknown
+key bits, `baryonStatus2`) come from the resume info of the last real wake in this boot when
+there was one (else Adrenaline's 0xFFFF key word). The log shows the info found and what was
+filled. Unconfirmed that this was the cause of the sleep; the next run checks the exit.
+

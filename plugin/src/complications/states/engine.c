@@ -152,6 +152,27 @@ typedef struct {
     unsigned int ms[MARK_MAX]; /* since t0 */
 } Marks;
 
+/*
+ * A touch-and-go suspend zeroes the resume info (ScePowerResumeInfo, uOFW power_kernel.h) that a
+ * real wake gets from the IPL, and at 0x10008 sceSysconResume rebuilds the syscon driver's view of
+ * the switches and device power from it: with zeroes it would believe HOLD on, the Memory Stick
+ * and Wi-Fi powered off, no battery... (E2 speed run 3: the PSP went to sleep when the game was
+ * quit). The engine reads the real state before suspending and writes it back at 0x10000.
+ */
+typedef struct {
+    int ok;
+    int hold, wlan_switch, hp, ms_power, wlan_power, hr_power;
+    int supply, batt_status, batt_remain, batt_full;
+} LiveStatus;
+
+#define RI_WORDS       17 /* the resume info up to and including baryonStatus2 (+64) */
+#define RI_BARYON_ST   24 /* u8; bit 1 Wi-Fi power, bit 2 HR power (sceSysconResume) */
+#define RI_BARYON_KEY  32 /* u32; bit 13 !HOLD, 14 !Wi-Fi switch, 15 headphones, 21 MS power */
+#define RI_SUPPLY      36
+#define RI_BATT_STATUS 40
+#define RI_BATT_REMAIN 44
+#define RI_BATT_FULL   48
+
 /* Guard results at PHASE0_0, checked before jumping to the blob (bit mask). */
 #define GUARD_BLOB  1u /* the blob in P9 differs from the module's copy */
 #define GUARD_IMAGE 2u /* the kernel image (+ P8) no longer has the save-time checksum */
@@ -171,6 +192,9 @@ typedef struct {
     unsigned int io_snap[3];            /* I/O enables + GPIO levels at EV_FREEZE */
     unsigned int io_found[3];           /* the same at the first resume event */
     unsigned int io_restored;           /* touch-and-go resume: io_snap was put back */
+    LiveStatus live;                    /* switches, power and battery right before the suspend */
+    unsigned int ri_found[RI_WORDS];    /* resume info as the first resume event found it */
+    unsigned int ri_filled;             /* touch-and-go resume: resume info filled (1 + real) */
     unsigned int ram_sum[RAM_CHUNKS];   /* debug: per-64 KB checksums of game RAM at save */
     Marks save_t, load_t;               /* phase timings (log_marks) */
     unsigned int flash_us;              /* flash driver rebuild at RESUME_COMPLETED */
@@ -215,6 +239,9 @@ static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
 static int g_fast = 1;               /* suspend touch-and-go (no sleep); debug toggle */
 static volatile int g_tg;            /* the suspend in progress was requested touch-and-go */
+/* The resume info of the last real wake in this boot: the bits no getter reports come from it. */
+static unsigned int g_real_ri[RI_WORDS];
+static int g_real_ri_valid;
 /* Partition 8 holds live data of something loaded at boot (343 KB used on the PSP-3000) but sits
    outside 0x88000000-0x88400000: it is captured and restored together with the kernel image. */
 static unsigned int g_p8_base, g_p8_size;
@@ -227,7 +254,17 @@ static unsigned int g_ram_restored[RAM_CHUNKS], g_ram_now[RAM_CHUNKS]; /* debug,
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
 int scePowerRequestSuspendTouchAndGo(void); /* core/stubs/scePower_driver.S */
-int sceRtcSetAlarmTick(u64 *tick);          /* sceRtc_driver, not declared by PSPSDK */
+/* core/stubs/sceSyscon_driver.S (uOFW syscon.c signatures) */
+signed char sceSysconGetHoldSwitch(void);
+signed char sceSysconGetWlanSwitch(void);
+signed char sceSysconGetHPConnect(void);
+signed char sceSysconGetMsPowerCtrl(void);
+signed char sceSysconGetWlanPowerCtrl(void);
+signed char sceSysconGetHRPowerCtrl(void);
+int sceSysconGetPowerSupplyStatus(int *status);
+int sceSysconBatteryGetStatusCap(int *status, int *cap);
+int sceSysconBatteryGetFullCap(int *cap);
+int sceRtcSetAlarmTick(u64 *tick); /* sceRtc_driver, not declared by PSPSDK */
 int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result);
 
 static PspSysEventHandler g_handler = {
@@ -308,6 +345,44 @@ static void stage_blob(void)
     memcpy(g_blob, pw_apply_handoff, (unsigned int)(pw_apply_handoff_end - pw_apply_handoff));
     sceKernelDcacheWritebackAll();
     sceKernelIcacheInvalidateAll();
+}
+
+/* Thread context only (the battery reads are syscon commands). */
+static void capture_live(LiveStatus *l)
+{
+    memset(l, 0, sizeof(*l));
+    l->hold = sceSysconGetHoldSwitch();
+    l->wlan_switch = sceSysconGetWlanSwitch();
+    l->hp = sceSysconGetHPConnect();
+    l->ms_power = sceSysconGetMsPowerCtrl();
+    l->wlan_power = sceSysconGetWlanPowerCtrl();
+    l->hr_power = sceSysconGetHRPowerCtrl();
+    l->ok = sceSysconGetPowerSupplyStatus(&l->supply) >= 0;
+    if (sceSysconBatteryGetStatusCap(&l->batt_status, &l->batt_remain) < 0 ||
+        sceSysconBatteryGetFullCap(&l->batt_full) < 0)
+        l->batt_status = l->batt_remain = l->batt_full = 0;
+}
+
+/* Handler, first resume event of a touch-and-go suspend: make the zeroed resume info tell the
+   truth, so that sceSysconResume and the battery driver keep what they knew before. */
+static void fill_resume_info(unsigned int *ri, const LiveStatus *l)
+{
+    unsigned char *b = (unsigned char *)ri;
+    unsigned int key = g_real_ri_valid ? g_real_ri[RI_BARYON_KEY / 4] : 0xFFFFu; /* as Adrenaline */
+    unsigned int st = g_real_ri_valid ? (g_real_ri[RI_BARYON_ST / 4] & 0xFF) : 0;
+
+    st = (st & ~6u) | (l->wlan_power ? 2u : 0) | (l->hr_power ? 4u : 0);
+    key &= ~((1u << 13) | (1u << 14) | (1u << 15) | (1u << 21));
+    key |= (l->hold ? 0 : 1u << 13) | (l->wlan_switch ? 0 : 1u << 14) | (l->hp ? 1u << 15 : 0) |
+           (l->ms_power ? 1u << 21 : 0);
+    b[RI_BARYON_ST] = (unsigned char)st;
+    ri[RI_BARYON_KEY / 4] = key;
+    ri[RI_SUPPLY / 4] = (unsigned int)l->supply;
+    ri[RI_BATT_STATUS / 4] = (unsigned int)l->batt_status;
+    ri[RI_BATT_REMAIN / 4] = (unsigned int)l->batt_remain;
+    ri[RI_BATT_FULL / 4] = (unsigned int)l->batt_full;
+    if (g_real_ri_valid)
+        b[64] = (unsigned char)g_real_ri[64 / 4]; /* baryonStatus2 */
 }
 
 static int request_suspend(void)
@@ -410,7 +485,6 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
     StateHeader *h = g_hdr;
 
     (void)ev_name;
-    (void)param;
     (void)result;
     if (g_mode == MODE_IDLE || h == NULL)
         return 0;
@@ -436,6 +510,22 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         h->io_found[0] = *REG_IO_ENABLE;
         h->io_found[1] = *REG_GPIO_IO_ENABLE;
         h->io_found[2] = *REG_GPIO_READ;
+
+        /* Resume payload: pResumeInfo at +4 (sceSysconResume reads it there at 0x10008). */
+        unsigned int *ri = param ? *(unsigned int **)((char *)param + 4) : NULL;
+
+        if (ri != NULL && ((unsigned int)ri & 0xF0000003u) == 0x80000000u) {
+            for (int i = 0; i < RI_WORDS; i++)
+                h->ri_found[i] = ri[i];
+            if (!tg) { /* a real wake: keep what the IPL reported */
+                for (int i = 0; i < RI_WORDS; i++)
+                    g_real_ri[i] = ri[i];
+                g_real_ri_valid = 1;
+            } else if (h->live.ok) {
+                fill_resume_info(ri, &h->live);
+                h->ri_filled = 1 + g_real_ri_valid;
+            }
+        }
         if (tg && h->io_snap[0]) {
             *REG_IO_ENABLE |= h->io_snap[0];
             *REG_GPIO_IO_ENABLE |= h->io_snap[1];
@@ -843,6 +933,23 @@ static void log_suspend_split(const StateHeader *h, int pre, int post, const cha
            h->flash_us / 1000, (int)wall_ms - cpu);
 }
 
+static void log_resume_info(const StateHeader *h, const char *who)
+{
+    const LiveStatus *l = &h->live;
+    const unsigned int *r = h->ri_found;
+
+    pw_log("engine: %s: live before suspend: hold %d wlan-sw %d hp %d ms-pow %d wlan-pow %d hr-pow "
+           "%d supply %X batt %X %d/%d mAh",
+           who, l->hold, l->wlan_switch, l->hp, l->ms_power, l->wlan_power, l->hr_power, l->supply,
+           l->batt_status, l->batt_remain, l->batt_full);
+    pw_log("engine: %s: resume info found: size %u wake %X st %02X clock %u key %08X supply %X "
+           "batt %X %u/%d st2 %02X%s",
+           who, r[0], r[1], r[6] & 0xFF, r[7], r[8], r[9], r[10], r[11], (int)r[12], r[16] & 0xFF,
+           h->ri_filled == 2   ? " -> filled (live + real wake)"
+           : h->ri_filled == 1 ? " -> filled (live only)"
+                               : "");
+}
+
 static void log_io(const StateHeader *h, const char *who)
 {
     pw_log("engine: %s: I/O enables %08X/%08X, GPIO %08X at suspend; %08X/%08X, GPIO %08X at "
@@ -1000,6 +1107,7 @@ static int finish_load(void)
     log_marks(&h->save_t, h->save_tg ? "save (touch-and-go)" : "save");
     log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
     log_io(h, "load");
+    log_resume_info(h, "load");
     log_marks(&h->load_t, "load");
     log_suspend_split(h, TRACE_LOAD, TRACE_AFTER_ROLLBACK, "load",
                       mark_span(&h->load_t, P_SUSPEND));
@@ -1110,6 +1218,7 @@ int pw_engine_save(void)
     crumb(h, S_SAVE_SUSPEND);
     sceKernelDcacheWritebackAll();
     sceRtcGetCurrentTick(&rt0);
+    capture_live(&h->live);
     ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1145,6 +1254,7 @@ int pw_engine_save(void)
            h->image_sum, h->arena_used / 1024, h->arena_sum);
     log_flash("save");
     log_io(h, "save");
+    log_resume_info(h, "save");
     log_trace(h, TRACE_SAVE, "save");
     log_marks(&h->save_t, h->save_tg ? "save (touch-and-go)" : "save");
     log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
@@ -1206,9 +1316,11 @@ int pw_engine_load(void)
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
     g_tg = g_fast;
     h->io_restored = 0;
+    h->ri_filled = 0;
     g_mode = MODE_LOAD;
     crumb(h, S_LOAD_SUSPEND);
     stage_blob(); /* its D-cache write-back also puts the flag in the image into DRAM */
+    capture_live(&h->live);
     ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1262,6 +1374,7 @@ static int selftest_round(int copy)
     g_selftest_copy = copy;
     g_mode = MODE_SELFTEST;
     stage_blob();
+    capture_live(&h->live);
     ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1343,6 +1456,7 @@ int pw_engine_tg_test(void)
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
     g_tg = 1;
     g_mode = MODE_PLAIN;
+    capture_live(&h->live);
     ret = scePowerRequestSuspendTouchAndGo();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1351,6 +1465,7 @@ int pw_engine_tg_test(void)
 
     pw_log("engine: touch-and-go: request=0x%08X resumed=%d", ret, g_resumed);
     log_io(h, "touch-and-go");
+    log_resume_info(h, "touch-and-go");
     log_trace(h, TRACE_SAVE, "touch-and-go");
     log_marks(&h->save_t, "touch-and-go");
     log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "touch-and-go", mark_span(&h->save_t, P_SUSPEND));
