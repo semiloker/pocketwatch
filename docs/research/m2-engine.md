@@ -6,7 +6,7 @@ Each rung is proven on the device before the next one is built. Design inputs: M
 | Rung | What it proves | Status |
 |---|---|---|
 | E1 | real suspend + RTC auto-wake + kernel copy at PHASE0_0, no restore | done (run 1) |
-| E2 | load in the same boot (restore kernel + RAM + VRAM) | rollback works (run 5); flash1 safety in run 6 |
+| E2 | load in the same boot (restore kernel + RAM + VRAM) | **done** (run 7) |
 | E3 | load after a reboot (environment fingerprint) | |
 | E4 | file-system integrity gate (100 cycles + FAT check) | |
 
@@ -257,3 +257,25 @@ Test protocol for run 6 (NFS Most Wanted), stopping at the first problem:
   are remapped so the one the tester naturally uses does the main job: **L+R+START+RIGHT = save,
   L+R+START+LEFT = load**; SELECT+RIGHT/LEFT/UP = self-test / frozen save + load / dump. Every combo
   press is logged now.
+
+**Run 7 — 2026-10-15, NFS Most Wanted: E2 done.** Raw log:
+[`logs/2026-10-15-e2-run7-nfs.log`](logs/2026-10-15-e2-run7-nfs.log).
+Save in a race, drive on for 20-30 s, load: the car is back at the saved spot and the game runs on;
+the system settings survived the quit afterwards.
+- Save: 6 threads frozen in 2 ms, packing 6.1 s (game 24 MB -> 12.3 MB, eDRAM -> 1.2 MB).
+- Load: flash drivers rebuilt and remounted (all 0), game RAM restored in 1.0 s and eDRAM in
+  0.1 s, identical to the save except the interrupt-written chunk at `0x08AF0000` (run 6); the
+  scratchpad came back equal to the save's without restoring it (the power code saves it into the
+  kernel's resume block, which the rollback restores). All game threads alive afterwards.
+- Request -> game running: 9.4 s wall clock. Before the rollback the firmware again spent ~1 s
+  of CPU time retrying the power lock (`400 401 402` x22).
+
+Open items for the next rungs, roughly by priority:
+1. **Speed.** Save packing 6.1 s (FastLZ + debug CRC at the game's clock) and a 9.4 s load. Ideas:
+   333 MHz while packing/unpacking, CRC only in debug, find who holds the power lock during the
+   suspend (x22 retries ~= 1-2 s per suspend), skip debug diagnostics in release builds.
+2. **E3: load after a reboot.** Write the state to the Memory Stick; refuse on a different
+   environment (model, firmware, ARK, plugins, game).
+3. **E4: file-system integrity.** The rolled-back FAT driver state vs. game saves made between a
+   state save and its load (Memory Stick), checked over many cycles.
+4. Release builds without the debug checks; then M3 (HOME menu shell).

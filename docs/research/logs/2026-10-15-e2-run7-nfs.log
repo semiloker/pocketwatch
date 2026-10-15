@@ -1,0 +1,67 @@
+==== new session ====
+Pocketwatch ba24dec loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 55 import(s): 54 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   384 KB maxfree=   348 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   384 KB maxfree=   348 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: L+R+START+RIGHT: save
+engine: ---- SAVE ----
+freeze: 6 game thread(s) suspended in 2 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 32 status=0x0C wait=1
+freeze:   SND ATRAC PLAYER                prio= 18 status=0x08 wait=0
+freeze:   SND_SAS                         prio= 17 status=0x08 wait=0
+freeze:   SND                             prio= 18 status=0x08 wait=0
+freeze:   DVDUMD_READ                     prio= 21 status=0x0C wait=1
+freeze:   main                            prio=111 status=0x08 wait=0
+engine: save: GE 0, packed in 6094 ms:
+engine:   game     24576 KB ->  12558 KB (384 chunks, 11 raw) crc F7CD2C17
+engine:   eDRAM     2048 KB ->   1190 KB (32 chunks, 1 raw) crc 30296024
+engine:   scratch     16 KB ->      0 KB (1 chunks, 0 raw) crc 2CB9F96B
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: ---- LOAD: back in the saved moment ----
+engine: load: blob ran 14998 us
+engine: load: froze 6 thread(s) in 7 ms (0 forced), GE 0
+engine: load: flash drivers re-initialised: ok (lflash 1 exit 0 init 0, flashfat 1 exit 0 init 0)
+engine: load: flash0/flash1 remounted: unassign 0/0, assign 0/0
+engine: load (before rollback) trace, 81 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000
+engine: load (before rollback) trace spans 1066 ms (CPU time, the sleep itself excluded)
+engine: load (after rollback) trace, 21 event(s):
+engine:  010000 010001 010002 010003 010004 010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: load (after rollback) trace spans 224 ms (CPU time, the sleep itself excluded)
+engine: load: restoring game RAM...
+engine: load: game RAM restored in 983 ms
+engine:   restored vs save: 0x08AF0000-0x08AFFFFF
+engine: load: restored vs save: 1 of 384 64 KB chunk(s) differ
+engine: load: restoring eDRAM...
+engine: load: eDRAM restored in 95 ms
+engine: load: scratchpad crc now 2CB9F96B, at save 2CB9F96B (left as is)
+engine: load: reading flash0...
+engine: load: flash0 read 64
+engine:   changed since restore: 0x08AF0000-0x08AFFFFF
+engine: load: changed since restore: 1 of 384 64 KB chunk(s) differ
+engine: load: thawing 6 game thread(s)...
+engine: ---- LOAD complete: request -> game running 9356 ms (wall clock) ----
+engine: state discarded after 1 load(s)
+engine: after load +500 ms: 6/6 game thread(s) alive
+engine: after load +1000 ms: 6/6 game thread(s) alive
+engine: after load +1500 ms: 6/6 game thread(s) alive
+engine: after load +2000 ms: 6/6 game thread(s) alive
+engine: after load +2500 ms: 6/6 game thread(s) alive
+engine: after load +3000 ms: 6/6 game thread(s) alive
+engine: after load +3500 ms: 6/6 game thread(s) alive
+engine: after load +4000 ms: 6/6 game thread(s) alive
+engine: after load +4500 ms: 6/6 game thread(s) alive
+engine: after load +5000 ms: 6/6 game thread(s) alive
