@@ -10,8 +10,6 @@
 #include "core/log.h"
 #include "core/mem.h"
 #include "debug/bench.h"
-#include "debug/codec_lz4.h"
-#include "fastlz/fastlz.h"
 
 #define USER_BASE   0x88800000u /* game RAM (P2) through the cached kernel segment */
 #define USER_SIZE   0x01800000u
@@ -20,62 +18,7 @@
 #define SLICES      (USER_SIZE / SLICE)
 #define ARENA_SIZE  (SLICE + SLICE / 8)
 #define PAGE        4096u
-#define CHUNK       PW_STREAM_CHUNK
-#define CHUNKS      (USER_SIZE / CHUNK)
-#define PACK_CAP    (CHUNK + CHUNK / 16) /* FastLZ needs len * 1.05 */
-#define WS_SIZE     0x8000u
-
-extern unsigned int *fastlz_htab;       /* engine copy, -Os (lib/fastlz) */
-extern unsigned int *pw_fastlz_o2_htab; /* codec_fastlz_o2.c, -O2 */
-int pw_fastlz_o2_compress_level(int level, const void *input, int length, void *output);
-int pw_fastlz_o2_decompress(const void *input, int length, void *output, int maxout);
-
-typedef struct {
-    const char *name;
-    int (*pack)(const void *src, int len, void *dst, int cap, void *ws);
-    int (*unpack)(const void *src, int len, void *dst, int cap);
-} Codec;
-
-static int flz_pack(const void *src, int len, void *dst, int cap, void *ws)
-{
-    (void)cap;
-    fastlz_htab = ws;
-    return fastlz_compress_level(1, src, len, dst);
-}
-
-static int flz_unpack(const void *src, int len, void *dst, int cap)
-{
-    return fastlz_decompress(src, len, dst, cap);
-}
-
-static int flz2_pack(const void *src, int len, void *dst, int cap, void *ws)
-{
-    (void)cap;
-    pw_fastlz_o2_htab = ws;
-    return pw_fastlz_o2_compress_level(1, src, len, dst);
-}
-
-static int flz2_unpack(const void *src, int len, void *dst, int cap)
-{
-    return pw_fastlz_o2_decompress(src, len, dst, cap);
-}
-
-static int lz4a1_pack(const void *src, int len, void *dst, int cap, void *ws)
-{
-    return pw_lz4_pack(src, len, dst, cap, ws, 1);
-}
-
-static int lz4a4_pack(const void *src, int len, void *dst, int cap, void *ws)
-{
-    return pw_lz4_pack(src, len, dst, cap, ws, 4);
-}
-
-static const Codec g_codecs[] = {
-    {"fastlz L1 -Os (engine)", flz_pack, flz_unpack},
-    {"fastlz L1 -O2", flz2_pack, flz2_unpack},
-    {"lz4 accel 1 -O2", lz4a1_pack, pw_lz4_unpack},
-    {"lz4 accel 4 -O2", lz4a4_pack, pw_lz4_unpack},
-};
+#define WS_SIZE     PW_STREAM_WORKSPACE
 
 static unsigned int now_us(void)
 {
@@ -201,41 +144,10 @@ static void bench_zero_pages(void)
            uniform * 100 / (USER_SIZE / PAGE));
 }
 
-/* One codec over every 64 KB chunk of game RAM: pack, unpack, compare. */
-static void bench_codec(const Codec *c, unsigned char *pack_buf, unsigned char *out, void *ws)
-{
-    unsigned int t_pack = 0, t_unpack = 0, packed = 0, raw = 0, bad = 0;
-
-    for (unsigned int k = 0; k < CHUNKS; k++) {
-        const unsigned char *src = (const unsigned char *)(USER_BASE + k * CHUNK);
-        unsigned int t0 = now_us();
-        int n = c->pack(src, CHUNK, pack_buf, PACK_CAP, ws);
-
-        t_pack += now_us() - t0;
-        if (n <= 0 || n >= (int)CHUNK) { /* the engine would store it raw */
-            raw++;
-            packed += CHUNK;
-            continue;
-        }
-        packed += (unsigned int)n;
-        t0 = now_us();
-        if (c->unpack(pack_buf, n, out, CHUNK) != (int)CHUNK)
-            bad++;
-        t_unpack += now_us() - t0;
-        bad += memcmp(out, src, CHUNK) != 0;
-    }
-    pw_log("bench: %-24s pack %5u ms = %3u.%u MB/s, unpack %4u ms = %3u.%u MB/s, %u KB (%u%%), "
-           "%u raw, %u bad",
-           c->name, t_pack / 1000, t_pack ? USER_SIZE / t_pack : 0,
-           t_pack ? (USER_SIZE * 10 / t_pack) % 10 : 0, t_unpack / 1000,
-           t_unpack ? USER_SIZE / t_unpack : 0, t_unpack ? (USER_SIZE * 10 / t_unpack) % 10 : 0,
-           packed / 1024, packed * 100 / USER_SIZE, raw, bad);
-}
-
-/* FastLZ through the real stream code, slice by slice; each slice is unpacked and compared. */
+/* The engine's stream code (LZ4 + FILL), slice by slice; each slice is unpacked and compared. */
 static void bench_stream(unsigned char *buf, unsigned char *arena_mem, int with_crc)
 {
-    unsigned int t_pack = 0, t_unpack = 0, packed = 0, bad = 0;
+    unsigned int t_pack = 0, t_unpack = 0, packed = 0, bad = 0, fills = 0, raws = 0;
     pw_arena arena = {{arena_mem, NULL}, {ARENA_SIZE, 0}};
 
     for (unsigned int k = 0; k < SLICES; k++) {
@@ -250,16 +162,19 @@ static void bench_stream(unsigned char *buf, unsigned char *arena_mem, int with_
         }
         t_pack += now_us() - t0;
         packed += s.packed_len;
+        fills += s.fill_chunks;
+        raws += s.raw_chunks;
         t0 = now_us();
         if (pw_stream_read(&arena, &s, buf, SLICE) < 0)
             bad++;
         t_unpack += now_us() - t0;
         bad += memcmp(buf, src, SLICE) != 0;
     }
-    report(with_crc ? "fastlz pack + crc32" : "fastlz pack", USER_SIZE, t_pack);
-    report("fastlz unpack", USER_SIZE, t_unpack);
-    pw_log("bench: fastlz %u KB -> %u KB (%u%%), %u slice(s) not identical after unpack",
-           USER_SIZE / 1024, packed / 1024, packed * 100 / USER_SIZE, bad);
+    report(with_crc ? "stream pack + crc32" : "stream pack (lz4+fill)", USER_SIZE, t_pack);
+    report("stream unpack", USER_SIZE, t_unpack);
+    pw_log("bench: stream %u KB -> %u KB (%u%%), %u fill / %u raw chunk(s), %u slice(s) not "
+           "identical after unpack",
+           USER_SIZE / 1024, packed / 1024, packed * 100 / USER_SIZE, fills, raws, bad);
 }
 
 int pw_bench_run(void)
@@ -287,13 +202,9 @@ int pw_bench_run(void)
     bench_copies(buf.ptr);
     bench_zero_pages();
     pw_stream_set_workspace(ws.ptr);
+    bench_stream(buf.ptr, arena.ptr, 0);
     bench_stream(buf.ptr, arena.ptr, 1);
     pw_stream_set_workspace(NULL);
-    if (pw_lz4_state_size() > WS_SIZE)
-        pw_log("bench: lz4 state %u bytes does not fit the workspace", pw_lz4_state_size());
-    else
-        for (unsigned int i = 0; i < sizeof(g_codecs) / sizeof(g_codecs[0]); i++)
-            bench_codec(&g_codecs[i], buf.ptr, (unsigned char *)buf.ptr + 2 * CHUNK, ws.ptr);
     pw_thaw_game(&frozen);
     pw_log("bench: ---- end ----");
 

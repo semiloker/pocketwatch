@@ -18,7 +18,7 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
   L+R+SELECT+RIGHT = rollback self-test, L+R+SELECT+LEFT = frozen save + immediate load;
   L+R+START+UP = throughput benchmark on the frozen game's RAM (no suspend);
   L+R+SELECT+TRIANGLE = one touch-and-go suspend (no real sleep), L+R+SELECT+SQUARE = toggle
-  touch-and-go ("fast mode") for save/load/self-test
+  touch-and-go ("fast mode", on by default) for save/load/self-test
 - From PowerShell, call WSL with `wsl -d Ubuntu --exec bash <script>`; inline `bash -c '...$VAR...'`
   gets mangled by the outer shell.
 

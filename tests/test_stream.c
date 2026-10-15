@@ -38,7 +38,7 @@ typedef struct {
     unsigned char *mem[2];
 } Arena;
 
-static unsigned int g_workspace[PW_STREAM_WORKSPACE / 4];
+static unsigned long long g_workspace[PW_STREAM_WORKSPACE / 8]; /* LZ4 wants pointer alignment */
 
 static void arena_init(Arena *a, unsigned int size0, unsigned int size1)
 {
@@ -87,6 +87,53 @@ PW_TEST(stream_roundtrip_mixed_multi_chunk)
     roundtrip(fill_mixed, 5 * PW_STREAM_CHUNK + 1234, 1 << 20, 0);
 }
 
+PW_TEST(stream_compresses_compressible_data)
+{
+    unsigned int len = 4 * PW_STREAM_CHUNK;
+    unsigned char *src = malloc(len);
+    pw_arena_pos cur = {0, 0};
+    pw_stream s;
+    Arena a;
+
+    arena_init(&a, 1 << 20, 0);
+    fill_mixed(src, len); /* two thirds zero or repetitive */
+    CHECK_EQ(pw_stream_write(&a.arena, &cur, src, len, 0, &s), 0);
+    CHECK_EQ(s.raw_chunks, 0);
+    CHECK(s.packed_len < len / 2);
+    free(src);
+    arena_free(&a);
+}
+
+static void fill_zero_and_word(unsigned char *p, unsigned int len)
+{
+    unsigned int *w = (unsigned int *)p;
+
+    for (unsigned int i = 0; i < len / 4; i++)
+        w[i] = i < PW_STREAM_CHUNK / 4 ? 0 : 0xDEADBEEFu; /* chunk 0 zero, the rest one word */
+    for (unsigned int i = len & ~3u; i < len; i++)
+        p[i] = 0x11; /* odd tail: not a whole word, cannot be FILL */
+}
+
+PW_TEST(stream_uniform_chunks_become_fill_records)
+{
+    unsigned int len = 3 * PW_STREAM_CHUNK + 6;
+    unsigned char *src = malloc(len), *dst = malloc(len);
+    pw_arena_pos cur = {0, 0};
+    pw_stream s;
+    Arena a;
+
+    arena_init(&a, 1 << 20, 0);
+    fill_zero_and_word(src, len);
+    CHECK_EQ(pw_stream_write(&a.arena, &cur, src, len, 0, &s), 0);
+    CHECK_EQ(s.fill_chunks, 3); /* the 6-byte tail chunk is not FILL */
+    CHECK(s.packed_len < 3 * 16 + 64);
+    CHECK_EQ(pw_stream_read(&a.arena, &s, dst, len), (int)len);
+    CHECK(memcmp(src, dst, len) == 0);
+    free(src);
+    free(dst);
+    arena_free(&a);
+}
+
 PW_TEST(stream_roundtrip_incompressible_is_stored_raw)
 {
     unsigned char *src = malloc(3 * PW_STREAM_CHUNK);
@@ -106,7 +153,7 @@ PW_TEST(stream_roundtrip_incompressible_is_stored_raw)
 
 PW_TEST(stream_spills_into_second_region_with_skip_marker)
 {
-    /* Region 0 holds about one and a half worst-case chunks, so chunk 2 must move to region 1. */
+    /* Region 0 holds about one and a half raw chunks, so chunk 2 must move to region 1. */
     roundtrip(fill_random, 4 * PW_STREAM_CHUNK, PW_STREAM_CHUNK * 3 / 2, 4 * 80 * 1024);
 }
 

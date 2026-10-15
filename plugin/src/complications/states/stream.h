@@ -3,16 +3,17 @@
 #define PW_STREAM_H
 
 /*
- * Compressed streams for savestates. Data is cut into 64 KB chunks; each chunk is FastLZ
- * compressed, or stored raw when that would not shrink it. Chunks are written into an arena
- * made of up to two separate memory regions (a region may be absent: base NULL, size 0). A chunk
- * never straddles two regions.
+ * Compressed streams for savestates. Data is cut into 64 KB chunks; a chunk that is one 32-bit
+ * word repeated becomes a FILL record, any other is LZ4 compressed (core/lz.h), or stored raw when
+ * that would not shrink it. Chunks are written into an arena made of up to two separate memory
+ * regions (a region may be absent: base NULL, size 0). A chunk never straddles two regions.
  *
- * Chunk record: u32 raw_len, u32 stored_len (== raw_len means raw), payload, padding to 4 bytes.
+ * Chunk record: u32 raw_len, u32 stored_len, payload, padding to 4 bytes. stored_len == raw_len
+ * means raw; bit 31 set means FILL (4-byte payload: the word); anything else is LZ4.
  */
 
 #define PW_STREAM_CHUNK     0x10000u
-#define PW_STREAM_WORKSPACE 0x8000u /* FastLZ hash table; must not live on a kernel stack */
+#define PW_STREAM_WORKSPACE 0x8000u /* LZ4 state; must not live on a kernel stack */
 #define PW_ARENA_REGIONS    2
 
 typedef struct {
@@ -30,12 +31,13 @@ typedef struct {
     unsigned int raw_len;
     unsigned int packed_len; /* arena bytes used, headers and padding included */
     unsigned int chunks;
-    unsigned int raw_chunks; /* chunks stored uncompressed */
-    unsigned int crc32;      /* of the raw data, 0 when not computed */
+    unsigned int raw_chunks;  /* chunks stored uncompressed */
+    unsigned int fill_chunks; /* chunks stored as one repeated word */
+    unsigned int crc32;       /* of the raw data, 0 when not computed */
 } pw_stream;
 
-/* Workspace for compression (PW_STREAM_WORKSPACE bytes, 4-byte aligned). Required before writing.
- */
+/* Workspace for compression (PW_STREAM_WORKSPACE bytes, pointer-aligned). Required before
+   writing. */
 void pw_stream_set_workspace(void *workspace);
 
 /*

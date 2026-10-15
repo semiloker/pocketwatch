@@ -1,0 +1,133 @@
+==== new session ====
+Pocketwatch 121e170 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 58 import(s): 57 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   345 KB maxfree=   310 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   345 KB maxfree=   310 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: L+R+START+LEFT: load
+engine: LOAD: no state
+probe: L+R+START+UP: benchmark
+bench: ---- start: CPU 333 MHz, bus 166 MHz, 6 game thread(s) frozen ----
+bench: memcpy (sysclib) cached     24576 KB in   293 ms =   85.8 MB/s
+bench: word copy x8 cached         24576 KB in   233 ms =  107.8 MB/s
+bench: copy + cache 0x18 dst       24576 KB in   206 ms =  122.0 MB/s
+bench: memset                       4096 KB in    11 ms =  356.2 MB/s
+bench: sum32 uncached read          4096 KB in   158 ms =   26.5 MB/s
+bench: sum32 cached                24576 KB in   282 ms =   88.9 MB/s
+bench: crc32 bytewise              24576 KB in  1208 ms =   20.8 MB/s
+bench: (checksum sink A310399C)
+bench: zero-page scan              24576 KB in   121 ms =  206.7 MB/s
+bench: zero pages 1797 of 6144 (29%), all-zero 64 KB chunks 91 of 384
+bench: uniform-page scan           24576 KB in    72 ms =  345.3 MB/s
+bench: uniform pages (FILL candidates) 1871 of 6144 (30%)
+bench: fastlz pack + crc32         24576 KB in  4963 ms =    5.0 MB/s
+bench: fastlz unpack               24576 KB in   882 ms =   28.5 MB/s
+bench: fastlz 24576 KB -> 10211 KB (41%), 0 slice(s) not identical after unpack
+bench: fastlz L1 -Os (engine)   pack  3738 ms =   6.7 MB/s, unpack  866 ms =  29.0 MB/s, 10207 KB (41%), 30 raw, 0 bad
+bench: fastlz L1 -O2            pack  3593 ms =   7.0 MB/s, unpack  746 ms =  33.7 MB/s, 10207 KB (41%), 30 raw, 0 bad
+bench: lz4 accel 1 -O2          pack  1393 ms =  18.0 MB/s, unpack  511 ms =  49.1 MB/s, 10061 KB (40%), 10 raw, 0 bad
+bench: lz4 accel 4 -O2          pack  1019 ms =  24.6 MB/s, unpack  468 ms =  53.7 MB/s, 10362 KB (42%), 16 raw, 0 bad
+bench: ---- end ----
+probe: L+R+SELECT+TRIANGLE: touch-and-go test
+engine: ---- TOUCH-AND-GO SUSPEND TEST ----
+engine: touch-and-go: request=0x00000000 resumed=1
+engine: touch-and-go: I/O enables 0308AAD2/020000D9, GPIO 00000001 at suspend; 01080002/00000098, GPIO 00000000 at resume -> put back (touch-and-go)
+engine: touch-and-go trace, 118 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x30
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: touch-and-go trace spans 1553 ms (system timer)
+engine: timing touch-and-go (CPU 333 MHz, bus 166 MHz): suspend 2084 = 2084 ms
+engine: touch-and-go suspend 2084 ms: queries 679, power-lock retries 339 (0x402 x30), suspend phases 657, resume phases 534, flash rebuild 0; sleep+wake+rest ~-125 ms
+engine: fast mode (touch-and-go suspend, no sleep) ON
+engine: fast mode (touch-and-go suspend, no sleep) OFF
+probe: L+R+SELECT+RIGHT: rollback self-test
+engine: ---- ROLLBACK SELF-TEST ----
+engine: self-test round 0 (blob without copy): suspending...
+engine: self-test round 0: froze 0 thread(s), GE 0, suspend=0x00000000 applied=1 resumed=1 guard=0, blob 79 us: OK
+engine: self-test: 3 breadcrumb(s), last "selftest:back-in-dispatcher"
+engine:   40 selftest:start
+engine:   41 selftest:applying-live-kernel
+engine:   42 selftest:back-in-dispatcher
+engine: self-test trace, 102 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: self-test trace spans 1433 ms (system timer)
+engine: self-test round 1 (blob + 4 MB kernel copy): suspending...
+engine: self-test round 1: froze 0 thread(s), GE 0, suspend=0x00000000 applied=1 resumed=1 guard=0, blob 36190 us: OK
+engine: self-test: 3 breadcrumb(s), last "selftest:back-in-dispatcher"
+engine:   40 selftest:start
+engine:   41 selftest:applying-live-kernel
+engine:   42 selftest:back-in-dispatcher
+engine: self-test trace, 102 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: self-test trace spans 1403 ms (system timer)
+engine: ---- ROLLBACK SELF-TEST PASSED ----
+probe: L+R+START+RIGHT: save
+engine: ---- SAVE ----
+engine: CP0 Count runs at 114217 kHz
+freeze: 6 game thread(s) suspended in 0 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 64 status=0x08 wait=0
+freeze:   SceNetAdhocctl                  prio= 30 status=0x0C wait=4
+freeze:   SceNetNetintr                   prio= 30 status=0x0C wait=4
+freeze:   SceNetCallout                   prio= 30 status=0x08 wait=0
+freeze:   ATRAC3 play thread              prio= 16 status=0x08 wait=0
+freeze:   SE Thread                       prio= 16 status=0x08 wait=0
+engine: save: GE 0, packed in 5395 ms:
+engine:   game     24576 KB ->  10220 KB (384 chunks, 30 raw) crc 36FFCD29
+engine:   eDRAM     2048 KB ->    975 KB (32 chunks, 0 raw) crc 6AD1A54E
+engine:   scratch     16 KB ->      2 KB (1 chunks, 0 raw) crc 64385222
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: ---- LOAD: back in the saved moment ----
+engine: load: blob ran 36174 us
+engine: load: froze 6 thread(s) in 1 ms (0 forced), GE 0
+engine: load: flash drivers re-initialised: ok (lflash 1 exit 0 init 0, flashfat 1 exit 0 init 0)
+engine: load: flash0/flash1 remounted: unassign 0/0, assign 0/0
+engine: load (before rollback) trace, 81 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000
+engine: load (before rollback) trace spans 1559 ms (system timer)
+engine: load (after rollback) trace, 21 event(s):
+engine:  010000 010001 010002 010003 010004 010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: load (after rollback) trace spans 536 ms (system timer)
+engine: load: restoring game RAM...
+engine: load: game RAM restored in 875 ms
+engine: load: restored vs save: 0 of 384 64 KB chunk(s) differ
+engine: load: restoring eDRAM...
+engine: load: eDRAM restored in 101 ms
+engine: load: scratchpad crc now 64385222, at save 64385222 (left as is)
+engine: load: reading flash0...
+engine: load: flash0 read 64
+engine: load: changed since restore: 0 of 384 64 KB chunk(s) differ
+engine: load: thawing 6 game thread(s)...
+engine: ---- LOAD complete: request -> game running 9106 ms (wall clock) ----
+engine: timing save (CPU 333 MHz, bus 166 MHz): freeze 0 ge 0 pack 5395 sums 412 log 150 suspend 6678 thaw 0 = 12635 ms
+engine: save suspend 6677 ms: queries 612, power-lock retries 326 (0x402 x22), suspend phases 657, resume phases 570, flash rebuild 785; sleep+wake+rest ~4512 ms
+engine: load: I/O enables 0300AAD2/000000D9, GPIO 00000001 at suspend; 01000202/00000019, GPIO 00000000 at resume
+engine: timing load (CPU 333 MHz, bus 166 MHz): verify 249 freeze 1 ge 0 sums 106 suspend 7561 ram 875 vram 385 diag 285 thaw 1 = 9463 ms
+engine: load suspend 7561 ms: queries 575, power-lock retries 326 (0x402 x22), suspend phases 657, resume phases 536, flash rebuild 785; sleep+wake+rest ~5467 ms
+engine: state discarded after 1 load(s)
+engine: after load +500 ms: 6/6 game thread(s) alive
+engine: after load +1000 ms: 6/6 game thread(s) alive
+engine: after load +1500 ms: 6/6 game thread(s) alive
+engine: after load +2000 ms: 6/6 game thread(s) alive
+engine: after load +2500 ms: 6/6 game thread(s) alive
+engine: after load +3000 ms: 6/6 game thread(s) alive
+engine: after load +3500 ms: 6/6 game thread(s) alive
+engine: after load +4000 ms: 6/6 game thread(s) alive
+engine: after load +4500 ms: 6/6 game thread(s) alive
+engine: after load +5000 ms: 6/6 game thread(s) alive

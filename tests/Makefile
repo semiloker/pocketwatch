@@ -16,11 +16,11 @@ LDFLAGS = -fsanitize=address,undefined
 # Portable plugin modules under test (must not include PSP headers).
 PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32.c $(SRC_DIR)/core/stubinfo.c \
               $(SRC_DIR)/core/png.c $(SRC_DIR)/complications/states/sfo.c $(SRC_DIR)/complications/states/stream.c \
-              $(LIB_DIR)/stb_sprintf.c $(LIB_DIR)/fastlz/fastlz.c
+              $(SRC_DIR)/core/lz.c $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
 OBJS = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(TEST_SRCS) $(PLUGIN_SRCS)))
-vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications/states $(LIB_DIR) $(LIB_DIR)/fastlz
+vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications/states $(LIB_DIR)
 
 all: run
 
@@ -28,7 +28,7 @@ $(BUILD)/pwtest: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(BUILD)/stb_sprintf.o: CFLAGS += -Wno-sign-compare
-$(BUILD)/fastlz.o: CFLAGS += -DFASTLZ_USE_MEMMOVE=0 -DFASTLZ_NO_ARCH64 -DFASTLZ_EXTERNAL_HTAB
+$(BUILD)/lz.o: CFLAGS += -Wno-unused-function
 
 $(BUILD)/%.o: %.c | $(BUILD)
 	$(CC) $(CFLAGS) -c -o $@ $<

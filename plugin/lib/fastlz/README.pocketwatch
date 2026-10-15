@@ -1,7 +1,0 @@
-FastLZ 0.5.0, vendored from https://github.com/ariya/FastLZ @ b1342da (MIT, see LICENSE.MIT).
-Built with FASTLZ_USE_MEMMOVE=0: kernel sysclib has no memmove.
-Local change: FASTLZ_NO_ARCH64 disables the 64-bit unaligned-read path, so host tests run the
-same byte-wise code as the PSP (Allegrex traps on unaligned loads).
-- flz_readu32 casts to uint32_t before shifting (signed-overflow UB found by UBSan).
-- FASTLZ_EXTERNAL_HTAB: the 32 KB hash table comes from fastlz_htab (caller-provided workspace)
-  instead of the stack; the PSP build and the host tests both use it.

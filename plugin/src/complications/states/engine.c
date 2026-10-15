@@ -77,10 +77,14 @@
 #define TRACE_MAX     128
 
 #ifdef PW_DEBUG
-#define VERIFY 1 /* checksum game RAM on save and after load */
+#define VERIFY 1 /* cheap checks after the game runs again (thread liveness after a load) */
 #else
 #define VERIFY 0
 #endif
+/* Heavy diagnostics inside the frozen window: CRC of the raw data, per-64 KB RAM sums at save and
+   their comparison after a load, a flash0 read. ~1.5 s per save/load; on only to chase a restore
+   problem (E2 runs 5-7 used them). */
+#define DIAG 0
 
 enum { MODE_IDLE, MODE_SAVE, MODE_LOAD, MODE_SELFTEST, MODE_PLAIN /* suspend, nothing else */ };
 enum { TRACE_SAVE, TRACE_LOAD, TRACE_AFTER_ROLLBACK, TRACE_KINDS };
@@ -161,7 +165,6 @@ typedef struct {
     unsigned int vram_size;
     unsigned int arena_used, arena_sum; /* bytes of region 0 in use and their checksum */
     unsigned int image_len, image_sum;  /* kernel image + P8 + ME, checksummed at capture */
-    unsigned int image_sum_armed;       /* the same once LOAD has set its flag in the image */
     unsigned int guard;                 /* GUARD_* found at the last PHASE0_0 apply */
     unsigned int save_ic;               /* interrupt-controller state when PHASE0_0 came */
     unsigned int save_tg;               /* the save used a touch-and-go suspend (no sleep) */
@@ -196,6 +199,7 @@ _Static_assert(BLOB_AT + BLOB_SPACE <= IMAGE_AT, "blob overlaps the kernel image
 volatile unsigned int pw_handoff_ctx[16]; /* [0..12] pw_sysevent_shim, [13] blob run time */
 #define CTX_APPLY_TICKS 13
 static volatile unsigned int g_restore_pending; /* LOAD sets it to 1 inside the staged image */
+static volatile unsigned int *volatile g_pending_in_image; /* where, in the image (P9) */
 static volatile int g_mode, g_alarm_set, g_resumed, g_captured, g_applying;
 static StateHeader *volatile g_hdr;
 static unsigned char *volatile g_kernel_image;
@@ -206,10 +210,10 @@ static pw_freeze_set g_save_freeze, g_load_freeze;
 static unsigned int g_cycles_per_ms;
 static int g_keep_frozen;              /* debug: pw_engine_save leaves the game frozen */
 static pw_flash_report g_flash_report; /* filled at the save's RESUME_COMPLETED (flash.h) */
-static volatile int g_flash_result;
+static volatile int g_flash_result, g_flash_skipped;
 static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
-static int g_fast;                   /* debug toggle: suspend touch-and-go (no sleep) */
+static int g_fast = 1;               /* suspend touch-and-go (no sleep); debug toggle */
 static volatile int g_tg;            /* the suspend in progress was requested touch-and-go */
 /* Partition 8 holds live data of something loaded at boot (343 KB used on the PSP-3000) but sits
    outside 0x88000000-0x88400000: it is captured and restored together with the kernel image. */
@@ -285,7 +289,7 @@ static unsigned int apply_guard(int check_image)
 
     if (memcmp(g_blob, pw_apply_handoff, len) != 0)
         bad |= GUARD_BLOB;
-    if (check_image && pw_sum32(g_kernel_image, g_hdr->image_len) != g_hdr->image_sum_armed)
+    if (check_image && pw_sum32(g_kernel_image, g_hdr->image_len) != g_hdr->image_sum)
         bad |= GUARD_IMAGE;
     return bad;
 }
@@ -479,6 +483,9 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
                 crumb(h, S_LOAD_GUARD);
                 return 0;
             }
+            /* The save-time thread must learn it was brought back by a LOAD: flag it inside the
+               image now that the guard has checked it (the blob copies through the D-cache). */
+            *g_pending_in_image = 1;
             crumb(h, S_LOAD_APPLY); /* written back by the blob's cache flush */
             dmac_drain();
             mask_irq_status(); /* unmasked by the blob, with the save-time Status */
@@ -516,7 +523,10 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
             unsigned int t0 = usec();
 
             crumb(h, g_restore_pending ? S_RB_RESUME : S_SAVE_RESUMED);
-            g_flash_result = pw_flash_reinit(&g_flash_report, g_restore_pending);
+            /* A touch-and-go save never lost power: its flash state is still the NAND's. */
+            g_flash_skipped = !g_restore_pending && h->save_tg;
+            if (!g_flash_skipped)
+                g_flash_result = pw_flash_reinit(&g_flash_report, g_restore_pending);
             h->flash_us = usec() - t0;
             if (g_restore_pending)
                 crumb(h, S_RB_FLASH);
@@ -701,9 +711,41 @@ static void log_trace_raw(const unsigned int *ev, const unsigned int *us, unsign
                (us[count - 1] - us[0]) / 1000);
 }
 
+/* The events whose handlers (and the power code after them) took longest, slowest first. */
+static void log_slowest(const StateHeader *h, int kind, const char *label)
+{
+    unsigned int n = h->trace_count[kind] < TRACE_MAX ? h->trace_count[kind] : TRACE_MAX;
+    unsigned int used[6] = {0}, picked = 0;
+    char line[200];
+    int len = 0;
+
+    for (unsigned int k = 0; k < 6; k++) {
+        unsigned int best = 0, best_i = 0;
+
+        for (unsigned int i = 0; i + 1 < n; i++) {
+            unsigned int gap = h->trace_us[kind][i + 1] - h->trace_us[kind][i], taken = 0;
+
+            for (unsigned int u = 0; u < picked; u++)
+                taken |= used[u] == i + 1;
+            if (!taken && gap > best) {
+                best = gap;
+                best_i = i;
+            }
+        }
+        if (best < 1000)
+            break;
+        used[picked++] = best_i + 1;
+        len += stbsp_snprintf(line + len, sizeof(line) - (unsigned int)len, " %X:%u",
+                              h->trace_ev[kind][best_i], best / 1000);
+    }
+    line[len] = 0;
+    pw_log("engine: %s slowest events (id:ms):%s", label, line);
+}
+
 static void log_trace(const StateHeader *h, int kind, const char *label)
 {
     log_trace_raw(h->trace_ev[kind], h->trace_us[kind], h->trace_count[kind], label);
+    log_slowest(h, kind, label);
 }
 
 static void log_crumbs(const StateHeader *h, const char *who)
@@ -813,6 +855,10 @@ static void log_flash(const char *who)
 {
     const pw_flash_report *f = &g_flash_report;
 
+    if (g_flash_skipped) {
+        pw_log("engine: %s: flash drivers left alone (touch-and-go: no power cycle)", who);
+        return;
+    }
     pw_log(
         "engine: %s: flash drivers re-initialised: %s (lflash %d exit %X init %X, flashfat %d exit "
         "%X init %X)",
@@ -901,7 +947,7 @@ static int finish_load(void)
     mark(&h->load_t, P_RAM);
     pw_log("engine: load: game RAM %s in %u ms", ok_ram ? "restored" : "DECOMPRESSION FAILED",
            now_ms() - t0);
-    if (VERIFY && ok_ram) /* differences here: RAM moved while the save was being packed */
+    if (DIAG && ok_ram) /* differences here: RAM moved while the save was being packed */
         log_ram_diff("restored vs save", h->ram_sum, g_ram_restored);
 
     t0 = now_ms();
@@ -912,15 +958,17 @@ static int finish_load(void)
     pw_log("engine: load: eDRAM %s in %u ms", ok_vram ? "restored" : "DECOMPRESSION FAILED",
            now_ms() - t0);
 
-    /* Not restored (PSPFatSave does not either); compared to learn whether games rely on it. */
-    scratch_crc = pw_crc32(0, (const void *)SCRATCH_BASE, SCRATCH_SIZE);
-    pw_log("engine: load: scratchpad crc now %08X, at save %08X (left as is)", scratch_crc,
-           h->scratch.crc32);
+    /* Not restored: the power code's resume block brings back the save's scratchpad (run 7). */
+    if (DIAG) {
+        scratch_crc = pw_crc32(0, (const void *)SCRATCH_BASE, SCRATCH_SIZE);
+        pw_log("engine: load: scratchpad crc now %08X, at save %08X (left as is)", scratch_crc,
+               h->scratch.crc32);
+    }
 
     sceKernelDcacheWritebackInvalidateAll();
     sceKernelIcacheInvalidateAll(); /* the game's code in RAM was replaced too */
     crumb(h, S_RB_CACHES);
-    if (VERIFY) {
+    if (DIAG) {
         pw_log("engine: load: reading flash0...");
         pw_log("engine: load: flash0 read %d", flash0_probe());
         if (ok_ram) /* differences here: written by someone else while the game is frozen */
@@ -998,6 +1046,10 @@ int pw_engine_save(void)
     h->magic = STATE_MAGIC;
     crumb(h, S_SAVE_START);
     pw_log("engine: CP0 Count runs at %u kHz", calibrate());
+    /* From here until the state is dropped the log stays in RAM: a card write would extend the
+       freeze now, and after the kernel snapshot it would make the saved FAT view stale. */
+    pw_log_flush();
+    pw_log_set_deferred(1);
     mark_begin(&h->save_t);
 
     pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
@@ -1007,6 +1059,7 @@ int pw_engine_save(void)
     h->save_freeze_ms = g_save_freeze.ms;
     crumb(h, S_SAVE_FROZEN);
     if (g_save_freeze.count == 0) {
+        pw_log_set_deferred(0);
         pw_log("engine: no game threads to freeze");
         release_staging();
         return -1;
@@ -1016,13 +1069,14 @@ int pw_engine_save(void)
     mark(&h->save_t, P_GE);
 
     t0 = now_ms();
-    if (pw_stream_write(&g_arena, &cursor, (const void *)USER_BASE, USER_SIZE, VERIFY, &h->user) <
+    if (pw_stream_write(&g_arena, &cursor, (const void *)USER_BASE, USER_SIZE, DIAG, &h->user) <
             0 ||
-        pw_stream_write(&g_arena, &cursor, (const void *)VRAM_BASE, h->vram_size, VERIFY,
-                        &h->vram) < 0 ||
-        pw_stream_write(&g_arena, &cursor, (const void *)SCRATCH_BASE, SCRATCH_SIZE, VERIFY,
+        pw_stream_write(&g_arena, &cursor, (const void *)VRAM_BASE, h->vram_size, DIAG, &h->vram) <
+            0 ||
+        pw_stream_write(&g_arena, &cursor, (const void *)SCRATCH_BASE, SCRATCH_SIZE, DIAG,
                         &h->scratch) < 0) {
         pw_thaw_game(&g_save_freeze);
+        pw_log_set_deferred(0);
         pw_log("engine: the state does not fit in spare RAM");
         release_staging();
         return -1;
@@ -1031,7 +1085,7 @@ int pw_engine_save(void)
     mark(&h->save_t, P_PACK);
     h->arena_used = arena_used(&cursor);
     h->arena_sum = pw_sum32(g_arena.base[0], h->arena_used);
-    if (VERIFY)
+    if (DIAG)
         ram_sums(h->ram_sum);
     mark(&h->save_t, P_SUMS);
     crumb(h, S_SAVE_PACKED);
@@ -1040,16 +1094,13 @@ int pw_engine_save(void)
     log_stream("game", &h->user);
     log_stream("eDRAM", &h->vram);
     log_stream("scratch", &h->scratch);
+    pw_log("engine:   %u FILL chunk(s) (one repeated word)",
+           h->user.fill_chunks + h->vram.fill_chunks + h->scratch.fill_chunks);
     pw_log("engine:   ME save %6u KB at 0x%08X, copied with the kernel image", g_me_size / 1024,
            g_me_base);
     pw_log("engine:   P8      %6u KB at 0x%08X, copied with the kernel image", g_p8_size / 1024,
            g_p8_base);
     pw_log("engine: state record at %p (post-mortem if a load goes wrong)", (void *)h);
-
-    /* From the kernel snapshot on, the Memory Stick must not change until the state is dropped. */
-    pw_log_flush();
-    pw_log_set_deferred(1);
-    mark(&h->save_t, P_LOG);
 
     g_restore_pending = 0;
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
@@ -1144,10 +1195,7 @@ int pw_engine_load(void)
     h->load_ge = ge_wait_idle();
     mark(&h->load_t, P_GE);
 
-    /* The SAVE-time thread must learn it was brought back by a LOAD: flag it inside the image. */
-    *pending_in_image = 1;
-    h->image_sum_armed = pw_sum32(g_kernel_image, h->image_len);
-    mark(&h->load_t, P_SUMS);
+    g_pending_in_image = pending_in_image;
     h->guard = 0;
     h->trace_count[TRACE_LOAD] = 0;
     h->trace_count[TRACE_AFTER_ROLLBACK] = 0;

@@ -119,3 +119,38 @@ Sources: uOFW `power` branch `src/kd/power/powerSwitch.c`, `battery.c`; uOFW `ct
 `core/compat/pentazemin/adrenaline.c`, `core/systemctrl/src/cpuclock.c`; lz4 v1.10.0;
 pspdev/vfpu-docs reference outputs (`mem_cycles.txt`, `inst_cycles.txt`); libdragon
 `src/compress/lz4_dec_fast.S`.
+
+## 5. Results
+
+**Speed run 2 — 2026-10-15, Castlevania.** Raw log:
+[`logs/2026-10-15-speed2-castlevania.log`](logs/2026-10-15-speed2-castlevania.log).
+
+Benchmark on the game's 24 MB:
+
+| Codec | Pack | Unpack | Size |
+|---|---|---|---|
+| FastLZ L1 -Os (engine until now) | 3.74 s (6.7 MB/s) | 0.87 s | 41 % |
+| FastLZ L1 -O2 | 3.59 s | 0.75 s | 41 % |
+| **LZ4 accel 1 -O2** | **1.39 s (18 MB/s)** | **0.51 s (49 MB/s)** | **40 %** |
+| LZ4 accel 4 -O2 | 1.02 s | 0.47 s | 42 % |
+
+30 % of the pages are one repeated word (FILL candidates); the scan costs 72 ms. A copy that
+allocates destination lines with `cache 0x18` reaches 122 MB/s against 108 MB/s without.
+
+**Touch-and-go works.** One no-sleep suspend: request -> back in 2084 ms (system timer): queries
+`0x100..0x401` 679 ms, power-lock retries 339 ms (x30), suspend phases 657 ms, resume phases
+534 ms, nothing unaccounted. The I/O enables went from `0308AAD2/020000D9` to `01080002/00000098`
+across the suspend and were put back; the user saw the game, sound and buttons come back. The
+normal-mode save and load in the same session (fast mode was toggled on and straight off again)
+measured the real sleep at ~4.5-5.5 s and the flash driver rebuild at 785 ms.
+
+Changes for speed run 3:
+- LZ4 (core/lz.c, -O2, 8 KB table) replaces FastLZ in the stream; chunks that are one repeated
+  word become FILL records; the worst case reserved per chunk is now the raw size. FastLZ removed.
+- Fast mode (touch-and-go) is the default; L+R+SELECT+SQUARE switches it off.
+- No flash driver rebuild after a touch-and-go save (no power cycle); still after every rollback
+  and after a save that really slept.
+- Heavy diagnostics (`DIAG`: raw CRC, per-chunk RAM sums and diffs, flash0 read) off. The save's
+  log lines stay in RAM from the start of the save (no card write while frozen). The load's
+  pending flag is set in the image at PHASE0_0 after the guard (no second 9 MB checksum).
+- Each trace logs its slowest events, to find the handlers behind the remaining ~2 s.

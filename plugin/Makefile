@@ -13,18 +13,18 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/complications/states/sfo.o src/complications/states/savedata_hash.o \
          src/complications/states/stream.o src/complications/states/engine.o \
          src/complications/states/handoff.o \
-         lib/stb_sprintf.o lib/fastlz/fastlz.o exports.o
+         src/core/lz.o lib/stb_sprintf.o exports.o
 
 # DEBUG=1 (default while developing) adds the hardware probe and its button triggers.
 DEBUG ?= 1
 ifeq ($(DEBUG),1)
-OBJS   += src/debug/probe.o src/debug/bench.o src/debug/codec_lz4.o src/debug/codec_fastlz_o2.o
+OBJS   += src/debug/probe.o src/debug/bench.o
 endif
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Budgets enforced by `make check`; raise them deliberately, not by accident.
-# 96 KB: debug builds carry the benchmark with two extra compressors (2026-10-15).
+# 96 KB: LZ4 at -O2 (~29 KB of code) plus the debug probe and benchmark (2026-10-15).
 MAX_PRX_SIZE = 98304
 MAX_MEM      = 131072
 
@@ -49,12 +49,11 @@ include $(PSPSDK)/lib/build_prx.mak
 
 # Third-party code: keep upstream sources untouched, silence their known warnings.
 lib/stb_sprintf.o: CFLAGS += -Wno-sign-compare
-# FastLZ: no memmove in kernel sysclib; the hash table comes from the engine, not the stack.
-lib/fastlz/fastlz.o: CFLAGS += -DFASTLZ_USE_MEMMOVE=0 -DFASTLZ_EXTERNAL_HTAB
-# Benchmark codecs and loops: -O2 (the last -O wins), see src/debug/bench.c.
+# Hot loops at -O2 (the last -O wins): LZ4 (vendored, unused static entry points dropped), the
+# checksums and the benchmark. The rest stays -Os.
+src/core/lz.o: CFLAGS += -O2 -Wno-unused-function
+src/core/crc32.o: CFLAGS += -O2
 src/debug/bench.o: CFLAGS += -O2
-src/debug/codec_fastlz_o2.o: CFLAGS += -O2 -DFASTLZ_USE_MEMMOVE=0 -DFASTLZ_EXTERNAL_HTAB
-src/debug/codec_lz4.o: CFLAGS += -O2 -Wno-unused-function
 
 # Rebuild main.o whenever the version string changes, and everything when the profile or libs change.
 src/core/main.o: .version
