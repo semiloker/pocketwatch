@@ -109,6 +109,32 @@ enum {
 #define CRUMB_MAX  48
 #define RAM_CHUNKS (USER_SIZE / PW_STREAM_CHUNK)
 
+/* Wall-clock phase marks of one save or load (RTC, keeps counting through the sleep). */
+enum {
+    P_BEGIN,
+    P_FREEZE,
+    P_GE,
+    P_PACK,
+    P_SUMS,
+    P_LOG,
+    P_SUSPEND, /* request -> our thread runs again (sleep included) */
+    P_THAW,
+    P_VERIFY,
+    P_RAM,
+    P_VRAM,
+    P_DIAG,
+    P_KINDS
+};
+#define MARK_MAX 16
+
+typedef struct {
+    unsigned int n;
+    unsigned int mhz_cpu, mhz_bus;
+    unsigned long long t0;
+    unsigned char id[MARK_MAX];
+    unsigned int ms[MARK_MAX]; /* since t0 */
+} Marks;
+
 /* Guard results at PHASE0_0, checked before jumping to the blob (bit mask). */
 #define GUARD_BLOB  1u /* the blob in P9 differs from the module's copy */
 #define GUARD_IMAGE 2u /* the kernel image (+ P8) no longer has the save-time checksum */
@@ -126,6 +152,8 @@ typedef struct {
     unsigned int guard;                 /* GUARD_* found at the last PHASE0_0 apply */
     unsigned int save_ic;               /* interrupt-controller state when PHASE0_0 came */
     unsigned int ram_sum[RAM_CHUNKS];   /* debug: per-64 KB checksums of game RAM at save */
+    Marks save_t, load_t;               /* phase timings (log_marks) */
+    unsigned int flash_cycles;          /* flash driver rebuild at RESUME_COMPLETED */
     unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
     int save_ge;
     unsigned int save_dmac_left, save_capture_cycles;
@@ -222,17 +250,6 @@ static void mask_irq_status(void)
     __asm__ volatile("mtc0 %0, $12\n\tnop\n\tnop\n\tnop\n\tnop" : : "r"(sr & ~1u) : "memory");
 }
 
-/* Additive word checksum with rotation: ~3 cycles per word, fine for "was this overwritten". */
-static unsigned int sum32(const void *p, unsigned int len)
-{
-    const unsigned int *w = p;
-    unsigned int s = 0;
-
-    for (unsigned int i = 0; i < len / 4; i++)
-        s = ((s << 1) | (s >> 31)) + w[i];
-    return s;
-}
-
 /* What the guard checks right before the blob runs: GUARD_* bits, 0 when safe to jump. */
 static unsigned int apply_guard(int check_image)
 {
@@ -241,7 +258,7 @@ static unsigned int apply_guard(int check_image)
 
     if (memcmp(g_blob, pw_apply_handoff, len) != 0)
         bad |= GUARD_BLOB;
-    if (check_image && sum32(g_kernel_image, g_hdr->image_len) != g_hdr->image_sum_armed)
+    if (check_image && pw_sum32(g_kernel_image, g_hdr->image_len) != g_hdr->image_sum_armed)
         bad |= GUARD_IMAGE;
     return bad;
 }
@@ -395,7 +412,7 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
             sceKernelCpuResumeIntr(intr);
             h->save_ic = intr;
             h->image_len = IMAGE_SPACE;
-            h->image_sum = sum32(g_kernel_image, h->image_len);
+            h->image_sum = pw_sum32(g_kernel_image, h->image_len);
             sceKernelDcacheWritebackAll(); /* the image must be in DRAM before power-down */
             h->save_capture_cycles = cycles() - c0;
             g_captured = 1;
@@ -441,8 +458,11 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         if (g_mode == MODE_SAVE) {
             /* Rebuild the flash drivers before anyone else writes flash (flash.h). After a
                rollback their state is the save's and the NAND may have changed since: remount. */
+            unsigned int c0 = cycles();
+
             crumb(h, g_restore_pending ? S_RB_RESUME : S_SAVE_RESUMED);
             g_flash_result = pw_flash_reinit(&g_flash_report, g_restore_pending);
+            h->flash_cycles = cycles() - c0;
             if (g_restore_pending)
                 crumb(h, S_RB_FLASH);
         }
@@ -637,6 +657,94 @@ static void log_crumbs(const StateHeader *h, const char *who)
         pw_log("engine:   %2u %s", h->crumb[i], stage_name(h->crumb[i]));
 }
 
+static void mark_begin(Marks *m)
+{
+    memset(m, 0, sizeof(*m));
+    sceRtcGetCurrentTick(&m->t0);
+    m->mhz_cpu = (unsigned int)scePowerGetCpuClockFrequency();
+    m->mhz_bus = (unsigned int)scePowerGetBusClockFrequency();
+}
+
+/* End of a phase: the time since the previous mark is charged to id. */
+static void mark(Marks *m, int id)
+{
+    u64 now;
+
+    sceRtcGetCurrentTick(&now);
+    if (m->n < MARK_MAX) {
+        m->id[m->n] = (unsigned char)id;
+        m->ms[m->n] = (unsigned int)((now - m->t0) / 1000);
+        m->n++;
+    }
+}
+
+/* Milliseconds charged to phase id (0 if it was not reached). */
+static unsigned int mark_span(const Marks *m, int id)
+{
+    for (unsigned int i = 0; i < m->n && i < MARK_MAX; i++)
+        if (m->id[i] == id)
+            return m->ms[i] - (i > 0 ? m->ms[i - 1] : 0);
+    return 0;
+}
+
+static void log_marks(const Marks *m, const char *who)
+{
+    static const char *const names[P_KINDS] = {
+        "begin",   "freeze", "ge",     "pack", "sums", "log",
+        "suspend", "thaw",   "verify", "ram",  "vram", "diag",
+    };
+    char line[200];
+    int len = 0;
+    unsigned int prev = 0;
+
+    for (unsigned int i = 0; i < m->n && i < MARK_MAX && len < 160; i++) {
+        len += stbsp_snprintf(line + len, sizeof(line) - (unsigned int)len, " %s %u",
+                              m->id[i] < P_KINDS ? names[m->id[i]] : "?", m->ms[i] - prev);
+        prev = m->ms[i];
+    }
+    line[len] = '\0';
+    pw_log("engine: timing %s (CPU %u MHz, bus %u MHz):%s = %u ms", who, m->mhz_cpu, m->mhz_bus,
+           line, prev);
+}
+
+/* CPU time between the first ev_a and the first later ev_b of a trace, in ms; -1 if absent. */
+static int trace_span(const StateHeader *h, int kind, unsigned int ev_a, unsigned int ev_b)
+{
+    unsigned int n = h->trace_count[kind] < TRACE_MAX ? h->trace_count[kind] : TRACE_MAX;
+
+    for (unsigned int a = 0; a < n; a++)
+        if (h->trace_ev[kind][a] == ev_a)
+            for (unsigned int b = a + 1; b < n; b++)
+                if (h->trace_ev[kind][b] == ev_b)
+                    return (int)((h->trace_cyc[kind][b] - h->trace_cyc[kind][a]) / calibrate());
+    return -1;
+}
+
+static unsigned int trace_count_of(const StateHeader *h, int kind, unsigned int ev)
+{
+    unsigned int n = h->trace_count[kind] < TRACE_MAX ? h->trace_count[kind] : TRACE_MAX, c = 0;
+
+    for (unsigned int i = 0; i < n; i++)
+        c += h->trace_ev[kind][i] == ev;
+    return c;
+}
+
+/* Where a suspend's wall-clock time went: CPU spans from the event trace, the rest is the sleep. */
+static void log_suspend_split(const StateHeader *h, int pre, int post, const char *who,
+                              unsigned int wall_ms)
+{
+    int queries = trace_span(h, pre, 0x100, 0x401), retries = trace_span(h, pre, 0x401, 0x1000);
+    int phases = trace_span(h, pre, 0x1000, 0x4000),
+        resume = trace_span(h, post, 0x10000, 0x400000);
+    int cpu = (queries > 0 ? queries : 0) + (retries > 0 ? retries : 0) +
+              (phases > 0 ? phases : 0) + (resume > 0 ? resume : 0);
+
+    pw_log("engine: %s suspend %u ms: queries %d, power-lock retries %d (0x402 x%u), suspend "
+           "phases %d, resume phases %d, flash rebuild %u; sleep+wake+rest ~%d ms",
+           who, wall_ms, queries, retries, trace_count_of(h, pre, 0x402), phases, resume,
+           h->flash_cycles / calibrate(), (int)wall_ms - cpu);
+}
+
 static void log_flash(const char *who)
 {
     const pw_flash_report *f = &g_flash_report;
@@ -655,7 +763,7 @@ static void log_flash(const char *who)
 static void ram_sums(unsigned int *out)
 {
     for (unsigned int i = 0; i < RAM_CHUNKS; i++)
-        out[i] = sum32((const void *)(USER_BASE + i * PW_STREAM_CHUNK), PW_STREAM_CHUNK);
+        out[i] = pw_sum32((const void *)(USER_BASE + i * PW_STREAM_CHUNK), PW_STREAM_CHUNK);
 }
 
 /* Debug: log which parts of game RAM differ from ref (runs of 64 KB chunks, user addresses). */
@@ -712,7 +820,8 @@ static int finish_load(void)
     u64 now;
 
     crumb(h, S_RB_THREAD);
-    pw_log_set_deferred(0);
+    mark(&h->load_t, P_SUSPEND);
+    /* Lines stay in RAM until the game runs again: card writes here would extend the freeze. */
     pw_log("engine: ---- LOAD: back in the saved moment ----");
     pw_log("engine: load: blob ran %u us", pw_handoff_ctx[CTX_APPLY_TICKS] * 1000 / calibrate());
     pw_log("engine: load: froze %u thread(s) in %u ms (%u forced), GE %d", h->load_threads,
@@ -725,6 +834,7 @@ static int finish_load(void)
     pw_log("engine: load: restoring game RAM...");
     ok_ram = pw_stream_read(&g_arena, &h->user, (void *)USER_BASE, USER_SIZE) >= 0;
     crumb(h, S_RB_RAM);
+    mark(&h->load_t, P_RAM);
     pw_log("engine: load: game RAM %s in %u ms", ok_ram ? "restored" : "DECOMPRESSION FAILED",
            now_ms() - t0);
     if (VERIFY && ok_ram) /* differences here: RAM moved while the save was being packed */
@@ -734,6 +844,7 @@ static int finish_load(void)
     pw_log("engine: load: restoring eDRAM...");
     ok_vram = pw_stream_read(&g_arena, &h->vram, (void *)VRAM_BASE, h->vram_size) >= 0;
     crumb(h, S_RB_VRAM);
+    mark(&h->load_t, P_VRAM);
     pw_log("engine: load: eDRAM %s in %u ms", ok_vram ? "restored" : "DECOMPRESSION FAILED",
            now_ms() - t0);
 
@@ -752,11 +863,14 @@ static int finish_load(void)
             log_ram_diff("changed since restore", g_ram_restored, g_ram_now);
     }
 
+    mark(&h->load_t, P_DIAG);
     g_restore_pending = 0;
     h->load_applying = 0;
     h->loads++;
     if (!ok_ram || !ok_vram) {
         pw_log("engine: load: restore failed; the game stays frozen (power the PSP off)");
+        pw_log_set_deferred(0);
+        pw_log_flush();
         return -1;
     }
 
@@ -765,10 +879,17 @@ static int finish_load(void)
     pw_log("engine: load: thawing %d game thread(s)...", watched.count);
     pw_thaw_game(&g_save_freeze);
     crumb(h, S_RB_THAWED);
+    mark(&h->load_t, P_THAW);
     sceRtcGetCurrentTick(&now);
     crumb(h, S_LOAD_DONE);
     pw_log("engine: ---- LOAD complete: request -> game running %u ms (wall clock) ----",
            (unsigned int)((now - h->load_start_tick) / 1000));
+    /* The save's own timing lines were in the RAM log, which the rollback rewound. */
+    log_marks(&h->save_t, "save");
+    log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
+    log_marks(&h->load_t, "load");
+    log_suspend_split(h, TRACE_LOAD, TRACE_AFTER_ROLLBACK, "load",
+                      mark_span(&h->load_t, P_SUSPEND));
 
     /* The card changed after the rollback: this state's view of it is stale now. */
     pw_engine_discard();
@@ -812,8 +933,10 @@ int pw_engine_save(void)
     h->magic = STATE_MAGIC;
     crumb(h, S_SAVE_START);
     calibrate();
+    mark_begin(&h->save_t);
 
     pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
+    mark(&h->save_t, P_FREEZE);
     h->save_threads = (unsigned int)g_save_freeze.count;
     h->save_forced = (unsigned int)g_save_freeze.forced;
     h->save_freeze_ms = g_save_freeze.ms;
@@ -825,6 +948,7 @@ int pw_engine_save(void)
     }
     h->save_ge = ge_wait_idle();
     h->vram_size = sceGeEdramGetSize();
+    mark(&h->save_t, P_GE);
 
     t0 = now_ms();
     if (pw_stream_write(&g_arena, &cursor, (const void *)USER_BASE, USER_SIZE, VERIFY, &h->user) <
@@ -839,10 +963,12 @@ int pw_engine_save(void)
         return -1;
     }
     h->save_pack_ms = now_ms() - t0;
+    mark(&h->save_t, P_PACK);
     h->arena_used = arena_used(&cursor);
-    h->arena_sum = sum32(g_arena.base[0], h->arena_used);
+    h->arena_sum = pw_sum32(g_arena.base[0], h->arena_used);
     if (VERIFY)
         ram_sums(h->ram_sum);
+    mark(&h->save_t, P_SUMS);
     crumb(h, S_SAVE_PACKED);
     pw_freeze_log(&g_save_freeze);
     pw_log("engine: save: GE %d, packed in %u ms:", h->save_ge, h->save_pack_ms);
@@ -858,6 +984,7 @@ int pw_engine_save(void)
     /* From the kernel snapshot on, the Memory Stick must not change until the state is dropped. */
     pw_log_flush();
     pw_log_set_deferred(1);
+    mark(&h->save_t, P_LOG);
 
     g_restore_pending = 0;
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
@@ -873,6 +1000,7 @@ int pw_engine_save(void)
 
     if (g_restore_pending)
         return finish_load();
+    mark(&h->save_t, P_SUSPEND);
 
     h->save_suspend_ms = (unsigned int)((rt1 - rt0) / 1000);
     if (ret < 0 || !g_resumed || !g_captured) {
@@ -889,6 +1017,7 @@ int pw_engine_save(void)
 
     if (!g_keep_frozen) /* the frozen save+load test loads right away, game still frozen */
         pw_thaw_game(&g_save_freeze);
+    mark(&h->save_t, P_THAW);
     h->valid = 1;
     crumb(h, S_SAVE_DONE);
     pw_log("engine: save OK: suspend %u ms (wall clock), kernel copy %u ms, dmac_left=0x%X, "
@@ -898,6 +1027,8 @@ int pw_engine_save(void)
            h->image_sum, h->arena_used / 1024, h->arena_sum);
     log_flash("save");
     log_trace(h, TRACE_SAVE, "save");
+    log_marks(&h->save_t, "save");
+    log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
     pw_log("engine: state held in RAM; log lines are kept in RAM until it is discarded");
     return PW_ENGINE_SAVED;
 }
@@ -914,6 +1045,7 @@ int pw_engine_load(void)
     }
     pw_log("engine: ---- LOAD ----");
     crumb(h, S_LOAD_START);
+    mark_begin(&h->load_t);
 
     /* Last point where a load can be refused without consequences. Without the flash driver
        rebuild a rollback corrupts flash1 (the system settings): never load then. */
@@ -921,8 +1053,8 @@ int pw_engine_load(void)
         pw_log("engine: LOAD refused: the flash drivers cannot be found to rebuild them");
         return -1;
     }
-    unsigned int arena_now = sum32(g_arena.base[0], h->arena_used);
-    unsigned int image_now = sum32(g_kernel_image, h->image_len);
+    unsigned int arena_now = pw_sum32(g_arena.base[0], h->arena_used);
+    unsigned int image_now = pw_sum32(g_kernel_image, h->image_len);
 
     if (arena_now != h->arena_sum || image_now != h->image_sum) {
         pw_log("engine: LOAD refused, the state was overwritten in RAM: arena %08X/%08X, "
@@ -933,17 +1065,21 @@ int pw_engine_load(void)
     }
     pending_in_image = (volatile unsigned int *)(g_kernel_image +
                                                  ((unsigned int)&g_restore_pending - KERNEL_BASE));
+    mark(&h->load_t, P_VERIFY);
 
     pw_freeze_game(&g_load_freeze, FREEZE_TIMEOUT_MS);
+    mark(&h->load_t, P_FREEZE);
     h->load_threads = (unsigned int)g_load_freeze.count;
     h->load_forced = (unsigned int)g_load_freeze.forced;
     h->load_freeze_ms = g_load_freeze.ms;
     crumb(h, S_LOAD_FROZEN);
     h->load_ge = ge_wait_idle();
+    mark(&h->load_t, P_GE);
 
     /* The SAVE-time thread must learn it was brought back by a LOAD: flag it inside the image. */
     *pending_in_image = 1;
-    h->image_sum_armed = sum32(g_kernel_image, h->image_len);
+    h->image_sum_armed = pw_sum32(g_kernel_image, h->image_len);
+    mark(&h->load_t, P_SUMS);
     h->guard = 0;
     h->trace_count[TRACE_LOAD] = 0;
     h->trace_count[TRACE_AFTER_ROLLBACK] = 0;

@@ -17,7 +17,7 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
 # DEBUG=1 (default while developing) adds the hardware probe and its button triggers.
 DEBUG ?= 1
 ifeq ($(DEBUG),1)
-OBJS   += src/debug/probe.o
+OBJS   += src/debug/probe.o src/debug/bench.o
 endif
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)

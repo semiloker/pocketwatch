@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "core/log.h"
+#include "debug/bench.h"
 #include "debug/probe.h"
 #include "complications/states/engine.h"
 
@@ -18,6 +19,7 @@
 #define COMBO_MAIN       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_START)
 #define SAVE_COMBO       (COMBO_MAIN | PSP_CTRL_RIGHT) /* engine: save to RAM */
 #define LOAD_COMBO       (COMBO_MAIN | PSP_CTRL_LEFT)  /* engine: load from RAM */
+#define BENCH_COMBO      (COMBO_MAIN | PSP_CTRL_UP)    /* throughput benchmark, no suspend */
 #define COMBO_TEST       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
 #define PROBE_COMBO      (COMBO_TEST | PSP_CTRL_UP)    /* drop state, flush log, dump */
 #define SELFTEST_COMBO   (COMBO_TEST | PSP_CTRL_RIGHT) /* rollback mechanics alone */
@@ -180,6 +182,10 @@ static int probe_thread(SceSize args, void *argp)
             pw_log("probe: L+R+START+LEFT: load");
             wait_release(LOAD_COMBO);
             pw_engine_load(); /* returns only on failure */
+        } else if ((pad.Buttons & BENCH_COMBO) == BENCH_COMBO) {
+            pw_log("probe: L+R+START+UP: benchmark");
+            wait_release(BENCH_COMBO);
+            pw_bench_run();
         } else if ((pad.Buttons & SELFTEST_COMBO) == SELFTEST_COMBO) {
             pw_log("probe: L+R+SELECT+RIGHT: rollback self-test");
             wait_release(SELFTEST_COMBO);

@@ -10,6 +10,7 @@
  * pw_probe_start - starts a thread that, during gameplay,
  *                  on L + R + START + RIGHT  saves a state to RAM (engine.h);
  *                  on L + R + START + LEFT   loads it back;
+ *                  on L + R + START + UP     runs the throughput benchmark (bench.h);
  *                  on L + R + SELECT + UP    drops a held state (flushing the log) and dumps
  *                                            partitions, modules and threads;
  *                  on L + R + SELECT + RIGHT runs the rollback self-test;

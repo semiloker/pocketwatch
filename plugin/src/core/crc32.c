@@ -27,3 +27,13 @@ unsigned int pw_crc32(unsigned int crc, const void *data, unsigned int len)
         crc = g_table[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
     return ~crc;
 }
+
+unsigned int pw_sum32(const void *data, unsigned int len)
+{
+    const unsigned int *w = data;
+    unsigned int s = 0;
+
+    for (unsigned int i = 0; i < len / 4; i++)
+        s = ((s << 1) | (s >> 31)) + w[i];
+    return s;
+}
