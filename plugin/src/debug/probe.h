@@ -8,12 +8,12 @@
  *
  * pw_probe_boot  - short snapshot at plugin start: model, firmware, game, memory partitions.
  * pw_probe_start - starts a thread that, during gameplay,
+ *                  on L + R + START + RIGHT  saves a state to RAM (engine.h);
+ *                  on L + R + START + LEFT   loads it back;
  *                  on L + R + SELECT + UP    drops a held state (flushing the log) and dumps
  *                                            partitions, modules and threads;
- *                  on L + R + SELECT + RIGHT saves a state to RAM (engine.h);
- *                  on L + R + SELECT + LEFT  loads it back.
- *                  on L + R + START + RIGHT  runs the rollback self-test;
- *                  on L + R + START + LEFT   saves and loads at once, game kept frozen.
+ *                  on L + R + SELECT + RIGHT runs the rollback self-test;
+ *                  on L + R + SELECT + LEFT  saves and loads at once, game kept frozen.
  * pw_probe_stop  - stops and deletes that thread; must be called from module_stop.
  */
 void pw_probe_boot(void);

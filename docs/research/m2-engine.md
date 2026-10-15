@@ -239,3 +239,21 @@ Test protocol for run 6 (NFS Most Wanted), stopping at the first problem:
    This is the decisive one: a rollback followed by the quit-time flash1 write.
 3. Start the game, L+R+SELECT+RIGHT, drive 20-30 s (no game save), L+R+SELECT+LEFT: the game must
    jump back. Exit, check settings.
+
+**Run 6 — 2026-10-15, NFS Most Wanted.** Raw log:
+[`logs/2026-10-15-e2-run6-nfs.log`](logs/2026-10-15-e2-run6-nfs.log). Three game sessions.
+- **The flash fix works.** Two sessions ended with a quit to the XMB after frozen save + load
+  cycles (three rollbacks in total); the system settings survived every time. Each rollback logged
+  `flash drivers re-initialised: ok (exit 0 init 0)` and `flash0/flash1 remounted: 0/0, 0/0`.
+- The self-test passed again; with the blob cached its kernel copy took 14.9 ms (29.4 ms in run 5,
+  CPU clock differences).
+- **Game RAM is restored exactly except one 64 KB chunk**, `0x08AF0000-0x08AFFFFF`, which differs
+  from the save-time checksum and keeps changing after the restore while every game thread is
+  frozen. It lies at the end of `nfsGame`'s text / start of its data (S1 module map): something
+  running in interrupt context (most likely a game VBlank/alarm handler counting frames) writes
+  game globals there. Benign; it is the same agent continuing in the restored world.
+- No real save -> play -> load happened yet: the log shows only the START combos (self-test and
+  frozen save + load) in all three steps, although the protocol asked for SELECT. The debug combos
+  are remapped so the one the tester naturally uses does the main job: **L+R+START+RIGHT = save,
+  L+R+START+LEFT = load**; SELECT+RIGHT/LEFT/UP = self-test / frozen save + load / dump. Every combo
+  press is logged now.

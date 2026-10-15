@@ -13,12 +13,13 @@
 #include "debug/probe.h"
 #include "complications/states/engine.h"
 
-#define COMBO_BASE  (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
-#define PROBE_COMBO (COMBO_BASE | PSP_CTRL_UP)    /* drop state, flush log, dump */
-#define SAVE_COMBO  (COMBO_BASE | PSP_CTRL_RIGHT) /* engine: save to RAM */
-#define LOAD_COMBO  (COMBO_BASE | PSP_CTRL_LEFT)  /* engine: load from RAM */
-/* Experiments; L+R+START+DOWN is ARK's exit combo and stays untouched. */
-#define COMBO_TEST       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_START)
+/* Save/load sit on START: that is the combo the tester reaches for (E2 runs 4-6). L+R+START+DOWN
+   and L+R+SELECT+DOWN are ARK's and stay untouched. */
+#define COMBO_MAIN       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_START)
+#define SAVE_COMBO       (COMBO_MAIN | PSP_CTRL_RIGHT) /* engine: save to RAM */
+#define LOAD_COMBO       (COMBO_MAIN | PSP_CTRL_LEFT)  /* engine: load from RAM */
+#define COMBO_TEST       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
+#define PROBE_COMBO      (COMBO_TEST | PSP_CTRL_UP)    /* drop state, flush log, dump */
 #define SELFTEST_COMBO   (COMBO_TEST | PSP_CTRL_RIGHT) /* rollback mechanics alone */
 #define FROZEN_COMBO     (COMBO_TEST | PSP_CTRL_LEFT)  /* save + immediate frozen load */
 #define PROBE_MAX_IDS    128
@@ -172,15 +173,19 @@ static int probe_thread(SceSize args, void *argp)
             pw_log("probe: ---- end of dump %d ----", g_dump_count);
             wait_release(PROBE_COMBO);
         } else if ((pad.Buttons & SAVE_COMBO) == SAVE_COMBO) {
+            pw_log("probe: L+R+START+RIGHT: save");
             wait_release(SAVE_COMBO); /* do not hold buttons across the sleep */
             pw_engine_save();         /* also returns here, a second time, after a load */
         } else if ((pad.Buttons & LOAD_COMBO) == LOAD_COMBO) {
+            pw_log("probe: L+R+START+LEFT: load");
             wait_release(LOAD_COMBO);
             pw_engine_load(); /* returns only on failure */
         } else if ((pad.Buttons & SELFTEST_COMBO) == SELFTEST_COMBO) {
+            pw_log("probe: L+R+SELECT+RIGHT: rollback self-test");
             wait_release(SELFTEST_COMBO);
             pw_engine_selftest();
         } else if ((pad.Buttons & FROZEN_COMBO) == FROZEN_COMBO) {
+            pw_log("probe: L+R+SELECT+LEFT: frozen save + load");
             wait_release(FROZEN_COMBO);
             pw_engine_save_load_frozen();
         }

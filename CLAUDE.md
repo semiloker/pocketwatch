@@ -13,8 +13,9 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
 - Format: `bash scripts/format.sh` (`--check` in CI; clang-format 18.1.8, set `CLANG_FORMAT` to override)
 - Deploy to the USB-connected PSP: `scripts\deploy.cmd` (add `-Enable` to register in `PLUGINS.TXT`)
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
-- Debug-build combos in a game: L+R+SELECT+RIGHT = save state to RAM, LEFT = load it,
-  UP = drop the state, write the held log lines and dump memory/modules/threads
+- Debug-build combos in a game: L+R+START+RIGHT = save state to RAM, L+R+START+LEFT = load it;
+  L+R+SELECT+UP = drop the state, write the held log lines and dump memory/modules/threads;
+  L+R+SELECT+RIGHT = rollback self-test, L+R+SELECT+LEFT = frozen save + immediate load
 - From PowerShell, call WSL with `wsl -d Ubuntu --exec bash <script>`; inline `bash -c '...$VAR...'`
   gets mangled by the outer shell.
 
