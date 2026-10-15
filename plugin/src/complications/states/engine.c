@@ -173,6 +173,10 @@ typedef struct {
 #define RI_BATT_REMAIN 44
 #define RI_BATT_FULL   48
 
+/* The resume info of the last real wake in this boot: the bits no getter reports come from it. */
+static unsigned int g_real_ri[RI_WORDS];
+static int g_real_ri_valid;
+
 /* Guard results at PHASE0_0, checked before jumping to the blob (bit mask). */
 #define GUARD_BLOB  1u /* the blob in P9 differs from the module's copy */
 #define GUARD_IMAGE 2u /* the kernel image (+ P8) no longer has the save-time checksum */
@@ -195,9 +199,11 @@ typedef struct {
     LiveStatus live;                    /* switches, power and battery right before the suspend */
     unsigned int ri_found[RI_WORDS];    /* resume info as the first resume event found it */
     unsigned int ri_filled;             /* touch-and-go resume: resume info filled (1 + real) */
-    unsigned int ram_sum[RAM_CHUNKS];   /* debug: per-64 KB checksums of game RAM at save */
-    Marks save_t, load_t;               /* phase timings (log_marks) */
-    unsigned int flash_us;              /* flash driver rebuild at RESUME_COMPLETED */
+    unsigned int real_ri[RI_WORDS];     /* g_real_ri, kept here because a load rewinds it */
+    unsigned int real_ri_valid;
+    unsigned int ram_sum[RAM_CHUNKS]; /* debug: per-64 KB checksums of game RAM at save */
+    Marks save_t, load_t;             /* phase timings (log_marks) */
+    unsigned int flash_us;            /* flash driver rebuild at RESUME_COMPLETED */
     unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
     int save_ge;
     unsigned int save_dmac_left, save_capture_us;
@@ -239,9 +245,7 @@ static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
 static int g_fast = 1;               /* suspend touch-and-go (no sleep); debug toggle */
 static volatile int g_tg;            /* the suspend in progress was requested touch-and-go */
-/* The resume info of the last real wake in this boot: the bits no getter reports come from it. */
-static unsigned int g_real_ri[RI_WORDS];
-static int g_real_ri_valid;
+
 /* Partition 8 holds live data of something loaded at boot (343 KB used on the PSP-3000) but sits
    outside 0x88000000-0x88400000: it is captured and restored together with the kernel image. */
 static unsigned int g_p8_base, g_p8_size;
@@ -261,9 +265,6 @@ signed char sceSysconGetHPConnect(void);
 signed char sceSysconGetMsPowerCtrl(void);
 signed char sceSysconGetWlanPowerCtrl(void);
 signed char sceSysconGetHRPowerCtrl(void);
-int sceSysconGetPowerSupplyStatus(int *status);
-int sceSysconBatteryGetStatusCap(int *status, int *cap);
-int sceSysconBatteryGetFullCap(int *cap);
 int sceRtcSetAlarmTick(u64 *tick); /* sceRtc_driver, not declared by PSPSDK */
 int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result);
 
@@ -347,7 +348,12 @@ static void stage_blob(void)
     sceKernelIcacheInvalidateAll();
 }
 
-/* Thread context only (the battery reads are syscon commands). */
+/*
+ * The syscon driver's cached view of the switches and device power: plain variable reads, no
+ * syscon traffic. (Speed run 4: issuing real syscon commands here - power supply and battery
+ * reads - hung the save with the game frozen, and the PSP slept on quitting.) Battery and supply
+ * values come only from a real wake's resume info, when there was one this boot.
+ */
 static void capture_live(LiveStatus *l)
 {
     memset(l, 0, sizeof(*l));
@@ -357,10 +363,13 @@ static void capture_live(LiveStatus *l)
     l->ms_power = sceSysconGetMsPowerCtrl();
     l->wlan_power = sceSysconGetWlanPowerCtrl();
     l->hr_power = sceSysconGetHRPowerCtrl();
-    l->ok = sceSysconGetPowerSupplyStatus(&l->supply) >= 0;
-    if (sceSysconBatteryGetStatusCap(&l->batt_status, &l->batt_remain) < 0 ||
-        sceSysconBatteryGetFullCap(&l->batt_full) < 0)
-        l->batt_status = l->batt_remain = l->batt_full = 0;
+    if (g_real_ri_valid) {
+        l->supply = (int)g_real_ri[RI_SUPPLY / 4];
+        l->batt_status = (int)g_real_ri[RI_BATT_STATUS / 4];
+        l->batt_remain = (int)g_real_ri[RI_BATT_REMAIN / 4];
+        l->batt_full = (int)g_real_ri[RI_BATT_FULL / 4];
+    }
+    l->ok = 1;
 }
 
 /* Handler, first resume event of a touch-and-go suspend: make the zeroed resume info tell the
@@ -377,12 +386,23 @@ static void fill_resume_info(unsigned int *ri, const LiveStatus *l)
            (l->ms_power ? 1u << 21 : 0);
     b[RI_BARYON_ST] = (unsigned char)st;
     ri[RI_BARYON_KEY / 4] = key;
-    ri[RI_SUPPLY / 4] = (unsigned int)l->supply;
-    ri[RI_BATT_STATUS / 4] = (unsigned int)l->batt_status;
-    ri[RI_BATT_REMAIN / 4] = (unsigned int)l->batt_remain;
-    ri[RI_BATT_FULL / 4] = (unsigned int)l->batt_full;
-    if (g_real_ri_valid)
+    if (g_real_ri_valid) { /* else: "no battery" until the battery driver polls again */
+        ri[RI_SUPPLY / 4] = (unsigned int)l->supply;
+        ri[RI_BATT_STATUS / 4] = (unsigned int)l->batt_status;
+        ri[RI_BATT_REMAIN / 4] = (unsigned int)l->batt_remain;
+        ri[RI_BATT_FULL / 4] = (unsigned int)l->batt_full;
         b[64] = (unsigned char)g_real_ri[64 / 4]; /* baryonStatus2 */
+    }
+}
+
+/*
+ * Fast mode suspends touch-and-go only once this boot has seen a real wake: its resume info gives
+ * the battery and switch bits that no getter reports. So the first save of a session sleeps for
+ * real (slow); the following saves and loads do not.
+ */
+static int use_touch_and_go(void)
+{
+    return g_fast && g_real_ri_valid;
 }
 
 static int request_suspend(void)
@@ -519,8 +539,9 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
                 h->ri_found[i] = ri[i];
             if (!tg) { /* a real wake: keep what the IPL reported */
                 for (int i = 0; i < RI_WORDS; i++)
-                    g_real_ri[i] = ri[i];
+                    g_real_ri[i] = h->real_ri[i] = ri[i];
                 g_real_ri_valid = 1;
+                h->real_ri_valid = 1;
             } else if (h->live.ok) {
                 fill_resume_info(ri, &h->live);
                 h->ri_filled = 1 + g_real_ri_valid;
@@ -683,7 +704,7 @@ static int check_environment(void)
 
 static void release_staging(void)
 {
-    if (g_hdr != NULL)
+    if (g_hdr != NULL && g_mode == MODE_IDLE)
         g_hdr->magic = 0; /* no post-mortem for a state we dropped on purpose */
     g_hdr = NULL;
     g_kernel_image = NULL;
@@ -1038,6 +1059,11 @@ static int finish_load(void)
 
     crumb(h, S_RB_THREAD);
     mark(&h->load_t, P_SUSPEND);
+    if (h->real_ri_valid && !g_real_ri_valid) {
+        for (int i = 0; i < RI_WORDS; i++)
+            g_real_ri[i] = h->real_ri[i];
+        g_real_ri_valid = 1;
+    }
     /* Lines stay in RAM until the game runs again: card writes here would extend the freeze. */
     pw_log("engine: ---- LOAD: back in the saved moment ----");
     pw_log("engine: load: blob ran %u us", pw_handoff_ctx[CTX_APPLY_TICKS] * 1000 / calibrate());
@@ -1152,12 +1178,19 @@ int pw_engine_save(void)
     h = g_hdr;
     memset(h, 0, sizeof(*h));
     h->magic = STATE_MAGIC;
+    if (g_real_ri_valid) {
+        for (int i = 0; i < RI_WORDS; i++)
+            h->real_ri[i] = g_real_ri[i];
+        h->real_ri_valid = 1;
+    }
     crumb(h, S_SAVE_START);
     pw_log("engine: CP0 Count runs at %u kHz", calibrate());
-    /* From here until the state is dropped the log stays in RAM: a card write would extend the
-       freeze now, and after the kernel snapshot it would make the saved FAT view stale. */
+    /* Release builds keep the log in RAM from here (a card write would extend the freeze); debug
+       builds write it until the suspend request, so a hang shows where it happened. After the
+       kernel snapshot a card write would make the saved FAT view stale: RAM only, always. */
     pw_log_flush();
-    pw_log_set_deferred(1);
+    if (!VERIFY)
+        pw_log_set_deferred(1);
     mark_begin(&h->save_t);
 
     pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
@@ -1212,8 +1245,10 @@ int pw_engine_save(void)
 
     g_restore_pending = 0;
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
-    g_tg = g_fast;
+    g_tg = use_touch_and_go();
     h->save_tg = (unsigned int)g_tg;
+    pw_log("engine: save: requesting a %s suspend", g_tg ? "touch-and-go" : "real");
+    pw_log_set_deferred(1);
     g_mode = MODE_SAVE;
     crumb(h, S_SAVE_SUSPEND);
     sceKernelDcacheWritebackAll();
@@ -1314,7 +1349,7 @@ int pw_engine_load(void)
     crumb(h, S_LOAD_ARMED);
 
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
-    g_tg = g_fast;
+    g_tg = use_touch_and_go();
     h->io_restored = 0;
     h->ri_filled = 0;
     g_mode = MODE_LOAD;
@@ -1370,7 +1405,7 @@ static int selftest_round(int copy)
     pw_log_flush(); /* if the round kills the system, the card still says which one */
 
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
-    g_tg = g_fast;
+    g_tg = use_touch_and_go();
     g_selftest_copy = copy;
     g_mode = MODE_SELFTEST;
     stage_blob();
@@ -1423,7 +1458,8 @@ int pw_engine_selftest(void)
 void pw_engine_set_fast(int on)
 {
     g_fast = on != 0;
-    pw_log("engine: fast mode (touch-and-go suspend, no sleep) %s", g_fast ? "ON" : "OFF");
+    pw_log("engine: fast mode (touch-and-go suspend, no sleep) %s%s", g_fast ? "ON" : "OFF",
+           g_fast && !g_real_ri_valid ? " - the next suspend still sleeps for real once" : "");
 }
 
 int pw_engine_fast(void)
@@ -1548,6 +1584,8 @@ int pw_engine_init(void)
 
 void pw_engine_shutdown(void)
 {
+    /* No I/O here (module_stop). If an operation was cut short, release_staging keeps the P9
+       record for the next session's post-mortem. */
     if (g_registered)
         sceKernelUnregisterSysEventHandler(&g_handler);
     g_registered = 0;

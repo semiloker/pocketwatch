@@ -180,3 +180,18 @@ key bits, `baryonStatus2`) come from the resume info of the last real wake in th
 there was one (else Adrenaline's 0xFFFF key word). The log shows the info found and what was
 filled. Unconfirmed that this was the cause of the sleep; the next run checks the exit.
 
+**Speed run 4 - 2026-10-15, Castlevania.** Raw log:
+[`logs/2026-10-15-speed4-castlevania.log`](logs/2026-10-15-speed4-castlevania.log). Two sessions,
+both the same: the save froze the game for good (no sound, no input; HOME still worked) and the
+PSP slept when the game was quit. The log stops at the save's first lines because the save kept
+its lines in RAM. The only new code was the live-state capture before the suspend, which issued
+real syscon commands (power supply and battery reads) with the game frozen; a hung syscon command
+also keeps syscon's `0x402` handler vetoing every suspend. Changes:
+- The capture reads only the syscon driver's cached variables (no syscon traffic). Battery and
+  supply values, the UMD switch and `baryonStatus2` come from the resume info of a real wake.
+- Fast mode suspends touch-and-go only after this boot has seen a real wake: the first save of a
+  session sleeps for real (slow), later ones do not; a load hands the real info back to the
+  rolled-back kernel.
+- Debug builds write the save's log until the suspend request again, so a hang shows where it
+  stopped; an operation cut short by quitting the game keeps its P9 record for the post-mortem.
+

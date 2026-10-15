@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// sceSyscon_driver imports (PSPSDK has no library for it). Used to tell a touch-and-go resume the
-// real switch, power and battery state that a real wake would get from the IPL (engine.c).
+// sceSyscon_driver imports (PSPSDK has no library for it): getters of the syscon driver's cached
+// switch and device-power state (no syscon traffic), for a touch-and-go resume (engine.c).
 // NIDs are the 6.60 ones, resolved by ARK-4 on 6.61 and checked by `make check`.
 
 	.set noreorder
@@ -14,6 +14,3 @@
 	IMPORT_FUNC  "sceSyscon_driver",0x628F2351,sceSysconGetMsPowerCtrl
 	IMPORT_FUNC  "sceSyscon_driver",0xEC37C549,sceSysconGetWlanPowerCtrl
 	IMPORT_FUNC  "sceSyscon_driver",0x3C739F57,sceSysconGetHRPowerCtrl
-	IMPORT_FUNC  "sceSyscon_driver",0xFC32141A,sceSysconGetPowerSupplyStatus
-	IMPORT_FUNC  "sceSyscon_driver",0x6A53F3F8,sceSysconBatteryGetStatusCap
-	IMPORT_FUNC  "sceSyscon_driver",0x71135D7D,sceSysconBatteryGetFullCap
