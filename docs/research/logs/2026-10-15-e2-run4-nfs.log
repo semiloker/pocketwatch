@@ -1,0 +1,61 @@
+Pocketwatch b5176be-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 54 import(s): 53 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   392 KB maxfree=   358 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   392 KB maxfree=   358 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+
+==== new session ====
+Pocketwatch faf8d70-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 55 import(s): 54 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   391 KB maxfree=   357 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   391 KB maxfree=   357 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+engine: ---- SAVE ----
+freeze: 6 game thread(s) suspended in 500 ms (1 forced past the timeout)
+freeze:   user_main                       prio= 32 status=0x0C wait=1
+freeze:   main                            prio=111 status=0x08 wait=0
+freeze:   SND_SAS                         prio= 17 status=0x08 wait=0
+freeze:   SND                             prio= 18 status=0x08 wait=0
+freeze:   DVDUMD_READ                     prio= 21 status=0x08 wait=0
+freeze:   PspMpegStreamer::Thread         prio=110 status=0x08 wait=0
+engine: save: GE 0, packed in 5090 ms:
+engine:   game     24576 KB ->   9093 KB (384 chunks, 21 raw) crc F6093F33
+engine:   eDRAM     2048 KB ->   1027 KB (32 chunks, 0 raw) crc 99D5798A
+engine:   scratch     16 KB ->      0 KB (1 chunks, 0 raw) crc 14E181C6
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8bc00000 (post-mortem if a load goes wrong)
+
+==== new session ====
+Pocketwatch 53ea95d loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 55 import(s): 54 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   389 KB maxfree=   356 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   389 KB maxfree=   356 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+engine: ---- ROLLBACK SELF-TEST ----

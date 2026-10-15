@@ -52,13 +52,26 @@ static int drv_call(PspIoDrvArg *arg, int init)
     return arg->drv->funcs->IoExit ? arg->drv->funcs->IoExit(arg) : -1;
 }
 
-int pw_flash_reinit(pw_flash_report *r)
+int pw_flash_available(void)
+{
+    unsigned int k1 = set_k1(0);
+    int ok = find_driver_arg("lflash") != NULL && find_driver_arg("flashfat") != NULL;
+
+    set_k1(k1);
+    return ok;
+}
+
+int pw_flash_reinit(pw_flash_report *r, int remount)
 {
     PspIoDrvArg *lflash, *flashfat;
     unsigned int k1;
 
-    r->unassign0 = sceIoUnassign("flash0:");
-    r->unassign1 = sceIoUnassign("flash1:");
+    r->remount = remount;
+    r->unassign0 = r->unassign1 = r->assign0 = r->assign1 = 0;
+    if (remount) {
+        r->unassign0 = sceIoUnassign("flash0:");
+        r->unassign1 = sceIoUnassign("flash1:");
+    }
 
     k1 = set_k1(0);
     lflash = find_driver_arg("lflash");
@@ -69,9 +82,13 @@ int pw_flash_reinit(pw_flash_report *r)
     r->init_flashfat = drv_call(flashfat, 1);
     set_k1(k1);
 
-    r->assign0 = sceIoAssign("flash0:", "lflash0:0,0", "flashfat0:", IOASSIGN_RDONLY, NULL, 0);
-    r->assign1 = sceIoAssign("flash1:", "lflash0:0,1", "flashfat1:", IOASSIGN_RDWR, NULL, 0);
+    if (remount) {
+        r->assign0 = sceIoAssign("flash0:", "lflash0:0,0", "flashfat0:", IOASSIGN_RDONLY, NULL, 0);
+        r->assign1 = sceIoAssign("flash1:", "lflash0:0,1", "flashfat1:", IOASSIGN_RDWR, NULL, 0);
+    }
     r->found_lflash = lflash != NULL;
     r->found_flashfat = flashfat != NULL;
-    return (lflash && flashfat && r->assign0 >= 0 && r->assign1 >= 0) ? 0 : -1;
+    if (!lflash || !flashfat || r->init_lflash < 0 || r->init_flashfat < 0)
+        return -1;
+    return (r->assign0 >= 0 && r->assign1 >= 0) ? 0 : -1;
 }

@@ -1,0 +1,159 @@
+==== new session ====
+Pocketwatch 0de3170 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 55 import(s): 54 direct, 1 via syscall, 0 unresolved
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   388 KB maxfree=   353 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   388 KB maxfree=   353 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 20303 KB maxfree= 20303 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+engine: ---- ROLLBACK SELF-TEST ----
+engine: self-test round 0 (blob without copy): suspending...
+engine: self-test round 0: froze 0 thread(s), GE 0, suspend=0x00000000 applied=1 resumed=1 guard=0, blob 63 us: OK
+engine: self-test: 3 breadcrumb(s), last "selftest:back-in-dispatcher"
+engine:   40 selftest:start
+engine:   41 selftest:applying-live-kernel
+engine:   42 selftest:back-in-dispatcher
+engine: self-test trace, 118 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x30
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: self-test trace spans 2340 ms (CPU time, the sleep itself excluded)
+engine: self-test round 1 (blob + 4 MB kernel copy): suspending...
+engine: self-test round 1: froze 0 thread(s), GE 0, suspend=0x00000000 applied=1 resumed=1 guard=0, blob 29376 us: OK
+engine: self-test: 3 breadcrumb(s), last "selftest:back-in-dispatcher"
+engine:   40 selftest:start
+engine:   41 selftest:applying-live-kernel
+engine:   42 selftest:back-in-dispatcher
+engine: self-test trace, 102 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: self-test trace spans 2525 ms (CPU time, the sleep itself excluded)
+engine: ---- ROLLBACK SELF-TEST PASSED ----
+engine: ---- FROZEN SAVE + LOAD ----
+engine: ---- SAVE ----
+freeze: 6 game thread(s) suspended in 6 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 32 status=0x0C wait=1
+freeze:   SND ATRAC PLAYER                prio= 18 status=0x08 wait=0
+freeze:   SND_SAS                         prio= 17 status=0x08 wait=0
+freeze:   SND                             prio= 18 status=0x08 wait=0
+freeze:   DVDUMD_READ                     prio= 21 status=0x0C wait=1
+freeze:   main                            prio=111 status=0x08 wait=0
+engine: save: GE 0, packed in 6134 ms:
+engine:   game     24576 KB ->  12643 KB (384 chunks, 14 raw) crc 95CFB898
+engine:   eDRAM     2048 KB ->   1172 KB (32 chunks, 2 raw) crc 7A2F3307
+engine:   scratch     16 KB ->      0 KB (1 chunks, 0 raw) crc E0000EDD
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: ---- LOAD: back in the saved moment ----
+engine: load: blob ran 29364 us
+engine: load: froze 0 thread(s) in 0 ms (0 forced), GE 0
+engine: load: flash 0: drivers 0/0, unassign 0/0, exit 0/0, init 0/0, assign 0/0
+engine: load (before rollback) trace, 81 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000
+engine: load (before rollback) trace spans 1805 ms (CPU time, the sleep itself excluded)
+engine: load (after rollback) trace, 21 event(s):
+engine:  010000 010001 010002 010003 010004 010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: load (after rollback) trace spans 438 ms (CPU time, the sleep itself excluded)
+engine: load: restoring game RAM...
+engine: load: game RAM restored in 977 ms
+engine: load: restoring eDRAM...
+engine: load: eDRAM restored in 91 ms
+engine: load: scratchpad crc now E0000EDD, at save E0000EDD (left as is)
+engine: load: game RAM crc 2BB40D28, saved 95CFB898: DIFFERENT
+engine: load: reading flash0...
+engine: load: flash0 read 64
+engine: load: thawing 6 game thread(s)...
+engine: ---- LOAD complete: request -> game running 9122 ms (wall clock) ----
+engine: state discarded after 1 load(s)
+engine: after load +500 ms: 6/6 game thread(s) alive
+engine: after load +1000 ms: 6/6 game thread(s) alive
+engine: after load +1500 ms: 6/6 game thread(s) alive
+engine: after load +2000 ms: 6/6 game thread(s) alive
+engine: after load +2500 ms: 6/6 game thread(s) alive
+engine: after load +3000 ms: 6/6 game thread(s) alive
+engine: after load +3500 ms: 6/6 game thread(s) alive
+engine: after load +4000 ms: 6/6 game thread(s) alive
+engine: after load +4500 ms: 6/6 game thread(s) alive
+engine: after load +5000 ms: 6/6 game thread(s) alive
+engine: ---- ROLLBACK SELF-TEST ----
+engine: self-test round 0 (blob without copy): suspending...
+engine: self-test round 0: froze 0 thread(s), GE 0, suspend=0x00000000 applied=1 resumed=1 guard=0, blob 63 us: OK
+engine: self-test: 3 breadcrumb(s), last "selftest:back-in-dispatcher"
+engine:   40 selftest:start
+engine:   41 selftest:applying-live-kernel
+engine:   42 selftest:back-in-dispatcher
+engine: self-test trace, 106 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x24
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: self-test trace spans 2188 ms (CPU time, the sleep itself excluded)
+engine: self-test round 1 (blob + 4 MB kernel copy): suspending...
+engine: self-test round 1: froze 0 thread(s), GE 0, suspend=0x00000000 applied=1 resumed=1 guard=0, blob 29375 us: OK
+engine: self-test: 3 breadcrumb(s), last "selftest:back-in-dispatcher"
+engine:   40 selftest:start
+engine:   41 selftest:applying-live-kernel
+engine:   42 selftest:back-in-dispatcher
+engine: self-test trace, 106 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x24
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: self-test trace spans 2370 ms (CPU time, the sleep itself excluded)
+engine: ---- ROLLBACK SELF-TEST PASSED ----
+engine: ---- FROZEN SAVE + LOAD ----
+engine: ---- SAVE ----
+freeze: 6 game thread(s) suspended in 12 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 32 status=0x0C wait=1
+freeze:   SND ATRAC PLAYER                prio= 18 status=0x08 wait=0
+freeze:   SND_SAS                         prio= 17 status=0x08 wait=0
+freeze:   SND                             prio= 18 status=0x08 wait=0
+freeze:   DVDUMD_READ                     prio= 21 status=0x0C wait=1
+freeze:   main                            prio=111 status=0x08 wait=0
+engine: save: GE 0, packed in 6138 ms:
+engine:   game     24576 KB ->  12676 KB (384 chunks, 13 raw) crc F6579740
+engine:   eDRAM     2048 KB ->   1148 KB (32 chunks, 2 raw) crc 64C27AA1
+engine:   scratch     16 KB ->      0 KB (1 chunks, 0 raw) crc E0000EDD
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: ---- LOAD: back in the saved moment ----
+engine: load: blob ran 29365 us
+engine: load: froze 0 thread(s) in 0 ms (0 forced), GE 0
+engine: load: flash 0: drivers 0/0, unassign 0/0, exit 0/0, init 0/0, assign 0/0
+engine: load (before rollback) trace, 87 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x25
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000
+engine: load (before rollback) trace spans 1644 ms (CPU time, the sleep itself excluded)
+engine: load (after rollback) trace, 21 event(s):
+engine:  010000 010001 010002 010003 010004 010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: load (after rollback) trace spans 446 ms (CPU time, the sleep itself excluded)
+engine: load: restoring game RAM...
+engine: load: game RAM restored in 980 ms
+engine: load: restoring eDRAM...
+engine: load: eDRAM restored in 90 ms
+engine: load: scratchpad crc now E0000EDD, at save E0000EDD (left as is)
+engine: load: game RAM crc 90B572D5, saved F6579740: DIFFERENT
+engine: load: reading flash0...
+engine: load: flash0 read 64
+engine: load: thawing 6 game thread(s)...
+engine: ---- LOAD complete: request -> game running 8593 ms (wall clock) ----
+engine: state discarded after 1 load(s)
+engine: after load +500 ms: 6/6 game thread(s) alive
+engine: after load +1000 ms: 6/6 game thread(s) alive
+engine: after load +1500 ms: 6/6 game thread(s) alive
+engine: after load +2000 ms: 6/6 game thread(s) alive
+engine: after load +2500 ms: 6/6 game thread(s) alive
+engine: after load +3000 ms: 6/6 game thread(s) alive
+engine: after load +3500 ms: 6/6 game thread(s) alive
+engine: after load +4000 ms: 6/6 game thread(s) alive
+engine: after load +4500 ms: 6/6 game thread(s) alive
+engine: after load +5000 ms: 6/6 game thread(s) alive

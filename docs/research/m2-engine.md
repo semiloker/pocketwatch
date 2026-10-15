@@ -6,7 +6,7 @@ Each rung is proven on the device before the next one is built. Design inputs: M
 | Rung | What it proves | Status |
 |---|---|---|
 | E1 | real suspend + RTC auto-wake + kernel copy at PHASE0_0, no restore | done (run 1) |
-| E2 | load in the same boot (restore kernel + RAM + VRAM) | run 5 built: two root causes fixed |
+| E2 | load in the same boot (restore kernel + RAM + VRAM) | rollback works (run 5); flash1 safety in run 6 |
 | E3 | load after a reboot (environment fingerprint) | |
 | E4 | file-system integrity gate (100 cycles + FAT check) | |
 
@@ -148,7 +148,9 @@ Experiments for run 4 (the next build):
 - **Frozen save + load, L+R+START+LEFT:** save, keep the game frozen, load at once. The smallest
   possible difference between the saved world and the one being replaced.
 
-**Run 4 — 2026-10-15, NFS Most Wanted:** the self-test alone (L+R+START+RIGHT, no world switch)
+**Run 4 — 2026-10-15, NFS Most Wanted.** Raw log:
+[`logs/2026-10-15-e2-run4-nfs.log`](logs/2026-10-15-e2-run4-nfs.log) (ends at the self-test banner).
+The self-test alone (L+R+START+RIGHT, no world switch)
 gave ~10 s of black screen and the XMB, exactly like every load. So the rollback *mechanics* were
 broken, not the saved world. Analysis (code review against PSPFatSave, uOFW 6.60 sources) found two
 independent faults, each fatal on its own, present in every load since the first E2 build:
@@ -193,3 +195,47 @@ Test protocol for run 5 (NFS Most Wanted):
 2. L+R+START+LEFT (frozen save + load). Black screens, then the game must carry on.
 3. L+R+SELECT+RIGHT (save), play 20-30 s, L+R+SELECT+LEFT (load): the game must jump back.
 4. Exit the game normally; after any drop to the XMB just connect USB (the log keeps sessions).
+
+**Run 5 — 2026-10-15, NFS Most Wanted.** Raw log:
+[`logs/2026-10-15-e2-run5-nfs.log`](logs/2026-10-15-e2-run5-nfs.log).
+- **The rollback works.** Self-test passed twice (round 0: blob 63 us; round 1: blob + 4 MB copy
+  29.4 ms). The frozen save + load ran twice: "back in the saved moment", RAM and eDRAM restored
+  (~1 s), flash0 readable, all 6 game threads alive 5 s after the thaw, the game kept running.
+  The user saw two black screens of a couple of seconds each per self-test: the trace shows the
+  firmware retrying the power lock (`400 401 402` x22-30, ~2 s of CPU time per suspend) before it
+  sleeps; to be investigated (a frozen thread probably holds a power lock).
+- The user's L+R+SELECT combos do not appear in the log: only L+R+START+RIGHT/LEFT were pressed.
+  The frozen save + load restores the moment it was just taken, so "no jump back" was expected.
+- Debug check: game RAM after the restore did not match the save-time CRC (both loads). Not yet
+  located; run 6 compares 64 KB chunks to show where (moved during packing vs. written after the
+  restore while the game is still frozen).
+- **The PSP's system settings were reset** (country, time, nickname, theme) after the session; ARK
+  survived. Cause: the flash driver rebuild after a rollback had been switched off for run 4
+  (`FLASH_REINIT_ON_LOAD 0`, as a suspect). The rolled-back lflash map no longer matched the NAND,
+  the next flash1 write (at the latest the registry flush on quitting the game) corrupted flash1,
+  and the firmware recreated it at boot. PSPFatSave went through exactly this (its v512-v520
+  history: "settings reset on quit after LOAD") and fixed it with the in-place driver rebuild.
+  flash0 is mounted read-only and the PSP boots normally.
+
+Changes for run 6:
+- After every resume of a SAVE (plain or after a rollback), at RESUME_COMPLETED: lflash and
+  flashfat `df_exit` + `df_init` in place; after a rollback also unassign/reassign flash0:/flash1:
+  around it. This is PSPFatSave's final behaviour (its save-side rebuild fixed games that stream
+  from flash0 after a save).
+- LOAD refuses to start if the flash drivers cannot be found (no rollback without the rebuild).
+- Debug: per-64 KB game-RAM checksums at save, compared after the restore and again before the
+  thaw (replaces the whole-RAM CRC).
+- The RTC alarm is +100 ms for every mode again (the blob takes 29 ms; the alarm expires during the
+  power-lock retries anyway and still wakes the PSP).
+
+Known risk, not handled yet (E4): if the *game* writes to the Memory Stick between a save and a
+load (a game save), the rolled-back FAT driver state no longer matches the card. Until E4, do not
+save the game between a state save and its load.
+
+Test protocol for run 6 (NFS Most Wanted), stopping at the first problem:
+1. L+R+SELECT+RIGHT (save only). Play a few seconds, exit the game normally, check the XMB
+   settings (theme, nickname) are intact. Tests the driver rebuild without a rollback.
+2. Start the game, L+R+START+LEFT once (frozen save + load), exit the game, check settings.
+   This is the decisive one: a rollback followed by the quit-time flash1 write.
+3. Start the game, L+R+SELECT+RIGHT, drive 20-30 s (no game save), L+R+SELECT+LEFT: the game must
+   jump back. Exit, check settings.

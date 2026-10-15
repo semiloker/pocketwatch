@@ -58,13 +58,10 @@
 #define FREEZE_TIMEOUT_MS 500
 #define GE_TIMEOUT_MS     100
 #define RESUME_POLLS      2000 /* x 5 ms of active time; the sleep itself does not count */
-#define WAKE_DELAY_US     100000ull
-/* LOAD and the self-test copy the kernel after the alarm is armed. The blob now runs cached (tens
-   of ms); the margin stays until a load has worked on the device, then it can come down. */
-#define WAKE_DELAY_SLOW_US 1500000ull
-/* Same-session loads do not need it (flash is unchanged); off while the load path is debugged. */
-#define FLASH_REINIT_ON_LOAD 0
-#define TRACE_MAX            128
+/* RTC wake-up after the suspend request; it expires during the firmware's power-lock retries
+   anyway, and an expired alarm still wakes the PSP at once (E1-E2). */
+#define WAKE_DELAY_US 100000ull
+#define TRACE_MAX     128
 
 #ifdef PW_DEBUG
 #define VERIFY 1 /* checksum game RAM on save and after load */
@@ -109,7 +106,8 @@ enum {
     S_ST_GUARD, /* handler, PHASE0_0: blob damaged, apply skipped */
 };
 
-#define CRUMB_MAX 48
+#define CRUMB_MAX  48
+#define RAM_CHUNKS (USER_SIZE / PW_STREAM_CHUNK)
 
 /* Guard results at PHASE0_0, checked before jumping to the blob (bit mask). */
 #define GUARD_BLOB  1u /* the blob in P9 differs from the module's copy */
@@ -127,6 +125,7 @@ typedef struct {
     unsigned int image_sum_armed;       /* the same once LOAD has set its flag in the image */
     unsigned int guard;                 /* GUARD_* found at the last PHASE0_0 apply */
     unsigned int save_ic;               /* interrupt-controller state when PHASE0_0 came */
+    unsigned int ram_sum[RAM_CHUNKS];   /* debug: per-64 KB checksums of game RAM at save */
     unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
     int save_ge;
     unsigned int save_dmac_left, save_capture_cycles;
@@ -161,7 +160,7 @@ static pw_arena g_arena;
 static pw_freeze_set g_save_freeze, g_load_freeze;
 static unsigned int g_cycles_per_ms;
 static int g_keep_frozen;              /* debug: pw_engine_save leaves the game frozen */
-static pw_flash_report g_flash_report; /* filled at RESUME_COMPLETED after a rollback */
+static pw_flash_report g_flash_report; /* filled at the save's RESUME_COMPLETED (flash.h) */
 static volatile int g_flash_result;
 static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
@@ -172,6 +171,7 @@ static unsigned int g_p8_base, g_p8_size;
    reboot the ME at resume). It belongs to the kernel's state like P8: a LOAD that kept the
    current ME image would restart the Media Engine out of step with the restored kernel. */
 static unsigned int g_me_base, g_me_size;
+static unsigned int g_ram_restored[RAM_CHUNKS], g_ram_now[RAM_CHUNKS]; /* debug, after a load */
 
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
@@ -376,7 +376,7 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         u64 tick;
 
         sceRtcGetCurrentTick(&tick);
-        tick += g_mode == MODE_SAVE ? WAKE_DELAY_US : WAKE_DELAY_SLOW_US;
+        tick += WAKE_DELAY_US;
         sceRtcSetAlarmTick(&tick);
         g_alarm_set = 1;
     } else if (ev_id == EV_SUSPEND_PHASE0_0) {
@@ -438,14 +438,13 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         }
     } else if (ev_id == EV_RESUME_COMPLETED) {
         sceRtcSetAlarmTick(NULL); /* never wake the next natural sleep early */
-        if (g_restore_pending) {  /* back from a rollback: fix flash before anyone else uses it */
-            crumb(h, S_RB_RESUME);
-            if (FLASH_REINIT_ON_LOAD) {
-                g_flash_result = pw_flash_reinit(&g_flash_report);
+        if (g_mode == MODE_SAVE) {
+            /* Rebuild the flash drivers before anyone else writes flash (flash.h). After a
+               rollback their state is the save's and the NAND may have changed since: remount. */
+            crumb(h, g_restore_pending ? S_RB_RESUME : S_SAVE_RESUMED);
+            g_flash_result = pw_flash_reinit(&g_flash_report, g_restore_pending);
+            if (g_restore_pending)
                 crumb(h, S_RB_FLASH);
-            }
-        } else if (g_mode == MODE_SAVE) {
-            crumb(h, S_SAVE_RESUMED);
         }
         g_resumed = 1;
     }
@@ -638,7 +637,54 @@ static void log_crumbs(const StateHeader *h, const char *who)
         pw_log("engine:   %2u %s", h->crumb[i], stage_name(h->crumb[i]));
 }
 
-/* Debug: is flash0 still readable after the rollback (flash drivers as restored, no re-init)? */
+static void log_flash(const char *who)
+{
+    const pw_flash_report *f = &g_flash_report;
+
+    pw_log(
+        "engine: %s: flash drivers re-initialised: %s (lflash %d exit %X init %X, flashfat %d exit "
+        "%X init %X)",
+        who, g_flash_result == 0 ? "ok" : "FAILED", f->found_lflash, f->exit_lflash, f->init_lflash,
+        f->found_flashfat, f->exit_flashfat, f->init_flashfat);
+    if (f->remount)
+        pw_log("engine: %s: flash0/flash1 remounted: unassign %X/%X, assign %X/%X", who,
+               f->unassign0, f->unassign1, f->assign0, f->assign1);
+}
+
+/* Debug: per-64 KB checksums of game RAM. */
+static void ram_sums(unsigned int *out)
+{
+    for (unsigned int i = 0; i < RAM_CHUNKS; i++)
+        out[i] = sum32((const void *)(USER_BASE + i * PW_STREAM_CHUNK), PW_STREAM_CHUNK);
+}
+
+/* Debug: log which parts of game RAM differ from ref (runs of 64 KB chunks, user addresses). */
+static unsigned int log_ram_diff(const char *what, const unsigned int *ref, unsigned int *now)
+{
+    unsigned int diff = 0, runs = 0;
+
+    ram_sums(now);
+    for (unsigned int i = 0; i < RAM_CHUNKS;) {
+        unsigned int j = i;
+
+        if (now[i] == ref[i]) {
+            i++;
+            continue;
+        }
+        while (j < RAM_CHUNKS && now[j] != ref[j])
+            j++;
+        diff += j - i;
+        if (runs++ < 16)
+            pw_log("engine:   %s: 0x%08X-0x%08X", what,
+                   (USER_BASE & 0x1FFFFFFFu) + i * PW_STREAM_CHUNK,
+                   (USER_BASE & 0x1FFFFFFFu) + j * PW_STREAM_CHUNK - 1);
+        i = j;
+    }
+    pw_log("engine: load: %s: %u of %u 64 KB chunk(s) differ", what, diff, RAM_CHUNKS);
+    return diff;
+}
+
+/* Debug: is flash0 readable after the rollback and the driver rebuild? */
 static int flash0_probe(void)
 {
     char buf[64];
@@ -661,7 +707,6 @@ static int flash0_probe(void)
 static int finish_load(void)
 {
     StateHeader *h = g_hdr;
-    const pw_flash_report *f = &g_flash_report;
     unsigned int t0, scratch_crc;
     int ok_ram, ok_vram;
     u64 now;
@@ -672,11 +717,7 @@ static int finish_load(void)
     pw_log("engine: load: blob ran %u us", pw_handoff_ctx[CTX_APPLY_TICKS] * 1000 / calibrate());
     pw_log("engine: load: froze %u thread(s) in %u ms (%u forced), GE %d", h->load_threads,
            h->load_freeze_ms, h->load_forced, h->load_ge);
-    pw_log("engine: load: flash %d: drivers %d/%d, unassign %X/%X, exit %X/%X, init %X/%X, "
-           "assign %X/%X",
-           g_flash_result, f->found_lflash, f->found_flashfat, f->unassign0, f->unassign1,
-           f->exit_lflash, f->exit_flashfat, f->init_lflash, f->init_flashfat, f->assign0,
-           f->assign1);
+    log_flash("load");
     log_trace(h, TRACE_LOAD, "load (before rollback)");
     log_trace(h, TRACE_AFTER_ROLLBACK, "load (after rollback)");
 
@@ -686,6 +727,8 @@ static int finish_load(void)
     crumb(h, S_RB_RAM);
     pw_log("engine: load: game RAM %s in %u ms", ok_ram ? "restored" : "DECOMPRESSION FAILED",
            now_ms() - t0);
+    if (VERIFY && ok_ram) /* differences here: RAM moved while the save was being packed */
+        log_ram_diff("restored vs save", h->ram_sum, g_ram_restored);
 
     t0 = now_ms();
     pw_log("engine: load: restoring eDRAM...");
@@ -703,15 +746,10 @@ static int finish_load(void)
     sceKernelIcacheInvalidateAll(); /* the game's code in RAM was replaced too */
     crumb(h, S_RB_CACHES);
     if (VERIFY) {
-        unsigned int crc = pw_crc32(0, (const void *)USER_BASE, USER_SIZE);
-
-        pw_log("engine: load: game RAM crc %08X, saved %08X: %s", crc, h->user.crc32,
-               crc == h->user.crc32 ? "IDENTICAL" : "DIFFERENT");
-    }
-
-    if (VERIFY) {
         pw_log("engine: load: reading flash0...");
         pw_log("engine: load: flash0 read %d", flash0_probe());
+        if (ok_ram) /* differences here: written by someone else while the game is frozen */
+            log_ram_diff("changed since restore", g_ram_restored, g_ram_now);
     }
 
     g_restore_pending = 0;
@@ -803,6 +841,8 @@ int pw_engine_save(void)
     h->save_pack_ms = now_ms() - t0;
     h->arena_used = arena_used(&cursor);
     h->arena_sum = sum32(g_arena.base[0], h->arena_used);
+    if (VERIFY)
+        ram_sums(h->ram_sum);
     crumb(h, S_SAVE_PACKED);
     pw_freeze_log(&g_save_freeze);
     pw_log("engine: save: GE %d, packed in %u ms:", h->save_ge, h->save_pack_ms);
@@ -856,6 +896,7 @@ int pw_engine_save(void)
            h->save_suspend_ms, h->save_capture_cycles / calibrate(), h->save_dmac_left, h->save_ic);
     pw_log("engine: save: image %u KB sum %08X, arena %u KB sum %08X", h->image_len / 1024,
            h->image_sum, h->arena_used / 1024, h->arena_sum);
+    log_flash("save");
     log_trace(h, TRACE_SAVE, "save");
     pw_log("engine: state held in RAM; log lines are kept in RAM until it is discarded");
     return PW_ENGINE_SAVED;
@@ -874,7 +915,12 @@ int pw_engine_load(void)
     pw_log("engine: ---- LOAD ----");
     crumb(h, S_LOAD_START);
 
-    /* Last point where a damaged state can be refused without consequences. */
+    /* Last point where a load can be refused without consequences. Without the flash driver
+       rebuild a rollback corrupts flash1 (the system settings): never load then. */
+    if (!pw_flash_available()) {
+        pw_log("engine: LOAD refused: the flash drivers cannot be found to rebuild them");
+        return -1;
+    }
     unsigned int arena_now = sum32(g_arena.base[0], h->arena_used);
     unsigned int image_now = sum32(g_kernel_image, h->image_len);
 
