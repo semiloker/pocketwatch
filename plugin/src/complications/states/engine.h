@@ -37,4 +37,10 @@ int pw_engine_selftest(void);
 int pw_engine_save_load_frozen(void);
 void pw_engine_discard(void); /* drop the state, flush the held log lines */
 
+/* Debug: "fast mode" suspends touch-and-go (every suspend/resume event, no real sleep);
+   pw_engine_tg_test does one such suspend with nothing else. */
+void pw_engine_set_fast(int on);
+int pw_engine_fast(void);
+int pw_engine_tg_test(void);
+
 #endif

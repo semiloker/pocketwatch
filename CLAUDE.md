@@ -16,7 +16,9 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
 - Debug-build combos in a game: L+R+START+RIGHT = save state to RAM, L+R+START+LEFT = load it;
   L+R+SELECT+UP = drop the state, write the held log lines and dump memory/modules/threads;
   L+R+SELECT+RIGHT = rollback self-test, L+R+SELECT+LEFT = frozen save + immediate load;
-  L+R+START+UP = throughput benchmark on the frozen game's RAM (no suspend)
+  L+R+START+UP = throughput benchmark on the frozen game's RAM (no suspend);
+  L+R+SELECT+TRIANGLE = one touch-and-go suspend (no real sleep), L+R+SELECT+SQUARE = toggle
+  touch-and-go ("fast mode") for save/load/self-test
 - From PowerShell, call WSL with `wsl -d Ubuntu --exec bash <script>`; inline `bash -c '...$VAR...'`
   gets mangled by the outer shell.
 

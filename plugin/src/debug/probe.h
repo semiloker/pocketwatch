@@ -14,7 +14,9 @@
  *                  on L + R + SELECT + UP    drops a held state (flushing the log) and dumps
  *                                            partitions, modules and threads;
  *                  on L + R + SELECT + RIGHT runs the rollback self-test;
- *                  on L + R + SELECT + LEFT  saves and loads at once, game kept frozen.
+ *                  on L + R + SELECT + LEFT  saves and loads at once, game kept frozen;
+ *                  on L + R + SELECT + TRIANGLE one touch-and-go suspend (no sleep), nothing else;
+ *                  on L + R + SELECT + SQUARE   toggles touch-and-go ("fast mode") for the above.
  * pw_probe_stop  - stops and deletes that thread; must be called from module_stop.
  */
 void pw_probe_boot(void);

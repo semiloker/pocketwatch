@@ -1,0 +1,5 @@
+LZ4 1.10.0, vendored from https://github.com/lz4/lz4 (tag v1.10.0): lib/lz4.c, lib/lz4.h,
+lib/LICENSE (BSD-2-Clause). Unmodified.
+Built only through src/debug/codec_lz4.c (benchmark candidate), freestanding: LZ4_memcpy is
+__builtin_memcpy, LZ4_memset is sysclib memset, LZ4_memmove is a local byte loop, every LZ4 entry
+point is made static (LZ4LIB_VISIBILITY) so unused code is dropped, LZ4_MEMORY_USAGE 13.

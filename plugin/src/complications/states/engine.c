@@ -34,8 +34,21 @@
 #define UNCACHED(a)  ((a) | 0x20000000u) /* kseg0 address -> uncached kseg1 alias */
 
 #define EV_POWER_LOCK_PHASE1 0x00000401
+#define EV_FREEZE            0x00001000 /* the last event before _scePowerOffCommon */
 #define EV_SUSPEND_PHASE0_0  0x00004000
+#define EV_RESUME_PHASE0_0   0x00010000 /* the first resume event */
 #define EV_RESUME_COMPLETED  0x00400000
+
+/*
+ * I/O lines that _scePowerOffCommon switches off before every suspend (uOFW powerSwitch.c): most
+ * UART/SPI/GPIO pad enables and two GPIO outputs. A real wake gets them back from the IPL; a
+ * touch-and-go suspend has no IPL, so the engine puts back what it saw at EV_FREEZE.
+ */
+#define REG_IO_ENABLE      ((volatile unsigned int *)0xBC100078)
+#define REG_GPIO_IO_ENABLE ((volatile unsigned int *)0xBC10007C)
+#define REG_GPIO_READ      ((volatile unsigned int *)0xBE240004)
+#define REG_GPIO_SET       ((volatile unsigned int *)0xBE240008)
+#define GPIO_OFF_BITS      0x02800000u
 
 /*
  * Everything lives in one P9 block (24 MB at 0x8A000000). Not P11: on the PSP-2000/3000 the
@@ -69,7 +82,7 @@
 #define VERIFY 0
 #endif
 
-enum { MODE_IDLE, MODE_SAVE, MODE_LOAD, MODE_SELFTEST };
+enum { MODE_IDLE, MODE_SAVE, MODE_LOAD, MODE_SELFTEST, MODE_PLAIN /* suspend, nothing else */ };
 enum { TRACE_SAVE, TRACE_LOAD, TRACE_AFTER_ROLLBACK, TRACE_KINDS };
 
 /*
@@ -151,12 +164,16 @@ typedef struct {
     unsigned int image_sum_armed;       /* the same once LOAD has set its flag in the image */
     unsigned int guard;                 /* GUARD_* found at the last PHASE0_0 apply */
     unsigned int save_ic;               /* interrupt-controller state when PHASE0_0 came */
+    unsigned int save_tg;               /* the save used a touch-and-go suspend (no sleep) */
+    unsigned int io_snap[3];            /* I/O enables + GPIO levels at EV_FREEZE */
+    unsigned int io_found[3];           /* the same at the first resume event */
+    unsigned int io_restored;           /* touch-and-go resume: io_snap was put back */
     unsigned int ram_sum[RAM_CHUNKS];   /* debug: per-64 KB checksums of game RAM at save */
     Marks save_t, load_t;               /* phase timings (log_marks) */
-    unsigned int flash_cycles;          /* flash driver rebuild at RESUME_COMPLETED */
+    unsigned int flash_us;              /* flash driver rebuild at RESUME_COMPLETED */
     unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
     int save_ge;
-    unsigned int save_dmac_left, save_capture_cycles;
+    unsigned int save_dmac_left, save_capture_us;
     unsigned int load_threads, load_forced, load_freeze_ms;
     int load_ge;
     unsigned long long load_start_tick;
@@ -165,10 +182,10 @@ typedef struct {
     unsigned int stage; /* last breadcrumb */
     unsigned int crumb_count;
     unsigned int crumb[CRUMB_MAX];
-    unsigned int crumb_cyc[CRUMB_MAX];
+    unsigned int crumb_us[CRUMB_MAX];
     unsigned int trace_count[TRACE_KINDS];
     unsigned int trace_ev[TRACE_KINDS][TRACE_MAX];
-    unsigned int trace_cyc[TRACE_KINDS][TRACE_MAX];
+    unsigned int trace_us[TRACE_KINDS][TRACE_MAX];
 } StateHeader;
 
 _Static_assert(HEADER_AT + sizeof(StateHeader) <= WORKSPACE_AT, "state header overlaps workspace");
@@ -192,6 +209,8 @@ static pw_flash_report g_flash_report; /* filled at the save's RESUME_COMPLETED 
 static volatile int g_flash_result;
 static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
+static int g_fast;                   /* debug toggle: suspend touch-and-go (no sleep) */
+static volatile int g_tg;            /* the suspend in progress was requested touch-and-go */
 /* Partition 8 holds live data of something loaded at boot (343 KB used on the PSP-3000) but sits
    outside 0x88000000-0x88400000: it is captured and restored together with the kernel image. */
 static unsigned int g_p8_base, g_p8_size;
@@ -203,7 +222,8 @@ static unsigned int g_ram_restored[RAM_CHUNKS], g_ram_now[RAM_CHUNKS]; /* debug,
 
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
-int sceRtcSetAlarmTick(u64 *tick); /* sceRtc_driver, not declared by PSPSDK */
+int scePowerRequestSuspendTouchAndGo(void); /* core/stubs/scePower_driver.S */
+int sceRtcSetAlarmTick(u64 *tick);          /* sceRtc_driver, not declared by PSPSDK */
 int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result);
 
 static PspSysEventHandler g_handler = {
@@ -216,6 +236,13 @@ static unsigned int cycles(void)
 
     __asm__ volatile("mfc0 %0, $9" : "=r"(c)); /* CP0 Count */
     return c;
+}
+
+/* Hardware system timer (us): unlike CP0 Count, its rate does not change during the suspend
+   phases (E2 speed run 1: Count-based spans exceeded the wall clock). */
+static unsigned int usec(void)
+{
+    return sceKernelGetSystemTimeLow();
 }
 
 static unsigned int now_ms(void)
@@ -279,6 +306,11 @@ static void stage_blob(void)
     sceKernelIcacheInvalidateAll();
 }
 
+static int request_suspend(void)
+{
+    return g_tg ? scePowerRequestSuspendTouchAndGo() : scePowerRequestSuspend();
+}
+
 /* Memory only: safe in the sysevent handler. */
 static void crumb(StateHeader *h, unsigned int stage)
 {
@@ -287,7 +319,7 @@ static void crumb(StateHeader *h, unsigned int stage)
     h->stage = stage;
     if (n < CRUMB_MAX) {
         h->crumb[n] = stage;
-        h->crumb_cyc[n] = cycles();
+        h->crumb_us[n] = usec();
         h->crumb_count = n + 1;
     }
 }
@@ -360,7 +392,7 @@ static void trace(StateHeader *h, int kind, unsigned int ev)
 
     if (n < TRACE_MAX) {
         h->trace_ev[kind][n] = ev;
-        h->trace_cyc[kind][n] = cycles();
+        h->trace_us[kind][n] = usec();
         h->trace_count[kind] = n + 1;
     }
 }
@@ -389,7 +421,30 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
     if (g_mode == MODE_SELFTEST && g_applying && h->stage == S_ST_APPLY)
         crumb(h, S_ST_BACK);
 
-    if (ev_id == EV_POWER_LOCK_PHASE1 && !g_alarm_set) {
+    if (ev_id == EV_FREEZE) {
+        h->io_snap[0] = *REG_IO_ENABLE;
+        h->io_snap[1] = *REG_GPIO_IO_ENABLE;
+        h->io_snap[2] = *REG_GPIO_READ;
+    } else if (ev_id == EV_RESUME_PHASE0_0) {
+        /* A rolled-back save resumes the way the save suspended: its mode is in the header. */
+        int tg = g_mode == MODE_SAVE ? (int)h->save_tg : g_tg;
+
+        h->io_found[0] = *REG_IO_ENABLE;
+        h->io_found[1] = *REG_GPIO_IO_ENABLE;
+        h->io_found[2] = *REG_GPIO_READ;
+        if (tg && h->io_snap[0]) {
+            *REG_IO_ENABLE |= h->io_snap[0];
+            *REG_GPIO_IO_ENABLE |= h->io_snap[1];
+            if (h->io_snap[2] & GPIO_OFF_BITS)
+                *REG_GPIO_SET = h->io_snap[2] & GPIO_OFF_BITS;
+            h->io_restored = 1;
+        }
+    }
+
+    /* No alarm when nothing will sleep: a touch-and-go suspend, or a load that rolls back into a
+       touch-and-go save (a load into a normal save does sleep, inside the save's suspend). */
+    if (ev_id == EV_POWER_LOCK_PHASE1 && !g_alarm_set &&
+        !(g_tg && (g_mode != MODE_LOAD || h->save_tg))) {
         u64 tick;
 
         sceRtcGetCurrentTick(&tick);
@@ -398,7 +453,7 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         g_alarm_set = 1;
     } else if (ev_id == EV_SUSPEND_PHASE0_0) {
         if (g_mode == MODE_SAVE && !g_captured) {
-            unsigned int c0 = cycles(), intr;
+            unsigned int t0 = usec(), intr;
 
             h->save_dmac_left = dmac_drain();
             /* No interrupt may change the kernel mid-copy. A matched pair, so the IC mask is
@@ -414,7 +469,7 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
             h->image_len = IMAGE_SPACE;
             h->image_sum = pw_sum32(g_kernel_image, h->image_len);
             sceKernelDcacheWritebackAll(); /* the image must be in DRAM before power-down */
-            h->save_capture_cycles = cycles() - c0;
+            h->save_capture_us = usec() - t0;
             g_captured = 1;
             crumb(h, S_SAVE_CAPTURED);
         } else if (g_mode == MODE_LOAD && !g_applying) {
@@ -458,11 +513,11 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
         if (g_mode == MODE_SAVE) {
             /* Rebuild the flash drivers before anyone else writes flash (flash.h). After a
                rollback their state is the save's and the NAND may have changed since: remount. */
-            unsigned int c0 = cycles();
+            unsigned int t0 = usec();
 
             crumb(h, g_restore_pending ? S_RB_RESUME : S_SAVE_RESUMED);
             g_flash_result = pw_flash_reinit(&g_flash_report, g_restore_pending);
-            h->flash_cycles = cycles() - c0;
+            h->flash_us = usec() - t0;
             if (g_restore_pending)
                 crumb(h, S_RB_FLASH);
         }
@@ -473,11 +528,12 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
 
 static unsigned int calibrate(void)
 {
-    if (g_cycles_per_ms == 0) {
-        unsigned int c0 = cycles();
+    if (g_cycles_per_ms == 0) { /* CP0 Count ticks per ms, against the system timer */
+        unsigned int c0 = cycles(), t0 = usec(), dt;
 
         sceKernelDelayThread(50 * 1000);
-        g_cycles_per_ms = (cycles() - c0) / 50;
+        dt = usec() - t0;
+        g_cycles_per_ms = dt ? (unsigned int)((unsigned long long)(cycles() - c0) * 1000 / dt) : 0;
     }
     return g_cycles_per_ms ? g_cycles_per_ms : 1;
 }
@@ -598,7 +654,7 @@ static void log_stream(const char *name, const pw_stream *s)
 }
 
 /* Event trace; runs of a repeated 1- or 2-event pattern are folded into "A B xN". */
-static void log_trace_raw(const unsigned int *ev, const unsigned int *cyc, unsigned int count,
+static void log_trace_raw(const unsigned int *ev, const unsigned int *us, unsigned int count,
                           const char *label)
 {
     static const char digits[] = "0123456789ABCDEF";
@@ -641,13 +697,13 @@ static void log_trace_raw(const unsigned int *ev, const unsigned int *cyc, unsig
         }
     }
     if (count >= 2)
-        pw_log("engine: %s trace spans %u ms (CPU time, the sleep itself excluded)", label,
-               (cyc[count - 1] - cyc[0]) / calibrate());
+        pw_log("engine: %s trace spans %u ms (system timer)", label,
+               (us[count - 1] - us[0]) / 1000);
 }
 
 static void log_trace(const StateHeader *h, int kind, const char *label)
 {
-    log_trace_raw(h->trace_ev[kind], h->trace_cyc[kind], h->trace_count[kind], label);
+    log_trace_raw(h->trace_ev[kind], h->trace_us[kind], h->trace_count[kind], label);
 }
 
 static void log_crumbs(const StateHeader *h, const char *who)
@@ -707,7 +763,7 @@ static void log_marks(const Marks *m, const char *who)
            line, prev);
 }
 
-/* CPU time between the first ev_a and the first later ev_b of a trace, in ms; -1 if absent. */
+/* Time between the first ev_a and the first later ev_b of a trace, in ms; -1 if absent. */
 static int trace_span(const StateHeader *h, int kind, unsigned int ev_a, unsigned int ev_b)
 {
     unsigned int n = h->trace_count[kind] < TRACE_MAX ? h->trace_count[kind] : TRACE_MAX;
@@ -716,7 +772,7 @@ static int trace_span(const StateHeader *h, int kind, unsigned int ev_a, unsigne
         if (h->trace_ev[kind][a] == ev_a)
             for (unsigned int b = a + 1; b < n; b++)
                 if (h->trace_ev[kind][b] == ev_b)
-                    return (int)((h->trace_cyc[kind][b] - h->trace_cyc[kind][a]) / calibrate());
+                    return (int)((h->trace_us[kind][b] - h->trace_us[kind][a]) / 1000);
     return -1;
 }
 
@@ -729,7 +785,7 @@ static unsigned int trace_count_of(const StateHeader *h, int kind, unsigned int 
     return c;
 }
 
-/* Where a suspend's wall-clock time went: CPU spans from the event trace, the rest is the sleep. */
+/* Where a suspend's wall-clock time went: spans from the event trace, the rest is the sleep. */
 static void log_suspend_split(const StateHeader *h, int pre, int post, const char *who,
                               unsigned int wall_ms)
 {
@@ -742,7 +798,15 @@ static void log_suspend_split(const StateHeader *h, int pre, int post, const cha
     pw_log("engine: %s suspend %u ms: queries %d, power-lock retries %d (0x402 x%u), suspend "
            "phases %d, resume phases %d, flash rebuild %u; sleep+wake+rest ~%d ms",
            who, wall_ms, queries, retries, trace_count_of(h, pre, 0x402), phases, resume,
-           h->flash_cycles / calibrate(), (int)wall_ms - cpu);
+           h->flash_us / 1000, (int)wall_ms - cpu);
+}
+
+static void log_io(const StateHeader *h, const char *who)
+{
+    pw_log("engine: %s: I/O enables %08X/%08X, GPIO %08X at suspend; %08X/%08X, GPIO %08X at "
+           "resume%s",
+           who, h->io_snap[0], h->io_snap[1], h->io_snap[2], h->io_found[0], h->io_found[1],
+           h->io_found[2], h->io_restored ? " -> put back (touch-and-go)" : "");
 }
 
 static void log_flash(const char *who)
@@ -885,8 +949,9 @@ static int finish_load(void)
     pw_log("engine: ---- LOAD complete: request -> game running %u ms (wall clock) ----",
            (unsigned int)((now - h->load_start_tick) / 1000));
     /* The save's own timing lines were in the RAM log, which the rollback rewound. */
-    log_marks(&h->save_t, "save");
+    log_marks(&h->save_t, h->save_tg ? "save (touch-and-go)" : "save");
     log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
+    log_io(h, "load");
     log_marks(&h->load_t, "load");
     log_suspend_split(h, TRACE_LOAD, TRACE_AFTER_ROLLBACK, "load",
                       mark_span(&h->load_t, P_SUSPEND));
@@ -932,7 +997,7 @@ int pw_engine_save(void)
     memset(h, 0, sizeof(*h));
     h->magic = STATE_MAGIC;
     crumb(h, S_SAVE_START);
-    calibrate();
+    pw_log("engine: CP0 Count runs at %u kHz", calibrate());
     mark_begin(&h->save_t);
 
     pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
@@ -988,11 +1053,13 @@ int pw_engine_save(void)
 
     g_restore_pending = 0;
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
+    g_tg = g_fast;
+    h->save_tg = (unsigned int)g_tg;
     g_mode = MODE_SAVE;
     crumb(h, S_SAVE_SUSPEND);
     sceKernelDcacheWritebackAll();
     sceRtcGetCurrentTick(&rt0);
-    ret = scePowerRequestSuspend();
+    ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
     sceRtcGetCurrentTick(&rt1);
@@ -1022,12 +1089,13 @@ int pw_engine_save(void)
     crumb(h, S_SAVE_DONE);
     pw_log("engine: save OK: suspend %u ms (wall clock), kernel copy %u ms, dmac_left=0x%X, "
            "IC at PHASE0_0 0x%X",
-           h->save_suspend_ms, h->save_capture_cycles / calibrate(), h->save_dmac_left, h->save_ic);
+           h->save_suspend_ms, h->save_capture_us / 1000, h->save_dmac_left, h->save_ic);
     pw_log("engine: save: image %u KB sum %08X, arena %u KB sum %08X", h->image_len / 1024,
            h->image_sum, h->arena_used / 1024, h->arena_sum);
     log_flash("save");
+    log_io(h, "save");
     log_trace(h, TRACE_SAVE, "save");
-    log_marks(&h->save_t, "save");
+    log_marks(&h->save_t, h->save_tg ? "save (touch-and-go)" : "save");
     log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
     pw_log("engine: state held in RAM; log lines are kept in RAM until it is discarded");
     return PW_ENGINE_SAVED;
@@ -1088,10 +1156,12 @@ int pw_engine_load(void)
     crumb(h, S_LOAD_ARMED);
 
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
+    g_tg = g_fast;
+    h->io_restored = 0;
     g_mode = MODE_LOAD;
     crumb(h, S_LOAD_SUSPEND);
     stage_blob(); /* its D-cache write-back also puts the flag in the image into DRAM */
-    ret = scePowerRequestSuspend();
+    ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
 
@@ -1140,10 +1210,11 @@ static int selftest_round(int copy)
     pw_log_flush(); /* if the round kills the system, the card still says which one */
 
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
+    g_tg = g_fast;
     g_selftest_copy = copy;
     g_mode = MODE_SELFTEST;
     stage_blob();
-    ret = scePowerRequestSuspend();
+    ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
     g_mode = MODE_IDLE;
@@ -1186,6 +1257,57 @@ int pw_engine_selftest(void)
     pw_log("engine: ---- ROLLBACK SELF-TEST %s ----", ret == 0 ? "PASSED" : "FAILED");
     release_staging();
     return ret;
+}
+
+void pw_engine_set_fast(int on)
+{
+    g_fast = on != 0;
+    pw_log("engine: fast mode (touch-and-go suspend, no sleep) %s", g_fast ? "ON" : "OFF");
+}
+
+int pw_engine_fast(void)
+{
+    return g_fast;
+}
+
+/*
+ * Debug: one touch-and-go suspend and nothing else (no freeze, no capture), to check that the
+ * system and the game come back whole without a real sleep: screen, sound, buttons, card, battery.
+ */
+int pw_engine_tg_test(void)
+{
+    StateHeader *h;
+    int ret, polls = 0;
+
+    if (!g_registered)
+        return -1;
+    if (pw_engine_has_state())
+        pw_engine_discard();
+    pw_log("engine: ---- TOUCH-AND-GO SUSPEND TEST ----");
+    if (ensure_staging() < 0)
+        return -1;
+    h = g_hdr;
+    memset(h, 0, sizeof(*h));
+    h->magic = STATE_MAGIC;
+    mark_begin(&h->save_t);
+    pw_log_flush();
+
+    g_alarm_set = g_resumed = g_captured = g_applying = 0;
+    g_tg = 1;
+    g_mode = MODE_PLAIN;
+    ret = scePowerRequestSuspendTouchAndGo();
+    while (!g_resumed && polls++ < RESUME_POLLS)
+        sceKernelDelayThread(5000);
+    g_mode = MODE_IDLE;
+    mark(&h->save_t, P_SUSPEND);
+
+    pw_log("engine: touch-and-go: request=0x%08X resumed=%d", ret, g_resumed);
+    log_io(h, "touch-and-go");
+    log_trace(h, TRACE_SAVE, "touch-and-go");
+    log_marks(&h->save_t, "touch-and-go");
+    log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "touch-and-go", mark_span(&h->save_t, P_SUSPEND));
+    release_staging();
+    return g_resumed ? 0 : -1;
 }
 
 /*

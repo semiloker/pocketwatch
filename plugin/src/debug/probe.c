@@ -21,9 +21,11 @@
 #define LOAD_COMBO       (COMBO_MAIN | PSP_CTRL_LEFT)  /* engine: load from RAM */
 #define BENCH_COMBO      (COMBO_MAIN | PSP_CTRL_UP)    /* throughput benchmark, no suspend */
 #define COMBO_TEST       (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
-#define PROBE_COMBO      (COMBO_TEST | PSP_CTRL_UP)    /* drop state, flush log, dump */
-#define SELFTEST_COMBO   (COMBO_TEST | PSP_CTRL_RIGHT) /* rollback mechanics alone */
-#define FROZEN_COMBO     (COMBO_TEST | PSP_CTRL_LEFT)  /* save + immediate frozen load */
+#define PROBE_COMBO      (COMBO_TEST | PSP_CTRL_UP)       /* drop state, flush log, dump */
+#define SELFTEST_COMBO   (COMBO_TEST | PSP_CTRL_RIGHT)    /* rollback mechanics alone */
+#define FROZEN_COMBO     (COMBO_TEST | PSP_CTRL_LEFT)     /* save + immediate frozen load */
+#define TG_TEST_COMBO    (COMBO_TEST | PSP_CTRL_TRIANGLE) /* one no-sleep suspend only */
+#define FAST_COMBO       (COMBO_TEST | PSP_CTRL_SQUARE)   /* toggle no-sleep save/load */
 #define PROBE_MAX_IDS    128
 #define PROBE_PARTITIONS 12
 
@@ -190,6 +192,13 @@ static int probe_thread(SceSize args, void *argp)
             pw_log("probe: L+R+SELECT+RIGHT: rollback self-test");
             wait_release(SELFTEST_COMBO);
             pw_engine_selftest();
+        } else if ((pad.Buttons & TG_TEST_COMBO) == TG_TEST_COMBO) {
+            pw_log("probe: L+R+SELECT+TRIANGLE: touch-and-go test");
+            wait_release(TG_TEST_COMBO);
+            pw_engine_tg_test();
+        } else if ((pad.Buttons & FAST_COMBO) == FAST_COMBO) {
+            wait_release(FAST_COMBO);
+            pw_engine_set_fast(!pw_engine_fast());
         } else if ((pad.Buttons & FROZEN_COMBO) == FROZEN_COMBO) {
             pw_log("probe: L+R+SELECT+LEFT: frozen save + load");
             wait_release(FROZEN_COMBO);
