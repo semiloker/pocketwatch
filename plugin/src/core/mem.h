@@ -7,8 +7,10 @@
  * in games, see docs/research/m1-hardware.md). Allocate while needed, free right after.
  */
 
-#define PW_MEM_PARTITION_EXTRA 9  /* 0x8A000000, 24 MB, free during gameplay */
-#define PW_MEM_PARTITION_SPARE 11 /* 0x8BC00000, 4 MB */
+#define PW_MEM_PARTITION_EXTRA 9 /* 0x8A000000, 24 MB, free during gameplay */
+/* 0x8BC00000, 4 MB. Scratch only: every suspend overwrites it with the Media Engine's eDRAM
+   (the firmware's ME save area on the PSP-2000/3000), so nothing may live there across a sleep. */
+#define PW_MEM_PARTITION_SPARE 11
 
 typedef struct {
     int block; /* sysmem block UID, < 0 when empty */

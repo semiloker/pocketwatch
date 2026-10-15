@@ -71,11 +71,18 @@ Two dumps in gameplay (identical). Exit back to the XMB with the fixed build: no
 | 5 | 0x08400000 | 4096 KB | 4096 KB | 4096 KB | volatile (unused by this game) |
 | 8 (+12 mirror) | 0x8BB00000 | 1024 KB | 681 KB | 681 KB | |
 | **9** | **0x8A000000** | **24576 KB** | 24576 KB | **24576 KB** | **entirely free** |
-| 11 | 0x8BC00000 | 4096 KB | 4096 KB | 4096 KB | free |
+| 11 | 0x8BC00000 | 4096 KB | 4096 KB | 4096 KB | free, but see below |
 
 Findings that shape the engine:
-- **28 MB of free RAM during gameplay (P9 + P11).** Inferno's ISO cache did not take P9 in this
-  game. A complete state (4 MB kernel + 24 MB user + 2 MB VRAM, compressed) can be staged in RAM,
+- **P11 is not free across a suspend** (found 2026-10-15, after E2 runs 1-4, from uOFW 6.60). On
+  the PSP-2000/3000, `sceKernelGetMEeDramSaveAddr()` returns the `extVshell` partition,
+  0x8BC00000-0x8C000000, i.e. P11. At suspend event `0x4005` (PHASE0_5) `me_wrapper` has the Media
+  Engine dump its eDRAM there, and at resume (`0x10005`) reboots the ME from it. Whatever is
+  allocated in P11 is overwritten at every suspend; it is part of the kernel's own state.
+  Likewise the GE driver saves the 2 MB graphics eDRAM to `0x88400000` (P5) at PHASE0_3 and turns
+  the eDRAM bus clock off, so neither P5 nor VRAM may be used from PHASE0_0 on.
+- **24 MB of free RAM during gameplay (P9)** that survives a suspend. Inferno's ISO cache did not
+  take P9 in this game. A complete state (4 MB kernel + 24 MB user + 2 MB VRAM, compressed) can be staged in RAM,
   so the slow Memory Stick write can happen outside the frozen/suspended window.
 - **The game uses ~98% of P2** (517 KB free): "save only allocated blocks" would gain nothing; save
   all 24 MB and let compression handle the rest.
@@ -87,7 +94,7 @@ Findings that shape the engine:
 - **Game threads** (`user_main`, `main`, `DVDUMD_READ`, `SND`, `SND_SAS`, `SND ATRAC PLAYER`)
   all have attr bit `0x80000000`. `SceIofileAsync` (attr `0x08100000`) is a kernel worker for the
   game's async I/O: the freeze must wait until it is idle rather than suspend it.
-- Kernel P1 free: 319 KB. Pocketwatch occupies 23 KB there today; everything large goes to P9/P11.
+- Kernel P1 free: 319 KB. Pocketwatch occupies 23 KB there today; everything large goes to P9.
 - Plugins sharing kernel RAM: HUD, bright, battery_icon, Hold, CWCheat, RemoteJoyLite (263 KB bss),
   noumd.
 
@@ -170,8 +177,9 @@ Then check **Game -> Saved Data Utility** for "Pocketwatch test" C and D.
 
 1. States will be native save folders: `PW<GAMEID><NN>` with a chnnlsv-hashed (mode 0x01)
    PARAM.SFO, ICON0, PIC1 and the state data. Browsing and deleting come from the XMB for free.
-2. In a retail game on this PSP-3000 there are 28 MB of free RAM (P9 24 MB + P11 4 MB) to stage a
-   state; kernel RAM (P1) has ~300 KB free and must stay untouched by big buffers.
+2. In a retail game on this PSP-3000 there are 24 MB of free RAM (P9) to stage a state; P11's
+   4 MB are the ME eDRAM save area during a suspend (see above), usable only as scratch outside
+   one. Kernel RAM (P1) has ~300 KB free and must stay untouched by big buffers.
 3. Snapshot ranges: kernel `0x88000000-0x88400000` (4 MB), game `0x08800000-0x0A000000` (24 MB),
    eDRAM 2 MB. Game threads are the `0x80000000`-attribute ones.
 4. The Memory Stick writes at roughly 2-3 MB/s in a game: a compressed state of ~10-15 MB takes

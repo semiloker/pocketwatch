@@ -27,6 +27,9 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
 - Portable logic must not include PSP headers; OS access goes through `core/platform.h` so it is
   host-testable. Add tests in `tests/test_*.c` and list new portable sources in `tests/Makefile`.
 - Never do file I/O in sysevent/suspend paths: use `pw_log_set_deferred(1)` and flush later.
+- Data that must survive a suspend lives in P9 only: the firmware overwrites P11 (ME eDRAM save,
+  event 0x4005) and P5 (GE eDRAM save, PHASE0_3) during every suspend. Around the apply blob mask
+  interrupts with CP0 Status.IE, never `sceKernelCpuSuspendIntr` (the blob does not restore IC).
 - While the engine holds a state, nothing may write to the Memory Stick (the saved kernel's FAT
   view would go stale): logging is deferred until `pw_engine_discard`.
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).

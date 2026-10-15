@@ -5,8 +5,8 @@
 /*
  * Compressed streams for savestates. Data is cut into 64 KB chunks; each chunk is FastLZ
  * compressed, or stored raw when that would not shrink it. Chunks are written into an arena
- * made of up to two separate memory regions (on the PSP-3000: what is left of P9 after the
- * kernel image, and P11). A chunk never straddles two regions.
+ * made of up to two separate memory regions (a region may be absent: base NULL, size 0). A chunk
+ * never straddles two regions.
  *
  * Chunk record: u32 raw_len, u32 stored_len (== raw_len means raw), payload, padding to 4 bytes.
  */

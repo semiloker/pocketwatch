@@ -27,26 +27,40 @@
 #define VRAM_BASE    0x84000000u
 #define SCRATCH_BASE 0x00010000u
 #define SCRATCH_SIZE 0x00004000u
-#define KSEG1        0x20000000u /* kseg0 address + KSEG1 = uncached alias */
 #define P8_PID       8
 #define P8_SPACE     0x00100000u /* P8 (1 MB on the PSP-3000) is outside the kernel range */
+#define ME_PID       11          /* P11: where the firmware saves the ME eDRAM across a suspend */
+#define ME_SPACE     0x00400000u
+#define UNCACHED(a)  ((a) | 0x20000000u) /* kseg0 address -> uncached kseg1 alias */
 
 #define EV_POWER_LOCK_PHASE1 0x00000401
 #define EV_SUSPEND_PHASE0_0  0x00004000
 #define EV_RESUME_COMPLETED  0x00400000
 
-/* Layout of the P11 block: header, FastLZ workspace, arena..., apply blob. */
-#define HEADER_SPACE    0x10000u
-#define WORKSPACE_START 0x08000u
-#define BLOB_SPACE      0x01000u
-#define STATE_MAGIC     0x32535750u /* "PWS2": layout with breadcrumbs */
+/*
+ * Everything lives in one P9 block (24 MB at 0x8A000000). Not P11: on the PSP-2000/3000 the
+ * firmware's me_wrapper saves the Media Engine's 4 MB eDRAM to P11 (sceKernelGetMEeDramSaveAddr,
+ * event 0x4005, i.e. before PHASE0_0) during every suspend, whatever is allocated there. In E2
+ * runs 1-4 that destroyed the apply blob, the state header and part of the arena.
+ */
+#define HEADER_AT    0x00000u /* StateHeader */
+#define WORKSPACE_AT 0x08000u /* FastLZ workspace */
+#define BLOB_AT      0x10000u /* apply blob */
+#define BLOB_SPACE   0x01000u
+#define IMAGE_AT     0x20000u /* kernel image, P8, ME eDRAM save (IMAGE_*_OFS) */
+#define IMAGE_P8_OFS KERNEL_SIZE
+#define IMAGE_ME_OFS (KERNEL_SIZE + P8_SPACE)
+#define IMAGE_SPACE  (KERNEL_SIZE + P8_SPACE + ME_SPACE)
+#define ARENA_AT     (IMAGE_AT + IMAGE_SPACE)
+#define ARENA_MIN    0x00100000u
+#define STATE_MAGIC  0x33535750u /* "PWS3": P9-only layout */
 
 #define FREEZE_TIMEOUT_MS 500
 #define GE_TIMEOUT_MS     100
 #define RESUME_POLLS      2000 /* x 5 ms of active time; the sleep itself does not count */
 #define WAKE_DELAY_US     100000ull
-/* LOAD and the self-test spend up to ~1 s copying the kernel (uncached code) after the alarm is
-   armed; an alarm that expires before the CPU sleeps might never wake it. */
+/* LOAD and the self-test copy the kernel after the alarm is armed. The blob now runs cached (tens
+   of ms); the margin stays until a load has worked on the device, then it can come down. */
 #define WAKE_DELAY_SLOW_US 1500000ull
 /* Same-session loads do not need it (flash is unchanged); off while the load path is debugged. */
 #define FLASH_REINIT_ON_LOAD 0
@@ -62,7 +76,7 @@ enum { MODE_IDLE, MODE_SAVE, MODE_LOAD, MODE_SELFTEST };
 enum { TRACE_SAVE, TRACE_LOAD, TRACE_AFTER_ROLLBACK, TRACE_KINDS };
 
 /*
- * Breadcrumbs, kept in the P11 header: they survive the rollback and, with luck, a crash back to
+ * Breadcrumbs, kept in the P9 header: they survive the rollback and, with luck, a crash back to
  * the XMB, so the next boot can report how far the previous save/load got (pw_engine_init).
  */
 enum {
@@ -78,7 +92,8 @@ enum {
     S_LOAD_ARMED,
     S_LOAD_SUSPEND,
     S_LOAD_APPLY,    /* handler, PHASE0_0, jumping to the blob */
-    S_LOAD_FAILED,   /* suspend never reached PHASE0_0 */
+    S_LOAD_FAILED,   /* suspend never reached PHASE0_0, or the guard refused the apply */
+    S_LOAD_GUARD,    /* handler, PHASE0_0: blob or image damaged, apply skipped */
     S_RB_EVENT = 30, /* handler: first event after the rollback */
     S_RB_RESUME,     /* handler: RESUME_COMPLETED after the rollback */
     S_RB_FLASH,      /* handler: flash drivers re-initialised */
@@ -90,18 +105,28 @@ enum {
     S_LOAD_DONE,
     S_ST_START = 40, /* rollback self-test: re-apply the live kernel through the blob */
     S_ST_APPLY,
-    S_ST_BACK, /* first event after the blob returned */
+    S_ST_BACK,  /* first event after the blob returned */
+    S_ST_GUARD, /* handler, PHASE0_0: blob damaged, apply skipped */
 };
 
 #define CRUMB_MAX 48
 
-/* Lives in P11, outside the kernel range: survives the rollback, readable by both sides. */
+/* Guard results at PHASE0_0, checked before jumping to the blob (bit mask). */
+#define GUARD_BLOB  1u /* the blob in P9 differs from the module's copy */
+#define GUARD_IMAGE 2u /* the kernel image (+ P8) no longer has the save-time checksum */
+
+/* Lives in P9, outside the kernel range: survives the rollback, readable by both sides. */
 typedef struct {
     unsigned int magic;
     unsigned int valid;
     unsigned int load_applying; /* set by LOAD right before the rollback */
     pw_stream user, vram, scratch;
     unsigned int vram_size;
+    unsigned int arena_used, arena_sum; /* bytes of region 0 in use and their checksum */
+    unsigned int image_len, image_sum;  /* kernel image + P8 + ME, checksummed at capture */
+    unsigned int image_sum_armed;       /* the same once LOAD has set its flag in the image */
+    unsigned int guard;                 /* GUARD_* found at the last PHASE0_0 apply */
+    unsigned int save_ic;               /* interrupt-controller state when PHASE0_0 came */
     unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
     int save_ge;
     unsigned int save_dmac_left, save_capture_cycles;
@@ -119,17 +144,19 @@ typedef struct {
     unsigned int trace_cyc[TRACE_KINDS][TRACE_MAX];
 } StateHeader;
 
-_Static_assert(sizeof(StateHeader) <= WORKSPACE_START, "state header overlaps the workspace");
-_Static_assert(WORKSPACE_START + PW_STREAM_WORKSPACE <= HEADER_SPACE, "workspace too big");
+_Static_assert(HEADER_AT + sizeof(StateHeader) <= WORKSPACE_AT, "state header overlaps workspace");
+_Static_assert(WORKSPACE_AT + PW_STREAM_WORKSPACE <= BLOB_AT, "workspace overlaps the blob");
+_Static_assert(BLOB_AT + BLOB_SPACE <= IMAGE_AT, "blob overlaps the kernel image");
 
 /* Everything below is in kernel RAM, i.e. part of the snapshot. */
-volatile unsigned int pw_handoff_ctx[16];       /* written by pw_sysevent_shim (handoff.S) */
+volatile unsigned int pw_handoff_ctx[16]; /* [0..12] pw_sysevent_shim, [13] blob run time */
+#define CTX_APPLY_TICKS 13
 static volatile unsigned int g_restore_pending; /* LOAD sets it to 1 inside the staged image */
 static volatile int g_mode, g_alarm_set, g_resumed, g_captured, g_applying;
 static StateHeader *volatile g_hdr;
 static unsigned char *volatile g_kernel_image;
 static void *volatile g_blob;
-static pw_mem_block g_stage_a, g_stage_b;
+static pw_mem_block g_stage;
 static pw_arena g_arena;
 static pw_freeze_set g_save_freeze, g_load_freeze;
 static unsigned int g_cycles_per_ms;
@@ -137,9 +164,14 @@ static int g_keep_frozen;              /* debug: pw_engine_save leaves the game 
 static pw_flash_report g_flash_report; /* filled at RESUME_COMPLETED after a rollback */
 static volatile int g_flash_result;
 static int g_registered;
+static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
 /* Partition 8 holds live data of something loaded at boot (343 KB used on the PSP-3000) but sits
    outside 0x88000000-0x88400000: it is captured and restored together with the kernel image. */
 static unsigned int g_p8_base, g_p8_size;
+/* The firmware's ME eDRAM save area (P11, written at event 0x4005 before PHASE0_0, read back to
+   reboot the ME at resume). It belongs to the kernel's state like P8: a LOAD that kept the
+   current ME image would restart the Media Engine out of step with the restored kernel. */
+static unsigned int g_me_base, g_me_size;
 
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
@@ -173,6 +205,61 @@ static unsigned int dmac_drain(void)
     while ((*en0 | *en1) && spin < 200000)
         spin++;
     return *en0 | *en1;
+}
+
+/*
+ * Mask interrupts for the kernel apply by clearing CP0 Status.IE, as PSPFatSave does. The blob
+ * ends by reloading the dispatcher's saved Status, which unmasks them again. Never use
+ * sceKernelCpuSuspendIntr here: it masks through the Allegrex interrupt controller (IC), which the
+ * blob does not restore, so the resumed system would run on with every interrupt off (the cause
+ * of the black screen and the drop to the XMB in E2 runs 1-4).
+ */
+static void mask_irq_status(void)
+{
+    unsigned int sr;
+
+    __asm__ volatile("mfc0 %0, $12" : "=r"(sr));
+    __asm__ volatile("mtc0 %0, $12\n\tnop\n\tnop\n\tnop\n\tnop" : : "r"(sr & ~1u) : "memory");
+}
+
+/* Additive word checksum with rotation: ~3 cycles per word, fine for "was this overwritten". */
+static unsigned int sum32(const void *p, unsigned int len)
+{
+    const unsigned int *w = p;
+    unsigned int s = 0;
+
+    for (unsigned int i = 0; i < len / 4; i++)
+        s = ((s << 1) | (s >> 31)) + w[i];
+    return s;
+}
+
+/* What the guard checks right before the blob runs: GUARD_* bits, 0 when safe to jump. */
+static unsigned int apply_guard(int check_image)
+{
+    unsigned int len = (unsigned int)(pw_apply_handoff_end - pw_apply_handoff);
+    unsigned int bad = 0;
+
+    if (memcmp(g_blob, pw_apply_handoff, len) != 0)
+        bad |= GUARD_BLOB;
+    if (check_image && sum32(g_kernel_image, g_hdr->image_len) != g_hdr->image_sum_armed)
+        bad |= GUARD_IMAGE;
+    return bad;
+}
+
+typedef void (*apply_fn)(const void *src, void *dst, unsigned int len, const volatile void *ctx);
+
+/* The blob in P9, called through the cached segment: the caller staged it with stage_blob. */
+static apply_fn blob(void)
+{
+    return (apply_fn)g_blob;
+}
+
+/* Copy the apply blob to P9 and make it fetchable: D-cache to RAM, no stale I-cache lines. */
+static void stage_blob(void)
+{
+    memcpy(g_blob, pw_apply_handoff, (unsigned int)(pw_apply_handoff_end - pw_apply_handoff));
+    sceKernelDcacheWritebackAll();
+    sceKernelIcacheInvalidateAll();
 }
 
 /* Memory only: safe in the sysevent handler. */
@@ -216,7 +303,9 @@ static const char *stage_name(unsigned int s)
     case S_LOAD_APPLY:
         return "load:applying-kernel";
     case S_LOAD_FAILED:
-        return "load:failed(no PHASE0_0)";
+        return "load:failed(no rollback)";
+    case S_LOAD_GUARD:
+        return "load:guard-refused-apply";
     case S_RB_EVENT:
         return "rollback:first-event";
     case S_RB_RESUME:
@@ -241,6 +330,8 @@ static const char *stage_name(unsigned int s)
         return "selftest:applying-live-kernel";
     case S_ST_BACK:
         return "selftest:back-in-dispatcher";
+    case S_ST_GUARD:
+        return "selftest:guard-refused-apply";
     default:
         return "?";
     }
@@ -293,39 +384,56 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
             unsigned int c0 = cycles(), intr;
 
             h->save_dmac_left = dmac_drain();
-            intr = sceKernelCpuSuspendIntr(); /* no interrupt may change the kernel mid-copy */
+            /* No interrupt may change the kernel mid-copy. A matched pair, so the IC mask is
+               undone here; the state found is logged (is PHASE0_0 dispatched with IRQs on?). */
+            intr = sceKernelCpuSuspendIntr();
             memcpy(g_kernel_image, (const void *)KERNEL_BASE, KERNEL_SIZE);
             if (g_p8_size)
-                memcpy(g_kernel_image + KERNEL_SIZE, (const void *)g_p8_base, g_p8_size);
+                memcpy(g_kernel_image + IMAGE_P8_OFS, (const void *)g_p8_base, g_p8_size);
+            if (g_me_size) /* written by the ME, not the CPU: read past the D-cache */
+                memcpy(g_kernel_image + IMAGE_ME_OFS, (const void *)UNCACHED(g_me_base), g_me_size);
             sceKernelCpuResumeIntr(intr);
+            h->save_ic = intr;
+            h->image_len = IMAGE_SPACE;
+            h->image_sum = sum32(g_kernel_image, h->image_len);
             sceKernelDcacheWritebackAll(); /* the image must be in DRAM before power-down */
             h->save_capture_cycles = cycles() - c0;
             g_captured = 1;
             crumb(h, S_SAVE_CAPTURED);
         } else if (g_mode == MODE_LOAD && !g_applying) {
-            void (*apply)(const void *, void *, unsigned int, const volatile void *) =
-                (void *)((unsigned int)g_blob | KSEG1);
-
             g_applying = 1;
+            h->guard = apply_guard(1);
+            if (h->guard) { /* jumping now would kill the system: stay in this world, report */
+                crumb(h, S_LOAD_GUARD);
+                return 0;
+            }
             crumb(h, S_LOAD_APPLY); /* written back by the blob's cache flush */
-            if (g_p8_size)          /* nothing else runs at PHASE0_0: safe to put P8 back first */
-                memcpy((void *)g_p8_base, g_kernel_image + KERNEL_SIZE, g_p8_size);
             dmac_drain();
-            sceKernelCpuSuspendIntr();
-            apply(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
+            mask_irq_status(); /* unmasked by the blob, with the save-time Status */
+            /* Outside the kernel range: put back before the kernel. The blob's D-cache flush
+               writes both to RAM before the ME is rebooted from its image at resume. */
+            if (g_p8_size)
+                memcpy((void *)g_p8_base, g_kernel_image + IMAGE_P8_OFS, g_p8_size);
+            if (g_me_size)
+                memcpy((void *)g_me_base, g_kernel_image + IMAGE_ME_OFS, g_me_size);
+            blob()(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
             /* not reached: execution continues in the SAVE's suspend */
         } else if (g_mode == MODE_SELFTEST && !g_applying) {
-            void (*apply)(const void *, void *, unsigned int, const volatile void *) =
-                (void *)((unsigned int)g_blob | KSEG1);
-
             g_applying = 1;
+            h->guard = apply_guard(0);
+            if (h->guard) {
+                crumb(h, S_ST_GUARD);
+                return 0;
+            }
             crumb(h, S_ST_APPLY);
             dmac_drain();
-            sceKernelCpuSuspendIntr();
+            mask_irq_status();
             /* Snapshot the live kernel and put it straight back: the rollback minus the world
-             * switch. */
-            memcpy(g_kernel_image, (const void *)KERNEL_BASE, KERNEL_SIZE);
-            apply(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
+             * switch. Round 0 calls the blob with nothing to copy. */
+            if (g_selftest_copy)
+                memcpy(g_kernel_image, (const void *)KERNEL_BASE, KERNEL_SIZE);
+            blob()(g_kernel_image, (void *)KERNEL_BASE, g_selftest_copy ? KERNEL_SIZE : 0,
+                   pw_handoff_ctx);
             /* not reached: the blob returns into this dispatch */
         }
     } else if (ev_id == EV_RESUME_COMPLETED) {
@@ -383,6 +491,18 @@ static int check_environment(void)
         g_p8_base = 0;
         g_p8_size = 0;
     }
+
+    PspSysmemPartitionInfo me;
+
+    memset(&me, 0, sizeof(me));
+    me.size = sizeof(me);
+    if (sceKernelQueryMemoryPartitionInfo(ME_PID, &me) >= 0 && me.memsize == ME_SPACE) {
+        g_me_base = me.startaddr;
+        g_me_size = me.memsize;
+    } else {
+        g_me_base = 0;
+        g_me_size = 0;
+    }
     return 0;
 }
 
@@ -394,43 +514,46 @@ static void release_staging(void)
     g_kernel_image = NULL;
     g_blob = NULL;
     pw_stream_set_workspace(NULL);
-    pw_mem_free(&g_stage_a);
-    pw_mem_free(&g_stage_b);
+    pw_mem_free(&g_stage);
 }
 
-/* P9: kernel image + arena region 0. P11: header + workspace, arena region 1, apply blob. */
+/* One P9 block: header, workspace, blob, kernel image + P8, arena (see HEADER_AT...). */
 static int ensure_staging(void)
 {
-    unsigned int size_a, size_b, blob_len = (unsigned int)(pw_apply_handoff_end - pw_apply_handoff);
+    unsigned int size, blob_len = (unsigned int)(pw_apply_handoff_end - pw_apply_handoff);
+    unsigned char *base;
     int ret;
 
     if (g_hdr != NULL)
         return 0;
     if (blob_len > BLOB_SPACE)
         return -1;
-    size_a = pw_mem_max_free(PW_MEM_PARTITION_EXTRA) & ~0xFFFFu;
-    size_b = pw_mem_max_free(PW_MEM_PARTITION_SPARE) & ~0xFFFFu;
-    if (size_a < KERNEL_SIZE + P8_SPACE + 0x100000 ||
-        size_b < HEADER_SPACE + BLOB_SPACE + 0x10000) {
-        pw_log("engine: not enough spare RAM (P9 %u KB, P11 %u KB)", size_a / 1024, size_b / 1024);
+    size = pw_mem_max_free(PW_MEM_PARTITION_EXTRA) & ~0xFFFFu;
+    if (size < ARENA_AT + ARENA_MIN) {
+        pw_log("engine: not enough spare RAM (P9 %u KB)", size / 1024);
         return -1;
     }
-    if ((ret = pw_mem_alloc_in(&g_stage_a, PW_MEM_PARTITION_EXTRA, "PwStateA", size_a)) < 0 ||
-        (ret = pw_mem_alloc_in(&g_stage_b, PW_MEM_PARTITION_SPARE, "PwStateB", size_b)) < 0) {
+    if ((ret = pw_mem_alloc_in(&g_stage, PW_MEM_PARTITION_EXTRA, "PwState", size)) < 0) {
         pw_log("engine: staging alloc failed 0x%08X", ret);
-        release_staging();
         return -1;
     }
 
-    g_kernel_image = g_stage_a.ptr;
-    g_hdr = g_stage_b.ptr;
-    g_blob = (unsigned char *)g_stage_b.ptr + size_b - BLOB_SPACE;
-    pw_stream_set_workspace((unsigned char *)g_stage_b.ptr + WORKSPACE_START);
-    g_arena.base[0] = (unsigned char *)g_stage_a.ptr + KERNEL_SIZE + P8_SPACE;
-    g_arena.size[0] = size_a - KERNEL_SIZE - P8_SPACE;
-    g_arena.base[1] = (unsigned char *)g_stage_b.ptr + HEADER_SPACE;
-    g_arena.size[1] = size_b - HEADER_SPACE - BLOB_SPACE;
+    base = g_stage.ptr;
+    g_hdr = (StateHeader *)(base + HEADER_AT);
+    pw_stream_set_workspace(base + WORKSPACE_AT);
+    g_blob = base + BLOB_AT;
+    g_kernel_image = base + IMAGE_AT;
+    g_arena.base[0] = base + ARENA_AT;
+    g_arena.size[0] = size - ARENA_AT;
+    g_arena.base[1] = NULL; /* P11 would be overwritten by the ME eDRAM save at every suspend */
+    g_arena.size[1] = 0;
     return 0;
+}
+
+/* Bytes of the arena a state occupies (one region in use, see ensure_staging). */
+static unsigned int arena_used(const pw_arena_pos *cursor)
+{
+    return cursor->region == 0 ? cursor->offset : g_arena.size[0];
 }
 
 /* With the game frozen, let the graphics engine finish (or stall on) its current list. */
@@ -515,6 +638,20 @@ static void log_crumbs(const StateHeader *h, const char *who)
         pw_log("engine:   %2u %s", h->crumb[i], stage_name(h->crumb[i]));
 }
 
+/* Debug: is flash0 still readable after the rollback (flash drivers as restored, no re-init)? */
+static int flash0_probe(void)
+{
+    char buf[64];
+    SceUID fd = sceIoOpen("flash0:/vsh/etc/version.txt", PSP_O_RDONLY, 0);
+    int n;
+
+    if (fd < 0)
+        return fd;
+    n = sceIoRead(fd, buf, sizeof(buf));
+    sceIoClose(fd);
+    return n;
+}
+
 /*
  * Back in the SAVE-time thread after a LOAD rolled the kernel back. Nothing was written to the
  * card since the save, so the restored kernel and the card agree again: log lines go out right
@@ -532,6 +669,7 @@ static int finish_load(void)
     crumb(h, S_RB_THREAD);
     pw_log_set_deferred(0);
     pw_log("engine: ---- LOAD: back in the saved moment ----");
+    pw_log("engine: load: blob ran %u us", pw_handoff_ctx[CTX_APPLY_TICKS] * 1000 / calibrate());
     pw_log("engine: load: froze %u thread(s) in %u ms (%u forced), GE %d", h->load_threads,
            h->load_freeze_ms, h->load_forced, h->load_ge);
     pw_log("engine: load: flash %d: drivers %d/%d, unassign %X/%X, exit %X/%X, init %X/%X, "
@@ -569,6 +707,11 @@ static int finish_load(void)
 
         pw_log("engine: load: game RAM crc %08X, saved %08X: %s", crc, h->user.crc32,
                crc == h->user.crc32 ? "IDENTICAL" : "DIFFERENT");
+    }
+
+    if (VERIFY) {
+        pw_log("engine: load: reading flash0...");
+        pw_log("engine: load: flash0 read %d", flash0_probe());
     }
 
     g_restore_pending = 0;
@@ -658,12 +801,16 @@ int pw_engine_save(void)
         return -1;
     }
     h->save_pack_ms = now_ms() - t0;
+    h->arena_used = arena_used(&cursor);
+    h->arena_sum = sum32(g_arena.base[0], h->arena_used);
     crumb(h, S_SAVE_PACKED);
     pw_freeze_log(&g_save_freeze);
     pw_log("engine: save: GE %d, packed in %u ms:", h->save_ge, h->save_pack_ms);
     log_stream("game", &h->user);
     log_stream("eDRAM", &h->vram);
     log_stream("scratch", &h->scratch);
+    pw_log("engine:   ME save %6u KB at 0x%08X, copied with the kernel image", g_me_size / 1024,
+           g_me_base);
     pw_log("engine:   P8      %6u KB at 0x%08X, copied with the kernel image", g_p8_size / 1024,
            g_p8_base);
     pw_log("engine: state record at %p (post-mortem if a load goes wrong)", (void *)h);
@@ -704,8 +851,11 @@ int pw_engine_save(void)
         pw_thaw_game(&g_save_freeze);
     h->valid = 1;
     crumb(h, S_SAVE_DONE);
-    pw_log("engine: save OK: suspend %u ms (wall clock), kernel copy %u ms, dmac_left=0x%X",
-           h->save_suspend_ms, h->save_capture_cycles / calibrate(), h->save_dmac_left);
+    pw_log("engine: save OK: suspend %u ms (wall clock), kernel copy %u ms, dmac_left=0x%X, "
+           "IC at PHASE0_0 0x%X",
+           h->save_suspend_ms, h->save_capture_cycles / calibrate(), h->save_dmac_left, h->save_ic);
+    pw_log("engine: save: image %u KB sum %08X, arena %u KB sum %08X", h->image_len / 1024,
+           h->image_sum, h->arena_used / 1024, h->arena_sum);
     log_trace(h, TRACE_SAVE, "save");
     pw_log("engine: state held in RAM; log lines are kept in RAM until it is discarded");
     return PW_ENGINE_SAVED;
@@ -723,6 +873,18 @@ int pw_engine_load(void)
     }
     pw_log("engine: ---- LOAD ----");
     crumb(h, S_LOAD_START);
+
+    /* Last point where a damaged state can be refused without consequences. */
+    unsigned int arena_now = sum32(g_arena.base[0], h->arena_used);
+    unsigned int image_now = sum32(g_kernel_image, h->image_len);
+
+    if (arena_now != h->arena_sum || image_now != h->image_sum) {
+        pw_log("engine: LOAD refused, the state was overwritten in RAM: arena %08X/%08X, "
+               "kernel image %08X/%08X (now/saved)",
+               arena_now, h->arena_sum, image_now, h->image_sum);
+        pw_engine_discard();
+        return -1;
+    }
     pending_in_image = (volatile unsigned int *)(g_kernel_image +
                                                  ((unsigned int)&g_restore_pending - KERNEL_BASE));
 
@@ -735,7 +897,8 @@ int pw_engine_load(void)
 
     /* The SAVE-time thread must learn it was brought back by a LOAD: flag it inside the image. */
     *pending_in_image = 1;
-    memcpy(g_blob, pw_apply_handoff, (unsigned int)(pw_apply_handoff_end - pw_apply_handoff));
+    h->image_sum_armed = sum32(g_kernel_image, h->image_len);
+    h->guard = 0;
     h->trace_count[TRACE_LOAD] = 0;
     h->trace_count[TRACE_AFTER_ROLLBACK] = 0;
     h->load_applying = 1;
@@ -745,12 +908,13 @@ int pw_engine_load(void)
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
     g_mode = MODE_LOAD;
     crumb(h, S_LOAD_SUSPEND);
-    sceKernelDcacheWritebackAll(); /* the blob and the flag must be in DRAM */
+    stage_blob(); /* its D-cache write-back also puts the flag in the image into DRAM */
     ret = scePowerRequestSuspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
 
-    /* Still here: PHASE0_0 never came (suspend refused or timed out). Undo and report. */
+    /* Still here: PHASE0_0 never came (suspend refused or timed out), or the guard refused to
+       jump. Undo and report. */
     g_mode = MODE_IDLE;
     h->load_applying = 0;
     *pending_in_image = 0;
@@ -759,46 +923,44 @@ int pw_engine_load(void)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&g_load_freeze);
     pw_thaw_game(&g_save_freeze); /* still frozen after a frozen save+load test; no-op otherwise */
-    pw_log("engine: LOAD FAILED: suspend=0x%08X resumed=%d applying=%d", ret, g_resumed,
-           g_applying);
+    pw_log("engine: LOAD FAILED: suspend=0x%08X resumed=%d applying=%d guard=%X%s%s", ret,
+           g_resumed, g_applying, h->guard, h->guard & GUARD_BLOB ? " (blob damaged)" : "",
+           h->guard & GUARD_IMAGE ? " (kernel image damaged)" : "");
+    log_crumbs(h, "load");
     log_trace(h, TRACE_LOAD, "load");
+    if (h->guard)
+        pw_engine_discard(); /* something overwrites P9 during a suspend: do not trust it */
     return -1;
 }
 
 /*
- * Debug: the rollback mechanics without the world switch. During a real suspend, at PHASE0_0,
- * copy the live kernel and write it straight back through the apply blob, which then returns into
- * the current dispatcher. If the game carries on afterwards, the blob, the cache flushes and the
- * context restore work, and a failing load is about the saved world, not the mechanics.
+ * One self-test round: a real suspend in which, at PHASE0_0, the blob runs and returns into the
+ * current dispatcher. copy = 0: nothing to copy (jump, cache flushes, context and interrupt
+ * restore only). copy = 1: the live kernel is snapshotted and written straight back, i.e. the
+ * rollback minus the world switch.
  */
-int pw_engine_selftest(void)
+static int selftest_round(int copy)
 {
-    StateHeader *h;
+    StateHeader *h = g_hdr;
     pw_freeze_set frozen;
     int ret, polls = 0, ok;
 
-    if (!g_registered)
-        return -1;
-    if (pw_engine_has_state())
-        pw_engine_discard(); /* the test reuses the staging memory */
-    pw_log("engine: ---- ROLLBACK SELF-TEST ----");
-    if (check_environment() < 0 || ensure_staging() < 0)
-        return -1;
-
-    h = g_hdr;
     memset(h, 0, sizeof(*h));
     h->magic = STATE_MAGIC;
     crumb(h, S_ST_START);
-    calibrate();
+    pw_handoff_ctx[CTX_APPLY_TICKS] = 0;
+    h->guard = 0;
 
     pw_freeze_game(&frozen, FREEZE_TIMEOUT_MS);
     h->ge_selftest = ge_wait_idle();
-    memcpy(g_blob, pw_apply_handoff, (unsigned int)(pw_apply_handoff_end - pw_apply_handoff));
-    pw_log_flush();
+    pw_log("engine: self-test round %d (%s): suspending...", copy,
+           copy ? "blob + 4 MB kernel copy" : "blob without copy");
+    pw_log_flush(); /* if the round kills the system, the card still says which one */
 
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
+    g_selftest_copy = copy;
     g_mode = MODE_SELFTEST;
-    sceKernelDcacheWritebackAll(); /* the blob must be in DRAM */
+    stage_blob();
     ret = scePowerRequestSuspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -807,14 +969,41 @@ int pw_engine_selftest(void)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&frozen);
 
-    ok = g_applying && g_resumed;
-    pw_log("engine: self-test: froze %d thread(s), GE %d, suspend=0x%08X applied=%d resumed=%d: %s",
-           frozen.count, h->ge_selftest, ret, g_applying, g_resumed,
-           ok ? "ROLLBACK MECHANICS OK" : "FAILED");
+    ok = g_applying && g_resumed && !h->guard;
+    pw_log("engine: self-test round %d: froze %d thread(s), GE %d, suspend=0x%08X applied=%d "
+           "resumed=%d guard=%X, blob %u us: %s",
+           copy, frozen.count, h->ge_selftest, ret, g_applying, g_resumed, h->guard,
+           pw_handoff_ctx[CTX_APPLY_TICKS] * 1000 / calibrate(), ok ? "OK" : "FAILED");
     log_crumbs(h, "self-test");
     log_trace(h, TRACE_SAVE, "self-test");
-    release_staging();
+    pw_log_flush();
     return ok ? 0 : -1;
+}
+
+/*
+ * Debug: the rollback mechanics without the world switch, in two suspends: the blob alone, then
+ * the blob with the kernel copy. If the game carries on afterwards, the blob, the cache flushes
+ * and the context restore work, and a failing load is about the saved world, not the mechanics.
+ */
+int pw_engine_selftest(void)
+{
+    int ret;
+
+    if (!g_registered)
+        return -1;
+    if (pw_engine_has_state())
+        pw_engine_discard(); /* the test reuses the staging memory */
+    pw_log("engine: ---- ROLLBACK SELF-TEST ----");
+    if (check_environment() < 0 || ensure_staging() < 0)
+        return -1;
+    calibrate();
+
+    ret = selftest_round(0);
+    if (ret == 0)
+        ret = selftest_round(1);
+    pw_log("engine: ---- ROLLBACK SELF-TEST %s ----", ret == 0 ? "PASSED" : "FAILED");
+    release_staging();
+    return ret;
 }
 
 /*
@@ -849,61 +1038,21 @@ void pw_engine_discard(void)
     pw_log_flush();
 }
 
-/* Record layout of the first engine build (magic "PWS1", no breadcrumbs). */
-typedef struct {
-    unsigned int magic, valid, load_applying;
-    pw_stream user, vram, scratch;
-    unsigned int vram_size;
-    unsigned int save_threads, save_forced, save_freeze_ms, save_pack_ms, save_suspend_ms;
-    int save_ge;
-    unsigned int save_dmac_left, save_capture_cycles;
-    unsigned int load_threads, load_forced, load_freeze_ms;
-    int load_ge;
-    unsigned long long load_start_tick;
-    unsigned int loads;
-    unsigned int trace_count[TRACE_KINDS];
-    unsigned int trace_ev[TRACE_KINDS][TRACE_MAX];
-    unsigned int trace_cyc[TRACE_KINDS][TRACE_MAX];
-} StateHeaderV1;
-
-#define STATE_MAGIC_V1 0x31535750u /* "PWS1" */
-
-static void post_mortem_v1(StateHeaderV1 *old)
-{
-    pw_log("engine: post-mortem (v1 record at %p): valid=%u load_applying=%u loads=%u", (void *)old,
-           old->valid, old->load_applying, old->loads);
-    pw_log("engine: post-mortem: load froze %u thread(s) in %u ms, GE %d", old->load_threads,
-           old->load_freeze_ms, old->load_ge);
-    log_trace_raw(old->trace_ev[TRACE_SAVE], old->trace_cyc[TRACE_SAVE],
-                  old->trace_count[TRACE_SAVE], "post-mortem save");
-    log_trace_raw(old->trace_ev[TRACE_LOAD], old->trace_cyc[TRACE_LOAD],
-                  old->trace_count[TRACE_LOAD], "post-mortem load (before rollback)");
-    log_trace_raw(old->trace_ev[TRACE_AFTER_ROLLBACK], old->trace_cyc[TRACE_AFTER_ROLLBACK],
-                  old->trace_count[TRACE_AFTER_ROLLBACK], "post-mortem load (after rollback)");
-    old->magic = 0;
-    sceKernelDcacheWritebackAll();
-}
-
 /*
- * The state record sits at the start of P11. If the previous game session died during a save or
+ * The state record sits at the start of P9. If the previous game session died during a save or
  * load (or left a state behind), the record may have survived the trip back through the XMB:
  * report it once, then clear it.
  */
 static void post_mortem(void)
 {
-    PspSysmemPartitionInfo p11;
+    PspSysmemPartitionInfo p9;
     StateHeader *old;
 
-    memset(&p11, 0, sizeof(p11));
-    p11.size = sizeof(p11);
-    if (sceKernelQueryMemoryPartitionInfo(PW_MEM_PARTITION_SPARE, &p11) < 0 ||
-        p11.memsize < sizeof(StateHeader))
+    memset(&p9, 0, sizeof(p9));
+    p9.size = sizeof(p9);
+    if (sceKernelQueryMemoryPartitionInfo(PW_MEM_PARTITION_EXTRA, &p9) < 0 || p9.memsize < IMAGE_AT)
         return;
-    old = (StateHeader *)((p11.startaddr + 63) & ~63u);
-    if (old->magic == STATE_MAGIC_V1) {
-        post_mortem_v1((StateHeaderV1 *)old);
-        return;
-    }
+    old = (StateHeader *)(((p9.startaddr + 63) & ~63u) + HEADER_AT);
     if (old->magic != STATE_MAGIC || old->crumb_count == 0 || old->crumb_count > CRUMB_MAX)
         return;
 

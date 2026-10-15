@@ -6,7 +6,7 @@ Each rung is proven on the device before the next one is built. Design inputs: M
 | Rung | What it proves | Status |
 |---|---|---|
 | E1 | real suspend + RTC auto-wake + kernel copy at PHASE0_0, no restore | done (run 1) |
-| E2 | load in the same boot (restore kernel + RAM + VRAM) | built, awaiting device test |
+| E2 | load in the same boot (restore kernel + RAM + VRAM) | run 5 built: two root causes fixed |
 | E3 | load after a reboot (environment fingerprint) | |
 | E4 | file-system integrity gate (100 cycles + FAT check) | |
 
@@ -57,8 +57,9 @@ Code: `plugin/src/complications/states/engine.c` (+ `handoff.S`, `stream.c`, `co
 `core/flash.c`). Debug-build triggers in a game: **L+R+SELECT+RIGHT** save, **L+R+SELECT+LEFT**
 load, **L+R+SELECT+UP** drop the state and write the held log lines (then a probe dump).
 
-Memory: P9 (24 MB) = kernel image 4 MB + arena; P11 (4 MB) = header + FastLZ workspace + arena +
-200-byte apply blob. Nothing large in kernel RAM (module: 53 KB loaded).
+Memory (since run 5): one P9 block (24 MB) = header, FastLZ workspace, 200-byte apply blob, kernel
+image 4 MB + P8 1 MB + ME eDRAM save 4 MB, then the arena (~14.8 MB). Nothing in P11 (the firmware's
+ME eDRAM save area during a suspend, see below). Nothing large in kernel RAM (module: 53 KB loaded).
 
 SAVE
 1. Refuse unless P2 is 24 MB (no highmem) and P5 (volatile) is unused.
@@ -146,3 +147,49 @@ Experiments for run 4 (the next build):
   restore are sound and the problem is the saved world.
 - **Frozen save + load, L+R+START+LEFT:** save, keep the game frozen, load at once. The smallest
   possible difference between the saved world and the one being replaced.
+
+**Run 4 — 2026-10-15, NFS Most Wanted:** the self-test alone (L+R+START+RIGHT, no world switch)
+gave ~10 s of black screen and the XMB, exactly like every load. So the rollback *mechanics* were
+broken, not the saved world. Analysis (code review against PSPFatSave, uOFW 6.60 sources) found two
+independent faults, each fatal on its own, present in every load since the first E2 build:
+
+1. **The apply blob lived in P11, which the firmware overwrites during every suspend.** On the
+   PSP-2000/3000, P11 (0x8BC00000, 4 MB) is the ME eDRAM save area: at event `0x4005` (PHASE0_5,
+   before our PHASE0_0) `me_wrapper` has the Media Engine dump its eDRAM there. The jump at
+   PHASE0_0 landed in ME data. The state header and arena region 1 (part of the packed game RAM)
+   were destroyed the same way, which is also why the P11 "post-mortem" record never survived.
+   PSPFatSave never hit this: it runs the blob from game RAM on a PSP-1000.
+2. **Interrupts were masked with `sceKernelCpuSuspendIntr`**, which clears the Allegrex interrupt
+   controller register (IC, `mtic`). The blob restores only CP0 Status, so after it returned the
+   whole rest of the suspend, and the resumed system, ran with every interrupt off. PSPFatSave
+   masks with Status.IE, which the blob's Status reload undoes.
+
+Changes for run 5:
+- Everything that must survive a suspend moved to one P9 block; P11 is not used at all.
+- The ME eDRAM image in P11 is now part of the snapshot: copied (uncached: the ME wrote it, not the
+  CPU) at the save's PHASE0_0 and put back at the load's PHASE0_0, so the restored kernel reboots
+  the ME from the matching image. PSPStates does the same (it restores 0x8BC00000 with the kernel).
+- Interrupts for the apply are masked through Status.IE; the save's capture keeps a matched
+  `sceKernelCpuSuspendIntr`/`ResumeIntr` pair and logs the IC state found at PHASE0_0.
+- The blob runs cached from P9 (after D-cache write-back + I-cache invalidate): ~tens of ms instead
+  of ~1 s of uncached fetches. Its I-cache flush is loadcore's (`cache 0x4` twice per index) rather
+  than the pre-IPL's tag stores, and it records its own run time in `pw_handoff_ctx[13]`.
+- Guards: the packed arena and the kernel image (+ P8 + ME) are checksummed at save; LOAD refuses a
+  damaged state before the point of no return, and at PHASE0_0 the blob and the image are checked
+  again right before the jump. A failed guard skips the apply (the system just wakes up) and logs
+  which part was damaged instead of crashing.
+- The self-test runs two suspends per press: the blob with nothing to copy (jump, cache flushes,
+  context + interrupt restore), then with the 4 MB kernel copy; the card log is flushed before each.
+- After a load (debug builds) flash0 is read once to learn whether the flash drivers need the
+  PSPFatSave-style re-initialisation (still off).
+
+Not adopted yet (from the same review): PSPStates/Adrenaline restore at `_scePowerResumePoint` /
+the final suspend call site instead of PHASE0_0, from the scratchpad or VRAM. Kept as plan B if the
+PHASE0_0 route still fails with the faults above fixed. PSPFatSave also checks that no frozen thread
+holds the `SceMediaEngineRpc` mutex before suspending; ours does not yet.
+
+Test protocol for run 5 (NFS Most Wanted):
+1. In gameplay: L+R+START+RIGHT (self-test). Two short black screens; the game must carry on.
+2. L+R+START+LEFT (frozen save + load). Black screens, then the game must carry on.
+3. L+R+SELECT+RIGHT (save), play 20-30 s, L+R+SELECT+LEFT (load): the game must jump back.
+4. Exit the game normally; after any drop to the XMB just connect USB (the log keeps sessions).

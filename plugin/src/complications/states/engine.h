@@ -6,8 +6,9 @@
  * Savestate engine, in-RAM edition (milestone M2 / rung E2: load within the same boot).
  *
  * SAVE: freeze the game's threads, compress game RAM (P2), eDRAM and the scratchpad into the
- *       PSP-3000's spare RAM (P9 + P11), then take a real system suspend and copy the 4 MB kernel
- *       image at PHASE0_0. An RTC alarm wakes the PSP 100 ms later; the game is thawed.
+ *       PSP-3000's spare RAM (P9; P11 is the firmware's ME eDRAM save area during a suspend),
+ *       then take a real system suspend and copy the 4 MB kernel image at PHASE0_0. An RTC alarm
+ *       wakes the PSP 100 ms later; the game is thawed.
  * LOAD: freeze the game, take a real suspend and at PHASE0_0 copy the saved kernel image back
  *       (handoff.S). Execution continues inside the SAVE's suspend, whose resume then restores
  *       RAM, eDRAM and scratchpad, re-initialises the flash drivers and thaws the game.
