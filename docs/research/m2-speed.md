@@ -195,3 +195,19 @@ also keeps syscon's `0x402` handler vetoing every suspend. Changes:
 - Debug builds write the save's log until the suspend request again, so a hang shows where it
   stopped; an operation cut short by quitting the game keeps its P9 record for the post-mortem.
 
+**Speed run 5 - 2026-10-15, Castlevania.** Raw log:
+[`logs/2026-10-15-speed5-castlevania.log`](logs/2026-10-15-speed5-castlevania.log). First save with a
+real sleep (8.0 s), second save touch-and-go (4.3 s), load touch-and-go (4.2 s): all worked, and
+the real wake's resume info was captured (`size 212 wake 8C1 key FFCF7FFF supply 22 batt 1271/1790
+mAh`). Quitting the game still put the PSP to sleep.
+
+Analysis (uOFW `powerSwitch.c` worker thread): a suspend can only come from a queued request. A
+"POWER switch pressed" event sets `curHardwarePowerSwitchRequest`, which then waits for all power
+locks to be released - exactly what happens when a game is quit. A suspend operation resets the
+request when it returns, so in speed run 2 the real-sleep saves that followed the touch-and-go
+test consumed it, while in runs 3-5 the last operation was a touch-and-go and the request stayed
+queued. Working hypothesis: the touch-and-go resume produces a spurious POWER-switch event.
+Mitigation: `scePowerSetPowerSwMode(0)` (a plain variable in scePower) from the touch-and-go
+request until 3 s after the game runs again (kernel alarm); a load releases it again because the
+rollback rewinds scePower's variable. The debug probe logs every change of `scePowerIsRequest()`.
+

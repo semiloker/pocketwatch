@@ -29,6 +29,8 @@
 #define PROBE_MAX_IDS    128
 #define PROBE_PARTITIONS 12
 
+int scePowerIsRequest(void); /* core/stubs/scePower_driver.S */
+
 static SceUID g_ids[PROBE_MAX_IDS];
 static int g_dump_count;
 static SceUID g_probe_thread = -1;
@@ -161,8 +163,19 @@ static int probe_thread(SceSize args, void *argp)
 
     (void)args;
     (void)argp;
+    int last_request = 0;
+
     while (!g_probe_stop) {
         sceKernelDelayThread(50 * 1000);
+
+        /* A queued POWER-switch suspend request (scePower) shows up here before it fires. */
+        int request = scePowerIsRequest();
+
+        if (request != last_request) {
+            pw_log("probe: scePower request pending: %d (t=%u ms)", request,
+                   sceKernelGetSystemTimeLow() / 1000);
+            last_request = request;
+        }
         if (sceCtrlPeekBufferPositive(&pad, 1) < 0)
             continue;
 

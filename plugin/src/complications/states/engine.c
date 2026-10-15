@@ -258,6 +258,8 @@ static unsigned int g_ram_restored[RAM_CHUNKS], g_ram_now[RAM_CHUNKS]; /* debug,
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
 int scePowerRequestSuspendTouchAndGo(void); /* core/stubs/scePower_driver.S */
+int scePowerSetPowerSwMode(unsigned int mode);
+int scePowerGetPowerSwMode(void);
 /* core/stubs/sceSyscon_driver.S (uOFW syscon.c signatures) */
 signed char sceSysconGetHoldSwitch(void);
 signed char sceSysconGetWlanSwitch(void);
@@ -396,6 +398,50 @@ static void fill_resume_info(unsigned int *ri, const LiveStatus *l)
 }
 
 /*
+ * Every touch-and-go resume so far left a "POWER switch pressed" request queued in scePower's
+ * switch thread; it waits for the power locks to go and puts the PSP to sleep when the game is
+ * quit (speed runs 3-5; a later real suspend used to consume it). So hardware switch requests are
+ * ignored from the touch-and-go request until 3 s after the game runs again: the power switch mode
+ * is a plain variable in scePower (uOFW powerSwitch.c), safe to set from an alarm handler. A load
+ * rewinds that variable with the kernel, so finish_load releases the guard again.
+ */
+#define SW_GUARD_US 3000000
+
+static volatile int g_sw_guard, g_sw_saved;
+static volatile SceUID g_sw_alarm = -1;
+
+static void sw_guard_engage(void)
+{
+    if (g_sw_alarm >= 0) {
+        sceKernelCancelAlarm(g_sw_alarm);
+        g_sw_alarm = -1;
+    }
+    if (!g_sw_guard) {
+        g_sw_saved = scePowerGetPowerSwMode();
+        g_sw_guard = 1;
+    }
+    scePowerSetPowerSwMode(0); /* neither requests nor callbacks for the POWER switch */
+}
+
+static SceUInt sw_guard_expire(void *common)
+{
+    (void)common;
+    scePowerSetPowerSwMode((unsigned int)g_sw_saved);
+    g_sw_guard = 0;
+    g_sw_alarm = -1;
+    return 0; /* one-shot */
+}
+
+static void sw_guard_release_later(void)
+{
+    if (!g_sw_guard || g_sw_alarm >= 0)
+        return;
+    g_sw_alarm = sceKernelSetAlarm(SW_GUARD_US, sw_guard_expire, NULL);
+    if (g_sw_alarm < 0)
+        sw_guard_expire(NULL); /* no alarm: rather restore at once than never */
+}
+
+/*
  * Fast mode suspends touch-and-go only once this boot has seen a real wake: its resume info gives
  * the battery and switch bits that no getter reports. So the first save of a session sleeps for
  * real (slow); the following saves and loads do not.
@@ -407,7 +453,10 @@ static int use_touch_and_go(void)
 
 static int request_suspend(void)
 {
-    return g_tg ? scePowerRequestSuspendTouchAndGo() : scePowerRequestSuspend();
+    if (!g_tg)
+        return scePowerRequestSuspend();
+    sw_guard_engage();
+    return scePowerRequestSuspendTouchAndGo();
 }
 
 /* Memory only: safe in the sysevent handler. */
@@ -1124,6 +1173,7 @@ static int finish_load(void)
     pw_log("engine: load: thawing %d game thread(s)...", watched.count);
     pw_thaw_game(&g_save_freeze);
     crumb(h, S_RB_THAWED);
+    sw_guard_release_later();
     mark(&h->load_t, P_THAW);
     sceRtcGetCurrentTick(&now);
     crumb(h, S_LOAD_DONE);
@@ -1262,6 +1312,7 @@ int pw_engine_save(void)
 
     if (g_restore_pending)
         return finish_load();
+    sw_guard_release_later();
     mark(&h->save_t, P_SUSPEND);
 
     h->save_suspend_ms = (unsigned int)((rt1 - rt0) / 1000);
@@ -1370,6 +1421,7 @@ int pw_engine_load(void)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&g_load_freeze);
     pw_thaw_game(&g_save_freeze); /* still frozen after a frozen save+load test; no-op otherwise */
+    sw_guard_release_later();
     pw_log("engine: LOAD FAILED: suspend=0x%08X resumed=%d applying=%d guard=%X%s%s", ret,
            g_resumed, g_applying, h->guard, h->guard & GUARD_BLOB ? " (blob damaged)" : "",
            h->guard & GUARD_IMAGE ? " (kernel image damaged)" : "");
@@ -1417,6 +1469,7 @@ static int selftest_round(int copy)
     if (!g_resumed)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&frozen);
+    sw_guard_release_later();
 
     ok = g_applying && g_resumed && !h->guard;
     pw_log("engine: self-test round %d: froze %d thread(s), GE %d, suspend=0x%08X applied=%d "
@@ -1493,10 +1546,12 @@ int pw_engine_tg_test(void)
     g_tg = 1;
     g_mode = MODE_PLAIN;
     capture_live(&h->live);
+    sw_guard_engage();
     ret = scePowerRequestSuspendTouchAndGo();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
     g_mode = MODE_IDLE;
+    sw_guard_release_later();
     mark(&h->save_t, P_SUSPEND);
 
     pw_log("engine: touch-and-go: request=0x%08X resumed=%d", ret, g_resumed);

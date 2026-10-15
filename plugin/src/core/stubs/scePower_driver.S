@@ -12,6 +12,9 @@
 	IMPORT_FUNC  "scePower_driver",0xAC32C9CC,scePowerRequestSuspend
 	IMPORT_FUNC  "scePower_driver",0xFEE03A2F,scePowerGetCpuClockFrequency
 	IMPORT_FUNC  "scePower_driver",0x478FE6F5,scePowerGetBusClockFrequency
+	IMPORT_FUNC  "scePower_driver",0x7FA406DD,scePowerIsRequest
+	IMPORT_FUNC  "scePower_driver",0x0CD21B1F,scePowerSetPowerSwMode
+	IMPORT_FUNC  "scePower_driver",0x165CE085,scePowerGetPowerSwMode
 	// Suspend "touch and go": every suspend and resume event and handler runs, but syscon never
 	// powers the PSP down (uOFW power/powerSwitch.c, 0x2D5C; 6.61 NID 0xD1FFF513 via ARK).
 	IMPORT_FUNC  "scePower_driver",0x2875994B,scePowerRequestSuspendTouchAndGo
