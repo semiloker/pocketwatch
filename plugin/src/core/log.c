@@ -22,6 +22,7 @@ static char g_log_path[PW_LOG_PATH_MAX];
 static char g_ring_buf[PW_LOG_RING_SIZE];
 static pw_ring g_ring;
 static int g_deferred;
+static int g_blocked; /* the card must not be written at all until the next boot */
 static int g_flushing;
 static char g_chunk[PW_LOG_CHUNK]; /* only touched by the thread that owns g_flushing */
 
@@ -32,6 +33,7 @@ void pw_log_init(const char *module_path)
 
     pw_ring_init(&g_ring, g_ring_buf, sizeof(g_ring_buf));
     g_deferred = 0;
+    g_blocked = 0;
     g_flushing = 0;
     g_log_path[0] = '\0';
     if (slash == NULL)
@@ -93,12 +95,37 @@ void pw_log_set_deferred(int deferred)
     g_deferred = deferred;
 }
 
+void pw_log_set_card_blocked(int blocked)
+{
+    g_blocked = blocked;
+}
+
+int pw_log_card_blocked(void)
+{
+    return g_blocked;
+}
+
+int pw_log_dir(char *out, unsigned int cap)
+{
+    const char *slash = strrchr(g_log_path, '/');
+    unsigned int len;
+
+    if (slash == NULL)
+        return -1;
+    len = (unsigned int)(slash - g_log_path) + 1;
+    if (len + 1 > cap)
+        return -1;
+    memcpy(out, g_log_path, len);
+    out[len] = '\0';
+    return (int)len;
+}
+
 void pw_log_flush(void)
 {
     unsigned int state, n, dropped;
     int pending;
 
-    if (g_log_path[0] == '\0')
+    if (g_log_path[0] == '\0' || g_blocked)
         return;
 
     state = pw_irq_lock();
@@ -131,7 +158,7 @@ void pw_log_flush(void)
 
         /* Lines pushed after our last pop but before we release ownership must not be stranded. */
         state = pw_irq_lock();
-        pending = g_ring.len > 0 && !g_deferred;
+        pending = g_ring.len > 0 && !g_deferred && !g_blocked;
         if (!pending)
             g_flushing = 0;
         pw_irq_unlock(state);

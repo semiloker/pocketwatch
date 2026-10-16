@@ -5,10 +5,9 @@
 
 #define ALIGNMENT 64
 
-static int alloc_from(pw_mem_block *b, int partition, const char *name, unsigned int size)
+static int alloc_at(pw_mem_block *b, int partition, const char *name, unsigned int size, int where)
 {
-    SceUID block =
-        sceKernelAllocPartitionMemory(partition, name, PSP_SMEM_Low, size + ALIGNMENT, NULL);
+    SceUID block = sceKernelAllocPartitionMemory(partition, name, where, size + ALIGNMENT, NULL);
     unsigned int addr;
 
     if (block < 0)
@@ -18,6 +17,11 @@ static int alloc_from(pw_mem_block *b, int partition, const char *name, unsigned
     b->ptr = (void *)((addr + ALIGNMENT - 1) & ~(unsigned int)(ALIGNMENT - 1));
     b->size = size;
     return 0;
+}
+
+static int alloc_from(pw_mem_block *b, int partition, const char *name, unsigned int size)
+{
+    return alloc_at(b, partition, name, size, PSP_SMEM_Low);
 }
 
 int pw_mem_alloc(pw_mem_block *b, const char *name, unsigned int size)
@@ -39,6 +43,14 @@ int pw_mem_alloc_in(pw_mem_block *b, int partition, const char *name, unsigned i
     b->ptr = 0;
     b->size = 0;
     return alloc_from(b, partition, name, size);
+}
+
+int pw_mem_alloc_high(pw_mem_block *b, int partition, const char *name, unsigned int size)
+{
+    b->block = -1;
+    b->ptr = 0;
+    b->size = 0;
+    return alloc_at(b, partition, name, size, PSP_SMEM_High);
 }
 
 unsigned int pw_mem_max_free(int partition)

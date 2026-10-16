@@ -96,6 +96,28 @@ PW_TEST(log_deferred_keeps_lines_in_ram_until_flush)
     CHECK_STR(content, "inside sysevent\n");
 }
 
+PW_TEST(log_card_blocked_writes_nothing_until_unblocked)
+{
+    char log_path[512], content[256], dir[512];
+
+    fresh_log(log_path, sizeof(log_path));
+    CHECK(pw_log_dir(dir, sizeof(dir)) > 0);
+    CHECK(strstr(log_path, dir) == log_path);
+    CHECK_EQ(dir[strlen(dir) - 1], '/');
+
+    pw_log_set_card_blocked(1);
+    CHECK_EQ(pw_log_card_blocked(), 1);
+    pw_log("after a failed freshness probe");
+    pw_log_flush();
+    read_file(log_path, content, sizeof(content));
+    CHECK_STR(content, "");
+
+    pw_log_set_card_blocked(0);
+    pw_log_flush();
+    read_file(log_path, content, sizeof(content));
+    CHECK_STR(content, "after a failed freshness probe\n");
+}
+
 PW_TEST(log_reports_dropped_lines_when_ring_overflows)
 {
     char log_path[512];

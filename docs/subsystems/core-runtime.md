@@ -33,7 +33,7 @@
 | `SYS-REQ-009` | Portable modules include no PSP header and are host-tested under ASan/UBSan. | P0 | Done | `make -C tests` |
 | `SYS-REQ-010` | A config store: per-complication key/value settings persisted on the card, read at start, written only when no state is held. | P1 | Planned | host tests + device |
 | `SYS-REQ-011` | Game identity: game ID (`disc0:/UMD_DATA.BIN`), title (PARAM.SFO), ISO path from ARK. | P1 | Planned | device log |
-| `SYS-REQ-012` | Memory Stick write gate: every card writer asks `pw_ms_write_allowed()`; denied while a state is held unless the [storage](states-storage.md) policy allows it, or after a failed freshness probe. | P0 | Planned | code review + T1 |
+| `SYS-REQ-012` | Memory Stick write gate: every card writer asks `pw_ms_write_allowed()`; denied while a state is held unless the [storage](states-storage.md) policy allows it, or after a failed freshness probe. | P0 | Partial: the log can be blocked until reboot (`pw_log_set_card_blocked`, used after a failed T1); a general gate is Planned | code review + T1 |
 | `SYS-REQ-013` | Power lock helper for operations that must not be interrupted by a user suspend (state write). | P1 | Planned | device test |
 | `SYS-NFR-001` | Kernel RAM: module loaded sections ≤ 128 KB; PRX ≤ 112 KB (debug). | P0 | Done (2026-10-16: debug PRX 99,998 B, loaded 102,516 B; release PRX 90,642 B, loaded 95,013 B) | `make check` |
 

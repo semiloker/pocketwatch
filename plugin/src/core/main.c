@@ -9,7 +9,8 @@
 #include "complications/states/engine.h"
 #include "core/log.h"
 #include "core/selfcheck.h"
-#include "ui/menu.h"
+#include "gfx/assets.h"
+#include "shell/shell.h"
 
 #ifdef PW_DEBUG
 #include "debug/probe.h"
@@ -63,9 +64,10 @@ static int main_thread(SceSize args, void *argp)
 #endif
 
     /* Complications (States, ...) are started from here. */
-    ret = pw_menu_start();
+    pw_assets_init(); /* the system font, read now: the menu must not wait for flash0 later */
+    ret = pw_shell_start();
     if (ret < 0)
-        pw_log("menu: thread start failed 0x%08X", ret);
+        pw_log("shell: thread start failed 0x%08X", ret);
 
     return 0;
 }
@@ -92,11 +94,12 @@ int module_stop(SceSize args, void *argp)
     (void)args;
     (void)argp;
 
-    pw_menu_stop();
+    pw_shell_stop();
 #ifdef PW_DEBUG
     pw_probe_stop();
 #endif
     pw_engine_shutdown();
+    pw_assets_shutdown();
 
     if (g_main_thread >= 0) {
         SceUInt timeout = PW_STOP_TIMEOUT_US;

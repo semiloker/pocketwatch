@@ -17,4 +17,7 @@ int pw_file_write(const char *path, const void *data, unsigned int len, int appe
 /* Size of a file in bytes, or < 0 if it does not exist. */
 int pw_file_size(const char *path);
 
+/* Read up to cap bytes of a file from its start. Returns bytes read or < 0. */
+int pw_file_read(const char *path, void *data, unsigned int cap);
+
 #endif

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | Area code | `SHL` |
-| Status | Partial: NOTE-tap trigger, freeze, button masking, release wait, display hand-off (Done, device-verified 2026-10-16). HOME takeover, Quit Game, guards, power handling (Planned) |
+| Status | Done on the device: freeze, button masking, release wait, display hand-off (2026-10-16). Implemented, device test pending: HOME takeover, NOTE fallback, Quit Game, dialog/resume/busy checks (`shell/shell.c`, 2026-10-16). Planned: guards, power handling |
 | Milestones | M3 phase 1 (done), M3a (HOME + Quit), M3b (guards) |
-| Code | [`ui/menu.c`](../../plugin/src/ui/menu.c) (trigger thread and menu loop today), [`ui/input.c`](../../plugin/src/ui/input.c), [`core/freeze.c`](../../plugin/src/core/freeze.c) |
+| Code | [`shell/shell.c`](../../plugin/src/shell/shell.c) (trigger thread, HOME ownership, open/close, Quit Game), [`ui/hub.c`](../../plugin/src/ui/hub.c), [`ui/input.c`](../../plugin/src/ui/input.c), [`core/freeze.c`](../../plugin/src/core/freeze.c) |
 | Research | [m3-home-takeover](../research/m3-home-takeover.md), [m3-menu-e3](../research/m3-menu-e3.md) |
 
 ## A. Overview
@@ -27,17 +27,17 @@
 
 | ID | Requirement | Priority | Status | Verification |
 |---|---|---|---|---|
-| `SHL-REQ-001` | A HOME press (pressed → released) in gameplay opens the hub; the system HOME screen never appears, not even for one frame. | P0 | Planned | device test M3a |
-| `SHL-REQ-002` | HOME, O (back) or the Resume item close the hub; the game receives none of the presses made while it was open, including the one that closed it. | P0 | Done for NOTE/O/START; HOME Planned | device test 2026-10-16 |
-| `SHL-REQ-003` | If the game (or another plugin) disabled the HOME popup, the hub does not open on HOME and the game's choice is kept; the original popup state is restored at `module_stop`. | P0 | Planned | device test with such a game; code review |
-| `SHL-REQ-004` | The hub does not open while a system utility dialog is loaded (`sceVshSDUtility_Module`, `sceDialogmain_Module`, OSK, netconf), while HOLD is on, during an engine operation, or within 2 s after a resume. | P0 | Planned | device test |
-| `SHL-REQ-005` | Quit Game asks for confirmation in the native style, then returns to the XMB like the system's quit: state discarded, IPL seeds in place, log flushed, game thawed, `sctrlKernelExitVSH`. XMB reached in ≤ 5 s; settings intact. | P0 | Planned | device test M3a |
+| `SHL-REQ-001` | A HOME press (pressed → released) in gameplay opens the hub; the system HOME screen never appears, not even for one frame. | P0 | Implemented, device test pending | device test M3a |
+| `SHL-REQ-002` | HOME, Back or the Resume item close the hub; the game receives none of the presses made while it was open, including the one that closed it. | P0 | Done for the phase-1 menu; HOME implemented, device test pending | device test 2026-10-16 |
+| `SHL-REQ-003` | If the game (or another plugin) disabled the HOME popup, the hub does not open on HOME and the game's choice is kept; the original popup state is restored at `module_stop`. | P0 | Partial: popup already off at takeover → NOTE fallback; a later disable by the game is not detected (no hook yet) | device test with such a game; code review |
+| `SHL-REQ-004` | The hub does not open while a system utility dialog is loaded (`sceVshSDUtility_Module`, `sceDialogmain_Module`, OSK, netconf), while HOLD is on, during an engine operation, or within 2 s after a resume. | P0 | Implemented, device test pending | device test |
+| `SHL-REQ-005` | Quit Game asks for confirmation in the native style, then returns to the XMB like the system's quit: state discarded, IPL seeds in place, log flushed, game thawed, the game's own exit callback (`sceKernelInvokeExitCallback`), ARK's exit after 5 s as a fallback. XMB reached in ≤ 5 s; settings intact. | P0 | Implemented, device test pending | device test M3a |
 | `SHL-REQ-006` | While the hub is open the game is frozen, the display shows the hub, the backlight stays on (`scePowerTick`) and the game's own frame is never modified. | P0 | Done | device test 2026-10-16 |
 | `SHL-REQ-007` | Guards refuse to open the hub's state actions (with a native message) when USB is connected, a network connection is up, or a video is playing. | P1 | Planned | device tests per guard |
 | `SHL-REQ-008` | A suspend request (POWER switch, auto-sleep, low battery) while the hub is open closes the hub, gives back display and buttons and thaws before the suspend proceeds. | P1 | Planned | device test: slide POWER with the hub open |
 | `SHL-REQ-009` | Guards refuse a save when the battery is below ~15 % without a charger or the card lacks space, and refuse everything under highmem or TV-out. | P1 | Planned | device tests |
 | `SHL-REQ-010` | When PSPStates / Custom Home or ARK `mscache` is active, States refuses with a message naming the conflict. | P1 | Planned | device test with the conflicting setup |
-| `SHL-REQ-011` | Once HOME is the trigger, the NOTE button keeps its system function (mute on hold) and opens nothing. | P0 | Planned | device test |
+| `SHL-REQ-011` | Once HOME is the trigger, the NOTE button keeps its system function (mute on hold) and opens nothing. | P0 | Implemented, device test pending | device test |
 | `SHL-REQ-012` | ARK-4's exit combos (L+R+START/SELECT+DOWN) cannot reboot the PSP while a state is held without the state being discarded first. | P1 | Planned (RESEARCH REQUIRED) | code review + device test |
 | `SHL-NFR-001` | First hub frame ≤ 300 ms after the HOME release (freeze timeout 500 ms worst case). | P1 | Planned (phase 1 not measured) | log timestamps |
 | `SHL-NFR-002` | No cost while closed: one kernel thread polling every 20 ms, no allocation. | P1 | Done | code |

@@ -66,7 +66,8 @@ int pw_draw_text_width(const char *s, int scale)
     return n * 8 * scale;
 }
 
-int pw_draw_text(pw_canvas *c, int x, int y, const char *s, unsigned int color, int scale)
+int pw_draw_text_alpha(pw_canvas *c, int x, int y, const char *s, unsigned int color, int scale,
+                       int alpha)
 {
     int x0 = x;
 
@@ -76,10 +77,65 @@ int pw_draw_text(pw_canvas *c, int x, int y, const char *s, unsigned int color, 
 
         for (int row = 0; row < 8; row++)
             for (int col = 0; col < 8; col++)
-                if (glyph[row] & (0x80 >> col))
-                    pw_draw_fill(c, x + col * scale, y + row * scale, scale, scale, color);
+                if (glyph[row] & (0x80 >> col)) {
+                    if (alpha >= 256)
+                        pw_draw_fill(c, x + col * scale, y + row * scale, scale, scale, color);
+                    else
+                        pw_draw_blend(c, x + col * scale, y + row * scale, scale, scale, color,
+                                      alpha);
+                }
     }
     return x - x0;
+}
+
+int pw_draw_text(pw_canvas *c, int x, int y, const char *s, unsigned int color, int scale)
+{
+    return pw_draw_text_alpha(c, x, y, s, color, scale, 256);
+}
+
+void pw_draw_mask(pw_canvas *c, int x, int y, const unsigned char *mask, int w, int h, int stride,
+                  unsigned int color, int alpha)
+{
+    int x0 = x, y0 = y, cw = w, ch = h;
+
+    if (alpha <= 0 || !clip(c, &x0, &y0, &cw, &ch))
+        return;
+    if (alpha > 256)
+        alpha = 256;
+    for (int j = 0; j < ch; j++) {
+        const unsigned char *m = mask + (y0 - y + j) * stride + (x0 - x);
+        unsigned int *row = c->px + (y0 + j) * c->stride + x0;
+
+        for (int i = 0; i < cw; i++)
+            if (m[i])
+                row[i] = mix(row[i], color, (m[i] * alpha + 127) / 255);
+    }
+}
+
+void pw_draw_lerp(pw_canvas *dst, const unsigned int *a, const unsigned int *b, int t)
+{
+    if (t < 0)
+        t = 0;
+    if (t > 256)
+        t = 256;
+    for (int y = 0; y < dst->h; y++) {
+        const unsigned int *ra = a + y * dst->stride, *rb = b + y * dst->stride;
+        unsigned int *row = dst->px + y * dst->stride;
+
+        for (int x = 0; x < dst->w; x++) {
+            unsigned int pa = ra[x], pb = rb[x];
+            unsigned int rbm =
+                (((pa & 0xFF00FF) * (unsigned int)(256 - t) + (pb & 0xFF00FF) * (unsigned int)t) >>
+                 8) &
+                0xFF00FF;
+            unsigned int gm =
+                (((pa & 0x00FF00) * (unsigned int)(256 - t) + (pb & 0x00FF00) * (unsigned int)t) >>
+                 8) &
+                0x00FF00;
+
+            row[x] = 0xFF000000u | rbm | gm;
+        }
+    }
 }
 
 /* Expand an n-bit channel to 8 bits. */

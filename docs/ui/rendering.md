@@ -26,14 +26,14 @@
 | `GFX-REQ-001` | The overlay uses its own pages and never writes the game's framebuffer or VRAM. | P0 | Done | code, device test |
 | `GFX-REQ-002` | The overlay is released (display back to the game) before any suspend and redrawn after. | P0 | Done | device test 2026-10-16 |
 | `GFX-REQ-003` | The game's frame is captured in any of the four display formats, dimmed, as the background. | P0 | Done | host test `draw_from_frame_converts_formats` |
-| `GFX-REQ-004` | A PGF decoder (revision 2 and 3 headers, metric tables, char map, RLE rows/columns, overlay glyphs) renders a UTF-8 string with 4-bit alpha into the canvas; every read is bounds-checked against the file size. | P0 | Planned | host tests with synthetic PGF files |
-| `GFX-REQ-005` | Glyphs are cached per font and size (including XMB-scale downscaled variants ≈ 14.5 px and ≈ 11.4 px). | P1 | Planned | host test, timing on device |
+| `GFX-REQ-004` | A PGF decoder (revision 2 and 3 headers, metric tables, char map, RLE rows/columns, overlay glyphs) renders a UTF-8 string with 4-bit alpha into the canvas; every read is bounds-checked against the file size. | P0 | Done on the host (`gfx/pgf.c`; synthetic-font tests; matches the reference decoder on a ttf2pgf font); ltn0 on the device pending. Revision 3's compTable mapping is not applied | host tests with synthetic PGF files |
+| `GFX-REQ-005` | Glyphs are cached per font and size (including XMB-scale downscaled variants ≈ 14.5 px and ≈ 11.4 px). | P1 | Done (`gfx/text.c`: 128 slots per font, area-averaged scaling, font file + caches in a P9 block at the partition top) | host test, timing on device |
 | `GFX-REQ-006` | An RCO reader finds an image by label or index; an RLZ decoder and a GIM decoder (idx8 + 8888 palette + unswizzle first; 4444/5551/565/idx4 later) turn it into an 8888 bitmap with alpha. | P1 | Planned | host tests (RLZ round trip against RCOMage's compressor, synthetic GIMs) |
 | `GFX-REQ-007` | zlib-compressed RCO images (themes) decode through the firmware's `sceKernelDeflateDecompress` (UtilsForKernel 0xE8DB3CE6). | P2 | Planned | device test with a theme |
 | `GFX-REQ-008` | The month background colour comes from `flash0:/vsh/resource/01-12*.bmp`. | P2 | Planned | device review |
 | `GFX-REQ-009` | Every asset read happens before the game is frozen (or at plugin start), never in a suspend path; flash0 only (the Memory Stick rule is untouched). | P0 | Planned | code review |
 | `GFX-REQ-010` | Any missing or malformed asset falls back (8x8 font scaled, drawn icons) and logs the reason once. | P0 | Partial (8x8 only) | debug build with the paths broken |
-| `GFX-REQ-011` | Alpha-blended drawing of glyphs and images, a soft text shadow, rounded/translucent panels, and linear fades/slides timed by the system clock. | P1 | Planned | golden images |
+| `GFX-REQ-011` | Alpha-blended drawing of glyphs and images, a soft text shadow, rounded/translucent panels, and linear fades/slides timed by the system clock. | P1 | Partial: masks, anti-aliased shapes (`ui/shapes.c`), 200/150 ms fades, eased cursor; images later | golden images / host previews |
 | `GFX-NFR-001` | Full-screen redraw (background copy + UI) ≤ 8 ms at 333 MHz; open-to-first-frame ≤ 300 ms including asset loading from the cache. | P1 | Planned | log timings |
 | `GFX-NFR-002` | Asset caches ≤ 512 KB (fonts ≈ 110 KB, tables ≈ 10 KB, icons ≈ 15 KB each in 8888), in P11/P9, freed on close or kept for the boot only if a state is not using P9. | P1 | Planned | log, `make check` |
 

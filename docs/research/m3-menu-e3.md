@@ -77,6 +77,18 @@ in the load boot, never from the file.
 (~14 MB/s on the card; unaligned 2.5-4.3 MB/s). Never DMA from/to eDRAM. No free-space devctl (it
 scans the whole FAT, seconds): detect short writes instead.
 
+### T1 device protocol
+
+Built 2026-10-16 as the debug hub item "Memory Stick Test" (`debug/cardtest.c`, engine load hook):
+it arms a hook, saves, writes probe file A (`t1a-<seed>.bin`, 128 KB, a pattern) next to the PRX
+after the capture, loads, and in the restored world, before the engine writes anything to the
+card: drops ARK's `mscache` window (a getstat on `msstor0p1:`), looks for A (retrying while the
+card comes back from the suspend), verifies its contents, then writes probe B and reads both back.
+Any failure blocks every card write until reboot (`pw_log_set_card_blocked`) and the hub says
+"T1 FAILED: ... Do not save. Quit and restart the PSP." Pass = the card's view after a rollback
+is fresh for new files and allocations. Afterwards on the PC: the log, both files' contents
+(checked against the pattern), and a FAT check (`chkdsk D:` from an administrator prompt).
+
 **Tests:** T0 card image + PC disk check; T1 freshness after a same-session load from RAM with a
 card write in between; T2 same-session load from the card; T3 quit to the XMB and back, load;
 T4 other writes in between (game saves, USB) + an in-game save after the load, disk check and

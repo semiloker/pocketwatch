@@ -11,9 +11,9 @@ verified on the device), **Partial** (some requirements done), **Planned** (spec
 | `SYS` | Core runtime: lifecycle, log, memory, freeze, flash rebuild, codec, import self-check | Done (config, game identity, power locks: Planned) | [`plugin/src/core/`](../plugin/src/core/) | [core-runtime](subsystems/core-runtime.md) | firmware, ARK-4 |
 | `STE` | States engine: save/load within a boot (E1/E2), fast mode | Done (E1, E2); E4 Planned | [`plugin/src/complications/states/`](../plugin/src/complications/states/) | [states-engine](subsystems/states-engine.md) | SYS |
 | `STS` | States storage: Memory Stick files (E3), native SAVEDATA folders (M5) | Planned (SFO/PNG/hash helpers Done) | `states/sfo.c`, `states/savedata_hash.c`, `core/png.c` | [states-storage](subsystems/states-storage.md) | STE, SYS |
-| `SHL` | In-game shell: trigger button, freeze for the menu, button masking, guards, Quit Game | Partial (NOTE trigger, freeze, masking Done; HOME, guards, Quit Planned) | [`plugin/src/ui/menu.c`](../plugin/src/ui/menu.c) | [game-shell](subsystems/game-shell.md) | SYS, UI |
-| `UI` | Interface: hub, state list, dialogs, theme, navigation, i18n | Partial (phase-1 menu Done; XMB look Planned) | [`plugin/src/ui/`](../plugin/src/ui/) | [ui](ui/README.md) | GFX, SHL, CPL |
-| `GFX` | Rendering and native assets: overlay framebuffer, drawing, PGF fonts, RCO/GIM icons | Partial (framebuffer, 8x8 text Done; PGF, RCO Planned) | `ui/fb.c`, `ui/draw.c` | [rendering](ui/rendering.md) | SYS |
+| `SHL` | In-game shell: trigger button, freeze for the menu, button masking, guards, Quit Game | Partial (freeze, masking Done; HOME, NOTE fallback, Quit implemented, device test pending; guards Planned) | [`plugin/src/shell/`](../plugin/src/shell/) | [game-shell](subsystems/game-shell.md) | SYS, UI |
+| `UI` | Interface: hub, state list, dialogs, theme, navigation, i18n | Partial (hub concept A, dialogs implemented; state list, i18n Planned) | [`plugin/src/ui/`](../plugin/src/ui/) | [ui](ui/README.md) | GFX, SHL, CPL |
+| `GFX` | Rendering and native assets: overlay framebuffer, drawing, PGF fonts, RCO/GIM icons | Partial (framebuffer Done; PGF text, shapes implemented; RCO Planned) | [`plugin/src/gfx/`](../plugin/src/gfx/), `ui/fb.c`, `ui/draw.c`, `ui/shapes.c` | [rendering](ui/rendering.md) | SYS |
 | `CPL` | Complication framework: registry, items, lifecycle; System and Settings complications | Planned | — | [complications](subsystems/complications.md) | SYS, UI |
 | `DBG` | Debug tooling: combos, dumps, benchmark, diagnostics | Done | [`plugin/src/debug/`](../plugin/src/debug/) | [debug-tooling](subsystems/debug-tooling.md) | STE, SYS |
 | `BLD` | Build and verification: scripts, NID/size checks, host tests, CI, format, docs check | Done | [`scripts/`](../scripts/), [`tools/`](../tools/), [`tests/`](../tests/) | [build-and-verification](subsystems/build-and-verification.md) | — |
@@ -56,8 +56,9 @@ flowchart TB
     VSH -. reads states .-> MS
 ```
 
-Current wiring differs from this target in one place: the phase-1 menu
-([`ui/menu.c`](../plugin/src/ui/menu.c)) calls the engine directly; CPL does not exist yet.
+Current wiring differs from this target in one place: the hub
+([`ui/hub.c`](../plugin/src/ui/hub.c)) lists its items itself and calls the engine directly; CPL
+does not exist yet.
 
 ## 3. Shared resources and who owns them
 
@@ -80,7 +81,7 @@ the follow-up is tracked in [project status](project-status.md).
 |---|---|---|---|
 | A1 | No complication boundary: the menu hard-codes Save/Load/Resume and calls the engine. | Owner priority 3 (extension); every new feature would edit `menu.c`. | Introduce CPL with the hub rewrite (M3/M4). |
 | A2 | No arbiter for Memory Stick writes while a state is held; only the log is deferred. | A game save or any plugin write between save and load may corrupt the FAT after a rollback. | T1 test decides the policy; then a `pw_ms_write_allowed()` gate in SYS used by every writer ([STS](subsystems/states-storage.md)). |
-| A3 | Two engine drivers (menu thread, debug probe) coordinate only through `pw_menu_is_open()`. | A probe save racing a menu save would double-freeze. | One engine-owner lock in STE when HOME lands. |
+| A3 | Two engine drivers (menu thread, debug probe) coordinate only through `pw_menu_is_open()`. | A probe save racing a menu save would double-freeze. | Done 2026-10-16: engine busy flag (`STE-REQ-011`), `pw_shell_is_open()`. |
 | A4 | `sfo.c`, `savedata_hash.c` and `png.c` are linked into the PRX but have no caller (spike S2b code was removed). | A few KB of the size budget. **VERIFIED** by grep. | Keep (M5 needs them) but count them in the budget; or link only when STS lands. |
 | A5 | `engine.c` (1.7k lines) mixes the save/load core, sysevent handling, touch-and-go fixes and diagnostics. | E3 adds file I/O and fingerprints; review gets harder. | Split diagnostics/trace into `states/diag.c` when E3 starts. |
 | A6 | README listed PSP-2000/Go/Street as compatible; only the PSP-3000 is tested. | Overclaim. | README corrected in this change. |

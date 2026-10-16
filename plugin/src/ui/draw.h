@@ -27,6 +27,16 @@ void pw_draw_blend(pw_canvas *c, int x, int y, int w, int h, unsigned int color,
 /* 8x8 text scaled by scale (1, 2, ...), transparent background. Returns the width drawn. */
 int pw_draw_text(pw_canvas *c, int x, int y, const char *s, unsigned int color, int scale);
 int pw_draw_text_width(const char *s, int scale);
+/* The same with coverage scaled by alpha (0-256). */
+int pw_draw_text_alpha(pw_canvas *c, int x, int y, const char *s, unsigned int color, int scale,
+                       int alpha);
+
+/* Blend color through an 8-bit coverage mask (w x h, stride bytes per row), scaled by alpha. */
+void pw_draw_mask(pw_canvas *c, int x, int y, const unsigned char *mask, int w, int h, int stride,
+                  unsigned int color, int alpha);
+
+/* Linear mix of two whole canvases of the same size into dst: t 0 = a, 256 = b. */
+void pw_draw_lerp(pw_canvas *dst, const unsigned int *a, const unsigned int *b, int t);
 
 /*
  * Copy a frame in one of the PSP display formats (src_stride pixels per row) into the canvas,

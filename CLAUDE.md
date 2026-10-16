@@ -30,8 +30,12 @@ The project's full workflow is imported here and applies to every session:
 - Format: `bash scripts/format.sh` (`--check` in CI; clang-format 18.1.8, set `CLANG_FORMAT` to override)
 - Deploy to the USB-connected PSP: `scripts\deploy.cmd` (add `-Enable` to register in `PLUGINS.TXT`)
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
-- In a game, a short tap of the NOTE button opens the menu (Save state / Load state / Resume;
-  X select, O back); the game is frozen and sees no buttons while it is open.
+- In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
+  State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Enter/Back follow the
+  system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
+  screen off, a short tap of NOTE opens the hub instead. The game is frozen and sees no buttons.
+- Host previews of every menu screen as PNGs: `make -C tests preview FONT=<path to a .pgf>`
+  (in WSL; never commit renders made with a Sony font).
 - Debug-build combos in a game: L+R+START+RIGHT = save state to RAM, L+R+START+LEFT = load it;
   L+R+SELECT+UP = drop the state, write the held log lines and dump memory/modules/threads;
   L+R+SELECT+RIGHT = rollback self-test, L+R+SELECT+LEFT = frozen save + immediate load;

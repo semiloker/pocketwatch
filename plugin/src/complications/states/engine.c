@@ -235,6 +235,8 @@ typedef struct {
     unsigned int trace_count[TRACE_KINDS];
     unsigned int trace_ev[TRACE_KINDS][TRACE_MAX];
     unsigned int trace_us[TRACE_KINDS][TRACE_MAX];
+    unsigned int
+        caller[PW_ENGINE_USER_WORDS]; /* the caller's words, survive the rollback (load hook) */
 } StateHeader;
 
 _Static_assert(HEADER_AT + sizeof(StateHeader) <= WORKSPACE_AT, "state header overlaps workspace");
@@ -258,7 +260,11 @@ static int g_keep_frozen; /* debug: pw_engine_save leaves the game frozen */
 /* The save's caller froze the game itself (the menu) and thaws it: the engine neither freezes
    nor thaws. Set before the kernel capture, so a load's rollback brings back the save's value. */
 static int g_caller_freeze;
-static pw_flash_report g_flash_report; /* filled at the save's RESUME_COMPLETED (flash.h) */
+static pw_flash_report g_flash_report;         /* filled at the save's RESUME_COMPLETED (flash.h) */
+static volatile int g_busy;                    /* a save or load is running (one at a time) */
+static volatile unsigned int g_last_resume_ms; /* system time of the last RESUME_COMPLETED */
+static void (*g_presuspend)(void);             /* called right before every suspend request */
+static int (*g_load_hook)(unsigned int *, unsigned int); /* after a rollback, before card I/O */
 static volatile int g_flash_result, g_flash_skipped;
 static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
@@ -551,6 +557,8 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
 
     (void)ev_name;
     (void)result;
+    if (ev_id == EV_RESUME_COMPLETED)
+        g_last_resume_ms = sceKernelGetSystemTimeLow() / 1000;
     if (g_mode == MODE_IDLE || h == NULL)
         return 0;
 
@@ -1201,6 +1209,17 @@ static int finish_load(void)
     log_suspend_split(h, TRACE_LOAD, TRACE_AFTER_ROLLBACK, "load",
                       mark_span(&h->load_t, P_SUSPEND));
 
+    g_last_resume_ms = sceKernelGetSystemTimeLow() / 1000;
+    if (g_load_hook) {
+        int (*hook)(unsigned int *, unsigned int) = g_load_hook;
+
+        g_load_hook = NULL;
+        if (hook(h->caller, PW_ENGINE_USER_WORDS) < 0) {
+            pw_log("engine: load: the card check failed: no Memory Stick writes until reboot");
+            pw_log_set_card_blocked(1);
+        }
+    }
+
     /* The card changed after the rollback: this state's view of it is stale now. */
     pw_engine_discard();
 
@@ -1318,6 +1337,8 @@ static int save_impl(const pw_freeze_set *held)
     h->save_tg = (unsigned int)g_tg;
     pw_log("engine: save: requesting a %s suspend", g_tg ? "touch-and-go" : "real");
     pw_log_set_deferred(1);
+    if (g_presuspend)
+        g_presuspend();
     g_mode = MODE_SAVE;
     crumb(h, S_SAVE_SUSPEND);
     sceKernelDcacheWritebackAll();
@@ -1432,6 +1453,8 @@ static int load_impl(const pw_freeze_set *held)
     g_tg = use_touch_and_go();
     h->io_restored = 0;
     h->ri_filled = 0;
+    if (g_presuspend)
+        g_presuspend();
     g_mode = MODE_LOAD;
     crumb(h, S_LOAD_SUSPEND);
     stage_blob(); /* its D-cache write-back also puts the flag in the image into DRAM */
@@ -1461,24 +1484,95 @@ static int load_impl(const pw_freeze_set *held)
     return -1;
 }
 
+/* The busy flag is part of the snapshot: a load comes back inside save_guarded with it set, and
+   the return path clears it. A load that succeeds never returns from load_guarded. */
+static int save_guarded(const pw_freeze_set *held)
+{
+    int ret;
+
+    if (g_busy)
+        return PW_ENGINE_BUSY;
+    g_busy = 1;
+    ret = save_impl(held);
+    g_busy = 0;
+    return ret;
+}
+
+static int load_guarded(const pw_freeze_set *held)
+{
+    int ret;
+
+    if (g_busy)
+        return PW_ENGINE_BUSY;
+    g_busy = 1;
+    ret = load_impl(held);
+    g_busy = 0;
+    return ret;
+}
+
 int pw_engine_save(void)
 {
-    return save_impl(NULL);
+    return save_guarded(NULL);
 }
 
 int pw_engine_save_held(const pw_freeze_set *held)
 {
-    return held ? save_impl(held) : -1;
+    return held ? save_guarded(held) : -1;
 }
 
 int pw_engine_load(void)
 {
-    return load_impl(NULL);
+    return load_guarded(NULL);
 }
 
 int pw_engine_load_held(const pw_freeze_set *held)
 {
-    return held ? load_impl(held) : -1;
+    return held ? load_guarded(held) : -1;
+}
+
+int pw_engine_busy(void)
+{
+    return g_busy;
+}
+
+unsigned int pw_engine_last_resume_ms(void)
+{
+    return g_last_resume_ms;
+}
+
+void pw_engine_set_presuspend(void (*fn)(void))
+{
+    g_presuspend = fn;
+}
+
+void pw_engine_set_load_hook(int (*fn)(unsigned int *user, unsigned int words))
+{
+    g_load_hook = fn;
+}
+
+unsigned int *pw_engine_user_area(void)
+{
+    return g_hdr != NULL ? g_hdr->caller : NULL;
+}
+
+void pw_engine_prepare_exit(void)
+{
+    unsigned int now[SEED_WORDS];
+
+    for (int i = 0; i < SEED_WORDS; i++)
+        now[i] = REG_RESET_SEEDS[i];
+    if (!seeds_present(now) && g_hdr != NULL && seeds_present(g_hdr->seeds)) {
+        for (int i = 0; i < SEED_WORDS; i++)
+            REG_RESET_SEEDS[i] = g_hdr->seeds[i];
+        pw_log("engine: exit: the IPL seeds were missing, put back from the state record");
+    }
+    for (int i = 0; i < SEED_WORDS; i++)
+        now[i] = REG_RESET_SEEDS[i];
+    log_seeds("exit", seeds_present(now) ? "present" : "MISSING (the reboot may hang)", now);
+    if (g_hdr != NULL)
+        pw_engine_discard();
+    else
+        pw_log_flush();
 }
 
 /*

@@ -37,7 +37,7 @@
 | `STE-REQ-008` | Callers that froze the game themselves use `pw_engine_save_held` / `pw_engine_load_held`; the engine neither freezes nor thaws for them. | P0 | Done | menu test 2026-10-16 |
 | `STE-REQ-009` | While a state is held the engine writes nothing to the Memory Stick (log lines deferred until `pw_engine_discard`). | P0 | Done | code (`pw_log_set_deferred`) |
 | `STE-REQ-010` | Each save and load logs its phase timings, suspend trace summary and outcome ("save OK" / "LOAD complete"). | P1 | Done | device logs |
-| `STE-REQ-011` | Only one engine operation at a time: a second request (menu vs debug probe) is refused, not interleaved. | P1 | Planned | code review + host test of the lock |
+| `STE-REQ-011` | Only one engine operation at a time: a second request (menu vs debug probe) is refused (`PW_ENGINE_BUSY`), not interleaved. | P1 | Implemented 2026-10-16 (busy flag, part of the snapshot) | code review |
 | `STE-REQ-012` | A state can be loaded more than once (needs [STS](states-storage.md) or a proven-safe policy for card writes after a load). | P1 | Planned | T1/T2 |
 | `STE-REQ-013` | Games that use P5 (volatile memory) are supported. | P2 | Planned | compatibility matrix |
 | `STE-NFR-001` | Save, button to game running, fast mode after the first save of a boot: ≤ 4.5 s on Castlevania (target ≤ 2 s after S1-S7). | P1 | Done (4.2 s) | device log |
@@ -72,7 +72,9 @@ kernel → `finish_load` in the save-time thread unpacks RAM/eDRAM, rebuilds the
 **Interfaces:** [`engine.h`](../../plugin/src/complications/states/engine.h) (`pw_engine_save`,
 `_load`, `_save_held`, `_load_held`, `_has_state`, `_discard`, debug: `_selftest`,
 `_save_load_frozen`, `_set_fast`, `_tg_test`). Used by the menu
-([`ui/menu.c`](../../plugin/src/ui/menu.c)) and the debug probe.
+([`ui/hub.c`](../../plugin/src/ui/hub.c), debug [`cardtest.c`](../../plugin/src/debug/cardtest.c)) and the debug probe;
+`pw_engine_busy`, `pw_engine_set_presuspend` (the hub hides its screen), `pw_engine_set_load_hook`
++ `pw_engine_user_area` (T1), `pw_engine_last_resume_ms`, `pw_engine_prepare_exit` (Quit Game).
 
 **Shared resources:** P9 block (owned), sysevent handler (owned), game threads (borrowed from the
 caller when held), the Memory Stick (forbidden while holding a state).

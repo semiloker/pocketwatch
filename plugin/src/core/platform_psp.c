@@ -29,6 +29,18 @@ int pw_file_write(const char *path, const void *data, unsigned int len, int appe
     return written;
 }
 
+int pw_file_read(const char *path, void *data, unsigned int cap)
+{
+    SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
+    int got;
+
+    if (fd < 0)
+        return fd;
+    got = sceIoRead(fd, data, cap);
+    sceIoClose(fd);
+    return got;
+}
+
 int pw_file_size(const char *path)
 {
     SceIoStat st;

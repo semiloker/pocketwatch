@@ -24,13 +24,14 @@ static void *lz_memmove(void *dst, const void *src, unsigned int n)
     return dst;
 }
 
-#define LZ4_FREESTANDING        1
-#define LZ4_memcpy(d, s, n)     __builtin_memcpy((d), (s), (n))
-#define LZ4_memmove(d, s, n)    lz_memmove((d), (s), (n))
-#define LZ4_memset(p, v, n)     memset((p), (v), (n))
-#define LZ4LIB_VISIBILITY       static
-#define LZ4_MEMORY_USAGE        13 /* 8 KB hash table: fits the 16 KB D-cache */
-#define LZ4_FORCE_MEMORY_ACCESS 1  /* packed structs: gcc emits lwl/lwr on MIPS */
+#define LZ4_FREESTANDING             1
+#define LZ4_memcpy(d, s, n)          __builtin_memcpy((d), (s), (n))
+#define LZ4_memmove(d, s, n)         lz_memmove((d), (s), (n))
+#define LZ4_memset(p, v, n)          memset((p), (v), (n))
+#define LZ4LIB_VISIBILITY            static
+#define LZ4_PUBLISH_STATIC_FUNCTIONS    /* ...and LZ4LIB_STATIC_API = static as well */
+#define LZ4_MEMORY_USAGE             13 /* 8 KB hash table: fits the 16 KB D-cache */
+#define LZ4_FORCE_MEMORY_ACCESS      1  /* packed structs: gcc emits lwl/lwr on MIPS */
 #define LZ4_DISABLE_DEPRECATE_WARNINGS
 #include "lz4/lz4.c"
 

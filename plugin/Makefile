@@ -13,21 +13,26 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/complications/states/sfo.o src/complications/states/savedata_hash.o \
          src/complications/states/stream.o src/complications/states/engine.o \
          src/complications/states/handoff.o \
-         src/core/lz.o src/ui/draw.o src/ui/font8x8.o src/ui/input.o src/ui/fb.o \
-         src/ui/menu.o lib/stb_sprintf.o exports.o
+         src/core/stubs/sceImpose_driver.o src/core/stubs/LoadExecForKernel.o \
+         src/core/stubs/LoadCoreForKernel.o \
+         src/core/lz.o src/gfx/pgf.o src/gfx/text.o src/gfx/assets.o \
+         src/ui/draw.o src/ui/font8x8.o src/ui/input.o src/ui/shapes.o src/ui/icons.o \
+         src/ui/views.o src/ui/fb.o src/ui/ui.o src/ui/dialog.o src/ui/hub.o src/shell/shell.o \
+         lib/stb_sprintf.o exports.o
 
 # DEBUG=1 (default while developing) adds the hardware probe and its button triggers.
 DEBUG ?= 1
 ifeq ($(DEBUG),1)
-OBJS   += src/debug/probe.o src/debug/bench.o
+OBJS   += src/debug/probe.o src/debug/bench.o src/debug/cardtest.o
 endif
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Budgets enforced by `make check`; raise them deliberately, not by accident.
-# 112 KB: LZ4 at -O2 (~29 KB of code), the in-game menu, the debug probe and benchmark (2026-10-16).
-MAX_PRX_SIZE = 114688
-MAX_MEM      = 131072
+# 128 KB: LZ4 at -O2, the in-game shell and hub (PGF text, shapes, dialogs), the debug probe,
+# benchmark and card test (2026-10-16). Kernel RAM is shared with other plugins (RISK-005).
+MAX_PRX_SIZE = 131072
+MAX_MEM      = 147456 # loaded sections incl. bss (16 KB log ring, glyph caches)
 
 # Kernel plugin: link only against kernel libraries (no newlib).
 USE_KERNEL_LIBS = 1

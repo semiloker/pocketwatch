@@ -35,3 +35,15 @@ int pw_file_size(const char *path)
         return -1;
     return (int)st.st_size;
 }
+
+int pw_file_read(const char *path, void *data, unsigned int cap)
+{
+    FILE *f = fopen(path, "rb");
+    size_t got;
+
+    if (f == NULL)
+        return -1;
+    got = fread(data, 1, cap, f);
+    fclose(f);
+    return (int)got;
+}

@@ -120,3 +120,28 @@ The user library `sceImpose` keeps the old NIDs (reachable with `sctrlHENFindFun
 Device test (to write with the implementation): HOME opens the hub with no system popup flash;
 HOME/O closes; Quit Game reaches the XMB; NOTE still mutes; a game that disables HOME (find one)
 keeps it disabled; sleep with the hub open; HOME right after a resume.
+
+## 7. Implementation and device test
+
+Built 2026-10-16 (`shell/shell.c`, `ui/hub.c`, `ui/views.c`, `ui/dialog.c`, `gfx/pgf.c`,
+`gfx/text.c`, `gfx/assets.c`), following §6 with two simplifications, both recorded as open:
+no hook on the game's `sceImposeSetHomePopup` (a game that turns HOME off later is not detected;
+instead the shell turns the system screen off again whenever it finds it back on, every 0.5 s),
+and no `sceImposeHomeButton` call (its argument is not understood). Quit Game uses the game's exit
+callback first and ARK's exit sequence after 5 s.
+
+Device protocol (debug build, Castlevania; the PSP's `PSP/SAVEDATA` and `seplugins` were copied
+to the PC first, `Desktop/psp-backup-2026-10-16`):
+
+1. In gameplay press HOME once. Expected: no system "Quit the game?" screen; the game freezes,
+   darkens over ~0.2 s, the hub shows a watch icon and Resume Game / Save State / Load State /
+   Quit Game / Memory Stick Test in the system font.
+2. Up/Down (the list slides), then Back (O on a Western PSP): the hub fades out, the game runs on
+   and did not react to anything pressed.
+3. HOME, Save State: "Saving...", a short pause, the hub again with "Saved at ...". HOME closes it.
+4. Play ~20 s, HOME, Load State, Yes: black, then the game at the saved moment.
+5. Hold NOTE: the system mute toggles, no hub.
+6. HOME, Memory Stick Test, Yes (test T1, [m3-menu-e3](m3-menu-e3.md#t1-device-protocol)): note the
+   message it ends with.
+7. HOME, Quit Game, Yes: the XMB within ~5 s.
+8. Connect USB: the log and the two test files are read on the PC.

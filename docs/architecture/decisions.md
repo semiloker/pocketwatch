@@ -21,6 +21,7 @@ decision was taken; the evidence column links the research behind it.
 | [ADR-013](#adr-013--sony-assets-are-read-at-runtime-never-redistributed) | Sony assets read at runtime only | Accepted 2026-10-04 |
 | [ADR-014](#adr-014--runlevel-umd-retail-games-only) | Runlevel `UMD` | Accepted 2026-10-04 |
 | [ADR-015](#adr-015--independent-firmware-is-a-gated-research-track) | Independent firmware is a gated research track | Proposed 2026-10-16 |
+| [ADR-016](#adr-016--hub-concept-a-by-default) | Hub concept A by default | Accepted 2026-10-16 (owner may override) |
 
 ## ADR-001 — License GPL-3.0-or-later
 
@@ -180,3 +181,15 @@ decision was taken; the evidence column links the research behind it.
   writes the NAND, IPL or SYSCON without an owner decision and a tested recovery path; the plugin
   roadmap does not wait for it.
 - **Evidence:** [feasibility study](../firmware/independent-firmware-feasibility.md).
+
+## ADR-016 — Hub concept A by default
+
+- **Status:** Accepted (2026-10-16) as the default; the owner was asked to choose and asked to go on
+  building ("давай далі працювати над меню, інтерфейсом") without picking, so the recommended
+  concept was built. A later owner choice supersedes this ADR.
+- **Context:** Two PROPOSED layouts ([concepts](../assets/concepts/README.md)): A, the XMB's item
+  column alone; B, a full cross with complications as categories.
+- **Decision:** A for v0.1: every action is one Up/Down away, and there is a single complication.
+  No "Pocketwatch" branding in the hub (the category icon is a watch).
+- **Alternatives considered:** B — worth it with several complications (ADR-009 registry).
+- **Consequences:** `ui/views.c` draws A; B would reuse the same rows with a category bar.

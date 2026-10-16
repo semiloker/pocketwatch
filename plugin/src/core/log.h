@@ -21,4 +21,12 @@ void pw_log_set_deferred(int deferred);
 /* Write buffered lines to the log file. Must be called from a thread where file I/O is allowed. */
 void pw_log_flush(void);
 
+/* Card writes are unsafe until the next boot (a failed freshness probe after a rollback): lines
+   stay in RAM (the oldest are dropped) and pw_log_flush writes nothing. */
+void pw_log_set_card_blocked(int blocked);
+int pw_log_card_blocked(void);
+
+/* Directory of the log file (the PRX's), with the trailing '/'. Returns its length or < 0. */
+int pw_log_dir(char *out, unsigned int cap);
+
 #endif

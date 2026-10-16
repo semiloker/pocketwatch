@@ -14,4 +14,10 @@
  */
 unsigned int sctrlHENFindFunction(const char *module, const char *library, unsigned int nid);
 
+/* What ARK-4 itself does to quit a game (core/systemctrl/src/exitgame.c): forget the ISO, boot the
+   next title in UMD mode, reboot into the XMB. */
+int sctrlSESetUmdFile(const char *file);
+int sctrlSESetBootConfFileIndex(int index); /* 0 = MODE_UMD */
+int sctrlKernelExitVSH(void *param);        /* struct SceKernelLoadExecVSHParam *, NULL here */
+
 #endif

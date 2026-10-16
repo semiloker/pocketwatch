@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | Area code | `UI` |
-| Status | Phase-1 menu **Done** (device-verified 2026-10-16: 8x8 font, NOTE trigger, Save/Load/Resume). XMB-style hub, state list, dialogs, i18n **Planned** (M4/M5) |
+| Status | Phase-1 menu **Done** (device-verified 2026-10-16). Hub concept A with the system font (ltn0), fades, eased cursor, Quit Game, message dialogs, native Enter/Back: **implemented 2026-10-16, device test pending**. State list (M5), RCO icons, i18n **Planned** |
 | Milestones | M3 phase 1 (done), M4 (native look), M5 (state list) |
-| Code | [`ui/menu.c`](../../plugin/src/ui/menu.c), [`ui/draw.c`](../../plugin/src/ui/draw.c), [`ui/input.c`](../../plugin/src/ui/input.c), [`ui/fb.c`](../../plugin/src/ui/fb.c), [`ui/font8x8.c`](../../plugin/src/ui/font8x8.c) |
+| Code | [`ui/hub.c`](../../plugin/src/ui/hub.c), [`ui/views.c`](../../plugin/src/ui/views.c) (portable drawing of every screen), [`ui/dialog.c`](../../plugin/src/ui/dialog.c), [`ui/ui.c`](../../plugin/src/ui/ui.c), [`ui/icons.c`](../../plugin/src/ui/icons.c), [`ui/shapes.c`](../../plugin/src/ui/shapes.c), [`ui/draw.c`](../../plugin/src/ui/draw.c), [`ui/input.c`](../../plugin/src/ui/input.c), [`ui/fb.c`](../../plugin/src/ui/fb.c); host previews [`tests/preview/preview_ui.c`](../../tests/preview/preview_ui.c) |
 | Related | [rendering and native assets](rendering.md), [references](references.md), [customization](customization.md), [concepts](../assets/concepts/README.md), [game shell](../subsystems/game-shell.md), [complications](../subsystems/complications.md) |
 | Research | [m3-menu-e3](../research/m3-menu-e3.md), [m4-native-look](../research/m4-native-look.md), [m4-native-icons](../research/m4-native-icons.md) |
 
@@ -50,15 +50,15 @@ in the system font and language.
 | `UI-REQ-002` | Hub items (target): Resume Game, Save State, Load State, Settings, Quit Game, built from the complication registry. | P0 | Partial (Save/Load/Resume hard-coded) | device test |
 | `UI-REQ-003` | Unavailable items are shown disabled with a reason (e.g. Load State without states); they cannot be confirmed. | P0 | Done (greyed Load) | device test |
 | `UI-REQ-004` | Up/Down move the cursor with auto-repeat (400 ms delay, 100 ms interval); Enter confirms, Back goes one level up or closes; HOME closes from any level. | P0 | Partial (repeat, X/O fixed) | host test `keys_edges_and_repeat`, device |
-| `UI-REQ-005` | Enter/Back follow the system's button assignment (`sceImposeGetLanguageMode`); the hint bar shows the system's button pictures in the system order. | P0 | Planned | device test with the setting swapped (ARK VSH menu) |
-| `UI-REQ-006` | All text uses the system font (ltn0/ltn8; jpn0, kr0 for those languages) at the XMB's sizes, white with the XMB's soft shadow. | P0 | Planned | side-by-side review |
+| `UI-REQ-005` | Enter/Back follow the system's button assignment (`sceImposeGetLanguageMode`); the hint bar shows the system's button pictures in the system order. | P0 | Implemented (drawn button symbols until the RCO pictures) | device test with the setting swapped (ARK VSH menu) |
+| `UI-REQ-006` | All text uses the system font (ltn0/ltn8; jpn0, kr0 for those languages) at the XMB's sizes, white with the XMB's soft shadow. | P0 | Implemented for Latin (ltn0 at 0.8 and 0.63, two-step shadow) | side-by-side review |
 | `UI-REQ-007` | Item icons are the XMB's own (topmenu_icon.rco) where an equivalent exists; otherwise Pocketwatch icons drawn in the same style. | P1 | Planned | review |
 | `UI-REQ-008` | Text is in the system language (en, ja, fr, es, de, it, nl, pt, ru, ko at least for item names); missing translations fall back to English. | P1 | Planned | device test per language |
 | `UI-REQ-009` | Save State / Load State open a state list in the Saved Data Utility layout: icon column (selected 144x80), details pane (title, date/time, size, detail), banner title, hints; Save offers "New Save State" first. | P1 | Planned (M5) | review vs reference |
-| `UI-REQ-010` | Overwrite, load and quit ask for confirmation in the message-dialog style (Yes/No, default No for destructive actions). | P1 | Planned | device test |
-| `UI-REQ-011` | Long operations show the system's busy indicator and a "Saving..." / "Loading..." message; a refusal or failure shows a message dialog naming the reason in plain words. | P0 | Partial (status line text) | device test with forced refusals |
+| `UI-REQ-010` | Overwrite, load and quit ask for confirmation in the message-dialog style (Yes/No, default No for destructive actions). | P1 | Implemented for Load and Quit (one RAM slot: Save does not ask) | device test |
+| `UI-REQ-011` | Long operations show the system's busy indicator and a "Saving..." / "Loading..." message; a refusal or failure shows a message dialog naming the reason in plain words. | P0 | Implemented (drawn busy ring; reasons are generic until the engine reports them) | device test with forced refusals |
 | `UI-REQ-012` | A status corner shows the clock and battery like the XMB (optional, setting). | P2 | Planned | review |
-| `UI-REQ-013` | The cursor position is remembered while the game runs; the hub reopens on the last item. | P2 | Planned | device test |
+| `UI-REQ-013` | The cursor position is remembered while the game runs; the hub reopens on the last item. | P2 | Implemented | device test |
 | `UI-REQ-014` | When a native asset cannot be read, the hub still works with fallbacks (built-in 8x8 font, drawn shapes) and logs why. | P0 | Done (8x8 only today) | test with assets missing |
 | `UI-NFR-001` | First frame ≤ 300 ms after the trigger; redraw only on change; every animation at the display rate (60 Hz) without dropped frames. | P1 | Planned (phase 1 unmeasured) | log timestamps, review |
 | `UI-NFR-002` | Memory: hub buffers and asset caches live in P11 (or P9 when no state is held) and are freed on close; ≤ 2 MB total; nothing large in P1. | P0 | Done for the framebuffer (1.6 MB in P11) | code, `make check` |

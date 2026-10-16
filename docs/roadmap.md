@@ -42,9 +42,9 @@ flowchart LR
 | [M2 — engine ladder E1/E2 + speed](#m2--engine-ladder-e1e2-and-speed) | Implementation | — | Done |
 | [M3-phase1 — minimal menu](#m3-phase-1--minimal-menu) | Implementation | — | Done |
 | [DOC-1 — documentation system](#doc-1--documentation-system) | Doc | P0 | In Progress |
-| [M3a — HOME takeover and Quit Game](#m3a--home-takeover-and-quit-game) | Research + Implementation | P0 | Planned |
-| [M4 — native look (XMB-style hub)](#m4--native-look-xmb-style-hub) | Research + Implementation | P0 | Planned |
-| [E3 — states on the Memory Stick](#e3--states-on-the-memory-stick) | Research + Implementation | P0 | Planned |
+| [M3a — HOME takeover and Quit Game](#m3a--home-takeover-and-quit-game) | Research + Implementation | P0 | In Progress (built, device test pending) |
+| [M4 — native look (XMB-style hub)](#m4--native-look-xmb-style-hub) | Research + Implementation | P0 | In Progress |
+| [E3 — states on the Memory Stick](#e3--states-on-the-memory-stick) | Research + Implementation | P0 | In Progress (T1 built) |
 | [M3b — guards](#m3b--guards) | Implementation | P1 | Planned |
 | [E4 — file-system integrity gate](#e4--file-system-integrity-gate) | Validation | P1 | Planned |
 | [M5 — States UX on native saved data](#m5--states-ux-on-native-saved-data) | Implementation | P1 | Planned |

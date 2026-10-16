@@ -24,7 +24,10 @@
 enum {
     PW_ENGINE_SAVED = 0,  /* pw_engine_save: state captured and held in RAM */
     PW_ENGINE_LOADED = 1, /* pw_engine_save: we are back from a pw_engine_load */
+    PW_ENGINE_BUSY = -2,  /* another save or load is running */
 };
+
+#define PW_ENGINE_USER_WORDS 64
 
 int pw_engine_init(void);      /* registers the sysevent handler */
 void pw_engine_shutdown(void); /* from module_stop: no I/O, just unregister and free */
@@ -41,6 +44,26 @@ int pw_engine_save_held(const pw_freeze_set *held);
 int pw_engine_load_held(const pw_freeze_set *held);
 
 int pw_engine_has_state(void);
+int pw_engine_busy(void);
+/* System time (ms, sceKernelGetSystemTimeLow / 1000) of the last resume from any suspend. */
+unsigned int pw_engine_last_resume_ms(void);
+
+/* Called in the operating thread right before each suspend request (no I/O allowed in it): the
+   menu gives the display back there, since P11 is overwritten during the suspend. */
+void pw_engine_set_presuspend(void (*fn)(void));
+
+/*
+ * Called once after the next rollback, game still frozen, before the engine writes anything to the
+ * card; `user` is PW_ENGINE_USER_WORDS words in P9 that survive the rollback (the caller fills
+ * them after the save through pw_engine_user_area). A negative return blocks every card write
+ * until reboot (pw_log_set_card_blocked). Set it before the save: the hook pointer is part of the
+ * snapshot.
+ */
+void pw_engine_set_load_hook(int (*fn)(unsigned int *user, unsigned int words));
+unsigned int *pw_engine_user_area(void); /* NULL without a staged state */
+
+/* Before quitting the game: make sure the IPL seeds are in place, drop the state, flush the log. */
+void pw_engine_prepare_exit(void);
 
 /* Debug experiments (see engine.c): rollback mechanics alone; save + immediate frozen load. */
 int pw_engine_selftest(void);
