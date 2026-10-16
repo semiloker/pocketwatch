@@ -2,6 +2,7 @@
 #ifndef PW_UI_H
 #define PW_UI_H
 
+#include "gfx/image.h"
 #include "gfx/text.h"
 #include "ui/draw.h"
 #include "ui/input.h"
@@ -14,6 +15,7 @@
 
 typedef struct {
     pw_font *title, *body;
+    const pw_image *btn[4];   /* the system's X O triangle square pictures, or NULL (drawn) */
     int cross_enter;          /* 1: X confirms (outside Japan), 0: O confirms */
     unsigned int enter, back; /* the matching PSP_CTRL_* bits */
     pw_keys keys;

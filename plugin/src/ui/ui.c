@@ -29,6 +29,10 @@ void pw_ui_init(pw_ui *ui)
 
     ui->title = pw_assets_font(PW_FONT_TITLE);
     ui->body = pw_assets_font(PW_FONT_BODY);
+    ui->btn[0] = pw_assets_art(PW_ART_BTN_CROSS);
+    ui->btn[1] = pw_assets_art(PW_ART_BTN_CIRCLE);
+    ui->btn[2] = pw_assets_art(PW_ART_BTN_TRIANGLE);
+    ui->btn[3] = pw_assets_art(PW_ART_BTN_SQUARE);
     if (sceImposeGetLanguageMode(&lang, &button) < 0)
         button = 1;
     ui->cross_enter = button != 0;

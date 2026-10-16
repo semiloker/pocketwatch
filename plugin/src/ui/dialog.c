@@ -5,23 +5,25 @@
 #include "ui/fb.h"
 #include "ui/views.h"
 
+/* Every dialog frame: the XMB background with its moving wave, then the dialog. */
+static void frame(pw_ui *ui, int kind, const char *line1, const char *line2, int yes)
+{
+    pw_view_dialog(pw_fb_begin(256, pw_ui_now_ms()), ui, kind, line1, line2, yes);
+    pw_fb_present();
+}
+
 int pw_dialog_confirm(pw_ui *ui, const char *line1, const char *line2, int default_yes)
 {
-    int yes = default_yes != 0, dirty = 1;
+    int yes = default_yes != 0;
 
     pw_ui_flush_input(ui);
     for (;;) {
         unsigned int ev;
 
-        if (dirty) {
-            pw_view_dialog(pw_fb_begin(256), ui, PW_VIEW_CONFIRM, line1, line2, yes);
-            pw_fb_present();
-            dirty = 0;
-        }
+        frame(ui, PW_VIEW_CONFIRM, line1, line2, yes);
         ev = pw_ui_poll(ui);
         if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) {
             yes = !yes;
-            dirty = 1;
         } else if (ev & ui->enter) {
             pw_ui_flush_input(ui);
             return yes;
@@ -34,12 +36,12 @@ int pw_dialog_confirm(pw_ui *ui, const char *line1, const char *line2, int defau
 
 void pw_dialog_message(pw_ui *ui, const char *line1, const char *line2)
 {
-    pw_view_dialog(pw_fb_begin(256), ui, PW_VIEW_MESSAGE, line1, line2, 1);
-    pw_fb_present();
     pw_ui_flush_input(ui);
     for (;;) {
-        unsigned int ev = pw_ui_poll(ui);
+        unsigned int ev;
 
+        frame(ui, PW_VIEW_MESSAGE, line1, line2, 1);
+        ev = pw_ui_poll(ui);
         if (ev & (ui->enter | ui->back | PSP_CTRL_HOME)) {
             pw_ui_flush_input(ui);
             return;
@@ -49,6 +51,8 @@ void pw_dialog_message(pw_ui *ui, const char *line1, const char *line2)
 
 void pw_dialog_busy(pw_ui *ui, const char *text)
 {
-    pw_view_busy(pw_fb_begin(256), ui, text);
+    unsigned int t = pw_ui_now_ms();
+
+    pw_view_busy(pw_fb_begin(256, t), ui, text, t);
     pw_fb_present();
 }

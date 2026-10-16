@@ -35,6 +35,10 @@ int pw_draw_text_alpha(pw_canvas *c, int x, int y, const char *s, unsigned int c
 void pw_draw_mask(pw_canvas *c, int x, int y, const unsigned char *mask, int w, int h, int stride,
                   unsigned int color, int alpha);
 
+/* Blend 32-bit pixels with their own alpha (not premultiplied), scaled by alpha (0-256), with the
+   top-left corner at (x, y). */
+void pw_draw_image(pw_canvas *c, const unsigned int *px, int w, int h, int x, int y, int alpha);
+
 /* Linear mix of two whole canvases of the same size into dst: t 0 = a, 256 = b. */
 void pw_draw_lerp(pw_canvas *dst, const unsigned int *a, const unsigned int *b, int t);
 

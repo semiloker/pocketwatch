@@ -9,6 +9,7 @@
 #include "complications/states/engine.h"
 #include "core/log.h"
 #include "core/selfcheck.h"
+#include "core/sysinfo.h"
 #include "gfx/assets.h"
 #include "shell/shell.h"
 
@@ -64,7 +65,8 @@ static int main_thread(SceSize args, void *argp)
 #endif
 
     /* Complications (States, ...) are started from here. */
-    pw_assets_init(); /* the system font, read now: the menu must not wait for flash0 later */
+    pw_sysinfo_init(); /* date/time format and theme colour from the registry, read only */
+    pw_assets_init();  /* the system's font, icons and skies: the menu must not wait for flash0 */
     ret = pw_shell_start();
     if (ret < 0)
         pw_log("shell: thread start failed 0x%08X", ret);

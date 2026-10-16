@@ -249,3 +249,155 @@ PW_TEST(shapes_cover_inside_not_outside)
     CHECK_EQ(px[10 * 40 + 20], 0);           /* the gap at the top */
     CHECK_EQ(px[20 * 40 + 20], 0);           /* centre */
 }
+
+/* ---- RLZ: streams written by tests/fixtures/make_rlz.py (run by the Makefile) ---- */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "gfx/image.h"
+#include "gfx/rco.h"
+#include "gfx/rlz.h"
+
+static unsigned char *slurp(const char *path, unsigned int *len)
+{
+    FILE *f = fopen(path, "rb");
+    unsigned char *buf;
+    long n;
+
+    if (f == NULL)
+        return NULL;
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buf = malloc((size_t)n + 1);
+    *len = (unsigned int)fread(buf, 1, (size_t)n, f);
+    fclose(f);
+    return buf;
+}
+
+static void check_rlz(const char *name)
+{
+    static unsigned char state[PW_RLZ_STATE];
+    char path[128];
+    unsigned int plen = 0, rlen = 0;
+    unsigned char *packed, *raw, *out;
+    int got;
+
+    snprintf(path, sizeof(path), "build/fixtures/%s.rlz", name);
+    packed = slurp(path, &plen);
+    snprintf(path, sizeof(path), "build/fixtures/%s.raw", name);
+    raw = slurp(path, &rlen);
+    CHECK(packed != NULL && raw != NULL);
+    if (packed == NULL || raw == NULL)
+        return;
+    out = malloc(rlen + 64);
+    got = pw_rlz_decode(packed, plen, out, rlen + 64, state);
+    CHECK_EQ(got, (long long)rlen);
+    CHECK(got == (int)rlen && memcmp(out, raw, rlen) == 0);
+    CHECK(pw_rlz_decode(packed, plen, out, rlen - 1, state) < 0); /* output too small */
+    got = pw_rlz_decode(packed, plen / 2, out, rlen + 64, state); /* cut short: error, no crash */
+    CHECK(got < 0 || got != (int)rlen || memcmp(out, raw, rlen) != 0);
+    free(packed);
+    free(raw);
+    free(out);
+}
+
+PW_TEST(rlz_decodes_literals_and_matches)
+{
+    check_rlz("rlz_text");
+}
+
+PW_TEST(rlz_decodes_runs_and_long_lengths)
+{
+    check_rlz("rlz_runs");
+}
+
+PW_TEST(rlz_decodes_long_distances)
+{
+    check_rlz("rlz_far");
+}
+
+/* A GIM written by hand: idx8, swizzled, 8888 palette (the stock icons' format). */
+PW_TEST(gim_decodes_swizzled_idx8)
+{
+    static unsigned char g[0x200];
+    static unsigned int px[64];
+    pw_image img;
+    unsigned int pos;
+
+    memset(g, 0, sizeof(g));
+    memcpy(g, "MIG.00.1PSP", 11);
+    /* root chunk 0x10, picture 0x20, image 0x30 (pixels 16x8 block), palette after it */
+    put16(g + 0x10, 0x02);
+    put32(g + 0x14, 0x1F0);
+    put32(g + 0x18, 0);
+    put32(g + 0x1C, 0x10);
+    put16(g + 0x20, 0x03);
+    put32(g + 0x24, 0x1E0);
+    put32(g + 0x28, 0);
+    put32(g + 0x2C, 0x10);
+    pos = 0x30;
+    put16(g + pos, 0x04);
+    put32(g + pos + 4, 0x10 + 0x40 + 128);
+    put32(g + pos + 8, 0x10 + 0x40 + 128);
+    put32(g + pos + 12, 0x10);
+    put16(g + pos + 0x10 + 4, 5);  /* idx8 */
+    put16(g + pos + 0x10 + 6, 1);  /* swizzled */
+    put16(g + pos + 0x10 + 8, 4);  /* w */
+    put16(g + pos + 0x10 + 10, 2); /* h */
+    put16(g + pos + 0x10 + 12, 8); /* bpp */
+    put16(g + pos + 0x10 + 14, 16);
+    put16(g + pos + 0x10 + 16, 8);
+    put32(g + pos + 0x10 + 0x1C, 0x40);
+    /* one 16x8 block: row 0 = indices 0 1 2 3, row 1 = 3 2 1 0 */
+    for (int i = 0; i < 4; i++) {
+        g[pos + 0x50 + i] = (unsigned char)i;
+        g[pos + 0x50 + 16 + i] = (unsigned char)(3 - i);
+    }
+    pos += 0x10 + 0x40 + 128;
+    put16(g + pos, 0x05);
+    put32(g + pos + 4, 0x10 + 0x40 + 16);
+    put32(g + pos + 8, 0);
+    put32(g + pos + 12, 0x10);
+    put16(g + pos + 0x10 + 4, 3); /* 8888 */
+    put16(g + pos + 0x10 + 8, 4); /* entries */
+    put32(g + pos + 0x10 + 0x1C, 0x40);
+    for (int i = 0; i < 4; i++)
+        put32(g + pos + 0x50 + i * 4, 0x80000000u | (unsigned int)(i * 0x111111));
+
+    CHECK_EQ(pw_gim_decode(g, sizeof(g), px, 64, &img), 0);
+    CHECK_EQ(img.w, 4);
+    CHECK_EQ(img.h, 2);
+    CHECK_EQ(px[1], 0x80111111u);
+    CHECK_EQ(px[4], 0x80333333u);
+    CHECK(pw_gim_decode(g, 0x40, px, 64, &img) < 0);     /* truncated */
+    CHECK(pw_gim_decode(g, sizeof(g), px, 4, &img) < 0); /* no room */
+}
+
+PW_TEST(bmp_picks_the_nth_of_concatenated_files)
+{
+    static unsigned char f[2 * (54 + 8)];
+    static unsigned int px[8];
+    pw_image img;
+
+    memset(f, 0, sizeof(f));
+    for (int k = 0; k < 2; k++) {
+        unsigned char *b = f + k * 62;
+
+        b[0] = 'B';
+        b[1] = 'M';
+        put32(b + 2, 62);
+        put32(b + 10, 54);
+        put32(b + 18, 2); /* 2x1, rows padded to 8 bytes */
+        put32(b + 22, 1);
+        put16(b + 28, 24);
+        b[54] = (unsigned char)(10 + k); /* B G R of pixel 0 */
+        b[55] = 20;
+        b[56] = 30;
+    }
+    CHECK_EQ(pw_bmp_decode(f, sizeof(f), 1, px, 8, &img), 0);
+    CHECK_EQ(img.w, 2);
+    CHECK_EQ(px[0], 0xFF0B141Eu); /* A B G R */
+    CHECK(pw_bmp_decode(f, sizeof(f), 2, px, 8, &img) < 0);
+}

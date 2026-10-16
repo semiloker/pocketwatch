@@ -14,6 +14,10 @@
 	IMPORT_FUNC  "scePower_driver",0x478FE6F5,scePowerGetBusClockFrequency
 	IMPORT_FUNC  "scePower_driver",0x7FA406DD,scePowerIsRequest
 	IMPORT_FUNC  "scePower_driver",0xEFD3C963,scePowerTick
+	IMPORT_FUNC  "scePower_driver",0x2085D15D,scePowerGetBatteryLifePercent
+	IMPORT_FUNC  "scePower_driver",0x1E490401,scePowerIsBatteryCharging
+	IMPORT_FUNC  "scePower_driver",0x87440F5E,scePowerIsPowerOnline
+	IMPORT_FUNC  "scePower_driver",0x0AFD0D8B,scePowerIsBatteryExist
 	// Suspend "touch and go": every suspend and resume event and handler runs, but syscon never
 	// powers the PSP down (uOFW power/powerSwitch.c, 0x2D5C; 6.61 NID 0xD1FFF513 via ARK).
 	IMPORT_FUNC  "scePower_driver",0x2875994B,scePowerRequestSuspendTouchAndGo

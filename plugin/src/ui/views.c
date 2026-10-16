@@ -6,19 +6,24 @@
 #define SCREEN_W 480
 #define SCREEN_H 272
 
-/* Hub: the XMB's item column (INFERRED metrics from VitaXMB, to be checked on the device). */
-#define CAT_X     109
-#define CAT_Y     70
-#define ICON_X    104
-#define TEXT_X    150
-#define SEL_Y     135
-#define ROW_PITCH 34
-#define ICON_SEL  52
-#define ICON_ROW  30
-#define ROW_ALPHA 208
-#define TEXT_MAX  (SCREEN_W - TEXT_X - 6)
+/*
+ * Hub: the XMB's column, measured on real 480x272 XMB captures (ARK-4's screenshots, 2026-10-16):
+ * open category icon centred at (109, 70) with its label below, selected item's icon centred at
+ * (104, 135) and its text from x 150, the next items 65 px apart below, the previous one above
+ * the category row; unselected items at about half opacity, same size.
+ */
+#define CAT_X       109
+#define CAT_Y       70
+#define CAT_LABEL_Y 101
+#define ICON_X      104
+#define TEXT_X      150
+#define SEL_Y       135
+#define ROW_PITCH   65
+#define ABOVE_Y     20 /* the row just before the cursor */
+#define DIM_ALPHA   120
+#define TEXT_MAX    (SCREEN_W - TEXT_X - 6)
 
-/* Dialog: PPSSPP's message dialog layout (PSPDialog.cpp). */
+/* Dialog: the in-game HOME screen ("Do you want to quit the game?"), PPSSPP's metrics. */
 #define RULE_X0  60
 #define RULE_X1  420
 #define RULE_TOP 98
@@ -39,58 +44,114 @@ void pw_view_text_centered(pw_canvas *c, pw_font *f, int cx, int y, const char *
     pw_text_draw_fit(c, f, cx - w / 2, y, s, max, color, alpha, 1);
 }
 
+static void image_centered(pw_canvas *c, const pw_image *img, int cx, int cy, int alpha)
+{
+    pw_draw_image(c, img->px, img->w, img->h, cx - img->w / 2, cy - img->h / 2, alpha);
+}
+
+static void button(pw_canvas *c, const pw_ui *ui, int which, int cx, int cy, int alpha)
+{
+    const pw_image *img = ui->btn[which];
+
+    if (img)
+        image_centered(c, img, cx, cy, alpha);
+    else
+        pw_button_draw(c, which, cx, cy, 12, PW_C_TEXT, alpha);
+}
+
 void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const char *back_label,
                    int alpha)
 {
-    /* The PSP always shows X left of O and swaps only what they mean (PPSSPP PSPDialog.cpp). */
+    /* The PSP always shows X left of O and swaps only what they mean. */
     const char *cross = ui->cross_enter ? enter_label : back_label;
     const char *circle = ui->cross_enter ? back_label : enter_label;
+    int wc = cross ? 14 + pw_text_width(ui->body, cross) : 0;
+    int wo = circle ? 14 + pw_text_width(ui->body, circle) : 0;
+    int x = SCREEN_W / 2 - (wc + wo + (cross && circle ? 16 : 0)) / 2;
 
     if (cross) {
-        pw_button_draw(c, PW_BTN_CROSS, 189, 256, 12, PW_C_TEXT, alpha);
-        pw_text_draw(c, ui->body, 199, 260, cross, PW_C_TEXT, alpha, 1);
+        button(c, ui, PW_BTN_CROSS, x + 6, 256, alpha);
+        pw_text_draw(c, ui->body, x + 14, 260, cross, PW_C_TEXT, alpha, 1);
+        x += wc + 16;
     }
     if (circle) {
-        pw_button_draw(c, PW_BTN_CIRCLE, 267, 256, 12, PW_C_TEXT, alpha);
-        pw_text_draw(c, ui->body, 277, 260, circle, PW_C_TEXT, alpha, 1);
+        button(c, ui, PW_BTN_CIRCLE, x + 6, 256, alpha);
+        pw_text_draw(c, ui->body, x + 14, 260, circle, PW_C_TEXT, alpha, 1);
     }
 }
 
-/* Row centre for a position relative to the cursor (1/256 rows): the selected row at SEL_Y, the
-   rows after it below, the one before it above the category icon, like the XMB. */
-static int row_y(int p)
+void pw_view_status(pw_canvas *c, const pw_ui *ui, const char *clock, int battery, int charging,
+                    int alpha)
 {
-    if (p >= 256)
-        return SEL_Y + 19 + ROW_PITCH * p / 256;
-    if (p >= 0)
-        return SEL_Y + (19 + ROW_PITCH) * p / 256;
-    if (p >= -256)
-        return SEL_Y + (SEL_Y - (CAT_Y - 52)) * p / 256;
-    return (CAT_Y - 52) + ROW_PITCH * (p + 256) / 256;
+    /* the battery: an outlined cell with three bars, its tip on the right (XMB at 451..474) */
+    if (battery >= 0) {
+        int bars = battery > 66 ? 3 : battery > 33 ? 2 : battery > 5 ? 1 : 0;
+
+        pw_shape_rrect(c, PW_FX(451), PW_FX(7), PW_FX(21), PW_FX(10), PW_FX(2), PW_FX(1) + 4,
+                       PW_C_TEXT, alpha);
+        pw_draw_blend(c, 472, 10, 2, 4, PW_C_TEXT, alpha);
+        for (int i = 0; i < bars; i++)
+            pw_draw_blend(c, 453 + i * 6, 9, 5, 6, PW_C_TEXT, alpha);
+        if (charging) /* a lightning mark over the cell */
+            pw_shape_triangle(c, PW_FX(463), PW_FX(8), PW_FX(458), PW_FX(13), PW_FX(462), PW_FX(13),
+                              PW_RGB(255, 220, 0), alpha);
+    }
+    if (clock && clock[0])
+        pw_text_draw(c, ui->body, 444 - pw_text_width(ui->body, clock), 17, clock, PW_C_TEXT, alpha,
+                     1);
 }
 
-void pw_view_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_row *rows, int count, int selpos,
-                 int fade)
+/* Row centre for a position relative to the cursor (1/256 rows). */
+static int row_y(int p)
 {
-    pw_icon_draw(c, PW_ICON_WATCH, CAT_X, CAT_Y, 56, PW_C_TEXT, fade);
+    if (p >= 0)
+        return SEL_Y + ROW_PITCH * p / 256;
+    if (p >= -256)
+        return SEL_Y + (SEL_Y - ABOVE_Y) * p / 256;
+    return ABOVE_Y + ROW_PITCH * (p + 256) / 256;
+}
+
+static void row_icon(pw_canvas *c, const pw_hub_row *r, int y, int near, int alpha)
+{
+    if (r->icon) {
+        if (r->glow && near > 0) { /* cross-fade to the glowing picture, like the XMB */
+            image_centered(c, r->icon, ICON_X, y, alpha * (256 - near) / 256);
+            image_centered(c, r->glow, ICON_X, y, alpha * near / 256);
+        } else {
+            image_centered(c, r->icon, ICON_X, y, alpha);
+        }
+    } else {
+        pw_icon_draw(c, r->fallback, ICON_X, y, 40 + 8 * near / 256, PW_C_TEXT, alpha);
+    }
+}
+
+void pw_view_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const pw_hub_row *rows,
+                 int count, int selpos, int fade)
+{
+    if (cat->icon)
+        image_centered(c, cat->icon, CAT_X, CAT_Y, fade);
+    else
+        pw_icon_draw(c, cat->fallback, CAT_X, CAT_Y, 50, PW_C_TEXT, fade);
+    if (cat->label)
+        pw_text_draw(c, ui->body, CAT_X - pw_text_width(ui->body, cat->label) / 2, CAT_LABEL_Y,
+                     cat->label, PW_C_TEXT, fade, 1);
+
     for (int i = 0; i < count; i++) {
         const pw_hub_row *r = &rows[i];
         int p = i * 256 - selpos, ap = p < 0 ? -p : p, y = row_y(p);
         int near = ap >= 256 ? 0 : 256 - ap; /* 256 on the cursor, 0 one row away */
-        int size = ICON_ROW + (ICON_SEL - ICON_ROW) * near / 256;
-        int alpha = ROW_ALPHA + (256 - ROW_ALPHA) * near / 256;
+        int alpha = DIM_ALPHA + (256 - DIM_ALPHA) * near / 256;
 
         if (y < -40 || y > SCREEN_H + 40)
             continue;
         if (!r->enabled)
-            alpha /= 2;
+            alpha = alpha * 2 / 3;
         alpha = alpha * fade / 256;
-        pw_icon_draw(c, r->icon, ICON_X, y, size, PW_C_TEXT, alpha);
-        if (near > 128) {
-            pw_text_draw_fit(c, ui->title, TEXT_X, y + 1, r->title, TEXT_MAX, PW_C_TEXT, alpha, 1);
-            if (r->desc)
-                pw_text_draw_fit(c, ui->body, TEXT_X, y + 17, r->desc, TEXT_MAX, PW_C_TEXT,
-                                 alpha * (near - 128) / 128, 1);
+        row_icon(c, r, y, near, alpha);
+        if (r->desc && near > 128) {
+            pw_text_draw_fit(c, ui->title, TEXT_X, y + 2, r->title, TEXT_MAX, PW_C_TEXT, alpha, 1);
+            pw_text_draw_fit(c, ui->body, TEXT_X, y + 18, r->desc, TEXT_MAX, PW_C_TEXT,
+                             alpha * (near - 128) / 128, 1);
         } else {
             pw_text_draw_fit(c, ui->title, TEXT_X, y + 5, r->title, TEXT_MAX, PW_C_TEXT, alpha, 1);
         }
@@ -101,7 +162,7 @@ static void choice(pw_canvas *c, const pw_ui *ui, int x, const char *label, int 
 {
     int w = pw_text_width(ui->title, label), bw = w + 8 > 30 ? w + 8 : 30;
 
-    if (selected) /* PPSSPP's 30x16 box in 0x6DCFCFCF */
+    if (selected) /* the HOME screen's light box behind the chosen answer */
         pw_draw_blend(c, x - bw / 2, CHOICE_Y - 12, bw, 16, PW_RGB(0xCF, 0xCF, 0xCF), 110);
     pw_text_draw(c, ui->title, x - w / 2, CHOICE_Y, label, PW_C_TEXT, 256, 1);
 }
@@ -109,7 +170,6 @@ static void choice(pw_canvas *c, const pw_ui *ui, int x, const char *label, int 
 void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, const char *line2,
                     int yes)
 {
-    pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_C_BLACK, 64);
     pw_draw_fill(c, RULE_X0, RULE_TOP, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
     pw_draw_fill(c, RULE_X0, RULE_BOT, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
     if (line2) {
@@ -129,14 +189,17 @@ void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, 
     }
 }
 
-void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text)
+void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int t_ms)
 {
-    static const signed char k[8][2] = {{0, -12}, {8, -8}, {12, 0},  {8, 8},
-                                        {0, 12},  {-8, 8}, {-12, 0}, {-8, -8}};
-    int cx = SCREEN_W / 2, cy = 120;
+    int cx = SCREEN_W / 2, cy = 120, head = (int)(t_ms / 90) % 8;
 
-    for (int i = 0; i < 8; i++) /* the busy ring: eight dots, fading round */
+    for (int i = 0; i < 8; i++) { /* eight dots, the brightest one turning */
+        static const signed char k[8][2] = {{0, -12}, {8, -8}, {12, 0},  {8, 8},
+                                            {0, 12},  {-8, 8}, {-12, 0}, {-8, -8}};
+        int age = (head - i + 8) % 8;
+
         pw_shape_disc(c, PW_FX(cx + k[i][0]), PW_FX(cy + k[i][1]), PW_FX(2) + 6, PW_C_TEXT,
-                      256 - i * 26);
+                      256 - age * 28);
+    }
     pw_view_text_centered(c, ui->title, cx, 158, text, PW_C_TEXT, 256);
 }

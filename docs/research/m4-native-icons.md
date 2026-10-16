@@ -113,3 +113,24 @@ flash0/fatms locks. Never in a suspend path. Reading flash0 does not violate the
 - Theme redirection (CXMB) of `topmenu_icon.rco`: themed files may be flat or zlib.
 - The import self-check resolves 0xE8DB3CE6.
 - Time for read + RLZ + decode; whether `01-12_03g.bmp` is the PSP-3000's.
+
+## 8. Implementation (2026-10-16)
+
+- `gfx/rlz.c`: RLZ decoder written as the mirror of RCOMage's encoder, with the PSP's probability
+  update (`p -= p >> 3`, `+31` after a 1; RCOMage's encoder adds `0xFF` instead, which cannot match
+  the firmware). Two findings while validating it against stock 6.60 `topmenu_icon.rco` (local
+  copy, not committed): the distance groups must not overlap the length tables (13+ bit distances
+  occur in the tables stream), and a distance tree value of 0 means distance 1 with no further
+  bits. Result: the 9,896-byte tables and all 153 images decode; GIMs are idx8 swizzled with 8888
+  palettes as expected.
+- `gfx/rco.c`, `gfx/image.c` (GIM + concatenated BMPs): bounds-checked readers.
+- Host tests: `tests/fixtures/make_rlz.py` is an independent encoder (same model, LZMA-style range
+  coder) whose streams the C decoder must reproduce byte for byte; GIM and BMP from hand-built
+  files. No Sony data in the repository.
+- Labels used (6.60 numbering, to confirm on 6.61 via the log line "assets: ...: N image(s)
+  decoded"): AO Game category, BH/BP UMD (+glow), BJ/BR saved-data folder (+glow), EH/EP disc with
+  arrows (+glow), BI/BQ Memory Stick (+glow), BX/DH wrench + PSP (+glow); `system_plugin_fg.rco`
+  `tex_cross`, `tex_circle`, `tex_triangle`, `tex_square`.
+- Month skies: `01-12_03g.bmp` (else `01-12.bmp`), stretched 8x bilinear (`ui/xmbbg.c`), with a
+  procedural wave (the firmware's is a GE-rendered model). Whether the XMB also darkens the sky by
+  time of day is OPEN (captures disagree); not implemented.

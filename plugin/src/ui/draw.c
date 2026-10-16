@@ -184,3 +184,24 @@ void pw_draw_from_frame(pw_canvas *c, const void *src, int src_stride, int fmt, 
         }
     }
 }
+
+void pw_draw_image(pw_canvas *c, const unsigned int *px, int w, int h, int x, int y, int alpha)
+{
+    int x0 = x, y0 = y, cw = w, ch = h;
+
+    if (alpha <= 0 || !clip(c, &x0, &y0, &cw, &ch))
+        return;
+    if (alpha > 256)
+        alpha = 256;
+    for (int j = 0; j < ch; j++) {
+        const unsigned int *s = px + (y0 - y + j) * w + (x0 - x);
+        unsigned int *row = c->px + (y0 + j) * c->stride + x0;
+
+        for (int i = 0; i < cw; i++) {
+            unsigned int p = s[i], a = (p >> 24) * (unsigned int)alpha / 255;
+
+            if (a)
+                row[i] = mix(row[i], p, (int)a);
+        }
+    }
+}

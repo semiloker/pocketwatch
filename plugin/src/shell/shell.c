@@ -8,6 +8,8 @@
 #include "complications/states/engine.h"
 #include "core/freeze.h"
 #include "core/log.h"
+#include "core/sysinfo.h"
+#include "gfx/assets.h"
 #include "core/sysctrl.h"
 #include "shell/shell.h"
 #include "ui/fb.h"
@@ -138,7 +140,10 @@ static void open_hub(void)
     g_open = 1;
     sceCtrlSetButtonMasks(GAME_BUTTONS, 1); /* the game reads no button until we close */
     wait_ge();
-    if (pw_fb_open() < 0) {
+    char clock[24];
+    int month = pw_sysinfo_clock(clock, sizeof(clock));
+
+    if (pw_fb_open(pw_assets_sky(pw_sysinfo_sky_index(month))) < 0) {
         pw_log("shell: no memory for the screen");
         sceCtrlSetButtonMasks(GAME_BUTTONS, 0);
         g_open = 0;

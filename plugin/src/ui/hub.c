@@ -4,6 +4,8 @@
 
 #include "complications/states/engine.h"
 #include "core/log.h"
+#include "core/sysinfo.h"
+#include "gfx/assets.h"
 #include "stb_sprintf.h"
 #include "ui/dialog.h"
 #include "ui/fb.h"
@@ -18,43 +20,61 @@
 #define FADE_IN_MS  200
 #define FADE_OUT_MS 150
 #define DESC_MAX    80
+#define STATUS_MS   1000
 
 enum { IT_RESUME, IT_SAVE, IT_LOAD, IT_QUIT, IT_CARD, IT_COUNT };
 
 typedef struct {
-    int id, icon;
-    const char *title;
+    int id;
+    pw_hub_row row;
     char desc[DESC_MAX];
-    int enabled;
 } item;
 
 typedef struct {
     pw_ui ui;
     const pw_freeze_set *frozen;
+    pw_hub_cat cat;
     item items[IT_COUNT];
     int count, sel, selpos; /* selpos: animated position of the cursor, 1/256 rows */
-    char saved_at[16];      /* "14:05:31" of the state held, or "" */
+    char saved_at[16];      /* "14:05" of the state held, or "" */
+    char clock[24];
+    int battery, charging;
+    unsigned int t_status;
 } hub;
 
 static int g_last_sel = 0; /* the hub reopens on the last item used */
 
-static void clock_now(char *out, unsigned int cap)
+static void clock_hm(char *out, unsigned int cap)
 {
     ScePspDateTime t;
 
     if (sceRtcGetCurrentClockLocalTime(&t) < 0)
-        stbsp_snprintf(out, (int)cap, "--:--:--");
+        stbsp_snprintf(out, (int)cap, "--:--");
     else
-        stbsp_snprintf(out, (int)cap, "%02d:%02d:%02d", t.hour, t.minute, t.second);
+        stbsp_snprintf(out, (int)cap, "%d:%02d", t.hour, t.minute);
 }
 
-static void set_item(item *it, int id, int icon, const char *title, int enabled, const char *desc)
+static void add(hub *h, int id, int art, int glow, int fallback, const char *title, int enabled,
+                const char *desc)
 {
+    item *it = &h->items[h->count++];
+
     it->id = id;
-    it->icon = icon;
-    it->title = title;
-    it->enabled = enabled;
+    it->row.icon = pw_assets_art(art);
+    it->row.glow = glow >= 0 ? pw_assets_art(glow) : 0;
+    it->row.fallback = fallback;
+    it->row.title = title;
+    it->row.enabled = enabled;
     stbsp_snprintf(it->desc, DESC_MAX, "%s", desc);
+    it->row.desc = it->desc[0] ? it->desc : 0;
+}
+
+static item *find(hub *h, int id)
+{
+    for (int i = 0; i < h->count; i++)
+        if (h->items[i].id == id)
+            return &h->items[i];
+    return 0;
 }
 
 static void build(hub *h)
@@ -62,36 +82,45 @@ static void build(hub *h)
     char line[DESC_MAX];
     int has = pw_engine_has_state();
 
+    h->cat.icon = pw_assets_art(PW_ART_CAT_GAME);
+    h->cat.fallback = PW_ICON_WATCH;
+    h->cat.label = "Game";
     h->count = 0;
-    set_item(&h->items[h->count++], IT_RESUME, PW_ICON_RESUME, "Resume Game", 1,
-             "Return to the game.");
-    set_item(&h->items[h->count++], IT_SAVE, PW_ICON_SAVE, "Save State", 1,
-             has ? "Replace the saved state with this moment." : "Save this moment.");
+    add(h, IT_RESUME, PW_ART_UMD, PW_ART_UMD_GLOW, PW_ICON_RESUME, "Resume Game", 1, "");
+    add(h, IT_SAVE, PW_ART_FOLDER, PW_ART_FOLDER_GLOW, PW_ICON_SAVE, "Save State", 1,
+        has ? "Replaces the saved state." : "");
     if (has && h->saved_at[0])
-        stbsp_snprintf(line, sizeof(line), "The moment saved at %s.", h->saved_at);
+        stbsp_snprintf(line, sizeof(line), "Saved at %s", h->saved_at);
     else
-        stbsp_snprintf(line, sizeof(line), "%s",
-                       has ? "Return to the saved moment." : "No state saved yet.");
-    set_item(&h->items[h->count++], IT_LOAD, PW_ICON_LOAD, "Load State", has, line);
-    set_item(&h->items[h->count++], IT_QUIT, PW_ICON_QUIT, "Quit Game", 1,
-             "Quit the game and return to the home menu.");
+        stbsp_snprintf(line, sizeof(line), "%s", has ? "" : "No saved state");
+    add(h, IT_LOAD, PW_ART_UPDATE, PW_ART_UPDATE_GLOW, PW_ICON_LOAD, "Load State", has, line);
+    add(h, IT_QUIT, -1, -1, PW_ICON_QUIT, "Quit Game", 1, "");
 #ifdef PW_DEBUG
-    set_item(&h->items[h->count++], IT_CARD, PW_ICON_CARD, "Memory Stick Test", 1,
-             "Debug: is the card's view fresh after a load? (T1)");
+    add(h, IT_CARD, PW_ART_MS, PW_ART_MS_GLOW, PW_ICON_CARD, "Memory Stick Test", 1,
+        "Debug: test T1");
 #endif
 }
 
-static void draw(hub *h, int fade)
+static void refresh_status(hub *h, int force)
+{
+    unsigned int now = pw_ui_now_ms();
+
+    if (!force && now - h->t_status < STATUS_MS)
+        return;
+    h->t_status = now;
+    pw_sysinfo_clock(h->clock, sizeof(h->clock));
+    h->battery = pw_sysinfo_battery(&h->charging);
+}
+
+static void draw(hub *h, int show)
 {
     pw_hub_row rows[IT_COUNT];
+    pw_canvas *c = pw_fb_begin(show, pw_ui_now_ms());
 
-    for (int i = 0; i < h->count; i++) {
-        rows[i].icon = h->items[i].icon;
-        rows[i].title = h->items[i].title;
-        rows[i].desc = h->items[i].desc;
-        rows[i].enabled = h->items[i].enabled;
-    }
-    pw_view_hub(pw_fb_begin(fade), &h->ui, rows, h->count, h->selpos, fade);
+    for (int i = 0; i < h->count; i++)
+        rows[i] = h->items[i].row;
+    pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show);
+    pw_view_hub(c, &h->ui, &h->cat, rows, h->count, h->selpos, show);
     pw_fb_present();
 }
 
@@ -100,12 +129,11 @@ static void fade(hub *h, int from, int to, int ms)
     unsigned int t0 = pw_ui_now_ms();
 
     for (;;) {
-        int t = (int)(pw_ui_now_ms() - t0), v;
+        int t = (int)(pw_ui_now_ms() - t0);
 
         if (t >= ms)
             break;
-        v = from + (to - from) * t / ms;
-        draw(h, v);
+        draw(h, from + (to - from) * t / ms);
         pw_ui_poll(&h->ui);
     }
     draw(h, to);
@@ -114,6 +142,7 @@ static void fade(hub *h, int from, int to, int ms)
 static int do_save(hub *h)
 {
     unsigned int t0 = pw_ui_now_ms(), ms;
+    item *it;
     int ret;
 
     pw_dialog_busy(&h->ui, "Saving...");
@@ -126,10 +155,13 @@ static int do_save(hub *h)
     pw_ui_flush_input(&h->ui);
     if (ret == PW_ENGINE_SAVED) {
         ms = pw_ui_now_ms() - t0;
-        clock_now(h->saved_at, sizeof(h->saved_at));
+        clock_hm(h->saved_at, sizeof(h->saved_at));
         build(h);
-        stbsp_snprintf(h->items[IT_SAVE].desc, DESC_MAX, "Saved at %s (%u.%u s).", h->saved_at,
-                       ms / 1000, ms % 1000 / 100);
+        if ((it = find(h, IT_SAVE)) != 0) {
+            stbsp_snprintf(it->desc, DESC_MAX, "Saved at %s (%u.%u s)", h->saved_at, ms / 1000,
+                           ms % 1000 / 100);
+            it->row.desc = it->desc;
+        }
     } else {
         build(h);
         pw_dialog_message(&h->ui,
@@ -200,13 +232,14 @@ static void do_card_test(hub *h)
 int pw_hub_run(const pw_freeze_set *frozen)
 {
     static hub h; /* keeps saved_at across openings; the thread's stack stays small */
-    int result = PW_HUB_CLOSE, dirty = 1;
+    int result = PW_HUB_CLOSE;
 
     h.frozen = frozen;
     pw_ui_init(&h.ui);
     if (!pw_engine_has_state())
         h.saved_at[0] = 0;
     build(&h);
+    refresh_status(&h, 1);
     h.sel = g_last_sel < h.count ? g_last_sel : 0;
     h.selpos = h.sel * 256;
     fade(&h, 0, 256, FADE_IN_MS);
@@ -222,12 +255,9 @@ int pw_hub_run(const pw_freeze_set *frozen)
             h.selpos += d / 3 != 0 ? d / 3 : (d > 0 ? 1 : -1);
             if (d < 8 && d > -8)
                 h.selpos = target;
-            dirty = 1;
         }
-        if (dirty) {
-            draw(&h, 256);
-            dirty = 0;
-        }
+        refresh_status(&h, 0);
+        draw(&h, 256); /* every frame: the wave moves */
         ev = pw_ui_poll(&h.ui);
         if (ev & PSP_CTRL_UP) {
             if (h.sel > 0)
@@ -241,12 +271,12 @@ int pw_hub_run(const pw_freeze_set *frozen)
             const item *it = &h.items[h.sel];
 
             g_last_sel = h.sel;
-            if (!it->enabled)
+            if (!it->row.enabled)
                 continue;
             if (it->id == IT_RESUME)
                 break;
             if (it->id == IT_QUIT) {
-                if (pw_dialog_confirm(&h.ui, "Quit the game?", 0, 0)) {
+                if (pw_dialog_confirm(&h.ui, "Do you want to quit the game?", 0, 0)) {
                     result = PW_HUB_QUIT;
                     break;
                 }
@@ -262,7 +292,7 @@ int pw_hub_run(const pw_freeze_set *frozen)
                 do_card_test(&h);
             }
 #endif
-            dirty = 1;
+            refresh_status(&h, 1);
         }
     }
     g_last_sel = h.sel;
