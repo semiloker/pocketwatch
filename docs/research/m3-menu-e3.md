@@ -6,7 +6,10 @@ MacroFire, ARK-4, Adrenaline; uOFW). Two phases, each tested on the device befor
 ## Phase 1 — minimal menu (drives the RAM states first)
 
 Status: built 2026-10-16 (src/ui: draw, font8x8 from PSPFatSave/MIT, input, fb, menu; engine
-`pw_engine_save_held`/`pw_engine_load_held`), awaiting the device test.
+`pw_engine_save_held`/`pw_engine_load_held`) and confirmed on the device the same day
+(`logs/2026-10-16-menu1-castlevania.log`): the overlay shows from P11, the game sees no menu
+buttons, Save/Load from the menu work, quitting to the XMB works. A load into a save that slept for
+real sleeps too (7.9 s; the first save of a boot always sleeps, backlog S4).
 
 A plain but solid overlay now; the native XMB-style hub (M3/M4) replaces only the drawing later.
 

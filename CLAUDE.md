@@ -2,7 +2,24 @@
 
 Kernel-mode PRX plugin for PSP CFW (ARK-4 6.61, target PSP-3000). Tagline: "Pause. Save. Play."
 Features are called *complications*; the first one is States (savestates).
-Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-pixel.md`.
+
+## Documentation workflow (read before substantive work)
+
+The project's full workflow is imported here and applies to every session:
+
+@docs/AI_WORKFLOW.md
+
+- Start from `docs/README.md` (index, subsystem status) and `docs/project-status.md` (state, next
+  actions); resume unfinished work from there and from `docs/roadmap.md`, not from chat history.
+- Inspect the relevant spec, research notes and code before assuming anything. The docs are the
+  source of truth for approved requirements and architecture (`docs/subsystems/`, `docs/ui/`,
+  `docs/architecture/decisions.md`).
+- When requirements, decisions, interfaces or status change, update the docs in the same change.
+  Record decisions as ADRs and unresolved questions explicitly; label claims VERIFIED / INFERRED /
+  PROPOSED / OPEN QUESTION / RESEARCH REQUIRED.
+- Do not replace or contradict a rule below without understanding why it exists (most come from
+  failures on the device, see `docs/research/`).
+- Before finishing: `python tools/check_docs.py` (links, IDs, this import) plus the code checks.
 
 ## Commands
 

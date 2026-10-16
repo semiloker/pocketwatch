@@ -22,7 +22,7 @@ More complications will follow once States is solid.
 | | |
 |---|---|
 | Firmware | ARK-4 (primary target). Other CFWs are untested. |
-| Models | PSP-2000, PSP-3000, PSP Go, PSP Street. PSP-1000 is not supported for States (32 MB RAM). |
+| Models | PSP-3000 (the only tested model). PSP-2000, PSP Go and PSP Street are untested. PSP-1000 is not supported for States (32 MB RAM). |
 | Runlevel | `GAME` |
 
 Do not run Pocketwatch States together with another savestate plugin
@@ -78,6 +78,12 @@ tools/check_prx.py       static import/size checks; NID tables in tools/nids/
 scripts/                 build, deploy and format helpers
 .github/                 CI, issue templates
 ```
+
+## Documentation
+
+Design, status and research live in [`docs/`](docs/README.md): start with the
+[documentation index](docs/README.md), the [roadmap](docs/roadmap.md) and the
+[project status](docs/project-status.md).
 
 ## Prior art
 

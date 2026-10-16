@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 344" width="960" height="688" font-family="sans-serif">
+  <title>PROPOSED concept A: XMB item-column hub over the frozen game</title>
+  <!-- SPDX-License-Identifier: GPL-3.0-or-later. Pocketwatch concept, not a screenshot.
+       Geometry from docs/research/m4-native-look.md (XMB metrics, INFERRED from VitaXMB).
+       Icons are placeholders drawn here; the real build reads the XMB's own icons. -->
+  <defs>
+    <linearGradient id="game" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a4f6b"/>
+      <stop offset="0.5" stop-color="#6b4a3a"/>
+      <stop offset="1" stop-color="#2d3b2a"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-30%" width="130%" height="180%">
+      <feDropShadow dx="2" dy="2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- screen 480x272 -->
+  <rect width="480" height="272" fill="url(#game)"/>
+  <text x="240" y="40" text-anchor="middle" font-size="9" fill="#ffffff" opacity="0.35">frozen game frame</text>
+  <rect width="480" height="272" fill="#000" opacity="0.62"/>
+
+  <!-- status corner (optional, UI-REQ-012) -->
+  <g filter="url(#shadow)" fill="#fff">
+    <text x="436" y="17" text-anchor="end" font-size="11">16/10 14:05</text>
+    <rect x="442" y="7" width="30" height="11" rx="2" fill="none" stroke="#fff" stroke-width="1.2"/>
+    <rect x="444.5" y="9.5" width="19" height="6" fill="#fff"/>
+    <rect x="472" y="10" width="2" height="5"/>
+  </g>
+
+  <!-- open category icon at ~(109,70) -->
+  <g filter="url(#shadow)" transform="translate(109 70)">
+    <circle r="22" fill="none" stroke="#fff" stroke-width="3"/>
+    <line x1="0" y1="0" x2="0" y2="-14" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="10" y2="5" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <rect x="-4" y="-30" width="8" height="5" rx="1" fill="#fff"/>
+  </g>
+
+  <!-- selected item: row centre y 135, icon centre x 104, text x 150 -->
+  <g filter="url(#shadow)">
+    <rect x="76" y="107" width="56" height="56" rx="8" fill="none" stroke="#fff" stroke-width="3"/>
+    <polygon points="96,120 96,150 120,135" fill="#fff"/>
+    <text x="150" y="134" font-size="15" fill="#fff">Resume Game</text>
+    <text x="150" y="150" font-size="11" fill="#fff" opacity="0.85">Return to the game.</text>
+  </g>
+
+  <!-- following items: smaller icons, dimmer text -->
+  <g filter="url(#shadow)" opacity="0.8">
+    <g transform="translate(104 188)">
+      <rect x="-16" y="-12" width="32" height="24" rx="4" fill="none" stroke="#fff" stroke-width="2.4"/>
+      <line x1="0" y1="-8" x2="0" y2="6" stroke="#fff" stroke-width="2.4"/>
+      <polyline points="-6,0 0,6 6,0" fill="none" stroke="#fff" stroke-width="2.4"/>
+    </g>
+    <text x="150" y="193" font-size="14" fill="#fff">Save State</text>
+    <g transform="translate(104 222)">
+      <rect x="-16" y="-12" width="32" height="24" rx="4" fill="none" stroke="#fff" stroke-width="2.4"/>
+      <line x1="0" y1="6" x2="0" y2="-8" stroke="#fff" stroke-width="2.4"/>
+      <polyline points="-6,-2 0,-8 6,-2" fill="none" stroke="#fff" stroke-width="2.4"/>
+    </g>
+    <text x="150" y="227" font-size="14" fill="#fff">Load State</text>
+    <g transform="translate(104 256)">
+      <circle r="11" fill="none" stroke="#fff" stroke-width="2.4"/>
+      <circle r="4" fill="#fff"/>
+    </g>
+    <text x="150" y="261" font-size="14" fill="#fff">Settings</text>
+  </g>
+  <!-- Quit Game is the next row, below the screen edge (the list scrolls like the XMB) -->
+
+  <!-- annotation band -->
+  <rect y="272" width="480" height="72" fill="#f4f4f4"/>
+  <rect x="6" y="278" width="78" height="14" rx="3" fill="#c0392b"/>
+  <text x="45" y="288.5" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">PROPOSED · A</text>
+  <text x="92" y="289" font-size="9.5" fill="#222">Item column: the XMB's vertical list alone, over the frozen game dimmed.</text>
+  <text x="8" y="306" font-size="8.5" fill="#444">Category icon ≈ (109,70) · selected row y ≈ 135 · icon centre x ≈ 104 · text x ≈ 150 · title ≈ 14 px, description ≈ 11 px</text>
+  <text x="8" y="320" font-size="8.5" fill="#444">Fonts: ltn0 (sans) at XMB scale · icons: XMB's own from topmenu_icon.rco (placeholders here) · shadow +2,+2 ~50 %</text>
+  <text x="8" y="334" font-size="8.5" fill="#444">Differs from today: 8x8 font, black band, "X select O back" hint, NOTE trigger (docs/ui/README.md §A).</text>
+</svg>

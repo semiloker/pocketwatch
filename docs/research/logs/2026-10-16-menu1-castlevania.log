@@ -1,0 +1,65 @@
+==== new session ====
+Pocketwatch 1f8d6c4 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 70 import(s): 69 direct, 1 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   346 KB maxfree=   310 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   346 KB maxfree=   310 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+engine: ---- SAVE ----
+engine: CP0 Count runs at 4553 kHz
+freeze: 6 game thread(s) suspended in 0 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 64 status=0x08 wait=0
+freeze:   SceNetAdhocctl                  prio= 30 status=0x0C wait=4
+freeze:   SceNetNetintr                   prio= 30 status=0x0C wait=4
+freeze:   SceNetCallout                   prio= 30 status=0x08 wait=0
+freeze:   ATRAC3 play thread              prio= 16 status=0x08 wait=0
+freeze:   SE Thread                       prio= 16 status=0x08 wait=0
+engine: save: GE 0, packed in 1169 ms:
+engine:   game     24576 KB ->   8434 KB (384 chunks, 6 raw) crc 00000000
+engine:   eDRAM     2048 KB ->    770 KB (32 chunks, 0 raw) crc 00000000
+engine:   scratch     16 KB ->      2 KB (1 chunks, 0 raw) crc 00000000
+engine:   170 FILL chunk(s) (one repeated word)
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: save: requesting a real suspend
+probe: scePower request pending: 1 (t=36282 ms)
+engine: ---- LOAD: back in the saved moment ----
+engine: load: blob ran 907490 us
+engine: load: froze 6 thread(s) in 1 ms (0 forced), GE 0
+engine: load: flash drivers re-initialised: ok (lflash 1 exit 0 init 0, flashfat 1 exit 0 init 0)
+engine: load: flash0/flash1 remounted: unassign 0/0, assign 0/0
+engine: load (before rollback) trace, 81 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000
+engine: load (before rollback) trace spans 1552 ms (system timer)
+engine: load (before rollback) slowest events (id:ms): 400A:583 200:557 402:102 4005:30 401:22 4003:21
+engine: load (after rollback) trace, 21 event(s):
+engine:  010000 010001 010002 010003 010004 010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: load (after rollback) trace spans 536 ms (system timer)
+engine: load (after rollback) slowest events (id:ms): 100000:269 1000A:125 40000:96 10005:24 1000F:21
+engine: load: restoring game RAM...
+engine: load: game RAM restored in 405 ms
+engine: load: restoring eDRAM...
+engine: load: eDRAM restored in 72 ms
+engine: ---- LOAD complete: request -> game running 7756 ms (wall clock) ----
+engine: timing save (CPU 333 MHz, bus 166 MHz): freeze 0 ge 0 pack 1169 sums 72 suspend 6839 thaw 0 = 8080 ms
+engine: save suspend 6668 ms: queries 578, power-lock retries 326 (0x402 x22), suspend phases 657, resume phases 570, flash rebuild 784; sleep+wake+rest ~4537 ms
+engine: load: I/O enables 0300AAD2/000000D9, GPIO 00000001 at suspend; 01000202/00000019, GPIO 00000000 at resume
+engine: load: live before suspend: hold 0 wlan-sw 0 hp 0 ms-pow 1 wlan-pow 0 hr-pow 0 supply 22 batt 0 1269/1790 mAh
+engine: load: resume info found: size 212 wake 8C1 st 00 clock 155398 key FFCF7FFF supply 22 batt 0 1265/1790 st2 00
+engine: load: IPL seeds before suspend: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: load: IPL seeds at resume: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: timing load (CPU 333 MHz, bus 166 MHz): verify 144 freeze 0 ge 0 suspend 7279 ram 406 vram 71 diag 0 thaw 0 = 7900 ms
+engine: load suspend 7279 ms: queries 568, power-lock retries 327 (0x402 x22), suspend phases 657, resume phases 536, flash rebuild 784; sleep+wake+rest ~5191 ms
+engine: state discarded after 1 load(s)
+probe: scePower request pending: 0 (t=38994 ms)
