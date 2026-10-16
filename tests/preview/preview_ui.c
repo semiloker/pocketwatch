@@ -229,5 +229,23 @@ int main(void)
     c = begin(10000);
     pw_view_busy(&c, &ui, "Saving...", 10000);
     save("busy");
+
+    static unsigned int thumb[144 * 80];
+    for (int y = 0; y < 80; y++)
+        for (int x = 0; x < 144; x++)
+            thumb[y * 144 + x] = 0xFF000000u | g_game[(y * 272 / 80) * STRIDE + x * 480 / 144];
+    pw_slot_row slots[] = {
+        {1, thumb, "Save State 1", "2026/10/16 14:05   18.2 MB"},
+        {1, thumb, "Save State 2", "2026/10/15 22:41   17.9 MB"},
+        {0, NULL, "New Save State (3)", NULL},
+        {0, NULL, "New Save State (4)", NULL},
+        {0, NULL, "New Save State (5)", NULL},
+    };
+    c = begin(11000);
+    pw_view_slots(&c, &ui, "Save State", "Castlevania: The Dracula X Chronicles", slots, 5, 1, 1);
+    save("slots-save");
+    c = begin(12000);
+    pw_view_slots(&c, &ui, "Save State", "Castlevania: The Dracula X Chronicles", slots, 5, 2, 1);
+    save("slots-new");
     return 0;
 }

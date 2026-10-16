@@ -235,8 +235,11 @@ typedef struct {
     unsigned int trace_count[TRACE_KINDS];
     unsigned int trace_ev[TRACE_KINDS][TRACE_MAX];
     unsigned int trace_us[TRACE_KINDS][TRACE_MAX];
-    unsigned int
-        caller[PW_ENGINE_USER_WORDS]; /* the caller's words, survive the rollback (load hook) */
+    unsigned int caller[PW_ENGINE_USER_WORDS]; /* the caller's words: they survive a rollback */
+    /* For a load in another boot (E3): where the save-time kernel kept these, and where
+       everything outside the kernel image was. */
+    unsigned int at_pending, at_ctx;
+    pw_engine_env env;
 } StateHeader;
 
 _Static_assert(HEADER_AT + sizeof(StateHeader) <= WORKSPACE_AT, "state header overlaps workspace");
@@ -265,6 +268,7 @@ static volatile int g_busy;                    /* a save or load is running (one
 static volatile unsigned int g_last_resume_ms; /* system time of the last RESUME_COMPLETED */
 static void (*g_presuspend)(void);             /* called right before every suspend request */
 static int (*g_load_hook)(unsigned int *, unsigned int); /* after a rollback, before card I/O */
+static unsigned int g_env_extra[PW_ENGINE_ENV_EXTRA];    /* the caller's layout facts (assets) */
 static volatile int g_flash_result, g_flash_skipped;
 static int g_registered;
 static volatile int g_selftest_copy; /* self-test round: 0 = blob only, 1 = with the 4 MB copy */
@@ -667,7 +671,9 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
                 memcpy((void *)g_p8_base, g_kernel_image + IMAGE_P8_OFS, g_p8_size);
             if (g_me_size)
                 memcpy((void *)g_me_base, g_kernel_image + IMAGE_ME_OFS, g_me_size);
-            blob()(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE, pw_handoff_ctx);
+            /* the save-time context: in another boot our module (and its context) sat elsewhere */
+            blob()(g_kernel_image, (void *)KERNEL_BASE, KERNEL_SIZE,
+                   h->at_ctx ? (const volatile void *)h->at_ctx : pw_handoff_ctx);
             /* not reached: execution continues in the SAVE's suspend */
         } else if (g_mode == MODE_SELFTEST && !g_applying) {
             g_applying = 1;
@@ -1260,6 +1266,9 @@ static int save_impl(const pw_freeze_set *held)
     h = g_hdr;
     memset(h, 0, sizeof(*h));
     h->magic = STATE_MAGIC;
+    h->at_pending = (unsigned int)&g_restore_pending;
+    h->at_ctx = (unsigned int)pw_handoff_ctx;
+    pw_engine_env_now(&h->env);
     if (g_real_ri_valid) {
         for (int i = 0; i < RI_WORDS; i++)
             h->real_ri[i] = g_real_ri[i];
@@ -1387,7 +1396,10 @@ static int save_impl(const pw_freeze_set *held)
     log_trace(h, TRACE_SAVE, "save");
     log_marks(&h->save_t, h->save_tg ? "save (touch-and-go)" : "save");
     log_suspend_split(h, TRACE_SAVE, TRACE_SAVE, "save", h->save_suspend_ms);
-    pw_log("engine: state held in RAM; log lines are kept in RAM until it is discarded");
+    /* T1 (2026-10-16): after a rollback the Memory Stick driver sees the card as it is, so card
+       writes while a state is held are safe; the log goes to the card again. */
+    pw_log_set_deferred(0);
+    pw_log_flush();
     return PW_ENGINE_SAVED;
 }
 
@@ -1421,8 +1433,11 @@ static int load_impl(const pw_freeze_set *held)
         pw_engine_discard();
         return -1;
     }
-    pending_in_image = (volatile unsigned int *)(g_kernel_image +
-                                                 ((unsigned int)&g_restore_pending - KERNEL_BASE));
+    pending_in_image =
+        (volatile unsigned int *)(g_kernel_image +
+                                  ((h->at_pending ? h->at_pending
+                                                  : (unsigned int)&g_restore_pending) -
+                                   KERNEL_BASE));
     mark(&h->load_t, P_VERIFY);
 
     if (held) {
@@ -1719,6 +1734,109 @@ int pw_engine_save_load_frozen(void)
     if (ret != PW_ENGINE_SAVED)
         return ret;
     return pw_engine_load();
+}
+
+void pw_engine_set_env_extra(int index, unsigned int value)
+{
+    if (index >= 0 && index < PW_ENGINE_ENV_EXTRA)
+        g_env_extra[index] = value;
+}
+
+void pw_engine_env_now(pw_engine_env *e)
+{
+    memset(e, 0, sizeof(*e));
+    e->layout = STATE_MAGIC;
+    /* The kernel image holds this very module: a state loads only into the build that made it. */
+    e->build =
+        pw_crc32(pw_crc32(0, (const unsigned char *)PW_ENGINE_BUILD, sizeof(PW_ENGINE_BUILD) - 1),
+                 (const unsigned char *)PW_VERSION, sizeof(PW_VERSION) - 1);
+    e->header_size = sizeof(StateHeader);
+    e->model = (unsigned int)sceKernelGetModel();
+    e->devkit = (unsigned int)sceKernelDevkitVersion();
+    e->stage = (unsigned int)g_stage.ptr;
+    e->p8_base = g_p8_base;
+    e->p8_size = g_p8_size;
+    e->me_base = g_me_base;
+    e->me_size = g_me_size;
+    for (int i = 0; i < PW_ENGINE_ENV_EXTRA; i++)
+        e->extra[i] = g_env_extra[i];
+}
+
+int pw_engine_export(pw_state_parts *p)
+{
+    StateHeader *h = g_hdr;
+
+    if (!pw_engine_has_state() || g_busy)
+        return -1;
+    p->header = h;
+    p->header_len = sizeof(*h);
+    p->image = g_kernel_image;
+    p->image_len = h->image_len;
+    p->arena = g_arena.base[0];
+    p->arena_len = h->arena_used;
+    return 0;
+}
+
+int pw_engine_import(pw_state_parts *p)
+{
+    if (g_busy)
+        return PW_ENGINE_BUSY;
+    if (pw_engine_has_state())
+        pw_engine_discard();
+    if (check_environment() < 0 || ensure_staging() < 0)
+        return -1;
+    memset(g_hdr, 0, sizeof(*g_hdr)); /* not a state until adopted */
+    p->header = g_hdr;
+    p->header_len = sizeof(*g_hdr);
+    p->image = g_kernel_image;
+    p->image_len = IMAGE_SPACE;
+    p->arena = g_arena.base[0];
+    p->arena_len = g_arena.size[0];
+    return 0;
+}
+
+int pw_engine_adopt(void)
+{
+    StateHeader *h = g_hdr;
+    pw_engine_env now;
+
+    if (h == NULL)
+        return -1;
+    pw_engine_env_now(&now);
+    if (h->magic != STATE_MAGIC || !h->valid || h->env.layout != STATE_MAGIC ||
+        h->image_len != IMAGE_SPACE || h->arena_used > g_arena.size[0]) {
+        h->magic = 0;
+        pw_log("engine: adopt: not a state of this layout");
+        return PW_ENGINE_E_LAYOUT;
+    }
+    if (memcmp(&h->env, &now, sizeof(now)) != 0) {
+        pw_log(
+            "engine: adopt: saved in another setup: build %08X/%08X model %u/%u devkit %08X/%08X "
+            "P9 %08X/%08X P8 %08X+%X/%08X+%X ME %08X+%X/%08X+%X assets %08X/%08X prx %08X/%08X",
+            h->env.build, now.build, h->env.model, now.model, h->env.devkit, now.devkit,
+            h->env.stage, now.stage, h->env.p8_base, h->env.p8_size, now.p8_base, now.p8_size,
+            h->env.me_base, h->env.me_size, now.me_base, now.me_size, h->env.extra[0], now.extra[0],
+            h->env.extra[1], now.extra[1]);
+        h->magic = 0;
+        return PW_ENGINE_E_ENV;
+    }
+    if (pw_sum32(g_arena.base[0], h->arena_used) != h->arena_sum ||
+        pw_sum32(g_kernel_image, h->image_len) != h->image_sum) {
+        pw_log("engine: adopt: the state's data is damaged (checksums)");
+        h->magic = 0;
+        return PW_ENGINE_E_DAMAGED;
+    }
+    /* What describes this boot comes from this boot, never from the file. */
+    h->real_ri_valid = (unsigned int)g_real_ri_valid;
+    for (int i = 0; i < RI_WORDS; i++)
+        h->real_ri[i] = g_real_ri_valid ? g_real_ri[i] : 0;
+    h->loads = 0;
+    h->guard = 0;
+    h->crumb_count = 0;
+    for (int k = 0; k < TRACE_KINDS; k++)
+        h->trace_count[k] = 0;
+    pw_log("engine: adopted a state from the Memory Stick (%u KB packed)", h->arena_used / 1024);
+    return 0;
 }
 
 int pw_engine_has_state(void)

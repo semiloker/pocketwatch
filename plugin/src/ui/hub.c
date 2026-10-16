@@ -3,6 +3,7 @@
 #include <psprtc.h>
 
 #include "complications/states/engine.h"
+#include "complications/states/store.h"
 #include "core/log.h"
 #include "core/sysinfo.h"
 #include "gfx/assets.h"
@@ -11,6 +12,8 @@
 #include "ui/fb.h"
 #include "ui/hub.h"
 #include "ui/icons.h"
+#include "shell/guard.h"
+#include "ui/slots.h"
 #include "ui/ui.h"
 #include "ui/views.h"
 #ifdef PW_DEBUG
@@ -37,9 +40,14 @@ typedef struct {
     item items[IT_COUNT];
     int count, sel, selpos; /* selpos: animated position of the cursor, 1/256 rows */
     char saved_at[16];      /* "14:05" of the state held, or "" */
+    int slots_used;         /* states on the Memory Stick for this game */
+    int last_slot;          /* the slot used last (cursor of the state list) */
     char clock[24];
     int battery, charging;
+    const char *busy_verb;
     unsigned int t_status;
+    int guard;                /* PW_GUARD_*: why states cannot run now */
+    unsigned int resume_seen; /* pw_engine_last_resume_ms when the screen was last captured */
 } hub;
 
 static int g_last_sel = 0; /* the hub reopens on the last item used */
@@ -77,23 +85,47 @@ static item *find(hub *h, int id)
     return 0;
 }
 
+static int count_slots(void)
+{
+    pw_slot_info info[PW_STORE_SLOTS];
+    int n = 0;
+
+    if (!pw_store_available())
+        return 0;
+    pw_store_scan(info, 0);
+    for (int i = 0; i < PW_STORE_SLOTS; i++)
+        n += info[i].exists;
+    return n;
+}
+
 static void build(hub *h)
 {
     char line[DESC_MAX];
-    int has = pw_engine_has_state();
+    int has = pw_engine_has_state(), held = pw_store_held_slot();
 
+    h->guard = pw_guard_states();
     h->cat.icon = pw_assets_art(PW_ART_CAT_GAME);
     h->cat.fallback = PW_ICON_WATCH;
     h->cat.label = "Game";
     h->count = 0;
     add(h, IT_RESUME, PW_ART_UMD, PW_ART_UMD_GLOW, PW_ICON_RESUME, "Resume Game", 1, "");
-    add(h, IT_SAVE, PW_ART_FOLDER, PW_ART_FOLDER_GLOW, PW_ICON_SAVE, "Save State", 1,
-        has ? "Replaces the saved state." : "");
-    if (has && h->saved_at[0])
+    if (pw_store_available())
+        stbsp_snprintf(line, sizeof(line), "%d of %d slots used", h->slots_used, PW_STORE_SLOTS);
+    else
+        stbsp_snprintf(line, sizeof(line), "%s", has ? "Replaces the state in memory." : "");
+    if (h->guard)
+        stbsp_snprintf(line, sizeof(line), "%s", pw_guard_reason(h->guard));
+    add(h, IT_SAVE, PW_ART_FOLDER, PW_ART_FOLDER_GLOW, PW_ICON_SAVE, "Save State", !h->guard, line);
+    if (has && held >= 0 && h->saved_at[0])
+        stbsp_snprintf(line, sizeof(line), "Save State %d, saved at %s", held + 1, h->saved_at);
+    else if (has && h->saved_at[0])
         stbsp_snprintf(line, sizeof(line), "Saved at %s", h->saved_at);
     else
-        stbsp_snprintf(line, sizeof(line), "%s", has ? "" : "No saved state");
-    add(h, IT_LOAD, PW_ART_UPDATE, PW_ART_UPDATE_GLOW, PW_ICON_LOAD, "Load State", has, line);
+        stbsp_snprintf(line, sizeof(line), "%s", h->slots_used ? "" : has ? "" : "No saved state");
+    if (h->guard && (has || h->slots_used > 0))
+        stbsp_snprintf(line, sizeof(line), "%s", pw_guard_reason(h->guard));
+    add(h, IT_LOAD, PW_ART_UPDATE, PW_ART_UPDATE_GLOW, PW_ICON_LOAD, "Load State",
+        !h->guard && (has || h->slots_used > 0), line);
     add(h, IT_QUIT, -1, -1, PW_ICON_QUIT, "Quit Game", 1, "");
 #ifdef PW_DEBUG
     add(h, IT_CARD, PW_ART_MS, PW_ART_MS_GLOW, PW_ICON_CARD, "Memory Stick Test", 1,
@@ -110,6 +142,8 @@ static void refresh_status(hub *h, int force)
     h->t_status = now;
     pw_sysinfo_clock(h->clock, sizeof(h->clock));
     h->battery = pw_sysinfo_battery(&h->charging);
+    if (pw_guard_states() != h->guard) /* the battery ran low, USB came on, ... */
+        build(h);
 }
 
 static void draw(hub *h, int show)
@@ -137,6 +171,29 @@ static void fade(hub *h, int from, int to, int ms)
         pw_ui_poll(&h->ui);
     }
     draw(h, to);
+}
+
+static void progress(int percent, void *ctx)
+{
+    hub *h = ctx;
+    char text[48];
+
+    stbsp_snprintf(text, sizeof(text), "%s... %d%%", h->busy_verb, percent);
+    pw_dialog_busy(&h->ui, text);
+}
+
+/* After the engine saved into RAM: write the state to its slot on the Memory Stick. */
+static void save_to_slot(hub *h, int slot)
+{
+    int ret;
+
+    h->busy_verb = "Saving";
+    ret = pw_store_save(slot, pw_fb_game(), PW_FB_STRIDE, progress, h);
+    pw_ui_flush_input(&h->ui);
+    h->slots_used = count_slots();
+    if (ret < 0)
+        pw_dialog_message(&h->ui, "The state could not be written to the Memory Stick.",
+                          pw_store_reason(ret));
 }
 
 static int do_save(hub *h)
@@ -174,8 +231,28 @@ static int do_save(hub *h)
 
 static void do_load(hub *h)
 {
+    int slot = -1, ret;
+
+    if (pw_store_available() && h->slots_used > 0) {
+        slot = pw_slots_pick(&h->ui, PW_SLOTS_LOAD, h->last_slot);
+        h->slots_used = count_slots();
+        build(h);
+        if (slot < 0)
+            return;
+        h->last_slot = slot;
+    }
     if (!pw_dialog_confirm(&h->ui, "Load the saved state?", "Unsaved progress will be lost.", 0))
         return;
+    if (slot >= 0) {
+        h->busy_verb = "Loading";
+        ret = pw_store_load(slot, progress, h);
+        if (ret < 0) {
+            build(h);
+            pw_dialog_message(&h->ui, "This state cannot be loaded.", pw_store_reason(ret));
+            return;
+        }
+    }
+    pw_store_arm(slot);
     pw_dialog_busy(&h->ui, "Loading...");
     pw_engine_set_presuspend(pw_fb_hide);
     pw_engine_load_held(h->frozen); /* returns only on failure */
@@ -232,14 +309,16 @@ static void do_card_test(hub *h)
 int pw_hub_run(const pw_freeze_set *frozen)
 {
     static hub h; /* keeps saved_at across openings; the thread's stack stays small */
-    int result = PW_HUB_CLOSE;
+    int result = PW_HUB_CLOSE, ret;
 
     h.frozen = frozen;
     pw_ui_init(&h.ui);
     if (!pw_engine_has_state())
         h.saved_at[0] = 0;
+    h.slots_used = count_slots();
     build(&h);
     refresh_status(&h, 1);
+    h.resume_seen = pw_engine_last_resume_ms();
     h.sel = g_last_sel < h.count ? g_last_sel : 0;
     h.selpos = h.sel * 256;
     fade(&h, 0, 256, FADE_IN_MS);
@@ -257,6 +336,12 @@ int pw_hub_run(const pw_freeze_set *frozen)
                 h.selpos = target;
         }
         refresh_status(&h, 0);
+        if (pw_engine_last_resume_ms() != h.resume_seen) {
+            /* The PSP slept (power switch) or our own save/load suspended it: the screen's
+               buffers in P11 were overwritten by the firmware's ME save. */
+            h.resume_seen = pw_engine_last_resume_ms();
+            pw_fb_recapture();
+        }
         draw(&h, 256); /* every frame: the wave moves */
         ev = pw_ui_poll(&h.ui);
         if (ev & PSP_CTRL_UP) {
@@ -271,8 +356,11 @@ int pw_hub_run(const pw_freeze_set *frozen)
             const item *it = &h.items[h.sel];
 
             g_last_sel = h.sel;
-            if (!it->row.enabled)
+            if (!it->row.enabled) {
+                if ((it->id == IT_SAVE || it->id == IT_LOAD) && h.guard)
+                    pw_dialog_message(&h.ui, pw_guard_reason(h.guard), pw_guard_hint(h.guard));
                 continue;
+            }
             if (it->id == IT_RESUME)
                 break;
             if (it->id == IT_QUIT) {
@@ -281,9 +369,32 @@ int pw_hub_run(const pw_freeze_set *frozen)
                     break;
                 }
             } else if (it->id == IT_SAVE) {
-                pw_engine_set_load_hook(0);
-                if (do_save(&h) == PW_ENGINE_LOADED)
-                    return PW_HUB_LOADED; /* back in the saved moment; the screen is gone */
+                int slot = -1;
+
+                if (pw_store_available()) {
+                    slot = pw_slots_pick(&h.ui, PW_SLOTS_SAVE, h.last_slot);
+                    if (slot < 0) {
+                        h.slots_used = count_slots();
+                        build(&h);
+                        continue;
+                    }
+                    h.last_slot = slot;
+                }
+                pw_engine_set_load_hook(pw_store_after_load); /* part of the snapshot */
+                ret = do_save(&h);
+                if (ret == PW_ENGINE_LOADED) { /* back in the saved moment */
+                    if (pw_store_check_failed()) {
+                        pw_fb_recapture();
+                        h.saved_at[0] = 0;
+                        build(&h);
+                        pw_dialog_message(&h.ui, "The Memory Stick could not be checked.",
+                                          "Do not save in the game: quit and restart the PSP.");
+                    }
+                    return PW_HUB_LOADED;
+                }
+                if (ret == PW_ENGINE_SAVED && slot >= 0)
+                    save_to_slot(&h, slot);
+                build(&h);
             } else if (it->id == IT_LOAD) {
                 do_load(&h);
             }

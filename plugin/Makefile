@@ -18,7 +18,8 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/core/lz.o src/gfx/pgf.o src/gfx/text.o src/gfx/assets.o src/gfx/rlz.o \
          src/gfx/rco.o src/gfx/image.o src/ui/xmbbg.o \
          src/ui/draw.o src/ui/font8x8.o src/ui/input.o src/ui/shapes.o src/ui/icons.o \
-         src/ui/views.o src/ui/fb.o src/ui/ui.o src/ui/dialog.o src/ui/hub.o src/shell/shell.o \
+         src/ui/views.o src/ui/fb.o src/ui/ui.o src/ui/dialog.o src/ui/hub.o src/ui/slots.o \
+         src/shell/shell.o src/shell/guard.o src/core/game.o src/complications/states/store.o \
          lib/stb_sprintf.o exports.o
 
 # DEBUG=1 (default while developing) adds the hardware probe and its button triggers.
@@ -64,7 +65,7 @@ src/core/crc32.o: CFLAGS += -O2
 src/debug/bench.o: CFLAGS += -O2
 
 # Rebuild main.o whenever the version string changes, and everything when the profile or libs change.
-src/core/main.o: .version
+src/core/main.o src/complications/states/engine.o: .version
 .version: FORCE
 	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
 $(OBJS): .buildflags

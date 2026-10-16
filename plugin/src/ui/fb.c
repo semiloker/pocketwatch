@@ -85,6 +85,11 @@ void pw_fb_recapture(void)
         capture();
 }
 
+const unsigned int *pw_fb_game(void)
+{
+    return g_game;
+}
+
 void pw_fb_close(void)
 {
     pw_fb_hide();

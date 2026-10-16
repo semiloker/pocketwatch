@@ -21,14 +21,14 @@ States: **Planned**, **In Progress**, **Blocked**, **Done**. Work types: *Doc*, 
 ```mermaid
 flowchart LR
     M0["M0 infra<br/>Done"] --> M1["M1 hardware truth<br/>Done"] --> M2["M2 engine E1/E2<br/>Done"]
-    M2 --> DOC1["DOC-1 docs system<br/>In Progress"]
-    M2 --> M3A["M3a HOME + Quit<br/>Planned P0"]
-    M3A --> M4["M4 XMB look<br/>Planned P0"]
-    M4 --> E3["E3 states on card<br/>Planned P0"]
+    M2 --> DOC1["DOC-1 docs system<br/>Done"]
+    M2 --> M3A["M3a HOME + Quit<br/>Done"]
+    M3A --> M4["M4 XMB look<br/>In Progress"]
+    M4 --> E3["E3 states on card<br/>In Progress"]
     E3 --> E4["E4 FS integrity<br/>Planned P1"]
-    E3 --> M5["M5 native SAVEDATA UX<br/>Planned P1"]
-    M3A --> M3B["M3b guards<br/>Planned P1"]
-    E4 --> M6["M6 hardening v0.1.0<br/>Planned P1"]
+    E3 --> M5["M5 native SAVEDATA UX<br/>In Progress"]
+    M3A --> M3B["M3b guards<br/>In Progress"]
+    E4 --> M6["M6 hardening v0.1.0<br/>In Progress"]
     M5 --> M6
     M3B --> M6
     M6 --> M7["M7 XMB integration<br/>Planned P2"]
@@ -41,14 +41,14 @@ flowchart LR
 | [M1 — hardware ground truth](#m1--hardware-ground-truth) | Research | — | Done |
 | [M2 — engine ladder E1/E2 + speed](#m2--engine-ladder-e1e2-and-speed) | Implementation | — | Done |
 | [M3-phase1 — minimal menu](#m3-phase-1--minimal-menu) | Implementation | — | Done |
-| [DOC-1 — documentation system](#doc-1--documentation-system) | Doc | P0 | In Progress |
-| [M3a — HOME takeover and Quit Game](#m3a--home-takeover-and-quit-game) | Research + Implementation | P0 | In Progress (built, device test pending) |
-| [M4 — native look (XMB-style hub)](#m4--native-look-xmb-style-hub) | Research + Implementation | P0 | In Progress |
-| [E3 — states on the Memory Stick](#e3--states-on-the-memory-stick) | Research + Implementation | P0 | In Progress (T1 built) |
-| [M3b — guards](#m3b--guards) | Implementation | P1 | Planned |
-| [E4 — file-system integrity gate](#e4--file-system-integrity-gate) | Validation | P1 | Planned |
-| [M5 — States UX on native saved data](#m5--states-ux-on-native-saved-data) | Implementation | P1 | Planned |
-| [M6 — hardening, v0.1.0](#m6--hardening-v010) | Validation | P1 | Planned |
+| [DOC-1 — documentation system](#doc-1--documentation-system) | Doc | P0 | Done |
+| [M3a — HOME takeover and Quit Game](#m3a--home-takeover-and-quit-game) | Research + Implementation | P0 | Done (device-verified 2026-10-16) |
+| [M4 — native look (XMB-style hub)](#m4--native-look-xmb-style-hub) | Research + Implementation | P0 | In Progress (implemented; owner review, i18n) |
+| [E3 — states on the Memory Stick](#e3--states-on-the-memory-stick) | Research + Implementation | P0 | In Progress (T1 passed; implemented, T1b-T6 pending) |
+| [M3b — guards](#m3b--guards) | Implementation | P1 | In Progress (implemented, device tests G1-G7 pending) |
+| [E4 — file-system integrity gate](#e4--file-system-integrity-gate) | Validation | P1 | Planned (protocol in the testing guide) |
+| [M5 — States UX on native saved data](#m5--states-ux-on-native-saved-data) | Implementation | P1 | In Progress (implemented, device tests M1-M12 pending) |
+| [M6 — hardening, v0.1.0](#m6--hardening-v010) | Validation | P1 | In Progress (release build, changelog, testing guide) |
 | [M7 — XMB integration](#m7--xmb-integration) | Implementation | P2 | Planned |
 | [Speed backlog S1-S7](#speed-backlog) | Research | P2 | Planned |
 | [FW — independent firmware research](#fw--independent-firmware-research) | Research | P3 | Planned |
@@ -83,7 +83,7 @@ framebuffer in P11; held-freeze engine API. [m3-menu-e3](research/m3-menu-e3.md)
 - **Deliverables:** `docs/**`, `CLAUDE.md` import, `tools/check_docs.py`.
 - **Acceptance:** `python tools/check_docs.py` passes; every subsystem in the [index](README.md)
   has a spec; a fresh session shows `docs/AI_WORKFLOW.md` in `/context` → Memory files.
-- **State:** In Progress ([project status](project-status.md)).
+- **State:** Done; kept current with every change ([project status](project-status.md)).
 
 ## M3a — HOME takeover and Quit Game
 
@@ -124,9 +124,12 @@ framebuffer in P11; held-freeze engine API. [m3-menu-e3](research/m3-menu-e3.md)
 
 ## M3b — guards
 
-Refuse with a native message: USB active, network, video playing, the game's own system dialog,
-battery < ~15 % without charger, little card space, highmem, TV-out, PSPStates/Custom Home
-present, ARK `mscache` on. Requirements `SHL-REQ-007`..`SHL-REQ-010`. Risk RISK-007, RISK-015.
+Implemented 2026-10-16 (`shell/guard.c`): low battery without the adaptor, USB mass storage, WLAN
+in use, highmem, Custom Home / PSPStates; the hub does not open over a system dialog, during a save
+or load, or within 2 s of a wake; the hub redraws after a sleep. Not guarded: video playback
+(INFERRED safe), TV-out (OPEN QUESTION); a full card is caught by the short write; `mscache` is
+handled by the check after a load. Requirements `SHL-REQ-007`..`SHL-REQ-010`. Risk RISK-007,
+RISK-015. Device tests: [testing guide](testing.md#7-guards).
 
 ## E4 — file-system integrity gate
 
@@ -135,8 +138,11 @@ compared. Acceptance: zero FAT errors, zero changed files. Requirement `STE-NFR-
 
 ## M5 — States UX on native saved data
 
-Save/Load/Delete screens in the Saved Data Utility style; SAVEDATA folders with ICON0/PIC1/SFO
-([ADR-010](architecture/decisions.md#adr-010--states-are-native-hashed-savedata-folders)); atomic writes. Requirements `STS-REQ-011`.., `UI-REQ-*` (state list).
+Implemented 2026-10-16: the state list in the Saved Data Utility's layout (`ui/slots.c`), five
+slots per game as SAVEDATA folders with ICON0/PIC1/hashed SFO
+([ADR-010](architecture/decisions.md#adr-010--states-are-native-hashed-savedata-folders)), STATE.BIN as the commit record, overwrite and delete confirmations.
+Requirements `STS-REQ-011`, `STS-REQ-012`, `UI-REQ-009`, `UI-REQ-010`. Device tests:
+[testing guide](testing.md#4-states-on-the-memory-stick).
 
 ## M6 — hardening, v0.1.0
 

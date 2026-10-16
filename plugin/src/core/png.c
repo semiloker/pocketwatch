@@ -153,3 +153,89 @@ int pw_png_encode_rgb(unsigned int width, unsigned int height, pw_png_row_fn row
 
     return (int)(p - out);
 }
+
+static unsigned int be32(const unsigned char *p)
+{
+    return ((unsigned int)p[0] << 24) | ((unsigned int)p[1] << 16) | ((unsigned int)p[2] << 8) |
+           p[3];
+}
+
+int pw_png_decode_stored(const void *png, unsigned int len, unsigned int *out, unsigned int cap,
+                         unsigned int *width, unsigned int *height)
+{
+    static const unsigned char signature[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
+    const unsigned char *p = png, *end = p + len;
+    unsigned int w = 0, h = 0, row = 0, x = 0, left = 0, last = 0, filter_next = 1;
+    int zhdr = 2;
+
+    if (len < 8 || memcmp(p, signature, 8) != 0)
+        return -1;
+    p += 8;
+    while (p + 12 <= end) {
+        unsigned int n = be32(p);
+        const unsigned char *type = p + 4, *d = p + 8;
+
+        if (n > (unsigned int)(end - d) - 4)
+            return -2;
+        if (memcmp(type, "IHDR", 4) == 0) {
+            if (n < 13 || d[8] != 8 || d[9] != 2 || d[12] != 0)
+                return -3; /* 8-bit RGB, not interlaced: what pw_png_encode_rgb writes */
+            w = be32(d);
+            h = be32(d + 4);
+            if (w == 0 || h == 0 || w > 4096 || h > 4096 || w * h > cap)
+                return -3;
+        } else if (memcmp(type, "IDAT", 4) == 0 && w) {
+            for (unsigned int i = 0; i < n; i++) {
+                unsigned int c = d[i];
+
+                if (zhdr > 0) { /* the 2-byte zlib header */
+                    zhdr--;
+                    continue;
+                }
+                if (left == 0) { /* a stored block header: 1 + LEN + NLEN, possibly split */
+                    if (last)
+                        break; /* after the final block comes the Adler-32 */
+                    if (n - i < 5)
+                        return -4; /* block header split across IDAT chunks: not ours */
+                    if ((c & 6) != 0)
+                        return -4; /* compressed block: not written by our encoder */
+                    last = c & 1;
+                    left = d[i + 1] | (d[i + 2] << 8);
+                    i += 4;
+                    continue;
+                }
+                left--;
+                if (row >= h)
+                    continue;
+                if (filter_next) {
+                    if (c != 0)
+                        return -5; /* only filter "none" */
+                    filter_next = 0;
+                    continue;
+                }
+                {
+                    unsigned int k = x / 3, ch = x % 3;
+                    unsigned int *px = out + row * w + k;
+
+                    if (ch == 0)
+                        *px = 0xFF000000u | c;
+                    else
+                        *px |= c << (8 * ch);
+                }
+                if (++x == 3 * w) {
+                    x = 0;
+                    row++;
+                    filter_next = 1;
+                }
+            }
+        } else if (memcmp(type, "IEND", 4) == 0) {
+            break;
+        }
+        p = d + n + 4;
+    }
+    if (row != h || h == 0)
+        return -6;
+    *width = w;
+    *height = h;
+    return 0;
+}

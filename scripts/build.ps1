@@ -5,10 +5,13 @@
 .EXAMPLE
     .\scripts\build.ps1
     .\scripts\build.ps1 -Target clean
+    .\scripts\build.ps1 -Release          (release build: no debug probe, combos or test items)
+    .\scripts\build.ps1 -Release -Target check
 #>
 param(
     [string]$Target = 'all',
-    [string]$Distro = 'Ubuntu'
+    [string]$Distro = 'Ubuntu',
+    [switch]$Release
 )
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -17,7 +20,9 @@ $root = Split-Path -Parent $PSScriptRoot
 $version = & git -C $root describe --tags --always --dirty 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $version) { $version = 'dev' }
 
-wsl -d $Distro --cd $root -- bash scripts/build.sh $Target $version
+$debug = '1'
+if ($Release) { $debug = '0' }
+wsl -d $Distro --cd $root -- bash scripts/build.sh $Target $version $debug
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build failed (exit code $LASTEXITCODE)"
     exit $LASTEXITCODE
@@ -25,5 +30,7 @@ if ($LASTEXITCODE -ne 0) {
 
 if ($Target -eq 'all') {
     $prx = Join-Path $root 'plugin\pocketwatch.prx'
-    Write-Host "Built $prx ($version)"
+    $profileName = 'debug'
+    if ($Release) { $profileName = 'release' }
+    Write-Host "Built $prx ($version, $profileName)"
 }

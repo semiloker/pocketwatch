@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <pspctrl.h>
+#include <psppower.h>
 
 #include "ui/dialog.h"
 #include "ui/fb.h"
@@ -55,4 +56,8 @@ void pw_dialog_busy(pw_ui *ui, const char *text)
 
     pw_view_busy(pw_fb_begin(256, t), ui, text, t);
     pw_fb_present();
+    if (t - ui->t_tick > 1000) { /* long card writes: keep the backlight on */
+        scePowerTick(0);
+        ui->t_tick = t;
+    }
 }

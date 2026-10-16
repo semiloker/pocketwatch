@@ -28,13 +28,14 @@ risk; close it with the evidence.
 - **Description:** A load restores the save-time kernel, including the FAT driver's in-memory
   state. If anything wrote to the card between save and load (a game save, a log, a state file, a
   USB copy, another boot), the restored driver may write stale FAT/directory sectors back.
-- **Likelihood M:** unknown whether the driver revalidates the card on resume (**RESEARCH
-  REQUIRED**, test T1); same-session loads have been safe because nothing is written meanwhile.
+- **Likelihood L:** T1 (2026-10-16, VERIFIED for a real-sleep save) showed the driver sees files
+  and allocations made after the capture; touch-and-go saves are not covered yet (T1b).
 - **Impact H:** loss of the user's saves and files.
-- **Mitigation:** logging deferred while a state is held; E3 design: files preallocated before the
-  capture, written in place, `sceIoSync` before the capture, freshness probe after the rollback,
-  refuse with ARK `mscache` on; E4 100-cycle FAT check. Until then: do not save the game between a
-  state save and its load. Owner: **Dev** (T1 build), **Owner** (card backup + PC check).
+- **Mitigation:** after every load from a slot the restored world checks that it sees the
+  marker file that save created (a new name each time) before anything writes to the card; on
+  failure card writes stop until reboot and the hub says "Do not save in the game: quit and restart
+  the PSP" ([ADR-017](architecture/decisions.md#adr-017--state-files-are-written-after-the-capture)). ARK's `mscache` window is dropped before the check. E4: 100
+  cycles with a PC FAT check. Owner: **Owner** (T1b, E4 runs with a card backup).
 - **Links:** [m3-menu-e3 phase 2](research/m3-menu-e3.md), [states storage](subsystems/states-storage.md).
 
 ## RISK-002 — flash1 corruption after a rollback
@@ -102,8 +103,10 @@ risk; close it with the evidence.
 ## RISK-011 — Power loss or card removal during a state write
 
 - **Description:** A battery cut or card removal while writing a state.
-- **Mitigation (PROPOSED):** header + CRC written last, old slot kept until the new one commits,
-  low-battery guard.
+- **Mitigation:** STATE.BIN (the commit record) is zeroed first and written last, so an
+  interrupted write leaves an empty slot that is never loaded (host test
+  `store_interrupted_save_leaves_an_empty_slot`); low-battery guard. Accepted: the slot's previous
+  state is lost (keeping it would double the space, ADR-017); the overwrite confirmation says so.
 
 ## RISK-012 — Bricking during firmware research
 

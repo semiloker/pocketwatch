@@ -26,6 +26,7 @@ typedef struct {
 static int (*g_mac_init)(MacContext *ctx, int mode);
 static int (*g_mac_update)(MacContext *ctx, const unsigned char *data, int len);
 static int (*g_mac_final)(MacContext *ctx, unsigned char *hash, const unsigned char *key);
+static SceUID g_loaded = -1; /* chnnlsv.prx when we loaded it ourselves */
 
 static int resolve(const char *module)
 {
@@ -52,8 +53,10 @@ int pw_savedata_hash_init(void)
     ret = sceKernelStartModule(mod, 0, NULL, &status, NULL);
     if (ret < 0) {
         pw_log("savedata_hash: start chnnlsv failed 0x%08X", ret);
+        sceKernelUnloadModule(mod);
         return ret;
     }
+    g_loaded = mod;
 
     /* Resolve by the module's real name rather than trusting CHNNLSV_MODULE. */
     memset(&info, 0, sizeof(info));
@@ -66,6 +69,20 @@ int pw_savedata_hash_init(void)
     }
     pw_log("savedata_hash: chnnlsv loaded as '%s'", info.name);
     return 0;
+}
+
+void pw_savedata_hash_done(void)
+{
+    int status = 0;
+
+    g_mac_init = 0;
+    g_mac_update = 0;
+    g_mac_final = 0;
+    if (g_loaded < 0)
+        return; /* the game's (or nobody's): leave it */
+    sceKernelStopModule(g_loaded, 0, NULL, &status, NULL);
+    sceKernelUnloadModule(g_loaded);
+    g_loaded = -1;
 }
 
 /* Data must be padded to 16 bytes, which PW_SFO_SAVEDATA_SIZE is. */

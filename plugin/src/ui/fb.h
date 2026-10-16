@@ -13,8 +13,9 @@
  * screen before one and recapture after it.
  */
 
-#define PW_FB_W 480
-#define PW_FB_H 272
+#define PW_FB_W      480
+#define PW_FB_H      272
+#define PW_FB_STRIDE 512
 
 int pw_fb_open(const pw_image *sky); /* allocate, capture the game's frame, paint the sky */
 void pw_fb_close(void);              /* give the display back to the game and free everything */
@@ -28,5 +29,8 @@ void pw_fb_present(void); /* show what was drawn since pw_fb_begin (at the next 
 
 void pw_fb_hide(void);      /* give the display back, keep the buffers (before a suspend) */
 void pw_fb_recapture(void); /* the game's frame and the sky again (after a suspend) */
+
+/* The game's frame as captured (PW_FB_W x PW_FB_H, PW_FB_STRIDE pixels per row), or NULL. */
+const unsigned int *pw_fb_game(void);
 
 #endif

@@ -2,6 +2,8 @@
 #ifndef PW_SYSINFO_H
 #define PW_SYSINFO_H
 
+#include "core/platform.h"
+
 /*
  * What the system UI shows in its corner and how it formats it: the clock in the user's date and
  * time format (registry /CONFIG/DATE), the theme colour (/CONFIG/SYSTEM/XMB/THEME color_mode), the
@@ -23,6 +25,9 @@ int pw_sysinfo_clock(char *out, unsigned int cap);
 
 /* Battery percent, or -1 without a battery; *charging set when on external power and charging. */
 int pw_sysinfo_battery(int *charging);
+
+/* A date and time in the user's format ("2026/10/16 14:05"). */
+void pw_sysinfo_format_date(const pw_datetime *t, char *out, unsigned int cap);
 
 /* The sky picture to use: 0..11. */
 int pw_sysinfo_sky_index(int month);

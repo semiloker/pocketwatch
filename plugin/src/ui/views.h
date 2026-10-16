@@ -34,6 +34,19 @@ void pw_view_status(pw_canvas *c, const pw_ui *ui, const char *clock, int batter
 void pw_view_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const pw_hub_row *rows,
                  int count, int selpos, int fade);
 
+/* One slot of the state list (the Saved Data Utility's layout). */
+typedef struct {
+    int exists;
+    const unsigned int *icon; /* 144x80 pixels, or NULL */
+    const char *title;        /* "Save State 2" / "New Save State" */
+    const char *info;         /* "2026/10/16 14:05   18.2 MB" */
+} pw_slot_row;
+
+/* heading: "Save State" / "Load State"; game: the game's title; can_delete: show the triangle hint.
+ */
+void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
+                   const pw_slot_row *rows, int count, int sel, int can_delete);
+
 enum { PW_VIEW_CONFIRM, PW_VIEW_MESSAGE };
 
 /* The HOME screen's dialog: line2 may be NULL; yes = the selected choice (confirm). */

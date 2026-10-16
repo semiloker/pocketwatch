@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the Pocketwatch PRX with the PSPDEV toolchain.
 #
-#   scripts/build.sh [make-target] [version]
+#   scripts/build.sh [make-target] [version] [debug: 1 = debug build (default), 0 = release]
 #
 # PSPDEV defaults to ~/pspdev when it is not already set (the pspdev Docker image sets it).
 set -euo pipefail
@@ -18,6 +18,9 @@ fi
 args=("${1:-all}")
 if [ -n "${2:-}" ]; then
     args+=("VERSION=$2")
+fi
+if [ -n "${3:-}" ]; then
+    args+=("DEBUG=$3")
 fi
 
 make -C "$ROOT/plugin" "${args[@]}"

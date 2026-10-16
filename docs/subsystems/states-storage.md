@@ -3,101 +3,104 @@
 | | |
 |---|---|
 | Area code | `STS` |
-| Status | Planned. Helpers Done: PARAM.SFO writer, chnnlsv hashing, PNG encoder (host-tested; on-device S2b spike passed) |
+| Status | In Progress: implemented and host-tested (2026-10-16), device tests pending ([testing guide](../testing.md#4-states-on-the-memory-stick)) |
 | Milestones | E3 (states on the card, cross-boot load), M5 (native SAVEDATA UX) |
-| Code | [`sfo.c`](../../plugin/src/complications/states/sfo.c), [`savedata_hash.c`](../../plugin/src/complications/states/savedata_hash.c), [`core/png.c`](../../plugin/src/core/png.c), [`tools/sfo.py`](../../tools/sfo.py) |
+| Code | [`store.c`](../../plugin/src/complications/states/store.c), [`core/game.c`](../../plugin/src/core/game.c), [`ui/slots.c`](../../plugin/src/ui/slots.c), [`sfo.c`](../../plugin/src/complications/states/sfo.c), [`savedata_hash.c`](../../plugin/src/complications/states/savedata_hash.c), [`core/png.c`](../../plugin/src/core/png.c), engine E3 API in [`engine.c`](../../plugin/src/complications/states/engine.c) |
+| Tests | [`tests/test_store.c`](../../tests/test_store.c) (fake engine and game, `ms0:/` in a temp dir), [`tests/test_png.c`](../../tests/test_png.c) |
 | Research | [m3-menu-e3 phase 2](../research/m3-menu-e3.md#phase-2--e3-states-on-the-memory-stick-loads-after-a-reboot), [m1-hardware S2/S2b](../research/m1-hardware.md#s2--are-hash-less-saves-listed-by-the-xmb) |
 
 ## A. Overview
 
 - **Purpose:** keep states on the Memory Stick so they survive a reboot, as native saved data the
   XMB lists, and load them safely in a later boot.
-- **User benefit:** many slots per game, states that survive power-off, browse and delete them in
-  the XMB with screenshots.
-- **Non-goals:** the capture/rollback itself (→ [engine](states-engine.md)); the list UI
-  (→ [UI](../ui/README.md)).
-- **Current state:** none on the device yet; states live only in RAM and are single-use.
-- **Target state:** `ms0:/PSP/SAVEDATA/PW<GAMEID><NN>/` per slot ([ADR-010](../architecture/decisions.md#adr-010--states-are-native-hashed-savedata-folders)).
+- **User benefit:** five slots per game, states that survive power-off, browse and delete them in
+  the XMB (Game → Saved Data Utility) with the screenshot.
+- **Non-goals:** the capture/rollback itself (→ [engine](states-engine.md)).
+- **Current state:** implemented. A save goes to RAM first (the engine), then the hub writes it to
+  the chosen slot. A load from a slot reads it into the engine's P9 block, checks it, then rolls
+  back. States of games without a disc ID (PSN EBOOTs, homebrew) stay in RAM only.
 
 ## B. Requirements
 
 | ID | Requirement | Priority | Status | Verification |
 |---|---|---|---|---|
-| `STS-REQ-001` | A state written to the card can be loaded in a later boot of the same game and environment (E3). | P0 | Planned | T3, T6 |
-| `STS-REQ-002` | Slot files exist at their full size before the kernel capture and are only overwritten in place afterwards: no cluster allocation and no directory change after the capture. | P0 | Planned | code review + T4 FAT check |
-| `STS-REQ-003` | Header and CRC are written last; an interrupted write leaves an invalid slot, never a broken FAT; the previous slot content stays valid until the new one commits. | P0 | Planned | power-cut test |
-| `STS-REQ-004` | Before every capture our files are closed and `sceIoSync("ms0:")` has returned. | P0 | Planned | code review |
-| `STS-REQ-005` | A load reads the whole state into P9 and verifies CRC and fingerprint while the game still runs; only then freezes. | P0 | Planned | T2, T5 |
-| `STS-REQ-006` | The fingerprint covers model/board, firmware, ARK version and SE config (clocks, mscache, infernocache, highmem), module list, P2/P5/P8/P9 info, Pocketwatch build and layout version, apitype, init file, ISO path/size/mtime, disc ID; any mismatch refuses with a native message. | P0 | Planned | T5 |
-| `STS-REQ-007` | The header stores the save-time addresses of `g_restore_pending` and `pw_handoff_ctx`; hardware data (IPL seeds, live switch state, resume info) always comes from the current boot. | P0 | Planned | T3 |
-| `STS-REQ-008` | After a rollback, game still frozen, before any card write: a freshness probe checks that a file created after the save is visible; on failure no card write happens until reboot and the user is told to quit without saving. | P0 | T1 experiment implemented (debug hub item, `debug/cardtest.c`), device run pending | T1 |
-| `STS-REQ-009` | ARK's `mscache` cannot serve stale data after a rollback: its single 4 KB msstor window is dropped by any non-read msstor call (VERIFIED in ARK-4 `msstor_cache.c`), so the freshness probe first makes one; refuse only if T1 shows that is not enough. The owner's ARK has `mscache` on. | P0 | Revised 2026-10-16; T1 checks it | T1, T5 |
-| `STS-REQ-010` | Card I/O in 1 MB requests at 64 KB-aligned offsets directly from/to P9; no free-space devctl; short writes are detected and fail the save. | P1 | Planned | log timings |
-| `STS-REQ-011` | Each slot is a SAVEDATA folder with a chnnlsv-hashed (mode 0x01) PARAM.SFO (TITLE = game title, SAVEDATA_TITLE = "Save State N", DETAIL = date/time), ICON0.PNG 144x80, PIC1.PNG 480x272 (the screenshot) and the state files. | P1 | Planned (helpers Done) | XMB shows it (S2b method) |
-| `STS-REQ-012` | A slot deleted or damaged from the XMB or a PC is detected and shown as empty or broken, never loaded. | P1 | Planned | test with a deleted/truncated folder |
-| `STS-NFR-001` | Writing a ~15 MB state adds ≤ 1.5 s to a save (target; prior art claims ~14 MB/s for aligned 1 MB writes, **INFERRED**, M1 measured 2-3 MB/s for small PNG writes). | P1 | Planned | log timings |
+| `STS-REQ-001` | A state written to the card can be loaded in a later boot of the same game and environment (E3). | P0 | Implemented | T3, T6 |
+| `STS-REQ-002` | ~~Slot files exist at full size before the capture; no allocation after it.~~ Superseded by T1 (2026-10-16, VERIFIED with a real-sleep save): after a rollback the FAT driver sees files and allocations made after the capture, so the slot files are written after the capture. Guarded by `STS-REQ-008`. | — | Superseded | T1, T1b |
+| `STS-REQ-003` | STATE.BIN (the commit record) is zeroed first and written last; an interrupted write leaves an empty slot, never a loadable broken one. | P0 | Implemented | `store_interrupted_save_leaves_an_empty_slot`, power-cut test |
+| `STS-REQ-004` | ~~`sceIoSync` before every capture.~~ Not needed: our files are closed before any save starts and none are written before the capture. | — | Superseded | code review |
+| `STS-REQ-005` | A load reads the whole state into P9 and verifies checksums and fingerprint before the freeze; a failure leaves the game running untouched. | P0 | Implemented | `store_detects_damaged_files`, T5 |
+| `STS-REQ-006` | The fingerprint refuses another game (disc ID), another ISO (path, size), another Pocketwatch build (`PW_ENGINE_BUILD` + version string), another model or devkit, another memory layout (P9 staging, P8, ME save area, the assets and PARAM.SFO blocks); checked from STATE.BIN before the state in RAM is dropped. | P0 | Implemented (narrower than first proposed: no ARK config or module-list hash) | `store_refuses_another_game_iso_or_build`, T5 |
+| `STS-REQ-007` | The header stores the save-time addresses of `g_restore_pending` and `pw_handoff_ctx`; hardware data (IPL seeds, live switch state, resume info) always comes from the current boot. | P0 | Implemented | T3 |
+| `STS-REQ-008` | After a rollback from a slot, game frozen, before any card write: the restored world checks that the marker file created by that save (a new name per save, `PWxxxxxx.BIN`), STATE.BIN and DATA.BIN's size are visible. On failure card writes stop until reboot and the hub says "Do not save in the game: quit and restart the PSP." | P0 | Implemented | `store_check_after_load_sees_the_marker`, T1b |
+| `STS-REQ-009` | ARK's `mscache` cannot serve stale data: its 4 KB msstor window is dropped by a getstat on `msstor0p1:/` before the check (VERIFIED in ARK-4 `msstor_cache.c`, T1). | P0 | Implemented | T1 |
+| `STS-REQ-010` | Card I/O in 1 MB requests directly from/to P9; short writes fail the save with "The Memory Stick could not be written or read." | P1 | Implemented | log timings |
+| `STS-REQ-011` | Each slot is a SAVEDATA folder `ms0:/PSP/SAVEDATA/PW<DISCID><NN>/` with a chnnlsv-hashed PARAM.SFO (TITLE = game title, SAVEDATA_TITLE = "Save State N", DETAIL = "Pocketwatch"), ICON0.PNG 144x80, PIC1.PNG 480x272 (the game frame) and the state files. | P1 | Implemented | `store_save_writes_native_savedata_folder`, XMB check |
+| `STS-REQ-012` | A slot deleted or damaged from the XMB or a PC is shown as empty or refused, never loaded. | P1 | Implemented | `store_detects_damaged_files`, `store_delete_removes_the_folder` |
+| `STS-NFR-001` | Writing a ~18 MB state adds ≤ 1.5 s to a save (target; INFERRED ~14 MB/s for aligned 1 MB writes). | P1 | Unmeasured | log: `store: state written` vs the save timing |
 
 ## C. Architecture and integration
 
-**PROPOSED layout per slot** (from the E3 design): the variable-size packed data (game RAM,
-eDRAM, scratchpad) is written *before* the suspend, while the game is frozen (allocation is fine
-before the capture); the fixed-size kernel part (kernel image + P8 + ME save, 9 MB) goes to a file
-created once at full size and overwritten in place after the resume; the small header with CRCs
-and the commit flag is written last. M5 wraps this into the SAVEDATA folder with SFO and PNGs.
+Files per slot (all written after the engine's capture, in this order):
+
+| File | Content |
+|---|---|
+| STATE.BIN | zeroed first (the slot is empty until the end), rewritten last: magic `PWST`, version, part lengths, header checksum, environment copy, disc ID, ISO path + size, local save time, build string, marker stamp |
+| DATA.BIN | engine header (`StateHeader`), kernel image (+ P8 + ME save), packed game RAM / eDRAM / scratchpad |
+| ICON0.PNG, PIC1.PNG | the frozen game frame (144x80 area-averaged, 480x272), stored-deflate PNG |
+| PARAM.SFO | built and chnnlsv-hashed once at plugin start for all five slots (chnnlsv unloaded again) |
+| PWxxxxxx.BIN | marker with a new name per save (the previous one is removed) |
 
 ```mermaid
 sequenceDiagram
     participant H as Hub
-    participant S as Storage
     participant E as Engine
+    participant S as Store
     participant MS as Memory Stick
-    H->>S: save to slot N
-    S->>E: pack (game frozen)
-    S->>MS: write packed data, ensure kernel file at full size
-    S->>MS: close all, sceIoSync
-    S->>E: suspend + capture (no I/O)
-    S->>MS: overwrite kernel file in place, write header + CRC last
-    Note over S,MS: load: read all into P9, verify CRC + fingerprint, then freeze and roll back;<br/>after the rollback: freshness probe before any write
+    H->>H: pick a slot (state list)
+    H->>E: save into RAM (load hook = store check, part of the snapshot)
+    E-->>H: SAVED (game still frozen)
+    H->>S: pw_store_save(slot)
+    S->>MS: STATE.BIN zeroed, DATA.BIN, PNGs, PARAM.SFO, marker, STATE.BIN last
+    Note over H,MS: load: pick a slot, pw_store_load reads DATA.BIN into P9 (skipped if RAM holds it),<br/>pw_engine_adopt checks it, pw_store_arm, rollback; restored world: marker check, then the game runs
 ```
 
-Interfaces (PROPOSED): `pw_store_save(slot)`, `pw_store_load(slot)`, `pw_store_list(game)`,
-`pw_store_delete(slot)`; engine hooks to stage from a P9 buffer and to record save-time addresses.
-Ownership: the slot folders; card writes go through the [write gate](core-runtime.md#b-requirements) (`SYS-REQ-012`).
+Interfaces: `pw_store_init/shutdown`, `pw_store_scan`, `pw_store_save`, `pw_store_load`,
+`pw_store_delete`, `pw_store_arm` + `pw_store_after_load` (engine load hook),
+`pw_store_check_failed`, `pw_store_reason`. Engine side: `pw_engine_export/import/adopt`,
+`pw_engine_env_now`, `pw_engine_set_env_extra` (extra[0] = the assets block address).
 
 ## D. User experience and visual design
 
-The state list follows the Saved Data Utility ([UI spec](../ui/README.md)); "Saving..." /
-"Loading..." progress in the native style; refusals as native messages (different environment,
-card full, damaged slot).
+The state list follows the Saved Data Utility (selected icon 144x80 at (27,97) with a white
+frame, the others 81x45 above and below, details right of it); empty slots show a plus and
+"New Save State (N)"; △ deletes after a confirmation. Saving/Loading show "Saving... 42%".
+Refusals use `pw_store_reason`: another game or ISO, another setup, damaged, card error, card
+locked.
 
 ## E. Reference material
 
 | Reference | Source | What to learn | Adopt / adapt / avoid | License |
 |---|---|---|---|---|
-| PSPStates / Custom Home states | [PspStates-Experiment](https://github.com/PSP-Archive/PspStates-Experiment) | cross-boot loads work in practice; `.bin` + `.bmp` per slot under `seplugins/` | idea that it is feasible; avoid non-native storage | none — never copy |
+| PSPStates / Custom Home states | [PspStates-Experiment](https://github.com/PSP-Archive/PspStates-Experiment) | cross-boot loads work in practice | idea only | none — never copy |
 | PSPFatSave | [PSPFatSave-Public](https://github.com/Grunwalskii/PSPFatSave-Public) | "the plugin loads at a different kernel address each boot" | store save-time addresses | MIT |
-| PPSSPP SavedataParam | [SavedataParam.cpp](https://github.com/hrydgard/ppsspp/blob/master/Core/Dialog/SavedataParam.cpp) | SFO hash algorithm (mode 0x01) | already implemented | GPL-2.0+ |
+| PPSSPP SavedataParam / PSPSaveDialog | [SavedataParam.cpp](https://github.com/hrydgard/ppsspp/blob/master/Core/Dialog/SavedataParam.cpp) | SFO hash (mode 0x01), list layout | implemented independently | GPL-2.0+ |
 
-## F. Implementation plan
+## F. Open points
 
-1. **T1 build** (debug): save → write a probe file → load → check visibility and contents after the
-   rollback → write a second file → verify both; owner runs a PC FAT check. Decides `STS-REQ-008`
-   and the write-gate policy.
-2. E3 core: slot files, preallocation, header/CRC, fingerprint, save-time addresses; tests T2-T6.
-3. M5: SAVEDATA folder, SFO + PNGs, slot list, delete handling.
-
-Open: whether the FAT driver revalidates the card on resume (T1); what exactly changes between
-boots in the kernel image (plugin load addresses: handled by stored addresses; anything else is
-RESEARCH REQUIRED, T3).
+- T1 was VERIFIED with a state saved through a real sleep. States saved touch-and-go (fast mode,
+  every save after the first of a session) roll back without a power cycle; the marker check
+  guards them until T1b confirms ([testing guide](../testing.md#t1b)).
+- What else differs between boots in the kernel image (RESEARCH REQUIRED, T3/T6); the IPL seeds
+  were identical in every boot logged so far (INFERRED: per console).
+- The ISO's clusters are not fingerprinted: an ISO defragmented or copied back between save and
+  load has the same path and size (RISK-006).
 
 ## G. Testing and acceptance
 
-Tests T0-T7 from [m3-menu-e3](../research/m3-menu-e3.md#phase-2--e3-states-on-the-memory-stick-loads-after-a-reboot): T0 card image + PC disk
-check, T1 freshness, T2 same-session load from the card, T3 quit to the XMB and back, T4 other
-writes in between + FAT check and hashes, T5 fingerprint refusals, T6 full power-off, T7 (E4) 100
-cycles. Acceptance: all pass, PC FAT check clean after T4 and T7.
+Host: `make -C tests run T=store`. Device: [testing guide](../testing.md) sections 4-6 (T1b-T7).
+Acceptance: all pass, PC FAT check clean after T4 and T7.
 
 ## H. Risks and decisions
 
 - [RISK-001](../risk-register.md#risk-001--memory-stick-fat-corruption-after-a-rollback), [RISK-006](../risk-register.md#risk-006--cross-boot-load-into-a-different-environment), [RISK-011](../risk-register.md#risk-011--power-loss-or-card-removal-during-a-state-write).
-- [ADR-010](../architecture/decisions.md#adr-010--states-are-native-hashed-savedata-folders).
+- [ADR-010](../architecture/decisions.md#adr-010--states-are-native-hashed-savedata-folders), [ADR-017](../architecture/decisions.md#adr-017--state-files-are-written-after-the-capture).

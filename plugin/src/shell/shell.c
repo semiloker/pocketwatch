@@ -166,8 +166,17 @@ static void open_hub(void)
 
 static int may_open(void)
 {
-    return !pw_engine_busy() && now_ms() - pw_engine_last_resume_ms() > RESUME_QUIET_MS &&
-           !system_dialog_up();
+    const char *why = 0;
+
+    if (pw_engine_busy())
+        why = "a save or load is running";
+    else if (now_ms() - pw_engine_last_resume_ms() <= RESUME_QUIET_MS)
+        why = "the PSP has just resumed";
+    else if (system_dialog_up())
+        why = "a system dialog (saved data, keyboard, network) is open";
+    if (why)
+        pw_log("shell: HOME ignored: %s", why);
+    return why == 0;
 }
 
 static int shell_thread(SceSize args, void *argp)

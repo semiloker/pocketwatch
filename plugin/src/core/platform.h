@@ -20,4 +20,25 @@ int pw_file_size(const char *path);
 /* Read up to cap bytes of a file from its start. Returns bytes read or < 0. */
 int pw_file_read(const char *path, void *data, unsigned int cap);
 
+/* A file open for streaming: write = create or truncate, else read. Returns a handle or < 0. */
+int pw_file_open(const char *path, int write);
+int pw_file_put(int fd, const void *data, unsigned int len); /* bytes written or < 0 */
+int pw_file_get(int fd, void *data, unsigned int len);       /* bytes read or < 0 */
+void pw_file_close(int fd);
+
+int pw_file_remove(const char *path);
+int pw_dir_make(const char *path); /* < 0 also when it exists */
+int pw_dir_remove(const char *path);
+
+/* Local date and time; the same layout as the PSP's ScePspDateTime. */
+typedef struct {
+    unsigned short year, month, day, hour, minute, second;
+    unsigned int microsecond;
+} pw_datetime;
+
+void pw_local_time(pw_datetime *t);
+
+void pw_delay_ms(unsigned int ms);
+unsigned int pw_time_ms(void); /* a monotonic millisecond counter (wraps) */
+
 #endif

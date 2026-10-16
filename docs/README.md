@@ -20,6 +20,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | [architecture/decisions.md](architecture/decisions.md) | ADR-001.. architecture decisions |
 | [glossary.md](glossary.md) | terms and abbreviations |
 | [backlog.md](backlog.md) | understood but unscheduled work (speed S1-S7) |
+| [testing.md](testing.md) | step-by-step device tests for every feature, what to send back |
 
 ## Subsystems
 
@@ -27,7 +28,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 |---|---|---|---|
 | `SYS` | Core runtime | Done (config, game identity, write gate Planned) | [subsystems/core-runtime.md](subsystems/core-runtime.md) |
 | `STE` | States engine | Done (E1, E2, fast mode); E4 Planned | [subsystems/states-engine.md](subsystems/states-engine.md) |
-| `STS` | States storage (E3, M5) | Planned | [subsystems/states-storage.md](subsystems/states-storage.md) |
+| `STS` | States storage (E3, M5) | Implemented, device tests pending | [subsystems/states-storage.md](subsystems/states-storage.md) |
 | `SHL` | In-game shell (HOME, guards, Quit Game) | Partial | [subsystems/game-shell.md](subsystems/game-shell.md) |
 | `UI` | User interface | Partial (phase-1 menu) | [ui/README.md](ui/README.md) |
 | `GFX` | Rendering and native assets | Partial | [ui/rendering.md](ui/rendering.md) |

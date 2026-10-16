@@ -52,7 +52,10 @@ static pw_mem_block g_block;
 static unsigned char *g_base;
 static unsigned int g_used;
 static pw_pgf g_pgf;
-static pw_font g_fonts[PW_FONT_COUNT];
+/* The fonts (glyph slot tables) live in the P9 block with their pools: a state loaded in another
+   boot brings back this module's pointers, which must find tables that match the pools. */
+static pw_font g_fallback[PW_FONT_COUNT];
+static pw_font *g_fonts = g_fallback;
 static int g_native;
 static pw_image g_art[PW_ART_COUNT];
 static int g_have_art[PW_ART_COUNT];
@@ -73,6 +76,7 @@ static void *take(unsigned int n)
 
 static void fallback_fonts(void)
 {
+    g_fonts = g_fallback;
     pw_font_init_fallback(&g_fonts[PW_FONT_TITLE], 2);
     pw_font_init_fallback(&g_fonts[PW_FONT_BODY], 1);
     g_native = 0;
@@ -94,6 +98,7 @@ static void load_font(void)
 {
     int size = pw_file_size(FONT_PATH), ret;
     unsigned char *file, *pool_t, *pool_b, *scr_t, *scr_b;
+    pw_font *fonts;
     unsigned int scratch;
 
     if (size <= 0 || size > FILE_MAX) {
@@ -105,7 +110,8 @@ static void load_font(void)
     pool_b = take(POOL_BODY);
     scr_t = take(SCRATCH_MAX);
     scr_b = take(SCRATCH_MAX);
-    if (!file || !pool_t || !pool_b || !scr_t || !scr_b) {
+    fonts = take(sizeof(pw_font) * PW_FONT_COUNT);
+    if (!file || !pool_t || !pool_b || !scr_t || !scr_b || !fonts) {
         pw_log("assets: no room for the font: built-in font");
         return;
     }
@@ -116,14 +122,15 @@ static void load_font(void)
     }
     scratch = pw_font_scratch_size(&g_pgf);
     if (scratch > SCRATCH_MAX ||
-        pw_font_init(&g_fonts[PW_FONT_TITLE], &g_pgf, SCALE_TITLE, pool_t, POOL_TITLE, scr_t,
+        pw_font_init(&fonts[PW_FONT_TITLE], &g_pgf, SCALE_TITLE, pool_t, POOL_TITLE, scr_t,
                      SCRATCH_MAX) < 0 ||
-        pw_font_init(&g_fonts[PW_FONT_BODY], &g_pgf, SCALE_BODY, pool_b, POOL_BODY, scr_b,
+        pw_font_init(&fonts[PW_FONT_BODY], &g_pgf, SCALE_BODY, pool_b, POOL_BODY, scr_b,
                      SCRATCH_MAX) < 0) {
         pw_log("assets: font glyphs too large (%dx%d): built-in font", g_pgf.max_w, g_pgf.max_h);
         fallback_fonts();
         return;
     }
+    g_fonts = fonts;
     g_native = 1;
     pw_log("assets: %s rev %d, %u glyphs U+%04X-U+%04X, max %dx%d (%d KB)", FONT_PATH,
            g_pgf.revision, g_pgf.glyphs, g_pgf.first, g_pgf.last, g_pgf.max_w, g_pgf.max_h,
@@ -244,6 +251,11 @@ pw_font *pw_assets_font(int which)
 int pw_assets_native(void)
 {
     return g_native;
+}
+
+unsigned int pw_assets_base(void)
+{
+    return (unsigned int)g_base;
 }
 
 const pw_image *pw_assets_art(int id)

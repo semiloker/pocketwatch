@@ -7,24 +7,28 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Kernel PRX skeleton for the `GAME` runlevel that writes its version to `pocketwatch.log`.
-- Build scripts for Linux/WSL and Windows, USB deploy script.
-- GitHub Actions build with release packaging on `v*` tags.
-- RAM ring-buffer logger with deferred flush (safe for sysevent/suspend paths).
-- Boot-time self-check that logs imports the CFW could not resolve.
-- `make check`: import NIDs verified against ARK-4's 6.61 resolver table, PRX size and memory budgets.
-- Host unit tests (ASan + UBSan), clang-format check, `.cmd` wrappers for Windows.
-- Debug build profile (`DEBUG=1`) with a hardware probe: memory partitions, modules and threads
-  dumped to the log on L+R+SELECT+UP.
-- `tools/sfo.py` (PARAM.SFO reader/writer, byte-exact with real saves) and the S2 savedata spike.
-- PARAM.SFO writer in C (byte-identical to `tools/sfo.py`), PNG encoder, CRC-32, extra-RAM
-  allocator, ARK SystemCtrl stubs, and SFO hashing through the firmware's chnnlsv.prx.
-- Spike S2b (L+R+SELECT+LEFT in debug builds): verifies the hashing against ARK_01234 and writes
-  hashed test saves.
-- Savestate engine, in-RAM edition (E2): freeze the game, compress game RAM/eDRAM/scratchpad into
-  spare RAM, capture the kernel during a real suspend; load rolls the kernel back through an
-  assembly handoff and restores everything after the wake-up. Debug triggers L+R+SELECT+RIGHT/LEFT.
-- Chunked FastLZ streams over a two-region arena, flash driver re-initialisation after a load.
+- States on the Memory Stick: five slots per game as native saved data
+  (`PSP/SAVEDATA/PW<DISCID><NN>`, hashed PARAM.SFO, the game's frame as ICON0/PIC1), listed and
+  deletable in the XMB's Saved Data Utility; a state list in the Saved Data Utility's layout with
+  overwrite and delete confirmations; loads after quitting the game or a full power-off.
+- A state loads only into the setup that made it (disc ID, ISO path and size, the plugin file,
+  model, memory layout); after every load from a slot the restored kernel checks that it sees the
+  card as it is now before anything writes to it.
+- Guards: save and load are refused, with the reason, on low battery without the AC adaptor, with
+  USB mass storage on, with the wireless LAN in use, under ARK's high memory, and with Custom Home
+  or PSPStates loaded. The hub survives a sleep with the POWER switch.
+- HOME opens Pocketwatch's hub instead of the system HOME screen: Resume Game, Save State, Load
+  State, Quit Game, in the XMB's look - the month's background and wave, the system font, the
+  XMB's own icons and button pictures, clock and battery in the user's formats.
+- Quit Game through the game's own exit path, with ARK-4's exit as the fallback.
+- Savestate engine: freeze the game, pack game RAM / eDRAM / scratchpad with LZ4, capture the
+  kernel during a suspend (touch-and-go after the first save of a session), roll it back on load
+  with the flash drivers rebuilt and the IPL's seeds put back.
+- Release build switch (`scripts\build.cmd -Release`) and a device testing guide
+  (`docs/testing.md`).
+- Developer tooling: ARK-4 NID check, size budgets, host unit tests (ASan + UBSan), host previews
+  of every screen, a documentation checker, debug combos, a hardware probe, a throughput benchmark
+  and the T1 Memory Stick test.
 
 ### Changed
 - Relicensed from MIT to GPL-3.0-or-later.
@@ -32,3 +36,5 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Exiting a game hung on "Please wait...": `module_stop` now stops and joins all plugin threads.
+- Quitting after a fast save hung on a black screen: the IPL's seeds are put back after every
+  touch-and-go suspend.

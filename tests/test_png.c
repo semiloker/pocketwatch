@@ -142,3 +142,41 @@ PW_TEST(crc32_standard_check_value)
     /* Incremental use gives the same result. */
     CHECK_EQ(pw_crc32(pw_crc32(0, "1234", 4), "56789", 5), 0xCBF43926u);
 }
+
+static void grad_row(void *ctx, unsigned int y, unsigned char *rgb)
+{
+    unsigned int w = *(unsigned int *)ctx;
+
+    for (unsigned int x = 0; x < w; x++) {
+        rgb[3 * x] = (unsigned char)x;
+        rgb[3 * x + 1] = (unsigned char)y;
+        rgb[3 * x + 2] = (unsigned char)(x ^ y);
+    }
+}
+
+static void check_decode(unsigned int w, unsigned int h)
+{
+    unsigned int cap = pw_png_size(w, h), dw = 0, dh = 0;
+    unsigned char *png = malloc(cap), *scratch = malloc(1 + 3 * w);
+    unsigned int *px = malloc(w * h * 4);
+    int n = pw_png_encode_rgb(w, h, grad_row, &w, scratch, png, cap);
+
+    CHECK(n > 0);
+    CHECK_EQ(pw_png_decode_stored(png, (unsigned int)n, px, w * h, &dw, &dh), 0);
+    CHECK_EQ(dw, w);
+    CHECK_EQ(dh, h);
+    CHECK_EQ(px[0], 0xFF000000u);
+    CHECK_EQ(px[(h - 1) * w + (w - 1)], 0xFF000000u | (((w - 1) ^ (h - 1)) & 0xFF) << 16 |
+                                            ((h - 1) & 0xFF) << 8 | ((w - 1) & 0xFF));
+    CHECK(pw_png_decode_stored(png, (unsigned int)n / 2, px, w * h, &dw, &dh) < 0);
+    CHECK(pw_png_decode_stored(png, (unsigned int)n, px, w * h - 1, &dw, &dh) < 0);
+    free(png);
+    free(scratch);
+    free(px);
+}
+
+PW_TEST(png_decode_stored_roundtrip)
+{
+    check_decode(144, 80);
+    check_decode(480, 272); /* many stored blocks */
+}

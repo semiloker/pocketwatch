@@ -193,3 +193,23 @@ decision was taken; the evidence column links the research behind it.
   No "Pocketwatch" branding in the hub (the category icon is a watch).
 - **Alternatives considered:** B — worth it with several complications (ADR-009 registry).
 - **Consequences:** `ui/views.c` draws A; B would reuse the same rows with a category bar.
+
+## ADR-017 — State files are written after the capture
+
+- **Status:** Accepted (2026-10-16), after test T1.
+- **Context:** The E3 design (STS-REQ-002/004) preallocated the slot files before the kernel
+  capture so that a restored kernel's FAT view would already contain them. T1 (2026-10-16,
+  VERIFIED on the PSP-3000, real-sleep save and load) showed that after a rollback the FAT driver
+  sees a file written after the capture, with the right contents, and that a new allocation in the
+  restored world does not collide with it ([m3-menu-e3](../research/m3-menu-e3.md#t1-device-protocol)).
+- **Decision:** the engine saves into RAM as before; the hub then writes the whole slot (DATA.BIN,
+  PNGs, PARAM.SFO, a marker with a new name per save, STATE.BIN last). After every load from a
+  slot, the restored world checks that it sees that save's marker before anything writes to the
+  card; on failure card writes stop until reboot and the user is told not to save in the game.
+- **Alternatives considered:** preallocation (needs the state's size before the capture and two
+  passes over the card); a temp folder + rename (keeps the old slot until the new one commits, but
+  FAT directory renames are untested here and double the space during the write).
+- **Consequences:** simpler and faster saves; an interrupted save loses the slot's previous state
+  (the overwrite confirmation says so, RISK-011). Touch-and-go saves (no power cycle) are covered
+  by T1 only through the marker check until test T1b runs ([testing guide](../testing.md#t1b)).
+

@@ -12,6 +12,10 @@
 /* Load chnnlsv.prx if needed and resolve its MAC functions. Returns 0 or < 0. */
 int pw_savedata_hash_init(void);
 
+/* Unload chnnlsv.prx again if pw_savedata_hash_init loaded it (the game's own savedata dialog
+   loads it itself and must not find ours). */
+void pw_savedata_hash_done(void);
+
 /*
  * Rewrite SAVEDATA_PARAMS of `sfo` (size must be a multiple of 16) with mode 0x01 hashes.
  * params_offset as returned by pw_sfo_build_savedata. Returns 0 or < 0.

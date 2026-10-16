@@ -205,3 +205,29 @@ void pw_draw_image(pw_canvas *c, const unsigned int *px, int w, int h, int x, in
         }
     }
 }
+
+void pw_draw_image_scaled(pw_canvas *c, const unsigned int *px, int w, int h, int x, int y, int dw,
+                          int dh, int alpha)
+{
+    if (alpha <= 0 || dw <= 0 || dh <= 0)
+        return;
+    if (alpha > 256)
+        alpha = 256;
+    for (int j = 0; j < dh; j++) {
+        int yy = y + j, sy = j * h / dh;
+
+        if (yy < 0 || yy >= c->h)
+            continue;
+        for (int i = 0; i < dw; i++) {
+            int xx = x + i;
+            unsigned int p, a;
+
+            if (xx < 0 || xx >= c->w)
+                continue;
+            p = px[sy * w + i * w / dw];
+            a = (p >> 24) * (unsigned int)alpha / 255;
+            if (a)
+                c->px[yy * c->stride + xx] = mix(c->px[yy * c->stride + xx], p, (int)a);
+        }
+    }
+}

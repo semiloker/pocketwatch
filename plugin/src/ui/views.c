@@ -203,3 +203,68 @@ void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int 
     }
     pw_view_text_centered(c, ui->title, cx, 158, text, PW_C_TEXT, 256);
 }
+
+/*
+ * State list: the Saved Data Utility (PPSSPP PSPSaveDialog.cpp): a banner, the selected slot's
+ * 144x80 icon at (27, 97) with a white frame, the others at 81x45 above and below, the details on
+ * the right under a white rule.
+ */
+#define LIST_ICON_X  27
+#define LIST_ICON_Y  97
+#define LIST_SMALL_W 81
+#define LIST_SMALL_H 45
+#define LIST_SMALL_X 58
+#define DETAIL_X     180
+
+static void slot_icon(pw_canvas *c, const pw_slot_row *r, int x, int y, int w, int h, int alpha)
+{
+    pw_draw_blend(c, x, y, w, h, PW_C_BLACK, alpha * 150 / 256);
+    if (r->exists && r->icon) {
+        pw_draw_image_scaled(c, r->icon, 144, 80, x, y, w, h, alpha);
+    } else { /* a new slot: a plus in the box */
+        int cx = PW_FX(x + w / 2), cy = PW_FX(y + h / 2), arm = PW_FX(h / 5);
+
+        pw_shape_capsule(c, cx - arm, cy, cx + arm, cy, PW_FX(1), PW_C_TEXT, alpha);
+        pw_shape_capsule(c, cx, cy - arm, cx, cy + arm, PW_FX(1), PW_C_TEXT, alpha);
+    }
+}
+
+void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
+                   const pw_slot_row *rows, int count, int sel, int can_delete)
+{
+    const pw_slot_row *r = &rows[sel];
+
+    for (int i = 0; i < count; i++) {
+        int k = i - sel, y;
+
+        if (k == 0)
+            continue;
+        y = k < 0 ? LIST_ICON_Y - 6 - LIST_SMALL_H + (k + 1) * (LIST_SMALL_H + 6)
+                  : LIST_ICON_Y + 80 + 6 + (k - 1) * (LIST_SMALL_H + 6);
+        if (y < 23 - LIST_SMALL_H || y > SCREEN_H)
+            continue;
+        slot_icon(c, &rows[i], LIST_SMALL_X, y, LIST_SMALL_W, LIST_SMALL_H, 200);
+    }
+    slot_icon(c, r, LIST_ICON_X, LIST_ICON_Y, 144, 80, 256);
+    pw_draw_fill(c, LIST_ICON_X - 1, LIST_ICON_Y - 1, 146, 1, PW_C_TEXT);
+    pw_draw_fill(c, LIST_ICON_X - 1, LIST_ICON_Y + 80, 146, 1, PW_C_TEXT);
+    pw_draw_fill(c, LIST_ICON_X - 1, LIST_ICON_Y, 1, 80, PW_C_TEXT);
+    pw_draw_fill(c, LIST_ICON_X + 144, LIST_ICON_Y, 1, 80, PW_C_TEXT);
+    /* the banner over everything that scrolls under it */
+    pw_draw_blend(c, 0, 0, SCREEN_W, 23, PW_RGB(0x58, 0x63, 0x63), 160);
+    pw_text_draw(c, ui->title, 30, 17, heading, PW_C_TEXT, 256, 1);
+
+    pw_text_draw_fit(c, ui->title, DETAIL_X, 132, game, SCREEN_W - DETAIL_X - 6, PW_C_GREY, 256, 1);
+    pw_draw_fill(c, DETAIL_X, 136, SCREEN_W - DETAIL_X, 1, PW_C_TEXT);
+    if (r->info)
+        pw_text_draw(c, ui->body, DETAIL_X, 152, r->info, PW_C_TEXT, 256, 1);
+    pw_text_draw_fit(c, ui->title, 175, 174, r->title, SCREEN_W - 181, PW_C_TEXT, 256, 1);
+    if (r->exists)
+        pw_text_draw(c, ui->body, 175, 192, "Pocketwatch", PW_C_GREY, 256, 1);
+
+    pw_view_hints(c, ui, "Enter", "Back", 256);
+    if (can_delete && r->exists) {
+        button(c, ui, PW_BTN_TRIANGLE, 400, 256, 256);
+        pw_text_draw(c, ui->body, 408, 260, "Delete", PW_C_TEXT, 256, 1);
+    }
+}

@@ -13,3 +13,5 @@ IoFileMgrForKernel	0x06A70004	sceIoMkdir	verified	PSP-3000 (model 3), ARK-4 6.61
 IoFileMgrForKernel	0xB2A628C1	sceIoAssign	assumed	used with this NID by ARK-4 core (3 calls) and PSPFatSave on 6.61
 IoFileMgrForKernel	0x6D08A871	sceIoUnassign	assumed	used with this NID by ARK-4 core (3 calls) and PSPFatSave on 6.61
 IoFileMgrForKernel	0xACE946E8	sceIoGetstat	assumed	used with this NID by ARK-4 core (22 calls)
+IoFileMgrForKernel	0xF27A9C51	sceIoRemove	assumed	used by ARK-4 core (compat/pentazemin LflashFatfmt.c, vshctrl) with the pre-6.x NID; IoFileMgrForKernel randomizes only the entries in ark4_660.tsv
+IoFileMgrForKernel	0x1117C65F	sceIoRmdir	assumed	used by ARK-4 core (compat/pentazemin LflashFatfmt.c) with the pre-6.x NID

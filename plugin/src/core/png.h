@@ -21,4 +21,11 @@ unsigned int pw_png_size(unsigned int width, unsigned int height);
 int pw_png_encode_rgb(unsigned int width, unsigned int height, pw_png_row_fn row, void *ctx,
                       unsigned char *scratch, unsigned char *out, unsigned int cap);
 
+/*
+ * Decode a PNG written by pw_png_encode_rgb (stored deflate, filter none) into 32-bit pixels
+ * (0xAABBGGRR). Other PNGs are refused. Returns 0 or < 0.
+ */
+int pw_png_decode_stored(const void *png, unsigned int len, unsigned int *out, unsigned int cap,
+                         unsigned int *width, unsigned int *height);
+
 #endif

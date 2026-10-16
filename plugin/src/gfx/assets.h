@@ -46,6 +46,7 @@ void pw_assets_shutdown(void);
 pw_font *pw_assets_font(int which);
 int pw_assets_native(void);            /* 1 when the system font was loaded */
 const pw_image *pw_assets_art(int id); /* NULL when the system did not provide it */
+unsigned int pw_assets_base(void);     /* where the block is (part of a state's environment) */
 
 /* The sky picture 0..11 (60x34), decoded on demand; NULL without the BMP. */
 const pw_image *pw_assets_sky(int index);

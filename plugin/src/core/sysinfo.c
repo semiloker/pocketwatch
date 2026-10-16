@@ -118,3 +118,21 @@ int pw_sysinfo_sky_index(int month)
         return g_info.color_mode - 1;
     return month >= 1 && month <= 12 ? month - 1 : 0;
 }
+
+void pw_sysinfo_format_date(const pw_datetime *t, char *out, unsigned int cap)
+{
+    int hour = t->hour;
+    char tm[16];
+
+    if (g_info.time_format == 1)
+        stbsp_snprintf(tm, sizeof(tm), "%d:%02d %s", hour % 12 ? hour % 12 : 12, t->minute,
+                       hour < 12 ? "AM" : "PM");
+    else
+        stbsp_snprintf(tm, sizeof(tm), "%d:%02d", hour, t->minute);
+    if (g_info.date_format == 1)
+        stbsp_snprintf(out, (int)cap, "%02d/%02d/%04d %s", t->month, t->day, t->year, tm);
+    else if (g_info.date_format == 2)
+        stbsp_snprintf(out, (int)cap, "%02d/%02d/%04d %s", t->day, t->month, t->year, tm);
+    else
+        stbsp_snprintf(out, (int)cap, "%04d/%02d/%02d %s", t->year, t->month, t->day, tm);
+}

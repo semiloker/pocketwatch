@@ -23,15 +23,18 @@ The project's full workflow is imported here and applies to every session:
 
 ## Commands
 
-- Build (Windows, toolchain in WSL Ubuntu at `~/pspdev`): `scripts\build.cmd` (`-Target check` / `-Target clean`).
+- Build (Windows, toolchain in WSL Ubuntu at `~/pspdev`): `scripts\build.cmd` (`-Target check` / `-Target clean`;
+  `-Release` for the release build without the debug probe, combos and test items).
   `.ps1` files cannot be run directly on this machine (execution policy); use the `.cmd` wrappers.
 - Build + static checks (Linux/WSL): `bash scripts/build.sh` then `bash scripts/build.sh check`
 - Host unit tests: `make -C tests` (in WSL; `make -C tests run T=<name filter>`)
 - Format: `bash scripts/format.sh` (`--check` in CI; clang-format 18.1.8, set `CLANG_FORMAT` to override)
 - Deploy to the USB-connected PSP: `scripts\deploy.cmd` (add `-Enable` to register in `PLUGINS.TXT`)
+- Device test protocols for every feature: `docs/testing.md`.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
-  State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Enter/Back follow the
+  State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Save/Load open a list of
+  five slots per game (`ms0:/PSP/SAVEDATA/PW<DISCID><NN>/`, triangle deletes). Enter/Back follow the
   system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
   screen off, a short tap of NOTE opens the hub instead. The game is frozen and sees no buttons.
 - Host previews of every menu screen as PNGs: `make -C tests preview FONT=<path to a .pgf>`
@@ -62,8 +65,14 @@ The project's full workflow is imported here and applies to every session:
 - A touch-and-go suspend must be followed by putting the IPL's seeds back (8 words at 0xBFC00200,
   saved before every suspend request): without them the next reboot - quitting the game - cannot
   decrypt reboot.bin and the PSP hangs on a black screen (speed runs 3-7, docs/research/m2-speed.md).
-- While the engine holds a state, nothing may write to the Memory Stick (the saved kernel's FAT
-  view would go stale): logging is deferred until `pw_engine_discard`.
+- Card writes while a state is held are allowed since T1 (the FAT driver sees them after a
+  rollback, ADR-017), but only after the save: nothing may write between the save's freeze and its
+  resume (log deferred). Every load from a slot must run with `pw_store_arm` + the store's load hook
+  (set before the save, it is part of the snapshot): the marker check is what protects the card
+  until T1b covers touch-and-go saves.
+- A state loads only into the exact environment that made it (`pw_engine_env`: build string and
+  version, the PRX file's CRC, model, P9/P8/ME layout, the assets and PARAM.SFO block addresses): never relax it
+  without a device test (T5).
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).
 - New source files must be added to `OBJS` in `plugin/Makefile`.
 - `.ps1` files must stay ASCII-only (Windows PowerShell 5.1 reads them as ANSI).
