@@ -43,7 +43,7 @@ flowchart LR
 | [M3-phase1 — minimal menu](#m3-phase-1--minimal-menu) | Implementation | — | Done |
 | [DOC-1 — documentation system](#doc-1--documentation-system) | Doc | P0 | Done |
 | [M3a — HOME takeover and Quit Game](#m3a--home-takeover-and-quit-game) | Research + Implementation | P0 | Done (device-verified 2026-10-16) |
-| [M4 — native look (XMB-style hub)](#m4--native-look-xmb-style-hub) | Research + Implementation | P0 | In Progress (implemented; owner review, i18n) |
+| [M4 — native look (XMB-style hub)](#m4--native-look-xmb-style-hub) | Research + Implementation | P0 | In Progress (implemented incl. i18n; owner review) |
 | [E3 — states on the Memory Stick](#e3--states-on-the-memory-stick) | Research + Implementation | P0 | In Progress (T1 passed; implemented, T1b-T6 pending) |
 | [M3b — guards](#m3b--guards) | Implementation | P1 | In Progress (implemented, device tests G1-G7 pending) |
 | [E4 — file-system integrity gate](#e4--file-system-integrity-gate) | Validation | P1 | Planned (protocol in the testing guide) |

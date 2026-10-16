@@ -213,3 +213,21 @@ decision was taken; the evidence column links the research behind it.
   (the overwrite confirmation says so, RISK-011). Touch-and-go saves (no power cycle) are covered
   by T1 only through the marker check until test T1b runs ([testing guide](../testing.md#t1b)).
 
+## ADR-018 — Translations are files; the texts taken live in kernel RAM
+
+- **Status:** Accepted (2026-10-17).
+- **Context:** UI-REQ-008 asks for the system language. Tables for eight languages in the PRX would
+  add ~16 KB to a kernel module already near its budget (RISK-005). A translation kept in P9 would
+  be pointed at by every state's kernel image, so a state could not load after a language change.
+- **Decision:** English is built in; `plugin/lang/<code>.txt` (UTF-8, "key = text") is installed
+  next to the PRX and read once at plugin start for the system language (or the code in
+  `language.txt`, which allows languages the PSP lacks, e.g. Ukrainian). The texts taken are copied
+  into a 4 KB pool in kernel RAM: a state restores its own language. A line whose printf conversions
+  differ from the English string's is ignored (it would crash the formatter); a file whose letters
+  the system font lacks is refused as a whole (English instead).
+- **Alternatives considered:** built-in tables (size); P9 storage (states tied to the language);
+  Sony's own strings from the RCO resources (they do not contain our texts).
+- **Consequences:** translations can be fixed without a rebuild; `tests/test_i18n.c` checks every
+  shipped file is complete and format-safe. Japanese, Korean and Chinese fall back to English until
+  their system fonts are loaded.
+

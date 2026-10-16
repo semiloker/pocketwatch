@@ -17,6 +17,7 @@
 #include "gfx/rco.h"
 #include "gfx/rlz.h"
 #include "gfx/text.h"
+#include "ui/i18n.h"
 #include "ui/icons.h"
 #include "ui/views.h"
 #include "ui/xmbbg.h"
@@ -132,6 +133,21 @@ static pw_canvas begin(unsigned int t)
     return c;
 }
 
+/* PW_PREVIEW_LANG=ru renders with plugin/lang/ru.txt (the font may lack its letters). */
+static void load_language(const char *code)
+{
+    char path[128];
+    unsigned int n = 0;
+    unsigned char *d;
+
+    if (code == NULL || code[0] == 0)
+        return;
+    snprintf(path, sizeof(path), "../plugin/lang/%s.txt", code);
+    d = slurp(path, &n);
+    if (d == NULL || pw_i18n_load((char *)d, n, NULL, NULL) < 0)
+        fprintf(stderr, "%s: no usable translation\n", path);
+}
+
 int main(void)
 {
     const char *font = getenv("PW_PREVIEW_FONT"), *sky_path = getenv("PW_PREVIEW_SKY");
@@ -157,6 +173,7 @@ int main(void)
         }
     }
     load_icons(getenv("PW_PREVIEW_RCO"));
+    load_language(getenv("PW_PREVIEW_LANG"));
     synthetic_sky(&sky);
     if (sky_path && sky_path[0]) {
         static unsigned int px[64 * 64];
@@ -182,13 +199,16 @@ int main(void)
     ui.cross_enter = 1;
     cat.icon = art(A_CAT);
     cat.fallback = PW_ICON_WATCH;
-    cat.label = "Game";
+    cat.label = pw_tr(PW_S_GAME);
 
+    char used[64], held[64];
+    snprintf(used, sizeof(used), pw_tr(PW_S_SLOTS_USED), 2, 5);
+    snprintf(held, sizeof(held), pw_tr(PW_S_SLOT_SAVED_AT), 2, "14:05");
     pw_hub_row rows[] = {
-        {art(A_UMD), art(A_UMDG), PW_ICON_RESUME, "Resume Game", NULL, 1},
-        {art(A_FOLD), art(A_FOLDG), PW_ICON_SAVE, "Save State", "Saved at 14:05 (4.2 s)", 1},
-        {art(A_UPD), art(A_UPDG), PW_ICON_LOAD, "Load State", "Saved at 14:05", 1},
-        {NULL, NULL, PW_ICON_QUIT, "Quit Game", NULL, 1},
+        {art(A_UMD), art(A_UMDG), PW_ICON_RESUME, pw_tr(PW_S_RESUME_GAME), NULL, 1},
+        {art(A_FOLD), art(A_FOLDG), PW_ICON_SAVE, pw_tr(PW_S_SAVE_STATE), used, 1},
+        {art(A_UPD), art(A_UPDG), PW_ICON_LOAD, pw_tr(PW_S_LOAD_STATE), held, 1},
+        {NULL, NULL, PW_ICON_QUIT, pw_tr(PW_S_QUIT_GAME), NULL, 1},
         {art(A_MS), art(A_MSG), PW_ICON_CARD, "Memory Stick Test", "Debug: test T1", 1},
     };
 
@@ -205,7 +225,7 @@ int main(void)
     pw_view_hub(&c, &ui, &cat, rows, 5, 256 + 128, 256);
     save("hub-moving");
     rows[2].enabled = 0;
-    rows[2].desc = "No saved state";
+    rows[2].desc = pw_tr(PW_S_NO_SAVED_STATE);
     c = begin(4500);
     pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256);
     pw_view_hub(&c, &ui, &cat, rows, 5, 256 * 2, 256);
@@ -216,36 +236,44 @@ int main(void)
     pw_draw_lerp(&c, g_game, g_px, 128);
     save("hub-fading-in");
     c = begin(7000);
-    pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, "Do you want to quit the game?", NULL, 0);
+    pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, pw_tr(PW_S_CONFIRM_QUIT), NULL, 0);
     save("dialog-quit");
     c = begin(8000);
-    pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, "Load the saved state?",
-                   "Unsaved progress will be lost.", 0);
+    pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, pw_tr(PW_S_CONFIRM_LOAD), pw_tr(PW_S_CONFIRM_LOAD2),
+                   0);
     save("dialog-confirm");
     c = begin(9000);
-    pw_view_dialog(&c, &ui, PW_VIEW_MESSAGE, "The state could not be saved.",
-                   "Details are in pocketwatch.log.", 1);
+    pw_view_dialog(&c, &ui, PW_VIEW_MESSAGE, pw_tr(PW_S_G_BATTERY), pw_tr(PW_S_H_BATTERY), 1);
     save("dialog-message");
     c = begin(10000);
-    pw_view_busy(&c, &ui, "Saving...", 10000);
+    {
+        char pct[64];
+
+        snprintf(pct, sizeof(pct), pw_tr(PW_S_SAVING_PCT), 42);
+        pw_view_busy(&c, &ui, pct, 10000);
+    }
     save("busy");
 
     static unsigned int thumb[144 * 80];
     for (int y = 0; y < 80; y++)
         for (int x = 0; x < 144; x++)
             thumb[y * 144 + x] = 0xFF000000u | g_game[(y * 272 / 80) * STRIDE + x * 480 / 144];
+    char t[5][64], info[2][64];
+    for (int i = 0; i < 5; i++)
+        snprintf(t[i], sizeof(t[i]), pw_tr(i < 2 ? PW_S_SLOT_TITLE : PW_S_NEW_SLOT), i + 1);
+    snprintf(info[0], sizeof(info[0]), pw_tr(PW_S_SIZE_MB), "2026/10/16 14:05", 18u, 2u);
+    snprintf(info[1], sizeof(info[1]), pw_tr(PW_S_SIZE_MB), "2026/10/15 22:41", 17u, 9u);
     pw_slot_row slots[] = {
-        {1, thumb, "Save State 1", "2026/10/16 14:05   18.2 MB"},
-        {1, thumb, "Save State 2", "2026/10/15 22:41   17.9 MB"},
-        {0, NULL, "New Save State (3)", NULL},
-        {0, NULL, "New Save State (4)", NULL},
-        {0, NULL, "New Save State (5)", NULL},
+        {1, thumb, t[0], info[0]}, {1, thumb, t[1], info[1]}, {0, NULL, t[2], NULL},
+        {0, NULL, t[3], NULL},     {0, NULL, t[4], NULL},
     };
     c = begin(11000);
-    pw_view_slots(&c, &ui, "Save State", "Castlevania: The Dracula X Chronicles", slots, 5, 1, 1);
+    pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles", slots,
+                  5, 1, 1);
     save("slots-save");
     c = begin(12000);
-    pw_view_slots(&c, &ui, "Save State", "Castlevania: The Dracula X Chronicles", slots, 5, 2, 1);
+    pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles", slots,
+                  5, 2, 1);
     save("slots-new");
     return 0;
 }

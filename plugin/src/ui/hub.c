@@ -10,9 +10,10 @@
 #include "stb_sprintf.h"
 #include "ui/dialog.h"
 #include "ui/fb.h"
-#include "ui/hub.h"
-#include "ui/icons.h"
 #include "shell/guard.h"
+#include "ui/hub.h"
+#include "ui/i18n.h"
+#include "ui/icons.h"
 #include "ui/slots.h"
 #include "ui/ui.h"
 #include "ui/views.h"
@@ -44,7 +45,7 @@ typedef struct {
     int last_slot;          /* the slot used last (cursor of the state list) */
     char clock[24];
     int battery, charging;
-    const char *busy_verb;
+    const char *busy_fmt; /* "Saving... %d%%" in the current language */
     unsigned int t_status;
     int guard;                /* PW_GUARD_*: why states cannot run now */
     unsigned int resume_seen; /* pw_engine_last_resume_ms when the screen was last captured */
@@ -106,27 +107,31 @@ static void build(hub *h)
     h->guard = pw_guard_states();
     h->cat.icon = pw_assets_art(PW_ART_CAT_GAME);
     h->cat.fallback = PW_ICON_WATCH;
-    h->cat.label = "Game";
+    h->cat.label = pw_tr(PW_S_GAME);
     h->count = 0;
-    add(h, IT_RESUME, PW_ART_UMD, PW_ART_UMD_GLOW, PW_ICON_RESUME, "Resume Game", 1, "");
+    add(h, IT_RESUME, PW_ART_UMD, PW_ART_UMD_GLOW, PW_ICON_RESUME, pw_tr(PW_S_RESUME_GAME), 1, "");
     if (pw_store_available())
-        stbsp_snprintf(line, sizeof(line), "%d of %d slots used", h->slots_used, PW_STORE_SLOTS);
+        stbsp_snprintf(line, sizeof(line), pw_tr(PW_S_SLOTS_USED), h->slots_used, PW_STORE_SLOTS);
     else
-        stbsp_snprintf(line, sizeof(line), "%s", has ? "Replaces the state in memory." : "");
+        stbsp_snprintf(line, sizeof(line), "%s", has ? pw_tr(PW_S_REPLACES_RAM) : "");
     if (h->guard)
         stbsp_snprintf(line, sizeof(line), "%s", pw_guard_reason(h->guard));
-    add(h, IT_SAVE, PW_ART_FOLDER, PW_ART_FOLDER_GLOW, PW_ICON_SAVE, "Save State", !h->guard, line);
+    add(h, IT_SAVE, PW_ART_FOLDER, PW_ART_FOLDER_GLOW, PW_ICON_SAVE, pw_tr(PW_S_SAVE_STATE),
+        !h->guard, line);
     if (has && held >= 0 && h->saved_at[0])
-        stbsp_snprintf(line, sizeof(line), "Save State %d, saved at %s", held + 1, h->saved_at);
+        stbsp_snprintf(line, sizeof(line), pw_tr(PW_S_SLOT_SAVED_AT), held + 1, h->saved_at);
     else if (has && h->saved_at[0])
-        stbsp_snprintf(line, sizeof(line), "Saved at %s", h->saved_at);
+        stbsp_snprintf(line, sizeof(line), pw_tr(PW_S_SAVED_AT), h->saved_at);
     else
-        stbsp_snprintf(line, sizeof(line), "%s", h->slots_used ? "" : has ? "" : "No saved state");
+        stbsp_snprintf(line, sizeof(line), "%s",
+                       h->slots_used ? ""
+                       : has         ? ""
+                                     : pw_tr(PW_S_NO_SAVED_STATE));
     if (h->guard && (has || h->slots_used > 0))
         stbsp_snprintf(line, sizeof(line), "%s", pw_guard_reason(h->guard));
-    add(h, IT_LOAD, PW_ART_UPDATE, PW_ART_UPDATE_GLOW, PW_ICON_LOAD, "Load State",
+    add(h, IT_LOAD, PW_ART_UPDATE, PW_ART_UPDATE_GLOW, PW_ICON_LOAD, pw_tr(PW_S_LOAD_STATE),
         !h->guard && (has || h->slots_used > 0), line);
-    add(h, IT_QUIT, -1, -1, PW_ICON_QUIT, "Quit Game", 1, "");
+    add(h, IT_QUIT, -1, -1, PW_ICON_QUIT, pw_tr(PW_S_QUIT_GAME), 1, "");
 #ifdef PW_DEBUG
     add(h, IT_CARD, PW_ART_MS, PW_ART_MS_GLOW, PW_ICON_CARD, "Memory Stick Test", 1,
         "Debug: test T1");
@@ -178,7 +183,7 @@ static void progress(int percent, void *ctx)
     hub *h = ctx;
     char text[48];
 
-    stbsp_snprintf(text, sizeof(text), "%s... %d%%", h->busy_verb, percent);
+    stbsp_snprintf(text, sizeof(text), h->busy_fmt, percent);
     pw_dialog_busy(&h->ui, text);
 }
 
@@ -187,13 +192,12 @@ static void save_to_slot(hub *h, int slot)
 {
     int ret;
 
-    h->busy_verb = "Saving";
+    h->busy_fmt = pw_tr(PW_S_SAVING_PCT);
     ret = pw_store_save(slot, pw_fb_game(), PW_FB_STRIDE, progress, h);
     pw_ui_flush_input(&h->ui);
     h->slots_used = count_slots();
     if (ret < 0)
-        pw_dialog_message(&h->ui, "The state could not be written to the Memory Stick.",
-                          pw_store_reason(ret));
+        pw_dialog_message(&h->ui, pw_tr(PW_S_WRITE_FAILED), pw_store_reason(ret));
 }
 
 static int do_save(hub *h)
@@ -202,7 +206,7 @@ static int do_save(hub *h)
     item *it;
     int ret;
 
-    pw_dialog_busy(&h->ui, "Saving...");
+    pw_dialog_busy(&h->ui, pw_tr(PW_S_SAVING));
     pw_engine_set_presuspend(pw_fb_hide);
     ret = pw_engine_save_held(h->frozen);
     pw_engine_set_presuspend(0);
@@ -215,16 +219,15 @@ static int do_save(hub *h)
         clock_hm(h->saved_at, sizeof(h->saved_at));
         build(h);
         if ((it = find(h, IT_SAVE)) != 0) {
-            stbsp_snprintf(it->desc, DESC_MAX, "Saved at %s (%u.%u s)", h->saved_at, ms / 1000,
+            stbsp_snprintf(it->desc, DESC_MAX, pw_tr(PW_S_SAVED_AT_TIME), h->saved_at, ms / 1000,
                            ms % 1000 / 100);
             it->row.desc = it->desc;
         }
     } else {
         build(h);
         pw_dialog_message(&h->ui,
-                          ret == PW_ENGINE_BUSY ? "Another save or load is running."
-                                                : "The state could not be saved.",
-                          "Details are in pocketwatch.log.");
+                          ret == PW_ENGINE_BUSY ? pw_tr(PW_S_BUSY) : pw_tr(PW_S_SAVE_FAILED),
+                          pw_tr(PW_S_DETAILS_LOG));
     }
     return ret;
 }
@@ -241,25 +244,25 @@ static void do_load(hub *h)
             return;
         h->last_slot = slot;
     }
-    if (!pw_dialog_confirm(&h->ui, "Load the saved state?", "Unsaved progress will be lost.", 0))
+    if (!pw_dialog_confirm(&h->ui, pw_tr(PW_S_CONFIRM_LOAD), pw_tr(PW_S_CONFIRM_LOAD2), 0))
         return;
     if (slot >= 0) {
-        h->busy_verb = "Loading";
+        h->busy_fmt = pw_tr(PW_S_LOADING_PCT);
         ret = pw_store_load(slot, progress, h);
         if (ret < 0) {
             build(h);
-            pw_dialog_message(&h->ui, "This state cannot be loaded.", pw_store_reason(ret));
+            pw_dialog_message(&h->ui, pw_tr(PW_S_CANNOT_LOAD), pw_store_reason(ret));
             return;
         }
     }
     pw_store_arm(slot);
-    pw_dialog_busy(&h->ui, "Loading...");
+    pw_dialog_busy(&h->ui, pw_tr(PW_S_LOADING));
     pw_engine_set_presuspend(pw_fb_hide);
     pw_engine_load_held(h->frozen); /* returns only on failure */
     pw_engine_set_presuspend(0);
     pw_fb_recapture();
     build(h);
-    pw_dialog_message(&h->ui, "The state could not be loaded.", "Details are in pocketwatch.log.");
+    pw_dialog_message(&h->ui, pw_tr(PW_S_LOAD_FAILED), pw_tr(PW_S_DETAILS_LOG));
 }
 
 #ifdef PW_DEBUG
@@ -364,7 +367,7 @@ int pw_hub_run(const pw_freeze_set *frozen)
             if (it->id == IT_RESUME)
                 break;
             if (it->id == IT_QUIT) {
-                if (pw_dialog_confirm(&h.ui, "Do you want to quit the game?", 0, 0)) {
+                if (pw_dialog_confirm(&h.ui, pw_tr(PW_S_CONFIRM_QUIT), 0, 0)) {
                     result = PW_HUB_QUIT;
                     break;
                 }
@@ -387,8 +390,8 @@ int pw_hub_run(const pw_freeze_set *frozen)
                         pw_fb_recapture();
                         h.saved_at[0] = 0;
                         build(&h);
-                        pw_dialog_message(&h.ui, "The Memory Stick could not be checked.",
-                                          "Do not save in the game: quit and restart the PSP.");
+                        pw_dialog_message(&h.ui, pw_tr(PW_S_CHECK_FAILED),
+                                          pw_tr(PW_S_CHECK_FAILED2));
                     }
                     return PW_HUB_LOADED;
                 }

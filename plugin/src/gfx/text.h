@@ -45,6 +45,9 @@ unsigned int pw_utf8_next(const char **s);
 
 int pw_text_width(pw_font *f, const char *utf8);
 
+/* 1 when every character of the string has a glyph (the built-in fallback has ASCII only). */
+int pw_text_covers(const pw_font *f, const char *utf8);
+
 /* Draw at the baseline y; alpha 0-256 scales the colour's coverage. Returns the advance. With
    shadow, the XMB's soft dark shadow is drawn first (offset down-right). */
 int pw_text_draw(pw_canvas *c, pw_font *f, int x, int y, const char *utf8, unsigned int color,

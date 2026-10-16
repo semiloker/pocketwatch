@@ -38,7 +38,11 @@ The project's full workflow is imported here and applies to every session:
   system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
   screen off, a short tap of NOTE opens the hub instead. The game is frozen and sees no buttons.
 - Host previews of every menu screen as PNGs: `make -C tests preview FONT=<path to a .pgf>`
-  (in WSL; never commit renders made with a Sony font).
+  (in WSL; never commit renders made with a Sony font); `UI_LANG=ru` renders a translation.
+- UI text goes through `pw_tr(PW_S_...)` (`ui/i18n.h`, English built in); translations are
+  `plugin/lang/<code>.txt`, deployed to `seplugins/pocketwatch/lang/`; `language.txt` there with
+  one code overrides the system language. A new string needs a key in every lang file (the host
+  test fails otherwise) with the same printf conversions as the English one.
 - Debug-build combos in a game: L+R+START+RIGHT = save state to RAM, L+R+START+LEFT = load it;
   L+R+SELECT+UP = drop the state, write the held log lines and dump memory/modules/threads;
   L+R+SELECT+RIGHT = rollback self-test, L+R+SELECT+LEFT = frozen save + immediate load;

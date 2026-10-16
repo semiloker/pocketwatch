@@ -12,6 +12,7 @@
 #include "core/platform.h"
 #include "core/png.h"
 #include "stb_sprintf.h"
+#include "ui/i18n.h"
 
 #define SAVEDATA_DIR "ms0:/PSP/SAVEDATA/"
 #define FILE_MAGIC   0x54535750u /* "PWST" */
@@ -90,7 +91,7 @@ int pw_store_init(void)
         pw_savedata_sfo s;
 
         stbsp_snprintf(dir, sizeof(dir), "PW%s%02d", g->id, slot + 1);
-        stbsp_snprintf(title, sizeof(title), "Save State %d", slot + 1);
+        stbsp_snprintf(title, sizeof(title), pw_tr(PW_S_SLOT_TITLE), slot + 1);
         s.title = g->title;
         s.savedata_title = title;
         s.detail = "Pocketwatch";
@@ -485,27 +486,27 @@ const char *pw_store_reason(int err)
 {
     switch (err) {
     case PW_STORE_E_NO_GAME:
-        return "The game could not be identified.";
+        return pw_tr(PW_S_E_NO_GAME);
     case PW_STORE_E_IO:
-        return "The Memory Stick could not be written or read.";
+        return pw_tr(PW_S_E_IO);
     case PW_STORE_E_EMPTY:
-        return "This slot is empty.";
+        return pw_tr(PW_S_E_EMPTY);
     case PW_STORE_E_OTHER_GAME:
-        return "This state belongs to another game or ISO.";
+        return pw_tr(PW_S_E_OTHER_GAME);
     case PW_STORE_E_OTHER_SETUP:
-        return "This state was saved with another setup.";
+        return pw_tr(PW_S_E_OTHER_SETUP);
     case PW_STORE_E_DAMAGED:
-        return "This state is damaged.";
+        return pw_tr(PW_S_E_DAMAGED);
     case PW_STORE_E_NO_STATE:
-        return "There is no state to write.";
+        return pw_tr(PW_S_E_NO_STATE);
     case PW_STORE_E_MEMORY:
-        return "Not enough memory.";
+        return pw_tr(PW_S_E_MEMORY);
     case PW_STORE_E_BLOCKED:
-        return "The Memory Stick is locked until the PSP restarts.";
+        return pw_tr(PW_S_E_BLOCKED);
     case PW_ENGINE_BUSY:
-        return "Another save or load is running.";
+        return pw_tr(PW_S_BUSY);
     default:
-        return "Details are in pocketwatch.log.";
+        return pw_tr(PW_S_DETAILS_LOG);
     }
 }
 

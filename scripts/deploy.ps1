@@ -44,6 +44,15 @@ New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item -Path $prx -Destination $dest -Force
 Write-Host "Copied pocketwatch.prx -> $dest"
 
+# Translations: the plugin reads lang\<code>.txt for the system language (English is built in).
+$langSrc = Join-Path $root 'plugin\lang'
+if (Test-Path $langSrc) {
+    $langDest = Join-Path $dest 'lang'
+    New-Item -ItemType Directory -Force -Path $langDest | Out-Null
+    Copy-Item -Path (Join-Path $langSrc '*.txt') -Destination $langDest -Force
+    Write-Host "Copied translations -> $langDest"
+}
+
 $pluginsTxt = Join-Path $pspRoot 'seplugins\PLUGINS.TXT'
 # Runlevel UMD = retail games (UMD and ISO) only. GAME would also load it into homebrew.
 $line = "UMD, ${Device}:/seplugins/pocketwatch/pocketwatch.prx, on"

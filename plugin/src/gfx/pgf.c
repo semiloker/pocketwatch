@@ -165,6 +165,13 @@ static int glyph_bit_offset(const pw_pgf *f, unsigned int code, unsigned int *bi
     return 0;
 }
 
+int pw_pgf_has(const pw_pgf *f, unsigned int code)
+{
+    unsigned int bit;
+
+    return glyph_bit_offset(f, code, &bit) == 0;
+}
+
 static int render(const pw_pgf *f, unsigned int code, pw_pgf_glyph *g, unsigned char *out,
                   unsigned char *scratch, unsigned int room, int depth)
 {

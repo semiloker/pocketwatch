@@ -19,7 +19,7 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/core/lz.c $(SRC_DIR)/ui/draw.c $(SRC_DIR)/ui/font8x8.c $(SRC_DIR)/ui/input.c \
               $(SRC_DIR)/ui/shapes.c $(SRC_DIR)/ui/icons.c $(SRC_DIR)/ui/views.c \
               $(SRC_DIR)/gfx/pgf.c $(SRC_DIR)/gfx/text.c $(SRC_DIR)/gfx/rlz.c $(SRC_DIR)/gfx/rco.c \
-              $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c \
+              $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
@@ -49,15 +49,16 @@ $(FIXTURES): fixtures/make_rlz.py | $(BUILD)
 run: $(BUILD)/pwtest $(FIXTURES)
 	PWTEST_TMPDIR=$(BUILD)/tmp ./$(BUILD)/pwtest $(T)
 
-# Host renders of every menu screen (tests/preview/preview_ui.c); FONT=path/to/a.pgf is optional.
-PREVIEW_OBJS = $(BUILD)/preview_ui.o $(filter-out $(BUILD)/main.o $(BUILD)/test_%.o,$(OBJS))
+# Host renders of every menu screen (tests/preview/preview_ui.c); FONT=path/to/a.pgf is optional,
+# UI_LANG=fr renders a translation from plugin/lang/.
+PREVIEW_OBJS = $(BUILD)/preview_ui.o $(filter-out $(BUILD)/main.o $(BUILD)/test_%.o $(BUILD)/store.o,$(OBJS))
 $(BUILD)/preview_ui.o: preview/preview_ui.c | $(BUILD)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 preview: $(PREVIEW_OBJS)
 	$(CC) $(LDFLAGS) -o $(BUILD)/preview_ui $^
 	mkdir -p $(BUILD)/preview
-	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) ./$(BUILD)/preview_ui
+	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
 
 clean:
 	rm -rf $(BUILD)

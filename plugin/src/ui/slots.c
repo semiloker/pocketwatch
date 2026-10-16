@@ -10,6 +10,7 @@
 #include "ui/fb.h"
 #include "ui/slots.h"
 #include "ui/views.h"
+#include "ui/i18n.h"
 
 #define ICON_PIXELS (PW_STORE_ICON_W * PW_STORE_ICON_H)
 
@@ -38,12 +39,12 @@ static void build(list *l, int mode, unsigned int *icons)
         r->icon = in->has_icon ? in->icon : 0;
         if (in->exists) {
             pw_sysinfo_format_date(&in->saved, date, sizeof(date));
-            stbsp_snprintf(l->line[l->count], sizeof(l->line[0]), "%s   %u.%u MB", date,
+            stbsp_snprintf(l->line[l->count], sizeof(l->line[0]), pw_tr(PW_S_SIZE_MB), date,
                            in->size / (1024 * 1024), in->size % (1024 * 1024) * 10 / (1024 * 1024));
-            stbsp_snprintf(l->title[l->count], sizeof(l->title[0]), "Save State %d", s + 1);
+            stbsp_snprintf(l->title[l->count], sizeof(l->title[0]), pw_tr(PW_S_SLOT_TITLE), s + 1);
             r->info = l->line[l->count];
         } else {
-            stbsp_snprintf(l->title[l->count], sizeof(l->title[0]), "New Save State (%d)", s + 1);
+            stbsp_snprintf(l->title[l->count], sizeof(l->title[0]), pw_tr(PW_S_NEW_SLOT), s + 1);
             r->info = 0;
         }
         r->title = l->title[l->count];
@@ -62,7 +63,7 @@ int pw_slots_pick(pw_ui *ui, int mode, int start)
         icons = mem.ptr;
     build(&l, mode, icons);
     if (l.count == 0) {
-        pw_dialog_message(ui, "There are no saved states.", 0);
+        pw_dialog_message(ui, pw_tr(PW_S_NO_STATES), 0);
         goto out;
     }
     for (int i = 0; i < l.count; i++)
@@ -73,8 +74,8 @@ int pw_slots_pick(pw_ui *ui, int mode, int start)
         unsigned int ev;
 
         pw_view_slots(pw_fb_begin(256, pw_ui_now_ms()), ui,
-                      mode == PW_SLOTS_SAVE ? "Save State" : "Load State", pw_game_get()->title,
-                      l.rows, l.count, sel, 1);
+                      mode == PW_SLOTS_SAVE ? pw_tr(PW_S_SAVE_STATE) : pw_tr(PW_S_LOAD_STATE),
+                      pw_game_get()->title, l.rows, l.count, sel, 1);
         pw_fb_present();
         ev = pw_ui_poll(ui);
         if (ev & PSP_CTRL_UP) {
@@ -89,8 +90,8 @@ int pw_slots_pick(pw_ui *ui, int mode, int start)
             char q[48];
 
             if (mode == PW_SLOTS_SAVE && l.rows[sel].exists) {
-                stbsp_snprintf(q, sizeof(q), "Overwrite Save State %d?", l.map[sel] + 1);
-                if (!pw_dialog_confirm(ui, q, "The state saved there will be replaced.", 0))
+                stbsp_snprintf(q, sizeof(q), pw_tr(PW_S_CONFIRM_OVERWRITE), l.map[sel] + 1);
+                if (!pw_dialog_confirm(ui, q, pw_tr(PW_S_CONFIRM_OVERWRITE2), 0))
                     continue;
             }
             result = l.map[sel];
@@ -98,7 +99,7 @@ int pw_slots_pick(pw_ui *ui, int mode, int start)
         } else if ((ev & PSP_CTRL_TRIANGLE) && l.rows[sel].exists) {
             char q[48];
 
-            stbsp_snprintf(q, sizeof(q), "Delete Save State %d?", l.map[sel] + 1);
+            stbsp_snprintf(q, sizeof(q), pw_tr(PW_S_CONFIRM_DELETE), l.map[sel] + 1);
             if (pw_dialog_confirm(ui, q, 0, 0)) {
                 pw_store_delete(l.map[sel]);
                 build(&l, mode, icons);

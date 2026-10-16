@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <string.h>
+
 #include "ui/views.h"
 #include "ui/icons.h"
 #include "ui/shapes.h"
+#include "ui/i18n.h"
 
 #define SCREEN_W 480
 #define SCREEN_H 272
@@ -167,25 +170,89 @@ static void choice(pw_canvas *c, const pw_ui *ui, int x, const char *label, int 
     pw_text_draw(c, ui->title, x - w / 2, CHOICE_Y, label, PW_C_TEXT, 256, 1);
 }
 
+#define DLG_LINES    4
+#define DLG_LINE_MAX 160
+
+/*
+ * Break s at spaces into lines no wider than max, from out[n] on, at most up to line `cap`; the
+ * last allowed line takes the rest (drawn with "..." if it is still too wide). Returns the new n.
+ */
+static int wrap(pw_font *f, const char *s, int max, char (*out)[DLG_LINE_MAX], int n, int cap)
+{
+    while (*s == ' ')
+        s++;
+    while (*s && n < cap) {
+        char *line = out[n];
+        int len = 0;
+
+        if (n == cap - 1) { /* the last line: everything that is left */
+            while (s[len] && len < DLG_LINE_MAX - 1) {
+                line[len] = s[len];
+                len++;
+            }
+            line[len] = 0;
+            return n + 1;
+        }
+        line[0] = 0;
+        for (;;) {
+            const char *w = s, *e;
+            char tmp[DLG_LINE_MAX];
+            int add;
+
+            while (*w == ' ')
+                w++;
+            for (e = w; *e && *e != ' ';)
+                e++;
+            if (e == w)
+                break;
+            add = (int)(e - w) + (len ? 1 : 0);
+            if (len + add >= DLG_LINE_MAX)
+                break;
+            memcpy(tmp, line, (unsigned int)len);
+            if (len)
+                tmp[len] = ' ';
+            memcpy(tmp + len + (len ? 1 : 0), w, (unsigned int)(e - w));
+            tmp[len + add] = 0;
+            if (len && pw_text_width(f, tmp) > max)
+                break; /* a line keeps at least one word */
+            memcpy(line, tmp, (unsigned int)(len + add + 1));
+            len += add;
+            s = e;
+        }
+        if (len == 0)
+            break;
+        n++;
+        while (*s == ' ')
+            s++;
+    }
+    return n;
+}
+
 void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, const char *line2,
                     int yes)
 {
-    pw_draw_fill(c, RULE_X0, RULE_TOP, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
+    char lines[DLG_LINES][DLG_LINE_MAX];
+    int max = RULE_X1 - RULE_X0 + 20, n, top;
+
+    /* Like the system's dialogs, long text wraps; the band grows upwards for a third line. */
+    n = wrap(ui->title, line1, max, lines, 0, line2 ? 2 : 3);
+    if (line2)
+        n = wrap(ui->title, line2, max, lines, n, n + 2 > DLG_LINES ? DLG_LINES : n + 2);
+    top = n > 2 ? RULE_TOP - (n - 2) * (TEXT_Y2 - TEXT_Y1) : RULE_TOP;
+    pw_draw_fill(c, RULE_X0, top, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
     pw_draw_fill(c, RULE_X0, RULE_BOT, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
-    if (line2) {
-        pw_view_text_centered(c, ui->title, SCREEN_W / 2, TEXT_Y1, line1, PW_C_TEXT, 256);
-        pw_view_text_centered(c, ui->title, SCREEN_W / 2, TEXT_Y2, line2, PW_C_TEXT, 256);
-    } else {
-        pw_view_text_centered(c, ui->title, SCREEN_W / 2, (TEXT_Y1 + TEXT_Y2) / 2, line1, PW_C_TEXT,
-                              256);
+    for (int i = 0; i < n; i++) {
+        int y = n == 1 ? (TEXT_Y1 + TEXT_Y2) / 2 : TEXT_Y2 - (n - 1 - i) * (TEXT_Y2 - TEXT_Y1);
+
+        pw_view_text_centered(c, ui->title, SCREEN_W / 2, y, lines[i], PW_C_TEXT, 256);
     }
     if (kind == PW_VIEW_CONFIRM) {
-        choice(c, ui, YES_X, "Yes", yes);
-        choice(c, ui, NO_X, "No", !yes);
-        pw_view_hints(c, ui, "Enter", "Back", 256);
+        choice(c, ui, YES_X, pw_tr(PW_S_YES), yes);
+        choice(c, ui, NO_X, pw_tr(PW_S_NO), !yes);
+        pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
     } else {
-        choice(c, ui, SCREEN_W / 2, "OK", 1);
-        pw_view_hints(c, ui, "Enter", 0, 256);
+        choice(c, ui, SCREEN_W / 2, pw_tr(PW_S_OK), 1);
+        pw_view_hints(c, ui, pw_tr(PW_S_ENTER), 0, 256);
     }
 }
 
@@ -262,9 +329,11 @@ void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const cha
     if (r->exists)
         pw_text_draw(c, ui->body, 175, 192, "Pocketwatch", PW_C_GREY, 256, 1);
 
-    pw_view_hints(c, ui, "Enter", "Back", 256);
+    pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
     if (can_delete && r->exists) {
-        button(c, ui, PW_BTN_TRIANGLE, 400, 256, 256);
-        pw_text_draw(c, ui->body, 408, 260, "Delete", PW_C_TEXT, 256, 1);
+        int w = pw_text_width(ui->body, pw_tr(PW_S_DELETE)), x = SCREEN_W - 10 - w;
+
+        button(c, ui, PW_BTN_TRIANGLE, x - 8, 256, 256);
+        pw_text_draw(c, ui->body, x, 260, pw_tr(PW_S_DELETE), PW_C_TEXT, 256, 1);
     }
 }

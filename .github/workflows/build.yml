@@ -39,13 +39,16 @@ jobs:
         with:
           fetch-depth: 0 # full history so `git describe` sees tags
 
-      - name: Build
+      - name: Build and check the debug profile
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           bash scripts/build.sh
+          bash scripts/build.sh check
 
-      - name: Check imports and size budgets
-        run: bash scripts/build.sh check
+      - name: Build and check the release profile (the one packaged)
+        run: |
+          bash scripts/build.sh all "" 0
+          bash scripts/build.sh check "" 0
 
       - name: Package
         id: package
@@ -53,6 +56,8 @@ jobs:
           PKG="pocketwatch-$(cat plugin/.version)"
           mkdir -p "dist/$PKG/seplugins/pocketwatch"
           cp plugin/pocketwatch.prx "dist/$PKG/seplugins/pocketwatch/"
+          mkdir -p "dist/$PKG/seplugins/pocketwatch/lang"
+          cp plugin/lang/*.txt "dist/$PKG/seplugins/pocketwatch/lang/"
           cp README.md LICENSE "dist/$PKG/"
           (cd dist && zip -r "$PKG.zip" "$PKG")
           echo "name=$PKG" >> "$GITHUB_OUTPUT"

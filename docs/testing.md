@@ -47,7 +47,10 @@ damaged, restore it from the backup.
 | H5 | Resume Game. | Same as H4. |
 | H6 | Open the hub, leave it 2 minutes. | The screen does not dim or switch off. |
 | H7 | Open the game's own save screen (its save menu) and press HOME there. | The hub does **not** open (a system dialog is running). Log: `shell: HOME ignored: a system dialog (saved data, keyboard, network) is open`. |
-| H8 | Change the system language or the ✕/○ assignment (ARK VSH menu), start the game, open the hub. | The hints and Enter/Back follow the setting. (Text stays English until i18n.) |
+| H8 | Change the ✕/○ assignment (ARK VSH menu), start the game, open the hub. | The hints and Enter/Back follow the setting. |
+| H9 | System Settings → Language: French (then German, Russian), start the game, open the hub, Save State list, a dialog. | Everything in that language, no missing letters (a box or "?" instead of a letter is a fail), long dialog lines wrap instead of ending in "...". Log: `i18n: fr, 58 of 58 strings translated`. Write down any wording that reads wrong. |
+| H10 | Put a file `seplugins/pocketwatch/language.txt` containing `uk`, start the game. Delete the file afterwards. | Ukrainian text, or English with the log line `i18n: ... has letters the system font lacks` (then the system font has no Ukrainian letters: report it). |
+| H11 | Save to a slot in one language, change the system language, start the game, load it. | It loads; after the load the hub speaks the language of the moment it was saved (by design: the state brings its own). |
 
 ## 3. Quit Game
 

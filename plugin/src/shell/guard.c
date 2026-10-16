@@ -6,6 +6,7 @@
 
 #include "core/log.h"
 #include "shell/guard.h"
+#include "ui/i18n.h"
 
 /* core/stubs/scePower_driver.S, core/stubs/sceSyscon_driver.S */
 int scePowerGetBatteryLifePercent(void);
@@ -62,15 +63,15 @@ const char *pw_guard_reason(int guard)
 {
     switch (guard) {
     case PW_GUARD_BATTERY:
-        return "The battery is low.";
+        return pw_tr(PW_S_G_BATTERY);
     case PW_GUARD_USB:
-        return "Not available while USB mode is on.";
+        return pw_tr(PW_S_G_USB);
     case PW_GUARD_WLAN:
-        return "Not available while the wireless network is in use.";
+        return pw_tr(PW_S_G_WLAN);
     case PW_GUARD_PLUGIN:
-        return "Another save state plugin is running.";
+        return pw_tr(PW_S_G_PLUGIN);
     case PW_GUARD_HIGHMEM:
-        return "Not available for this game (extra memory mode).";
+        return pw_tr(PW_S_G_HIGHMEM);
     default:
         return "";
     }
@@ -80,15 +81,15 @@ const char *pw_guard_hint(int guard)
 {
     switch (guard) {
     case PW_GUARD_BATTERY:
-        return "Connect the AC adaptor.";
+        return pw_tr(PW_S_H_BATTERY);
     case PW_GUARD_USB:
-        return "Turn USB mode off.";
+        return pw_tr(PW_S_H_USB);
     case PW_GUARD_WLAN:
-        return "Leave the game's network mode first.";
+        return pw_tr(PW_S_H_WLAN);
     case PW_GUARD_PLUGIN:
-        return "Turn off Custom Home and PSPStates in PLUGINS.TXT.";
+        return pw_tr(PW_S_H_PLUGIN);
     case PW_GUARD_HIGHMEM:
-        return "Turn off ARK's high memory option for this game.";
+        return pw_tr(PW_S_H_HIGHMEM);
     default:
         return 0;
     }

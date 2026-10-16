@@ -24,6 +24,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Savestate engine: freeze the game, pack game RAM / eDRAM / scratchpad with LZ4, capture the
   kernel during a suspend (touch-and-go after the first save of a session), roll it back on load
   with the flash drivers rebuilt and the IPL's seeds put back.
+- The interface in the system language: French, Spanish, German, Italian, Dutch, Portuguese and
+  Russian, plus Ukrainian through `language.txt`; translations are text files next to the plugin.
+  Long dialog lines wrap like the system's.
 - Release build switch (`scripts\build.cmd -Release`) and a device testing guide
   (`docs/testing.md`).
 - Developer tooling: ARK-4 NID check, size budgets, host unit tests (ASan + UBSan), host previews

@@ -17,6 +17,7 @@
 #include "complications/states/store.h"
 #include "gfx/assets.h"
 #include "shell/shell.h"
+#include "ui/lang.h"
 
 #ifdef PW_DEBUG
 #include "debug/probe.h"
@@ -97,6 +98,7 @@ static int main_thread(SceSize args, void *argp)
     pw_assets_init();  /* the system's font, icons and skies: the menu must not wait for flash0 */
     pw_engine_set_env_extra(0, pw_assets_base()); /* a state must find this block where it was */
     pw_engine_set_env_extra(1, module_file_crc());
+    pw_lang_init(); /* after the fonts: it checks their glyphs; before the store (SFO titles) */
     pw_game_init();
     pw_store_init(); /* the slots' hashed PARAM.SFO, while no game thread holds anything */
     ret = pw_shell_start();

@@ -176,6 +176,19 @@ static int advance_fallback(const pw_font *f)
     return 8 * f->scale;
 }
 
+int pw_text_covers(const pw_font *f, const char *s)
+{
+    while (*s) {
+        unsigned int code = pw_utf8_next(&s);
+
+        if (code == ' ')
+            continue;
+        if (f->pgf == 0 ? code < 32 || code > 126 : !pw_pgf_has(f->pgf, code))
+            return 0;
+    }
+    return 1;
+}
+
 int pw_text_width(pw_font *f, const char *s)
 {
     int w64 = 0;

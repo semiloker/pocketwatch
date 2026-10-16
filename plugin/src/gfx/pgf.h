@@ -34,6 +34,9 @@ typedef struct {
 /* Parse the header and locate the tables. Returns 0, or < 0 when this is not a usable PGF. */
 int pw_pgf_open(pw_pgf *f, const void *data, unsigned int size);
 
+/* 1 when the font has a glyph for this char code. */
+int pw_pgf_has(const pw_pgf *f, unsigned int code);
+
 /* Bytes per glyph bitmap to reserve: the header's maximum plus a margin, since some glyphs (with
    descenders) are larger than the maximum the header states. */
 unsigned int pw_pgf_glyph_room(const pw_pgf *f);
