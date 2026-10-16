@@ -235,3 +235,18 @@ rollback cannot lose them) and writes them back at the first resume event of eve
 fast mode is refused when the live seeds are already zero. Boot, pre-suspend and resume values are
 logged.
 
+**Speed run 7 - 2026-10-16, Castlevania: root cause confirmed.** Raw log:
+[`logs/2026-10-16-speed7-castlevania.log`](logs/2026-10-16-speed7-castlevania.log). The seeds at
+`0xBFC00200` were present at boot and identical after the real wake (`A2990E43 31375773 ...`, the
+IPL writes the same values every time), and were all `00000000` at the first resume event of the
+touch-and-go load; the engine put them back and quitting the game reached the XMB.
+
+Timings now (fast mode, LZ4): first save of a session 7.8 s (real sleep), later saves 4.2 s, loads
+3.9 s (load = verify 0.23 + suspend 3.11 incl. flash rebuild 0.8 + unpack 0.45 + eDRAM 0.07 s).
+The suspend events are the floor: `0x200` ~560 ms and `0x400A` 583 ms before the sleep point,
+`0x100000` 269 ms, `0x1000A` 122 ms and the VBLANK wait `0x40000` 99 ms after it.
+
+Next: profile which handlers sit behind `0x200` and `0x400A`; overlap packing/unpacking with the
+suspend's idle waits; avoid the flash rebuild when the NAND did not change; reconsider whether the
+first save of a session still needs a real sleep now that the seeds were the real problem.
+

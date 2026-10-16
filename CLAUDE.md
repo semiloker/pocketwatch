@@ -36,6 +36,9 @@ Approved architecture and roadmap: `C:\Users\smlkr\.claude\plans\playful-riding-
   interrupts with CP0 Status.IE, never `sceKernelCpuSuspendIntr` (the blob does not restore IC).
 - A load must never run without the flash driver rebuild (`pw_flash_reinit` at RESUME_COMPLETED):
   a rolled-back lflash map corrupts flash1 and the PSP loses its system settings (E2 run 5).
+- A touch-and-go suspend must be followed by putting the IPL's seeds back (8 words at 0xBFC00200,
+  saved before every suspend request): without them the next reboot - quitting the game - cannot
+  decrypt reboot.bin and the PSP hangs on a black screen (speed runs 3-7, docs/research/m2-speed.md).
 - While the engine holds a state, nothing may write to the Memory Stick (the saved kernel's FAT
   view would go stale): logging is deferred until `pw_engine_discard`.
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).
