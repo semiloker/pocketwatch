@@ -52,6 +52,15 @@ damaged, restore it from the backup.
 | H10 | Put a file `seplugins/pocketwatch/language.txt` containing `uk`, start the game. Delete the file afterwards. | Ukrainian text, or English with the log line `i18n: ... has letters the system font lacks` (then the system font has no Ukrainian letters: report it). |
 | H11 | Save to a slot in one language, change the system language, start the game, load it. | It loads; after the load the hub speaks the language of the moment it was saved (by design: the state brings its own). |
 
+### Settings
+
+| ID | Do | Expect |
+|---|---|---|
+| ST1 | Hub → Settings → Fast Save and Load → Off. Save to a slot twice. Quit, start the game again, open Settings. | Both saves sleep for real (dark ~5 s each); the log says `engine: fast mode (touch-and-go suspend, no sleep) OFF`; after the restart it is still Off (`config.txt`). Set it back to On. |
+| ST2 | Settings → Clock and Battery → Off, back to the hub. | No clock or battery in the corner; On brings them back. |
+| ST3 | Settings → Language → Deutsch. Back to the hub. Then Settings → Language → System Language. | German at once (hub, lists, dialogs); `seplugins/pocketwatch/language.txt` contains `de`; System Language removes the file and returns to the system's language. |
+| ST4 | Back / HOME inside Settings and inside the option list. | Back closes the list without a change; HOME closes too. |
+
 ## 3. Quit Game
 
 | ID | Do | Expect |

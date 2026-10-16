@@ -12,10 +12,12 @@ BUILD    = build
 CFLAGS  = -std=gnu11 -g -O1 -Wall -Wextra -Werror -I$(SRC_DIR) -I$(LIB_DIR) -I. \
           -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
 LDFLAGS = -fsanitize=address,undefined
+# Rebuild objects when a header they include changes (a stale object once hid a new enum value).
+CFLAGS += -MMD -MP
 
 # Portable plugin modules under test (must not include PSP headers).
 PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32.c $(SRC_DIR)/core/stubinfo.c \
-              $(SRC_DIR)/core/png.c $(SRC_DIR)/complications/states/sfo.c $(SRC_DIR)/complications/states/stream.c \
+              $(SRC_DIR)/core/png.c $(SRC_DIR)/core/config.c $(SRC_DIR)/complications/states/sfo.c $(SRC_DIR)/complications/states/stream.c \
               $(SRC_DIR)/core/lz.c $(SRC_DIR)/ui/draw.c $(SRC_DIR)/ui/font8x8.c $(SRC_DIR)/ui/input.c \
               $(SRC_DIR)/ui/shapes.c $(SRC_DIR)/ui/icons.c $(SRC_DIR)/ui/views.c \
               $(SRC_DIR)/gfx/pgf.c $(SRC_DIR)/gfx/text.c $(SRC_DIR)/gfx/rlz.c $(SRC_DIR)/gfx/rco.c \
@@ -62,5 +64,7 @@ preview: $(PREVIEW_OBJS)
 
 clean:
 	rm -rf $(BUILD)
+
+-include $(OBJS:.o=.d) $(BUILD)/preview_ui.d
 
 .PHONY: all run clean preview

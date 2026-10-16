@@ -4,6 +4,7 @@
 
 #include "complications/states/engine.h"
 #include "complications/states/store.h"
+#include "core/config.h"
 #include "core/log.h"
 #include "core/sysinfo.h"
 #include "gfx/assets.h"
@@ -14,6 +15,7 @@
 #include "ui/hub.h"
 #include "ui/i18n.h"
 #include "ui/icons.h"
+#include "ui/settings.h"
 #include "ui/slots.h"
 #include "ui/ui.h"
 #include "ui/views.h"
@@ -26,7 +28,7 @@
 #define DESC_MAX    80
 #define STATUS_MS   1000
 
-enum { IT_RESUME, IT_SAVE, IT_LOAD, IT_QUIT, IT_CARD, IT_COUNT };
+enum { IT_RESUME, IT_SAVE, IT_LOAD, IT_SETTINGS, IT_QUIT, IT_CARD, IT_COUNT };
 
 typedef struct {
     int id;
@@ -131,6 +133,8 @@ static void build(hub *h)
         stbsp_snprintf(line, sizeof(line), "%s", pw_guard_reason(h->guard));
     add(h, IT_LOAD, PW_ART_UPDATE, PW_ART_UPDATE_GLOW, PW_ICON_LOAD, pw_tr(PW_S_LOAD_STATE),
         !h->guard && (has || h->slots_used > 0), line);
+    add(h, IT_SETTINGS, PW_ART_SETTINGS, PW_ART_SETTINGS_GLOW, PW_ICON_WATCH, pw_tr(PW_S_SETTINGS),
+        1, "");
     add(h, IT_QUIT, -1, -1, PW_ICON_QUIT, pw_tr(PW_S_QUIT_GAME), 1, "");
 #ifdef PW_DEBUG
     add(h, IT_CARD, PW_ART_MS, PW_ART_MS_GLOW, PW_ICON_CARD, "Memory Stick Test", 1,
@@ -158,7 +162,8 @@ static void draw(hub *h, int show)
 
     for (int i = 0; i < h->count; i++)
         rows[i] = h->items[i].row;
-    pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show);
+    if (pw_config_get()->status)
+        pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show);
     pw_view_hub(c, &h->ui, &h->cat, rows, h->count, h->selpos, show);
     pw_fb_present();
 }
@@ -400,6 +405,9 @@ int pw_hub_run(const pw_freeze_set *frozen)
                 build(&h);
             } else if (it->id == IT_LOAD) {
                 do_load(&h);
+            } else if (it->id == IT_SETTINGS) {
+                pw_settings_run(&h.ui);
+                build(&h); /* the language may have changed */
             }
 #ifdef PW_DEBUG
             else if (it->id == IT_CARD) {

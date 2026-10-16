@@ -337,3 +337,52 @@ void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const cha
         pw_text_draw(c, ui->body, x, 260, pw_tr(PW_S_DELETE), PW_C_TEXT, 256, 1);
     }
 }
+
+#define SET_Y0     138 /* first option row (baseline), level with the hub's cursor row */
+#define SET_PITCH  38
+#define POPUP_X    296
+#define POPUP_TEXT 312
+
+void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
+                      const pw_setting_row *rows, int count, int sel, const char *const *options,
+                      int n_options, int opt_sel)
+{
+    int editing = opt_sel >= 0 && options && n_options > 0;
+
+    if (cat->icon)
+        image_centered(c, cat->icon, CAT_X, CAT_Y, 256);
+    else
+        pw_icon_draw(c, cat->fallback, CAT_X, CAT_Y, 50, PW_C_TEXT, 256);
+    if (cat->label)
+        pw_text_draw(c, ui->body, CAT_X - pw_text_width(ui->body, cat->label) / 2, CAT_LABEL_Y,
+                     cat->label, PW_C_TEXT, 256, 1);
+
+    for (int i = 0; i < count; i++) {
+        int y = SET_Y0 + i * SET_PITCH, alpha = i == sel ? 256 : DIM_ALPHA;
+        int max = (editing ? POPUP_X - 8 : SCREEN_W - 6) - TEXT_X;
+
+        /* like a hub row: the name, and the current value under it */
+        pw_text_draw_fit(c, ui->title, TEXT_X, y, rows[i].label, max, PW_C_TEXT, alpha, 1);
+        if (rows[i].value)
+            pw_text_draw_fit(c, ui->body, TEXT_X, y + 17, rows[i].value, max, PW_C_TEXT,
+                             alpha * 3 / 4, 1);
+    }
+
+    if (editing) {
+        int cy = SET_Y0 + sel * SET_PITCH;
+
+        pw_draw_blend(c, POPUP_X, 0, SCREEN_W - POPUP_X, SCREEN_H, PW_C_BLACK, 150);
+        for (int k = 0; k < n_options; k++) {
+            int y = cy + (k - opt_sel) * 24;
+
+            if (y < 12 || y > SCREEN_H - 24)
+                continue;
+            if (k == opt_sel)
+                pw_draw_blend(c, POPUP_X + 6, y - 15, SCREEN_W - POPUP_X - 12, 20,
+                              PW_RGB(0xCF, 0xCF, 0xCF), 70);
+            pw_text_draw_fit(c, ui->title, POPUP_TEXT, y, options[k], SCREEN_W - POPUP_TEXT - 10,
+                             PW_C_TEXT, k == opt_sel ? 256 : DIM_ALPHA, 1);
+        }
+    }
+    pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
+}

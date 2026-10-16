@@ -16,11 +16,19 @@ int sceImposeGetLanguageMode(int *lang, int *button); /* core/stubs/sceImpose_dr
 #define CODE_MAX  12
 #define PATH_MAX_ 256
 
+static char g_chosen[CODE_MAX]; /* language.txt's code, "" for the system language */
+
 static int covers(const char *s, void *ctx)
 {
     (void)ctx;
     return pw_text_covers(pw_assets_font(PW_FONT_TITLE), s) &&
            pw_text_covers(pw_assets_font(PW_FONT_BODY), s);
+}
+
+static void plugin_dir(char *dir, unsigned int cap)
+{
+    if (pw_log_dir(dir, cap) < 0)
+        strcpy(dir, "ms0:/seplugins/pocketwatch/");
 }
 
 /* language.txt: one code ("fr", "uk", "en") that wins over the system language. */
@@ -45,27 +53,27 @@ static int read_override(const char *dir, char *code)
     return j > 0;
 }
 
-void pw_lang_init(void)
+static const char *system_code(int *lang)
 {
-    char dir[200], path[PATH_MAX_], code[CODE_MAX];
+    int button = 1;
+
+    *lang = 1;
+    return sceImposeGetLanguageMode(lang, &button) >= 0 ? pw_i18n_code(*lang) : 0;
+}
+
+/* Take lang/<code>.txt; English when code is NULL or "en", or when the file is unusable. */
+static void load(const char *dir, const char *code)
+{
+    char path[PATH_MAX_];
     pw_mem_block mem;
-    const char *c = 0;
-    int lang = 1, button = 1, size, n, ret;
+    int size, n, ret;
 
     pw_i18n_reset();
-    if (pw_log_dir(dir, sizeof(dir)) < 0)
-        strcpy(dir, "ms0:/seplugins/pocketwatch/");
-    if (read_override(dir, code)) {
-        c = strcmp(code, "en") == 0 ? 0 : code;
-        pw_log("i18n: language.txt asks for \"%s\"", code);
-    } else if (sceImposeGetLanguageMode(&lang, &button) >= 0) {
-        c = pw_i18n_code(lang);
-    }
-    if (c == 0) {
-        pw_log("i18n: English (system language %d)", lang);
+    if (code == 0 || strcmp(code, "en") == 0) {
+        pw_log("i18n: English");
         return;
     }
-    stbsp_snprintf(path, sizeof(path), "%slang/%s.txt", dir, c);
+    stbsp_snprintf(path, sizeof(path), "%slang/%s.txt", dir, code);
     size = pw_file_size(path);
     if (size <= 0 || size > LANG_MAX) {
         pw_log("i18n: %s not found (0x%08X): English", path, size);
@@ -84,5 +92,54 @@ void pw_lang_init(void)
                : ret == -3 ? "is too long"
                            : "has no usable line");
     else
-        pw_log("i18n: %s, %d of %d strings translated", c, ret, PW_S_COUNT);
+        pw_log("i18n: %s, %d of %d strings translated", code, ret, PW_S_COUNT);
+}
+
+void pw_lang_init(void)
+{
+    char dir[200], code[CODE_MAX];
+    const char *c;
+    int lang;
+
+    plugin_dir(dir, sizeof(dir));
+    g_chosen[0] = 0;
+    if (read_override(dir, code)) {
+        strcpy(g_chosen, code);
+        pw_log("i18n: language.txt asks for \"%s\"", code);
+        load(dir, code);
+        return;
+    }
+    c = system_code(&lang);
+    pw_log("i18n: system language %d", lang);
+    load(dir, c);
+}
+
+const char *pw_lang_chosen(void)
+{
+    return g_chosen[0] ? g_chosen : 0;
+}
+
+int pw_lang_choose(const char *code)
+{
+    char dir[200], path[PATH_MAX_];
+    int ret = 0, lang;
+
+    plugin_dir(dir, sizeof(dir));
+    stbsp_snprintf(path, sizeof(path), "%slanguage.txt", dir);
+    if (code == 0) {
+        if (!pw_log_card_blocked())
+            pw_file_remove(path); /* may not exist */
+        g_chosen[0] = 0;
+        load(dir, system_code(&lang));
+        return pw_log_card_blocked() ? -1 : 0;
+    }
+    if (pw_log_card_blocked() ||
+        pw_file_write(path, code, (unsigned int)strlen(code), 0) != (int)strlen(code)) {
+        pw_log("i18n: %s could not be written: \"%s\" for this game only", path, code);
+        ret = -1;
+    }
+    strncpy(g_chosen, code, sizeof(g_chosen) - 1);
+    g_chosen[sizeof(g_chosen) - 1] = 0;
+    load(dir, code);
+    return ret;
 }

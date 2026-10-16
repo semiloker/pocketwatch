@@ -72,6 +72,14 @@ enum {
     PW_S_H_WLAN,
     PW_S_H_PLUGIN,
     PW_S_H_HIGHMEM,
+    PW_S_SETTINGS,
+    PW_S_SET_FAST,
+    PW_S_SET_STATUS,
+    PW_S_SET_LANGUAGE,
+    PW_S_SYSTEM_LANGUAGE,
+    PW_S_ON,
+    PW_S_OFF,
+    PW_S_SETTINGS_NOT_SAVED,
     PW_S_COUNT
 };
 

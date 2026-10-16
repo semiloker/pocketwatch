@@ -63,9 +63,9 @@ risk; close it with the evidence.
 - **Description:** P1 has ~300 KB free in games and is shared with other plugins; the UI (fonts,
   icons, text) and E3 grow the module.
 - **Mitigation:** size budgets in `make check` (PRX 160 KB, loaded 176 KB); every large buffer in
-  P9/P11; translations as files (ADR-018). 2026-10-17: the debug build is at 98 % of the PRX budget
-  and 96 % of the loaded one (release: 90 % / 90 %); the next feature must move debug code out or
-  raise the budget deliberately.
+  P9/P11; translations as files (ADR-018). 2026-10-17: the debug profile got its own budget (176 KB / 192 KB,
+  test runs only); with Settings the release build is at 94 % of its PRX budget and 92 % of the
+  loaded one: the next large feature needs a deliberate decision.
 
 ## RISK-006 — Cross-boot load into a different environment
 

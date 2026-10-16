@@ -66,10 +66,18 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_H_WLAN] = {"h_wlan", "Leave the game's network mode first."},
     [PW_S_H_PLUGIN] = {"h_plugin", "Turn off Custom Home and PSPStates in PLUGINS.TXT."},
     [PW_S_H_HIGHMEM] = {"h_highmem", "Turn off ARK's high memory option for this game."},
+    [PW_S_SETTINGS] = {"settings", "Settings"},
+    [PW_S_SET_FAST] = {"set_fast", "Fast Save and Load"},
+    [PW_S_SET_STATUS] = {"set_status", "Clock and Battery"},
+    [PW_S_SET_LANGUAGE] = {"set_language", "Language"},
+    [PW_S_SYSTEM_LANGUAGE] = {"system_language", "System Language"},
+    [PW_S_ON] = {"on", "On"},
+    [PW_S_OFF] = {"off", "Off"},
+    [PW_S_SETTINGS_NOT_SAVED] = {"settings_not_saved", "The settings could not be saved."},
 };
 
 static const char *g_text[PW_S_COUNT]; /* NULL: English */
-static char g_pool[PW_I18N_POOL];       /* the translated texts (kernel RAM: part of a state) */
+static char g_pool[PW_I18N_POOL];      /* the translated texts (kernel RAM: part of a state) */
 
 const char *pw_tr(int id)
 {

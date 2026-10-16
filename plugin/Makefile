@@ -19,6 +19,7 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/gfx/rco.o src/gfx/image.o src/ui/xmbbg.o \
          src/ui/draw.o src/ui/font8x8.o src/ui/input.o src/ui/shapes.o src/ui/icons.o \
          src/ui/views.o src/ui/fb.o src/ui/ui.o src/ui/dialog.o src/ui/hub.o src/ui/slots.o src/ui/i18n.o src/ui/lang.o \
+         src/ui/settings.o src/core/config.o \
          src/shell/shell.o src/shell/guard.o src/core/game.o src/complications/states/store.o \
          lib/stb_sprintf.o exports.o
 
@@ -36,6 +37,13 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 # other plugins and the game's own drivers (RISK-005): every increase must be deliberate.
 MAX_PRX_SIZE = 163840
 MAX_MEM      = 180224 # loaded sections incl. bss (16 KB log ring, glyph caches)
+# The debug profile (probe, benchmark, card test, the engine's verification and traces) is for test
+# runs only and gets 16 KB more of each (2026-10-17, RISK-005); the release budget above is the one
+# that matters for the owner's games.
+ifeq ($(DEBUG),1)
+MAX_PRX_SIZE = 180224
+MAX_MEM      = 196608
+endif
 
 # Kernel plugin: link only against kernel libraries (no newlib).
 USE_KERNEL_LIBS = 1

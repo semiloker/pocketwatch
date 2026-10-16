@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Area code | `CPL` |
-| Status | Planned ([ADR-009](../architecture/decisions.md#adr-009--complication-framework-and-ui-layering)); today the phase-1 menu hard-codes its items |
+| Status | Registry Planned ([ADR-009](../architecture/decisions.md#adr-009--complication-framework-and-ui-layering)); the hub hard-codes its items (`ui/hub.c`). Implemented: System items (Resume, Quit; device-verified) and the Settings screen (`ui/settings.c`) |
 | Milestones | M4 (with the hub rewrite) |
 | Code | — (future `plugin/src/complications/registry.c`, `complications/system/`, `complications/settings/`) |
 
@@ -24,8 +24,8 @@
 | `CPL-REQ-002` | The hub builds its items from the registry in registry order; each complication contributes items (action, sub-list, toggle, information). | P1 | Planned | host test of the item model |
 | `CPL-REQ-003` | Lifecycle hooks: `init` (plugin start), `on_menu_open`, `on_menu_close`, `shutdown` (`module_stop`, no I/O). | P1 | Planned | host test with a mock |
 | `CPL-REQ-004` | Items can be disabled with a reason (e.g. "No state to load") and are shown disabled, not hidden. | P1 | Planned | host test, UI review |
-| `CPL-REQ-005` | System complication: Resume Game, Quit Game ([game shell](game-shell.md) `SHL-REQ-005`). | P0 | Planned | device test M3a |
-| `CPL-REQ-006` | Settings complication: per-complication settings through the config store (`SYS-REQ-010`), edited in the hub. | P2 | Planned | device test |
+| `CPL-REQ-005` | System complication: Resume Game, Quit Game ([game shell](game-shell.md) `SHL-REQ-005`). | P0 | Done (device test 2026-10-16; items hard-coded in the hub) | device test M3a |
+| `CPL-REQ-006` | Settings complication: per-complication settings through the config store (`SYS-REQ-010`), edited in the hub. | P2 | Implemented: Fast Save and Load, Clock and Battery, Language (an XMB-style option list with the option popup) | testing guide ST1-ST3 |
 | `CPL-REQ-007` | Each complication can be left out at build time with a flag; the hub adapts. | P2 | Planned | build with the flag off |
 | `CPL-NFR-001` | A complication costs nothing while the hub is closed beyond its static data; it creates no thread unless it needs one. | P1 | Planned | code review, `make check` |
 

@@ -18,6 +18,7 @@
 #include "gfx/assets.h"
 #include "shell/shell.h"
 #include "ui/lang.h"
+#include "ui/settings.h"
 
 #ifdef PW_DEBUG
 #include "debug/probe.h"
@@ -87,6 +88,7 @@ static int main_thread(SceSize args, void *argp)
     int ret = pw_engine_init();
     if (ret < 0)
         pw_log("engine: sysevent handler registration failed 0x%08X", ret);
+    pw_settings_init(); /* config.txt: fast mode, the status corner */
 
 #ifdef PW_DEBUG
     pw_probe_boot();

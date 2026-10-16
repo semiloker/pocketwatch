@@ -31,8 +31,8 @@ static unsigned char g_pool[2][64 * 1024], g_scratch[2][32 * 1024];
 static pw_pgf g_pgf;
 static pw_font g_title, g_body;
 
-enum { A_CAT, A_UMD, A_UMDG, A_FOLD, A_FOLDG, A_UPD, A_UPDG, A_MS, A_MSG, A_COUNT };
-static const char *k_labels[A_COUNT] = {"AO", "BH", "BP", "BJ", "BR", "EH", "EP", "BI", "BQ"};
+enum { A_CAT, A_UMD, A_UMDG, A_FOLD, A_FOLDG, A_UPD, A_UPDG, A_MS, A_MSG, A_SET, A_COUNT };
+static const char *k_labels[A_COUNT] = {"AO", "BH", "BP", "BJ", "BR", "EH", "EP", "BI", "BQ", "BX"};
 static pw_image g_art[A_COUNT];
 static int g_have[A_COUNT];
 
@@ -275,5 +275,28 @@ int main(void)
     pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles", slots,
                   5, 2, 1);
     save("slots-new");
+
+    pw_hub_cat scat = {art(A_SET), PW_ICON_WATCH, pw_tr(PW_S_SETTINGS)};
+    pw_setting_row set[] = {
+        {pw_tr(PW_S_SET_FAST), pw_tr(PW_S_ON)},
+        {pw_tr(PW_S_SET_STATUS), pw_tr(PW_S_ON)},
+        {pw_tr(PW_S_SET_LANGUAGE), pw_tr(PW_S_SYSTEM_LANGUAGE)},
+    };
+    const char *langs[] = {pw_tr(PW_S_SYSTEM_LANGUAGE),
+                           "English",
+                           "Français",
+                           "Español",
+                           "Deutsch",
+                           "Italiano",
+                           "Nederlands",
+                           "Português",
+                           "Русский",
+                           "Українська"};
+    c = begin(13000);
+    pw_view_settings(&c, &ui, &scat, set, 3, 0, NULL, 0, -1);
+    save("settings");
+    c = begin(14000);
+    pw_view_settings(&c, &ui, &scat, set, 3, 2, langs, 10, 8);
+    save("settings-language");
     return 0;
 }

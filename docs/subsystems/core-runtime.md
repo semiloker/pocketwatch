@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Area code | `SYS` |
-| Status | Done: lifecycle, log, platform shim, memory blocks, freeze, flash rebuild, codec, CRC, PNG, import self-check. Planned: config store, game identity, Memory Stick write gate, power locks |
+| Status | Done: lifecycle, log, platform shim, memory blocks, freeze, flash rebuild, codec, CRC, PNG, import self-check. Implemented 2026-10-16/17: config store (`core/config.c`), game identity (`core/game.c`), streaming file and directory calls in the platform shim. Planned: a general Memory Stick write gate, power locks |
 | Milestones | M0, M2; config/identity/gate with M3-E3 |
 | Code | [`plugin/src/core/`](../../plugin/src/core/) |
 | Research | [m1-hardware](../research/m1-hardware.md), [m2-engine](../research/m2-engine.md) |
@@ -31,8 +31,8 @@
 | `SYS-REQ-007` | `pw_flash_reinit` rebuilds lflash + flashfat in place (and remounts flash0/flash1 after a rollback) from RESUME_COMPLETED without logging. | P0 | Done | E2 runs 6-7 |
 | `SYS-REQ-008` | LZ4 block codec with caller-provided state, decoding bounds-checked (`< 0` on corrupt input). | P0 | Done | `test_lz` |
 | `SYS-REQ-009` | Portable modules include no PSP header and are host-tested under ASan/UBSan. | P0 | Done | `make -C tests` |
-| `SYS-REQ-010` | A config store: per-complication key/value settings persisted on the card, read at start, written only when no state is held. | P1 | Planned | host tests + device |
-| `SYS-REQ-011` | Game identity: game ID (`disc0:/UMD_DATA.BIN`), title (PARAM.SFO), ISO path from ARK. | P1 | Planned | device log |
+| `SYS-REQ-010` | A config store: per-complication key/value settings persisted on the card, read at start, written only when no state is held. Revised 2026-10-17: written whenever card writes are allowed (T1, ADR-017), never after a failed check. | P1 | Implemented (`seplugins/pocketwatch/config.txt`, `tests/test_config.c`) | host tests + testing guide ST1 |
+| `SYS-REQ-011` | Game identity: game ID (`disc0:/UMD_DATA.BIN`), title (PARAM.SFO), ISO path from ARK. | P1 | Implemented (`core/game.c`; PSN EBOOTs have none yet) | device log (testing guide S2) |
 | `SYS-REQ-012` | Memory Stick write gate: every card writer asks `pw_ms_write_allowed()`; denied while a state is held unless the [storage](states-storage.md) policy allows it, or after a failed freshness probe. | P0 | Partial: the log can be blocked until reboot (`pw_log_set_card_blocked`, used after a failed T1); a general gate is Planned | code review + T1 |
 | `SYS-REQ-013` | Power lock helper for operations that must not be interrupted by a user suspend (state write). | P1 | Planned | device test |
 | `SYS-NFR-001` | Kernel RAM: module loaded sections ≤ 128 KB; PRX ≤ 112 KB (debug). | P0 | Done (2026-10-16: debug PRX 99,998 B, loaded 102,516 B; release PRX 90,642 B, loaded 95,013 B) | `make check` |
