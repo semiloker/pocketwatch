@@ -5,6 +5,9 @@ MacroFire, ARK-4, Adrenaline; uOFW). Two phases, each tested on the device befor
 
 ## Phase 1 — minimal menu (drives the RAM states first)
 
+Status: built 2026-10-16 (src/ui: draw, font8x8 from PSPFatSave/MIT, input, fb, menu; engine
+`pw_engine_save_held`/`pw_engine_load_held`), awaiting the device test.
+
 A plain but solid overlay now; the native XMB-style hub (M3/M4) replaces only the drawing later.
 
 **Display: our own framebuffer, not the game's.** PSPFatSave draws into the game's on-screen

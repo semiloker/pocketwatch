@@ -9,6 +9,7 @@
 #include "complications/states/engine.h"
 #include "core/log.h"
 #include "core/selfcheck.h"
+#include "ui/menu.h"
 
 #ifdef PW_DEBUG
 #include "debug/probe.h"
@@ -62,6 +63,9 @@ static int main_thread(SceSize args, void *argp)
 #endif
 
     /* Complications (States, ...) are started from here. */
+    ret = pw_menu_start();
+    if (ret < 0)
+        pw_log("menu: thread start failed 0x%08X", ret);
 
     return 0;
 }
@@ -88,6 +92,7 @@ int module_stop(SceSize args, void *argp)
     (void)args;
     (void)argp;
 
+    pw_menu_stop();
 #ifdef PW_DEBUG
     pw_probe_stop();
 #endif

@@ -13,6 +13,7 @@
 #include "debug/bench.h"
 #include "debug/probe.h"
 #include "complications/states/engine.h"
+#include "ui/menu.h"
 
 /* Save/load sit on START: that is the combo the tester reaches for (E2 runs 4-6). L+R+START+DOWN
    and L+R+SELECT+DOWN are ARK's and stay untouched. */
@@ -176,8 +177,8 @@ static int probe_thread(SceSize args, void *argp)
                    sceKernelGetSystemTimeLow() / 1000);
             last_request = request;
         }
-        if (sceCtrlPeekBufferPositive(&pad, 1) < 0)
-            continue;
+        if (sceCtrlPeekBufferPositive(&pad, 1) < 0 || pw_menu_is_open())
+            continue; /* the menu owns the buttons (and the frozen game) while it is open */
 
         if ((pad.Buttons & PROBE_COMBO) == PROBE_COMBO) {
             if (pw_engine_has_state())

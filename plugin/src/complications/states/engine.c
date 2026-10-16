@@ -254,7 +254,10 @@ static pw_mem_block g_stage;
 static pw_arena g_arena;
 static pw_freeze_set g_save_freeze, g_load_freeze;
 static unsigned int g_cycles_per_ms;
-static int g_keep_frozen;              /* debug: pw_engine_save leaves the game frozen */
+static int g_keep_frozen; /* debug: pw_engine_save leaves the game frozen */
+/* The save's caller froze the game itself (the menu) and thaws it: the engine neither freezes
+   nor thaws. Set before the kernel capture, so a load's rollback brings back the save's value. */
+static int g_caller_freeze;
 static pw_flash_report g_flash_report; /* filled at the save's RESUME_COMPLETED (flash.h) */
 static volatile int g_flash_result, g_flash_skipped;
 static int g_registered;
@@ -1179,8 +1182,10 @@ static int finish_load(void)
 
     pw_freeze_set watched = g_save_freeze; /* thawing clears the set */
 
-    pw_log("engine: load: thawing %d game thread(s)...", watched.count);
-    pw_thaw_game(&g_save_freeze);
+    if (!g_caller_freeze) {
+        pw_log("engine: load: thawing %d game thread(s)...", watched.count);
+        pw_thaw_game(&g_save_freeze);
+    }
     crumb(h, S_RB_THAWED);
     mark(&h->load_t, P_THAW);
     sceRtcGetCurrentTick(&now);
@@ -1199,7 +1204,7 @@ static int finish_load(void)
     /* The card changed after the rollback: this state's view of it is stale now. */
     pw_engine_discard();
 
-    if (VERIFY) /* if the game dies after the load, show for how long it lived */
+    if (VERIFY && !g_caller_freeze) /* if the game dies after the load: how long it lived */
         for (int tick = 1; tick <= 10; tick++) {
             int alive = 0;
 
@@ -1217,7 +1222,7 @@ static int finish_load(void)
     return PW_ENGINE_LOADED;
 }
 
-int pw_engine_save(void)
+static int save_impl(const pw_freeze_set *held)
 {
     StateHeader *h;
     pw_arena_pos cursor = {0, 0};
@@ -1251,7 +1256,11 @@ int pw_engine_save(void)
         pw_log_set_deferred(1);
     mark_begin(&h->save_t);
 
-    pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
+    g_caller_freeze = held != NULL;
+    if (held)
+        g_save_freeze = *held;
+    else
+        pw_freeze_game(&g_save_freeze, FREEZE_TIMEOUT_MS);
     mark(&h->save_t, P_FREEZE);
     h->save_threads = (unsigned int)g_save_freeze.count;
     h->save_forced = (unsigned int)g_save_freeze.forced;
@@ -1274,7 +1283,9 @@ int pw_engine_save(void)
             0 ||
         pw_stream_write(&g_arena, &cursor, (const void *)SCRATCH_BASE, SCRATCH_SIZE, DIAG,
                         &h->scratch) < 0) {
-        pw_thaw_game(&g_save_freeze);
+        if (!g_caller_freeze)
+            pw_thaw_game(&g_save_freeze);
+        g_save_freeze.count = 0;
         pw_log_set_deferred(0);
         pw_log("engine: the state does not fit in spare RAM");
         release_staging();
@@ -1324,7 +1335,9 @@ int pw_engine_save(void)
 
     h->save_suspend_ms = (unsigned int)((rt1 - rt0) / 1000);
     if (ret < 0 || !g_resumed || !g_captured) {
-        pw_thaw_game(&g_save_freeze);
+        if (!g_caller_freeze)
+            pw_thaw_game(&g_save_freeze);
+        g_save_freeze.count = 0;
         if (!g_resumed)
             sceRtcSetAlarmTick(NULL);
         pw_log_set_deferred(0);
@@ -1335,7 +1348,9 @@ int pw_engine_save(void)
         return -1;
     }
 
-    if (!g_keep_frozen) /* the frozen save+load test loads right away, game still frozen */
+    if (g_caller_freeze)
+        g_save_freeze.count = 0; /* the caller thaws (after a load too: see finish_load) */
+    else if (!g_keep_frozen)     /* the frozen save+load test loads right away, game still frozen */
         pw_thaw_game(&g_save_freeze);
     mark(&h->save_t, P_THAW);
     h->valid = 1;
@@ -1355,7 +1370,7 @@ int pw_engine_save(void)
     return PW_ENGINE_SAVED;
 }
 
-int pw_engine_load(void)
+static int load_impl(const pw_freeze_set *held)
 {
     StateHeader *h = g_hdr;
     volatile unsigned int *pending_in_image;
@@ -1389,9 +1404,16 @@ int pw_engine_load(void)
                                                  ((unsigned int)&g_restore_pending - KERNEL_BASE));
     mark(&h->load_t, P_VERIFY);
 
-    pw_freeze_game(&g_load_freeze, FREEZE_TIMEOUT_MS);
+    if (held) {
+        g_load_freeze = *held;
+        g_load_freeze.count = 0; /* nothing of ours to thaw */
+        h->load_threads = (unsigned int)held->count;
+    } else {
+        pw_freeze_game(&g_load_freeze, FREEZE_TIMEOUT_MS);
+    }
     mark(&h->load_t, P_FREEZE);
-    h->load_threads = (unsigned int)g_load_freeze.count;
+    if (!held)
+        h->load_threads = (unsigned int)g_load_freeze.count;
     h->load_forced = (unsigned int)g_load_freeze.forced;
     h->load_freeze_ms = g_load_freeze.ms;
     crumb(h, S_LOAD_FROZEN);
@@ -1426,8 +1448,9 @@ int pw_engine_load(void)
     crumb(h, S_LOAD_FAILED);
     if (!g_resumed)
         sceRtcSetAlarmTick(NULL);
-    pw_thaw_game(&g_load_freeze);
-    pw_thaw_game(&g_save_freeze); /* still frozen after a frozen save+load test; no-op otherwise */
+    pw_thaw_game(&g_load_freeze); /* empty when the caller holds the freeze */
+    if (!held)
+        pw_thaw_game(&g_save_freeze); /* still frozen after a frozen save+load test; else no-op */
     pw_log("engine: LOAD FAILED: suspend=0x%08X resumed=%d applying=%d guard=%X%s%s", ret,
            g_resumed, g_applying, h->guard, h->guard & GUARD_BLOB ? " (blob damaged)" : "",
            h->guard & GUARD_IMAGE ? " (kernel image damaged)" : "");
@@ -1436,6 +1459,26 @@ int pw_engine_load(void)
     if (h->guard)
         pw_engine_discard(); /* something overwrites P9 during a suspend: do not trust it */
     return -1;
+}
+
+int pw_engine_save(void)
+{
+    return save_impl(NULL);
+}
+
+int pw_engine_save_held(const pw_freeze_set *held)
+{
+    return held ? save_impl(held) : -1;
+}
+
+int pw_engine_load(void)
+{
+    return load_impl(NULL);
+}
+
+int pw_engine_load_held(const pw_freeze_set *held)
+{
+    return held ? load_impl(held) : -1;
 }
 
 /*

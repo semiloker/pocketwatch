@@ -2,6 +2,8 @@
 #ifndef PW_ENGINE_H
 #define PW_ENGINE_H
 
+#include "core/freeze.h"
+
 /*
  * Savestate engine, in-RAM edition (milestone M2 / rung E2: load within the same boot).
  *
@@ -29,6 +31,14 @@ void pw_engine_shutdown(void); /* from module_stop: no I/O, just unregister and 
 
 int pw_engine_save(void);
 int pw_engine_load(void); /* returns only on failure (< 0) */
+
+/*
+ * The same for a caller that has frozen the game itself (the menu): the engine neither freezes
+ * nor thaws. After a load, pw_engine_save_held returns PW_ENGINE_LOADED a second time in the
+ * caller's save-time context, with the game still frozen: the caller thaws it.
+ */
+int pw_engine_save_held(const pw_freeze_set *held);
+int pw_engine_load_held(const pw_freeze_set *held);
 
 int pw_engine_has_state(void);
 

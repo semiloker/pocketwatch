@@ -13,7 +13,8 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/complications/states/sfo.o src/complications/states/savedata_hash.o \
          src/complications/states/stream.o src/complications/states/engine.o \
          src/complications/states/handoff.o \
-         src/core/lz.o lib/stb_sprintf.o exports.o
+         src/core/lz.o src/ui/draw.o src/ui/font8x8.o src/ui/input.o src/ui/fb.o \
+         src/ui/menu.o lib/stb_sprintf.o exports.o
 
 # DEBUG=1 (default while developing) adds the hardware probe and its button triggers.
 DEBUG ?= 1
@@ -24,8 +25,8 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Budgets enforced by `make check`; raise them deliberately, not by accident.
-# 96 KB: LZ4 at -O2 (~29 KB of code) plus the debug probe and benchmark (2026-10-15).
-MAX_PRX_SIZE = 98304
+# 112 KB: LZ4 at -O2 (~29 KB of code), the in-game menu, the debug probe and benchmark (2026-10-16).
+MAX_PRX_SIZE = 114688
 MAX_MEM      = 131072
 
 # Kernel plugin: link only against kernel libraries (no newlib).
