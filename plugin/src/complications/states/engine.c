@@ -51,6 +51,19 @@
 #define GPIO_OFF_BITS      0x02800000u
 
 /*
+ * 0xBFC00200-0xBFC0021F, in the 4 KB reset-vector SRAM, hold the seeds the IPL leaves for memlmd.
+ * Every suspend backs the SRAM up with those 8 words zeroed; a real wake gets fresh seeds from the
+ * IPL and _scePowerResumePoint keeps them, but touch-and-go writes the backup back as it is. The
+ * next reboot (quitting the game) then cannot decrypt reboot.bin - memlmd_F26A33C3(0, 0xBFC00200)
+ * rejects all-zero seeds - and loadexec stops with a black screen, which looked like the PSP
+ * sleeping or switching off (speed runs 3-6; uOFW powerSwitch.c, loadcore.c, memlmd_02.c).
+ * The engine saves them before every suspend and puts them back at the first resume event of a
+ * touch-and-go.
+ */
+#define REG_RESET_SEEDS ((volatile unsigned int *)0xBFC00200)
+#define SEED_WORDS      8
+
+/*
  * Everything lives in one P9 block (24 MB at 0x8A000000). Not P11: on the PSP-2000/3000 the
  * firmware's me_wrapper saves the Media Engine's 4 MB eDRAM to P11 (sceKernelGetMEeDramSaveAddr,
  * event 0x4005, i.e. before PHASE0_0) during every suspend, whatever is allocated there. In E2
@@ -201,6 +214,9 @@ typedef struct {
     unsigned int ri_filled;             /* touch-and-go resume: resume info filled (1 + real) */
     unsigned int real_ri[RI_WORDS];     /* g_real_ri, kept here because a load rewinds it */
     unsigned int real_ri_valid;
+    unsigned int seeds[SEED_WORDS];       /* the IPL's seeds before the suspend */
+    unsigned int seeds_found[SEED_WORDS]; /* the same at the first resume event */
+    unsigned int seeds_ok, seeds_restored;
     unsigned int ram_sum[RAM_CHUNKS]; /* debug: per-64 KB checksums of game RAM at save */
     Marks save_t, load_t;             /* phase timings (log_marks) */
     unsigned int flash_us;            /* flash driver rebuild at RESUME_COMPLETED */
@@ -258,8 +274,6 @@ static unsigned int g_ram_restored[RAM_CHUNKS], g_ram_now[RAM_CHUNKS]; /* debug,
 extern int pw_sysevent_shim(int ev_id, char *ev_name, void *param, int *result);
 extern char pw_apply_handoff[], pw_apply_handoff_end[];
 int scePowerRequestSuspendTouchAndGo(void); /* core/stubs/scePower_driver.S */
-int scePowerSetPowerSwMode(unsigned int mode);
-int scePowerGetPowerSwMode(void);
 /* core/stubs/sceSyscon_driver.S (uOFW syscon.c signatures) */
 signed char sceSysconGetHoldSwitch(void);
 signed char sceSysconGetWlanSwitch(void);
@@ -397,48 +411,23 @@ static void fill_resume_info(unsigned int *ri, const LiveStatus *l)
     }
 }
 
-/*
- * Every touch-and-go resume so far left a "POWER switch pressed" request queued in scePower's
- * switch thread; it waits for the power locks to go and puts the PSP to sleep when the game is
- * quit (speed runs 3-5; a later real suspend used to consume it). So hardware switch requests are
- * ignored from the touch-and-go request until 3 s after the game runs again: the power switch mode
- * is a plain variable in scePower (uOFW powerSwitch.c), safe to set from an alarm handler. A load
- * rewinds that variable with the kernel, so finish_load releases the guard again.
- */
-#define SW_GUARD_US 3000000
-
-static volatile int g_sw_guard, g_sw_saved;
-static volatile SceUID g_sw_alarm = -1;
-
-static void sw_guard_engage(void)
+static int seeds_present(const unsigned int *w)
 {
-    if (g_sw_alarm >= 0) {
-        sceKernelCancelAlarm(g_sw_alarm);
-        g_sw_alarm = -1;
-    }
-    if (!g_sw_guard) {
-        g_sw_saved = scePowerGetPowerSwMode();
-        g_sw_guard = 1;
-    }
-    scePowerSetPowerSwMode(0); /* neither requests nor callbacks for the POWER switch */
+    unsigned int any = 0;
+
+    for (int i = 0; i < SEED_WORDS; i++)
+        any |= w[i];
+    return any != 0;
 }
 
-static SceUInt sw_guard_expire(void *common)
+/* Thread context, right before every suspend request (the header survives a load's rollback). */
+static void capture_before_suspend(StateHeader *h)
 {
-    (void)common;
-    scePowerSetPowerSwMode((unsigned int)g_sw_saved);
-    g_sw_guard = 0;
-    g_sw_alarm = -1;
-    return 0; /* one-shot */
-}
-
-static void sw_guard_release_later(void)
-{
-    if (!g_sw_guard || g_sw_alarm >= 0)
-        return;
-    g_sw_alarm = sceKernelSetAlarm(SW_GUARD_US, sw_guard_expire, NULL);
-    if (g_sw_alarm < 0)
-        sw_guard_expire(NULL); /* no alarm: rather restore at once than never */
+    capture_live(&h->live);
+    for (int i = 0; i < SEED_WORDS; i++)
+        h->seeds[i] = REG_RESET_SEEDS[i];
+    h->seeds_ok = (unsigned int)seeds_present(h->seeds);
+    h->seeds_restored = 0;
 }
 
 /*
@@ -448,14 +437,18 @@ static void sw_guard_release_later(void)
  */
 static int use_touch_and_go(void)
 {
-    return g_fast && g_real_ri_valid;
+    unsigned int now[SEED_WORDS];
+
+    for (int i = 0; i < SEED_WORDS; i++)
+        now[i] = REG_RESET_SEEDS[i];
+    /* Without seeds to put back afterwards a touch-and-go would make the next reboot hang. */
+    return g_fast && g_real_ri_valid && seeds_present(now);
 }
 
 static int request_suspend(void)
 {
     if (!g_tg)
         return scePowerRequestSuspend();
-    sw_guard_engage();
     return scePowerRequestSuspendTouchAndGo();
 }
 
@@ -575,6 +568,14 @@ int pw_engine_sysevent(int ev_id, char *ev_name, void *param, int *result)
     } else if (ev_id == EV_RESUME_PHASE0_0) {
         /* A rolled-back save resumes the way the save suspended: its mode is in the header. */
         int tg = g_mode == MODE_SAVE ? (int)h->save_tg : g_tg;
+
+        for (int i = 0; i < SEED_WORDS; i++)
+            h->seeds_found[i] = REG_RESET_SEEDS[i];
+        if (tg && h->seeds_ok) {
+            for (int i = 0; i < SEED_WORDS; i++)
+                REG_RESET_SEEDS[i] = h->seeds[i];
+            h->seeds_restored = 1;
+        }
 
         h->io_found[0] = *REG_IO_ENABLE;
         h->io_found[1] = *REG_GPIO_IO_ENABLE;
@@ -1003,6 +1004,12 @@ static void log_suspend_split(const StateHeader *h, int pre, int post, const cha
            h->flash_us / 1000, (int)wall_ms - cpu);
 }
 
+static void log_seeds(const char *who, const char *what, const unsigned int *w)
+{
+    pw_log("engine: %s: IPL seeds %s: %08X %08X %08X %08X %08X %08X %08X %08X", who, what, w[0],
+           w[1], w[2], w[3], w[4], w[5], w[6], w[7]);
+}
+
 static void log_resume_info(const StateHeader *h, const char *who)
 {
     const LiveStatus *l = &h->live;
@@ -1018,6 +1025,8 @@ static void log_resume_info(const StateHeader *h, const char *who)
            h->ri_filled == 2   ? " -> filled (live + real wake)"
            : h->ri_filled == 1 ? " -> filled (live only)"
                                : "");
+    log_seeds(who, "before suspend", h->seeds);
+    log_seeds(who, h->seeds_restored ? "at resume (put back)" : "at resume", h->seeds_found);
 }
 
 static void log_io(const StateHeader *h, const char *who)
@@ -1173,7 +1182,6 @@ static int finish_load(void)
     pw_log("engine: load: thawing %d game thread(s)...", watched.count);
     pw_thaw_game(&g_save_freeze);
     crumb(h, S_RB_THAWED);
-    sw_guard_release_later();
     mark(&h->load_t, P_THAW);
     sceRtcGetCurrentTick(&now);
     crumb(h, S_LOAD_DONE);
@@ -1303,7 +1311,7 @@ int pw_engine_save(void)
     crumb(h, S_SAVE_SUSPEND);
     sceKernelDcacheWritebackAll();
     sceRtcGetCurrentTick(&rt0);
-    capture_live(&h->live);
+    capture_before_suspend(h);
     ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1312,7 +1320,6 @@ int pw_engine_save(void)
 
     if (g_restore_pending)
         return finish_load();
-    sw_guard_release_later();
     mark(&h->save_t, P_SUSPEND);
 
     h->save_suspend_ms = (unsigned int)((rt1 - rt0) / 1000);
@@ -1406,7 +1413,7 @@ int pw_engine_load(void)
     g_mode = MODE_LOAD;
     crumb(h, S_LOAD_SUSPEND);
     stage_blob(); /* its D-cache write-back also puts the flag in the image into DRAM */
-    capture_live(&h->live);
+    capture_before_suspend(h);
     ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1421,7 +1428,6 @@ int pw_engine_load(void)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&g_load_freeze);
     pw_thaw_game(&g_save_freeze); /* still frozen after a frozen save+load test; no-op otherwise */
-    sw_guard_release_later();
     pw_log("engine: LOAD FAILED: suspend=0x%08X resumed=%d applying=%d guard=%X%s%s", ret,
            g_resumed, g_applying, h->guard, h->guard & GUARD_BLOB ? " (blob damaged)" : "",
            h->guard & GUARD_IMAGE ? " (kernel image damaged)" : "");
@@ -1461,7 +1467,7 @@ static int selftest_round(int copy)
     g_selftest_copy = copy;
     g_mode = MODE_SELFTEST;
     stage_blob();
-    capture_live(&h->live);
+    capture_before_suspend(h);
     ret = request_suspend();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
@@ -1469,7 +1475,6 @@ static int selftest_round(int copy)
     if (!g_resumed)
         sceRtcSetAlarmTick(NULL);
     pw_thaw_game(&frozen);
-    sw_guard_release_later();
 
     ok = g_applying && g_resumed && !h->guard;
     pw_log("engine: self-test round %d: froze %d thread(s), GE %d, suspend=0x%08X applied=%d "
@@ -1545,13 +1550,11 @@ int pw_engine_tg_test(void)
     g_alarm_set = g_resumed = g_captured = g_applying = 0;
     g_tg = 1;
     g_mode = MODE_PLAIN;
-    capture_live(&h->live);
-    sw_guard_engage();
+    capture_before_suspend(h);
     ret = scePowerRequestSuspendTouchAndGo();
     while (!g_resumed && polls++ < RESUME_POLLS)
         sceKernelDelayThread(5000);
     g_mode = MODE_IDLE;
-    sw_guard_release_later();
     mark(&h->save_t, P_SUSPEND);
 
     pw_log("engine: touch-and-go: request=0x%08X resumed=%d", ret, g_resumed);
@@ -1628,7 +1631,12 @@ static void post_mortem(void)
 
 int pw_engine_init(void)
 {
+    unsigned int seeds[SEED_WORDS];
     int ret;
+
+    for (int i = 0; i < SEED_WORDS; i++)
+        seeds[i] = REG_RESET_SEEDS[i];
+    log_seeds("boot", seeds_present(seeds) ? "present" : "MISSING", seeds);
 
     post_mortem();
     ret = sceKernelRegisterSysEventHandler(&g_handler);

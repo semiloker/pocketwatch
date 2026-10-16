@@ -211,3 +211,27 @@ Mitigation: `scePowerSetPowerSwMode(0)` (a plain variable in scePower) from the 
 request until 3 s after the game runs again (kernel alarm); a load releases it again because the
 rollback rewinds scePower's variable. The debug probe logs every change of `scePowerIsRequest()`.
 
+**Speed run 6 - 2026-10-15, Castlevania.** Raw log:
+[`logs/2026-10-15-speed6-castlevania.log`](logs/2026-10-15-speed6-castlevania.log). With the POWER
+switch guard and the third-party `hold.prx` disabled for the test, quitting the game still left a
+black, dead PSP. The probe never saw a queued scePower request: the request hypothesis (speed run
+5) was wrong and the guard is removed again. Separately, the first touch-and-go save after the
+real-sleep save never completed (no log lines, no state); the following ones did. Still open.
+
+**Root cause (found by reading uOFW, not yet confirmed on the device): the IPL's seeds.**
+- Every suspend backs up the 4 KB reset-vector SRAM at `0xBFC00000` into scePower's resume block
+  and zeroes words `0x200..0x21C` of the backup (`powerSwitch.c`, before the suspend handlers).
+- A real wake runs `_scePowerResumePoint`: it reads the 8 words the IPL has just written at
+  `0xBFC00200`, writes the backup back and then the 8 fresh words on top.
+- Touch-and-go writes the backup back as it is, so `0xBFC00200..0x21F` end up zero.
+- Those words are the seeds the IPL leaves for memlmd. Quitting the game reboots the kernel:
+  `sceKernelLoadRebootBin` calls `memlmd_F26A33C3(0, 0xBFC00200)`, which rejects all-zero seeds;
+  loadexec then disables interrupts, clears memory and loops forever - a black screen that looks
+  like sleep or power-off. A later real wake rewrites the seeds, which is why speed run 2 (real
+  sleeps after the touch-and-go test) quit normally.
+
+Fix: the engine reads the 8 words before every suspend request (into the P9 header, so a load's
+rollback cannot lose them) and writes them back at the first resume event of every touch-and-go;
+fast mode is refused when the live seeds are already zero. Boot, pre-suspend and resume values are
+logged.
+
