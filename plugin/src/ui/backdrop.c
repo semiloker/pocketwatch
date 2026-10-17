@@ -44,3 +44,9 @@ void pw_backdrop_frame(pw_canvas *c, unsigned int t_ms, int style)
     if (pw_backdrop_moves(style))
         pw_xmbbg_wave(c, t_ms);
 }
+
+void pw_backdrop_frame_rows(pw_canvas *c, unsigned int t_ms, int style, int y_from, int y_to)
+{
+    if (pw_backdrop_moves(style))
+        pw_xmbbg_wave_rows(c, t_ms, y_from, y_to);
+}

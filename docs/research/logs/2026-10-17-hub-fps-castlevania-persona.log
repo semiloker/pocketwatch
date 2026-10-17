@@ -1,0 +1,96 @@
+Pocketwatch 7e67824 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 101 import(s): 99 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   266 KB maxfree=   230 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   266 KB maxfree=   230 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 12 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing (RCO compression 2)
+assets: 439 KB of 640 KB kept
+i18n: system language 8
+i18n: ru, 70 of 70 strings translated
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULUS10277, PARAM.SFO hashed
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
+shell: sky 0 (theme colour 1, month 1)
+settings: style 1, fast 1, status 1 saved
+hub: 324 frames in 16831 ms (19 fps), drawing 19 ms a frame on average, 40 ms at worst (style 1)
+
+==== new session ====
+Pocketwatch 7e67824 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 101 import(s): 99 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10432 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   266 KB maxfree=   230 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19357 KB maxfree= 19357 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   266 KB maxfree=   230 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19357 KB maxfree= 19357 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 12 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing (RCO compression 2)
+assets: 439 KB of 640 KB kept
+i18n: system language 8
+i18n: ru, 70 of 70 strings translated
+game: ULUS10432 "Persona" from ms0:/ISO/Shin_Megami_Tensei_Persona_USA_PSP-EMiNENT.iso (801504 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULUS10432, PARAM.SFO hashed
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
+shell: sky 0 (theme colour 1, month 1)
+hub: 138 frames in 4535 ms (30 fps), drawing 17 ms a frame on average, 36 ms at worst (style 1)
+shell: Quit Game
+engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+shell: quit: the game's exit callback was invoked (0x00000000)
+
+==== new session ====
+Pocketwatch 7e67824 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 101 import(s): 99 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   266 KB maxfree=   232 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   266 KB maxfree=   232 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 12 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing (RCO compression 2)
+assets: 439 KB of 640 KB kept
+i18n: system language 8
+i18n: ru, 70 of 70 strings translated
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULUS10277, PARAM.SFO hashed
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)

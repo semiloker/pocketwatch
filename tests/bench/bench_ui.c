@@ -51,6 +51,11 @@ int main(void)
         skypx[i] = PW_RGB(30 + i % 60, 50, 120 + i / 60);
     for (int i = 0; i < STRIDE * H; i++)
         g_game[i] = PW_RGB(i % 255, (i / 7) % 255, 90);
+    {
+        static unsigned char icon_cache[64 * 1024];
+
+        pw_icon_cache(icon_cache, sizeof(icon_cache));
+    }
     pw_font_init_fallback(&g_title, 2);
     pw_font_init_fallback(&g_body, 1);
     memset(&ui, 0, sizeof(ui));

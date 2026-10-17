@@ -29,6 +29,7 @@ typedef struct {
 } pw_ui;
 
 void pw_ui_init(pw_ui *ui); /* fonts, Enter/Back from sceImposeGetLanguageMode */
+unsigned int pw_ui_now_us(void);
 
 /* Wait for the next vblank, keep the backlight on, return the buttons that went down now (with
    D-pad auto-repeat). */

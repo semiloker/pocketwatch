@@ -10,6 +10,8 @@
 #include "core/sysinfo.h"
 #include "gfx/assets.h"
 #include "ui/anim.h"
+#include "ui/backdrop.h"
+#include "ui/cpuwatch.h"
 #include "ui/fb.h"
 #include "ui/hub.h"
 #include "ui/i18n.h"
@@ -65,38 +67,50 @@ static void build(hub *h)
         h->sel = h->count > 0 ? h->count - 1 : 0;
 }
 
-static void refresh_status(hub *h, int force)
+/* The corner and the rows' state, once a second. Returns 1 when something on screen changed. */
+static int refresh_status(hub *h, int force)
 {
     unsigned int now = pw_ui_now_ms();
+    char clock[sizeof(h->clock)];
+    int battery, charging, changed;
 
     if (!force && now - h->t_status < STATUS_MS)
-        return;
+        return 0;
     h->t_status = now;
-    pw_sysinfo_clock(h->clock, sizeof(h->clock));
-    h->battery = pw_sysinfo_battery(&h->charging);
-    if (pw_registry_changed(pw_complications, pw_complication_count))
+    pw_sysinfo_clock(clock, sizeof(clock));
+    battery = pw_sysinfo_battery(&charging);
+    changed = force || strcmp(clock, h->clock) != 0 || battery != h->battery ||
+              charging != h->charging || charging; /* a charging battery animates */
+    strcpy(h->clock, clock);
+    h->battery = battery;
+    h->charging = charging;
+    if (pw_registry_changed(pw_complications, pw_complication_count)) {
         build(h);
+        changed = 1;
+    }
+    return changed;
 }
 
 static void draw(hub *h, int show)
 {
-    unsigned int t0 = pw_ui_now_ms();
-    pw_canvas *c = pw_fb_begin(show, t0);
+    unsigned int t0 = pw_ui_now_us(), t1, t2, t3;
+    pw_canvas *c = pw_fb_begin(show, t0 / 1000);
 
+    t1 = pw_ui_now_us();
     if (pw_config_get()->status)
-        pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show, t0);
+        pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show, t0 / 1000);
     pw_view_hub(c, &h->ui, &h->cat, h->rows, h->count, h->selpos, show);
+    t2 = pw_ui_now_us();
     pw_fb_present();
-    {
-        unsigned int took = pw_ui_now_ms() - t0;
-
-        if (h->stats.frames++ == 0)
-            h->stats.t_first = t0;
-        h->stats.t_last = t0;
-        h->stats.sum_draw += took;
-        if (took > h->stats.worst)
-            h->stats.worst = took;
-    }
+    t3 = pw_ui_now_us();
+    if (h->stats.frames++ == 0)
+        h->stats.t_first = t0 / 1000;
+    h->stats.t_last = t3 / 1000;
+    h->stats.backdrop += t1 - t0;
+    h->stats.content += t2 - t1;
+    h->stats.present += t3 - t2;
+    if (t3 - t0 > h->stats.worst)
+        h->stats.worst = t3 - t0;
 }
 
 static void log_stats(const hub *h)
@@ -106,10 +120,10 @@ static void log_stats(const hub *h)
 
     if (s->frames < 2 || span == 0)
         return;
-    pw_log("hub: %u frames in %u ms (%u fps), drawing %u ms a frame on average, %u ms at worst "
-           "(style %d)",
-           s->frames, span, (s->frames - 1) * 1000 / span, s->sum_draw / s->frames, s->worst,
-           h->ui.style);
+    pw_log("hub: style %d, %u ms: %u frames drawn in %u vblank waits; a frame: backdrop %u us, "
+           "content %u us, present %u us, worst %u us; waiting %u us a loop",
+           h->ui.style, span, s->frames, s->loops, s->backdrop / s->frames, s->content / s->frames,
+           s->present / s->frames, s->worst, s->loops ? s->poll / s->loops : 0);
 }
 
 static void fade(hub *h, int from, int to, int ms)
@@ -134,6 +148,7 @@ int pw_hub_run(const pw_freeze_set *frozen)
 
     pw_ui_init(&h.ui);
     memset(&h.stats, 0, sizeof(h.stats));
+    pw_cpuwatch_start();
     h.env.ui = &h.ui;
     h.env.frozen = frozen;
     pw_registry_open(pw_complications, pw_complication_count);
@@ -145,21 +160,34 @@ int pw_hub_run(const pw_freeze_set *frozen)
     fade(&h, 0, 256, FADE_IN_MS);
     pw_ui_flush_input(&h.ui);
 
-    for (unsigned int t_prev = pw_ui_now_ms();;) {
-        unsigned int ev, now = pw_ui_now_ms();
+    for (unsigned int t_prev = pw_ui_now_ms(), dirty = 1;;) {
+        unsigned int ev, now = pw_ui_now_ms(), t_poll;
+        int was = h.selpos;
 
         /* ease towards the cursor like the XMB's list: by time, whatever the frame rate */
         h.selpos = pw_ease(h.selpos, h.sel * 256, (int)(now - t_prev), PW_ANIM_TAU_MS, 6);
         t_prev = now;
-        refresh_status(&h, 0);
+        if (refresh_status(&h, 0))
+            dirty = 1;
         if (pw_engine_last_resume_ms() != h.resume_seen) {
             /* The PSP slept (power switch) or a save/load suspended it: the screen's buffers
                in P11 were overwritten by the firmware's ME save. */
             h.resume_seen = pw_engine_last_resume_ms();
             pw_fb_recapture();
+            dirty = 1;
         }
-        draw(&h, 256); /* every frame: the wave moves */
+        /* Draw only what changed: a still Modern or Minimal screen costs nothing; the XMB's
+           wave moves, so Classic draws every frame. */
+        if (dirty || h.selpos != was || pw_backdrop_moves(h.ui.style)) {
+            draw(&h, 256);
+            dirty = 0;
+        }
+        t_poll = pw_ui_now_us();
         ev = pw_ui_poll(&h.ui);
+        h.stats.poll += pw_ui_now_us() - t_poll;
+        h.stats.loops++;
+        if (ev)
+            dirty = 1;
         if (ev & PSP_CTRL_UP) {
             if (h.sel > 0)
                 h.sel--;
@@ -176,6 +204,7 @@ int pw_hub_run(const pw_freeze_set *frozen)
             ret = e->cpl->run(e->index, &h.env);
             if (ret == PW_CPL_LOADED) {
                 log_stats(&h);
+                pw_cpuwatch_stop("hub");
                 return PW_HUB_LOADED; /* back in the saved moment; the screen is gone */
             }
             if (ret == PW_CPL_QUIT) {
@@ -192,5 +221,6 @@ int pw_hub_run(const pw_freeze_set *frozen)
     g_last_sel = h.sel;
     fade(&h, 256, 0, FADE_OUT_MS);
     log_stats(&h);
+    pw_cpuwatch_stop("hub");
     return result;
 }

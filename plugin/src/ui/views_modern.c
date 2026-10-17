@@ -120,11 +120,10 @@ void pw_modern_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const p
     pw_draw_blend(c, 0, BAND_Y, SCREEN_W, 1, C_TEXT, fade * 30 / 256);
 
     for (int i = 0; i < count; i++) /* the buttons' faces */
-        pw_shape_disc(c, PW_FX(x0 + i * BTN_GAP), PW_FX(BTN_Y), PW_FX(BTN_R), C_KNOB,
-                      fade * 170 / 256);
+        pw_icon_draw(c, PW_ICON_DISC, x0 + i * BTN_GAP, BTN_Y, 2 * BTN_R, C_KNOB, fade * 170 / 256);
     if (count > 0) /* the cursor glides between them */
-        pw_shape_disc(c, PW_FX(x0) + selpos * BTN_GAP * 16 / 256, PW_FX(BTN_Y), PW_FX(SEL_R),
-                      C_TEXT, fade);
+        pw_icon_draw(c, PW_ICON_DISC, x0 + (selpos * BTN_GAP + 128) / 256, BTN_Y, 2 * SEL_R, C_TEXT,
+                     fade);
     for (int i = 0; i < count; i++) {
         int d = i * 256 - selpos, near = 256 - clampi(d < 0 ? -d : d, 0, 256);
         int alpha = rows[i].enabled ? fade : fade * 110 / 256;

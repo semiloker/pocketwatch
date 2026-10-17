@@ -12,14 +12,20 @@
 #include "stb_sprintf.h"
 #include "ui/fb.h"
 #include "ui/backdrop.h"
+#include "ui/icons.h"
+#include "ui/xmbbg.h"
 
 #define FB_STRIDE   512
 #define FB_PIXELS   (FB_STRIDE * PW_FB_H)
 #define FB_BYTES    (FB_PIXELS * 4)
 #define UNCACHED(p) ((void *)(0xA0000000u | ((unsigned int)(p) & 0x1FFFFFFFu)))
+#define ICON_CACHE  (64 * 1024) /* rasterised drawn icons (ui/icons.c) */
+#define PAGES       5           /* game, sky, two screen pages, the moving backdrop */
 
 static pw_mem_block g_mem;
 static unsigned int *g_game, *g_sky, *g_page[2];
+static unsigned int *g_moving; /* g_sky with the wave on it; half the wave renewed each frame */
+static int g_half;
 static int g_back;
 static pw_canvas g_canvas;
 static const pw_image *g_sky_img;
@@ -29,8 +35,27 @@ static void make_backdrop(void)
 {
     pw_canvas game = {g_game, PW_FB_W, PW_FB_H, FB_STRIDE};
     pw_canvas sky = {g_sky, PW_FB_W, PW_FB_H, FB_STRIDE};
+    pw_canvas moving = {g_moving, PW_FB_W, PW_FB_H, FB_STRIDE};
 
     pw_backdrop_make(&sky, &game, g_sky_img, g_style);
+    if (pw_backdrop_moves(g_style)) {
+        memcpy(g_moving, g_sky, FB_BYTES);
+        pw_backdrop_frame(&moving, 0, g_style);
+    }
+}
+
+/* Renew one half of the wave in g_moving: the sky under those rows, then the wave at t_ms. Half
+   the work per frame, and the crest moves less than a pixel a frame, so no seam shows. */
+static void move_backdrop(unsigned int t_ms)
+{
+    const int mid = (PW_XMBBG_WAVE_TOP + PW_FB_H) / 2;
+    int y0 = g_half ? mid : PW_XMBBG_WAVE_TOP, y1 = g_half ? PW_FB_H : mid;
+    pw_canvas moving = {g_moving, PW_FB_W, PW_FB_H, FB_STRIDE};
+
+    g_half ^= 1;
+    memcpy(g_moving + y0 * FB_STRIDE, g_sky + y0 * FB_STRIDE,
+           (unsigned int)(y1 - y0) * FB_STRIDE * 4);
+    pw_backdrop_frame_rows(&moving, t_ms, g_style, y0, y1);
 }
 
 static void capture(void)
@@ -49,7 +74,8 @@ static void capture(void)
 
 int pw_fb_open(const pw_image *sky, int style)
 {
-    int ret = pw_mem_alloc_in(&g_mem, PW_MEM_PARTITION_SPARE, "PwScreen", 4 * FB_BYTES);
+    int ret =
+        pw_mem_alloc_in(&g_mem, PW_MEM_PARTITION_SPARE, "PwScreen", PAGES * FB_BYTES + ICON_CACHE);
 
     if (ret < 0)
         return ret;
@@ -59,7 +85,9 @@ int pw_fb_open(const pw_image *sky, int style)
     g_sky = g_game + FB_PIXELS;
     g_page[0] = g_sky + FB_PIXELS;
     g_page[1] = g_page[0] + FB_PIXELS;
+    g_moving = g_page[1] + FB_PIXELS;
     g_back = 0;
+    pw_icon_cache(g_moving + FB_PIXELS, ICON_CACHE);
     capture();
     return 0;
 }
@@ -70,8 +98,12 @@ pw_canvas *pw_fb_begin(int show, unsigned int t_ms)
     g_canvas.w = PW_FB_W;
     g_canvas.h = PW_FB_H;
     g_canvas.stride = FB_STRIDE;
-    memcpy(g_page[g_back], g_sky, FB_BYTES);
-    pw_backdrop_frame(&g_canvas, t_ms, g_style);
+    if (pw_backdrop_moves(g_style)) {
+        move_backdrop(t_ms);
+        memcpy(g_page[g_back], g_moving, FB_BYTES);
+    } else {
+        memcpy(g_page[g_back], g_sky, FB_BYTES);
+    }
     if (show < 256)
         pw_draw_lerp(&g_canvas, g_game, g_page[g_back], show < 0 ? 0 : show);
     return &g_canvas;
@@ -94,8 +126,10 @@ void pw_fb_hide(void)
 
 void pw_fb_recapture(void)
 {
-    if (g_game != NULL)
+    if (g_game != NULL) {
+        pw_icon_cache(g_moving + FB_PIXELS, ICON_CACHE); /* P11 was overwritten by the suspend */
         capture();
+    }
 }
 
 void pw_fb_set_style(int style)
@@ -148,6 +182,7 @@ const unsigned int *pw_fb_game(void)
 void pw_fb_close(void)
 {
     pw_fb_hide();
+    pw_icon_cache(NULL, 0);
     pw_mem_free(&g_mem);
-    g_game = g_sky = g_page[0] = g_page[1] = NULL;
+    g_game = g_sky = g_page[0] = g_page[1] = g_moving = NULL;
 }

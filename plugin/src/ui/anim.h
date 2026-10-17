@@ -35,9 +35,12 @@ static inline int pw_ramp(unsigned int now_ms, unsigned int start_ms, int ms)
     return ms <= 0 || t >= (unsigned int)ms ? 256 : (int)(t * 256 / (unsigned int)ms);
 }
 
-/* Frame statistics of a screen, logged when it closes (how fast the menu really is). */
+/* Frame statistics of a screen, logged when it closes (how fast the menu really is), in us. */
 typedef struct {
-    unsigned int frames, t_first, t_last, worst, sum_draw;
+    unsigned int loops, frames;              /* vblanks waited, frames drawn */
+    unsigned int t_first, t_last;            /* ms */
+    unsigned int backdrop, content, present; /* sums over the drawn frames */
+    unsigned int poll, worst;                /* waiting for the vblank (sum); slowest frame */
 } pw_frame_stats;
 
 #endif

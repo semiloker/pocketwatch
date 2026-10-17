@@ -128,6 +128,11 @@ static void make_tables(void)
  */
 void pw_xmbbg_wave(pw_canvas *c, unsigned int t_ms)
 {
+    pw_xmbbg_wave_rows(c, t_ms, 0, c->h);
+}
+
+void pw_xmbbg_wave_rows(pw_canvas *c, unsigned int t_ms, int y_from, int y_to)
+{
     static short top[PW_XMBBG_MAX_W], top2[PW_XMBBG_MAX_W]; /* 1/16 px: < 4352 */
     unsigned int t = t_ms / 16; /* phase drift: ~1/256 turn every 16 ms */
     int bottom = c->h < PW_XMBBG_WAVE_BOTTOM ? c->h : PW_XMBBG_WAVE_BOTTOM, w = c->w,
@@ -148,6 +153,10 @@ void pw_xmbbg_wave(pw_canvas *c, unsigned int t_ms)
     }
     if (y_min < PW_XMBBG_WAVE_TOP)
         y_min = PW_XMBBG_WAVE_TOP;
+    if (y_min < y_from)
+        y_min = y_from;
+    if (bottom > y_to)
+        bottom = y_to;
     /* Row by row: the frame buffer is read and written in memory order, which the PSP's small
        data cache needs (column by column, every pixel was a cache miss). */
     for (int y = y_min; y < bottom; y++) {

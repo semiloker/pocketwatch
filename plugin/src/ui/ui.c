@@ -18,6 +18,11 @@ unsigned int pw_ui_now_ms(void)
     return sceKernelGetSystemTimeLow() / 1000;
 }
 
+unsigned int pw_ui_now_us(void)
+{
+    return sceKernelGetSystemTimeLow();
+}
+
 unsigned int pw_ui_buttons(void)
 {
     SceCtrlData pad;

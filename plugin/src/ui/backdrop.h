@@ -16,4 +16,7 @@ void pw_backdrop_make(pw_canvas *dst, const pw_canvas *game, const pw_image *sky
 int pw_backdrop_moves(int style);
 void pw_backdrop_frame(pw_canvas *c, unsigned int t_ms, int style);
 
+/* The moving part over rows [y_from, y_to) only. */
+void pw_backdrop_frame_rows(pw_canvas *c, unsigned int t_ms, int style, int y_from, int y_to);
+
 #endif

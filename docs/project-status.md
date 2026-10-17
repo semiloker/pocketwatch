@@ -31,6 +31,13 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
   lists like the XMB's); the theme colour already selects the sky - the log now says which one
   (test H12).
 
+Second run (2026-10-17, [log](research/logs/2026-10-17-hub-fps-castlevania-persona.log)): the
+hub's first fps lines (Modern 19-30 fps, Classic 11-16 fps, 17-21 ms of drawing), a second
+Castlevania slot save (ok), Persona hub and Quit (ok). The sky follows the theme colour (colour 1
+-> sky 0); the PSP's own clock says January (2011), which is also the month the default uses.
+Answered: half the wave per frame, rasterised icons, drawing only on change, a frame split and a
+per-thread CPU line in the log.
+
 ## Next actions (in order)
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the

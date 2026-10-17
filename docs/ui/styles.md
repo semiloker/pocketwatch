@@ -45,6 +45,21 @@ frame by part on the host (only the proportions mean anything; the PSP is ~50x s
 | Modern | 824 | 234 | shapes: the square root only on the one-pixel edge, discs on their own path, a triangle's edge lengths once |
 | Minimal | 69 | 53 | blits: no division by 255 per pixel, two channels per multiply |
 
+First device numbers after that change (2026-10-17,
+[log](../research/logs/2026-10-17-hub-fps-castlevania-persona.log)): Modern 19 and 30 fps with
+17-19 ms of drawing, Classic 11-16 fps with 18-21 ms. Two findings: a frame still took more than
+the 16.7 ms of one vblank, and a loop took far longer than its drawing plus one vblank (Castlevania
+lost 25-40 ms a loop elsewhere; Persona did not). So:
+
+- Classic renews half of the wave per frame in a page of its own (the crest moves less than a
+  pixel a frame, no seam shows); the drawn icons and the round buttons are rasterised once into a
+  cache (`pw_icon_cache`, 64 KB next to the screen pages, dropped after every suspend).
+- The hub draws only when something changed (the cursor moves, a fade, the clock or battery, a
+  button, or Classic's wave): a still Modern or Minimal screen costs nothing.
+- The log now splits a frame (backdrop, content, present, the wait for the vblank) and says which
+  threads used the CPU while the hub was open (`cpu: hub, ... ms: <thread> NN% ...`, the idle
+  threads included): the next run shows where Castlevania's missing time goes.
+
 Motion follows the XMB's curve by time (an exponential with a 50 ms constant, "200 ms": VitaXMB's
 reading of the PSP's engine), so a slower frame no longer slows the movement down. The state
 list glides and grows the chosen icon, its details cross-fade; dialogs fade in (150 ms); the

@@ -52,7 +52,7 @@ damaged, restore it from the backup.
 | H10 | Put a file `seplugins/pocketwatch/language.txt` containing `uk`, start the game. Delete the file afterwards. | Ukrainian text, or English with the log line `i18n: ... has letters the system font lacks` (then the system font has no Ukrainian letters: report it). |
 | H11 | Save to a slot in one language, change the system language, start the game, load it. | It loads; after the load the hub speaks the language of the moment it was saved (by design: the state brings its own). |
 | H12 | XMB → Settings → Theme Settings → Theme Color: pick a colour other than the default; start the game, open the hub (Classic style). | The hub's sky has the XMB's colour. Log: `shell: sky N (theme colour M, month 10)`. If the colours differ, write down which colour you picked (its place in the list, counting from 1 after the default) and what the hub showed. |
-| H13 | In each style: open the hub, move up and down for about 10 s, close it. | Moves look smooth. Log after each: `hub: N frames in T ms (F fps), drawing D ms a frame on average, W ms at worst (style S)` - send these lines. |
+| H13 | In each style: open the hub, move up and down for about 10 s, close it; once in Castlevania and once in another game. | Moves look smooth. Log after each: `hub: style S, T ms: N frames drawn in L vblank waits; a frame: backdrop .. us, content .. us, present .. us, worst .. us; waiting .. us a loop` and `cpu: hub, T ms: <thread> NN% ...` - send these lines. |
 | H14 | (debug build) Anywhere in the menu press SELECT. | `seplugins/pocketwatch/shot-000.png` (then 001, ...) is the exact picture on the screen. Send shots of anything that looks wrong, e.g. icons that look banded. |
 
 ### Settings
