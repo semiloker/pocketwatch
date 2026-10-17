@@ -81,10 +81,45 @@ void pw_xmbbg_sky(pw_canvas *c, const pw_image *sky)
     }
 }
 
-/* Mix white into a pixel with coverage a (0..256). */
-static unsigned int lighten(unsigned int p, int a)
+/* Mix white into a pixel by a (0..256): each channel moves towards 255. */
+static unsigned int lighten(unsigned int p, unsigned int a)
 {
-    return a <= 0 ? p : lerp_px(p, 0xFFFFFFFFu, a > 256 ? 256 : a);
+    unsigned int rb = p & 0xFF00FF, g = p & 0x00FF00;
+
+    rb += (((0xFF00FF - rb) * a) >> 8) & 0xFF00FF;
+    g += (((0x00FF00 - g) * a) >> 8) & 0x00FF00;
+    return 0xFF000000u | rb | g;
+}
+
+/*
+ * The ribbon's brightness by distance from its crest (1/16 px), worked out once: the crest's
+ * anti-aliased edge, a bright band, a body fading downwards, and the faint second ribbon above.
+ * Per pixel that leaves two table reads and one blend (it covers two thirds of the screen at
+ * 60 frames a second).
+ */
+#define BODY_FROM (-16)
+#define BODY_TO   (90 * 16)
+#define RIBBON    (10 * 16)
+
+static unsigned char g_body[BODY_TO - BODY_FROM], g_ribbon[RIBBON];
+static int g_tables;
+
+static void make_tables(void)
+{
+    for (int d = BODY_FROM; d < BODY_TO; d++) {
+        int a;
+
+        if (d < 0)
+            a = (d + 16) * 70 / 16;
+        else if (d < 3 * 16)
+            a = 70 - d * 30 / (3 * 16);
+        else
+            a = 40 * (90 * 16 - d) / (87 * 16);
+        g_body[d - BODY_FROM] = (unsigned char)(a > 0 ? a : 0);
+    }
+    for (int r = 0; r < RIBBON; r++)
+        g_ribbon[r] = (unsigned char)(22 * (RIBBON - r) / RIBBON);
+    g_tables = 1;
 }
 
 /*
@@ -93,30 +128,42 @@ static unsigned int lighten(unsigned int p, int a)
  */
 void pw_xmbbg_wave(pw_canvas *c, unsigned int t_ms)
 {
+    static short top[PW_XMBBG_MAX_W], top2[PW_XMBBG_MAX_W]; /* 1/16 px: < 4352 */
     unsigned int t = t_ms / 16; /* phase drift: ~1/256 turn every 16 ms */
+    int bottom = c->h < PW_XMBBG_WAVE_BOTTOM ? c->h : PW_XMBBG_WAVE_BOTTOM, w = c->w,
+        y_min = bottom;
 
-    for (int x = 0; x < c->w; x++) {
-        /* top edge in 1/16 px */
-        int top = PW_XMBBG_WAVE_TOP * 16 + 66 * 16 + x * 16 * 38 / 480 +
-                  (isin((unsigned int)(x * 256 / 560) + t / 3) * 14 * 16) / 4096 +
-                  (isin((unsigned int)(x * 256 / 250) + 256 - t / 5) * 6 * 16) / 4096;
-        int top2 =
-            top - 30 * 16 + (isin((unsigned int)(x * 256 / 330) + t / 4 + 80) * 9 * 16) / 4096;
+    if (!g_tables)
+        make_tables();
+    if (w > PW_XMBBG_MAX_W)
+        w = PW_XMBBG_MAX_W;
+    for (int x = 0; x < w; x++) { /* the crest of each column, in 1/16 px */
+        top[x] = (short)(PW_XMBBG_WAVE_TOP * 16 + 66 * 16 + x * 16 * 38 / 480 +
+                         (isin((unsigned int)(x * 256 / 560) + t / 3) * 14 * 16) / 4096 +
+                         (isin((unsigned int)(x * 256 / 250) + 256 - t / 5) * 6 * 16) / 4096);
+        top2[x] = (short)(top[x] - 30 * 16 +
+                          (isin((unsigned int)(x * 256 / 330) + t / 4 + 80) * 9 * 16) / 4096);
+        if (((top2[x] - RIBBON) >> 4) < y_min)
+            y_min = (top2[x] - RIBBON) >> 4;
+    }
+    if (y_min < PW_XMBBG_WAVE_TOP)
+        y_min = PW_XMBBG_WAVE_TOP;
+    /* Row by row: the frame buffer is read and written in memory order, which the PSP's small
+       data cache needs (column by column, every pixel was a cache miss). */
+    for (int y = y_min; y < bottom; y++) {
+        unsigned int *row = c->px + y * c->stride;
+        int yc = y * 16 + 8;
 
-        for (int y = PW_XMBBG_WAVE_TOP; y < c->h && y < PW_XMBBG_WAVE_BOTTOM; y++) {
-            int d = y * 16 + 8 - top, d2 = y * 16 + 8 - top2, a = 0;
-            unsigned int *p = c->px + y * c->stride + x;
+        for (int x = 0; x < w; x++) {
+            int d = yc - top[x], d2 = yc - top2[x];
+            unsigned int a = 0;
 
-            if (d >= -16 && d < 0) /* anti-aliased crest edge */
-                a = (d + 16) * 70 / 16;
-            else if (d >= 0 && d < 3 * 16)
-                a = 70 - d * 30 / (3 * 16);
-            else if (d >= 3 * 16 && d < 90 * 16)
-                a = 40 * (90 * 16 - d) / (87 * 16);
-            if (d2 > -10 * 16 && d2 < 10 * 16) /* the faint ribbon above */
-                a += 22 * (10 * 16 - (d2 < 0 ? -d2 : d2)) / (10 * 16);
-            if (a > 0)
-                *p = lighten(*p, a);
+            if (d >= BODY_FROM && d < BODY_TO)
+                a = g_body[d - BODY_FROM];
+            if (d2 > -RIBBON && d2 < RIBBON)
+                a += g_ribbon[d2 < 0 ? -d2 : d2];
+            if (a)
+                row[x] = lighten(row[x], a);
         }
     }
 }

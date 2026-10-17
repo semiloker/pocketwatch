@@ -1,0 +1,73 @@
+Pocketwatch e9edd01 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 101 import(s): 99 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   273 KB maxfree=   238 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   273 KB maxfree=   238 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19596 KB maxfree= 19596 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 11 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 4 image(s) decoded, 0 missing (RCO compression 2)
+assets: 411 KB of 640 KB kept
+i18n: system language 8
+i18n: ru, 70 of 70 strings translated
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULUS10277, PARAM.SFO hashed
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
+settings: style 1, fast 1, status 0 saved
+settings: style 1, fast 1, status 1 saved
+engine: ---- SAVE ----
+engine: CP0 Count runs at 4764 kHz
+freeze: 6 game thread(s) suspended in 1 ms (0 forced past the timeout)
+freeze:   SE Thread                       prio= 16 status=0x08 wait=0
+freeze:   SceNetAdhocctl                  prio= 30 status=0x0C wait=4
+freeze:   SceNetNetintr                   prio= 30 status=0x0C wait=4
+freeze:   SceNetCallout                   prio= 30 status=0x08 wait=0
+freeze:   ATRAC3 play thread              prio= 16 status=0x08 wait=0
+freeze:   user_main                       prio= 32 status=0x08 wait=0
+engine: save: GE 0, packed in 781 ms:
+engine:   game     24576 KB ->   4101 KB (384 chunks, 4 raw) crc 00000000
+engine:   eDRAM     2048 KB ->    173 KB (32 chunks, 0 raw) crc 00000000
+engine:   scratch     16 KB ->      2 KB (1 chunks, 0 raw) crc 00000000
+engine:   268 FILL chunk(s) (one repeated word)
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: save: requesting a real suspend
+probe: scePower request pending: 1 (t=71424 ms)
+engine: save OK: suspend 6515 ms (wall clock), kernel copy 233 ms, dmac_left=0x0, IC at PHASE0_0 0x0
+engine: save: image 9216 KB sum 82AA973B, arena 4277 KB sum 8439C2CE
+engine: save: flash drivers re-initialised: ok (lflash 1 exit 0 init 0, flashfat 1 exit 0 init 0)
+engine: save: I/O enables 0308AAD2/020000D9, GPIO 00000001 at suspend; 01000202/00000019, GPIO 00000000 at resume
+engine: save: live before suspend: hold 0 wlan-sw 0 hp 0 ms-pow 1 wlan-pow 0 hr-pow 0 supply 0 batt 0 0/0 mAh
+engine: save: resume info found: size 212 wake 8C1 st 00 clock 324491 key FFCF7FFF supply 2 batt 0 1205/1790 st2 00
+engine: save: IPL seeds before suspend: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: save: IPL seeds at resume: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: save trace, 102 event(s):
+engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
+engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
+engine:  010005 010006 010007 010008 010009 01000A 01000B 01000C 01000D 01000E 01000F 040000 100000 100001 100002 400000
+engine: save trace spans 1445 ms (system timer)
+engine: save slowest events (id:ms): 4000:4294313 400A:583 200:568 100000:268 1000A:125 402:102
+engine: timing save (CPU 333 MHz, bus 166 MHz): freeze 0 ge 0 pack 780 sums 34 suspend 6695 thaw 0 = 7509 ms
+engine: save suspend 6515 ms: queries 578, power-lock retries 326 (0x402 x22), suspend phases 657, resume phases 536, flash rebuild 0; sleep+wake+rest ~4418 ms
+probe: scePower request pending: 0 (t=72885 ms)
+store: state written to slot 1 (13499 KB)
+settings: style 2, fast 1, status 1 saved
+settings: style 0, fast 1, status 1 saved
+shell: Quit Game
+engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: state discarded after 0 load(s)
+shell: quit: the game's exit callback was invoked (0x00000000)

@@ -239,37 +239,38 @@ int main(void)
         };
 
         c = begin(0);
-        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256);
+        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
         pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
         save("hub-resume");
         c = begin(1500);
-        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256);
+        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
         pw_view_hub(&c, &ui, &cat, rows, 5, 256 * 2, 256);
         save("hub-load");
         c = begin(3000);
-        pw_view_status(&c, &ui, "10/16 14:05", 20, 1, 256);
+        pw_view_status(&c, &ui, "10/16 14:05", 20, 1, 256, 0);
         pw_view_hub(&c, &ui, &cat, rows, 5, 256 + 128, 256);
         save("hub-moving");
         rows[2].enabled = 0;
         rows[2].desc = pw_tr(PW_S_NO_SAVED_STATE);
         c = begin(4500);
-        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256);
+        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
         pw_view_hub(&c, &ui, &cat, rows, 5, 256 * 2, 256);
         save("hub-load-disabled");
         c = begin(6000);
-        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 128);
+        pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 128, 0);
         pw_view_hub(&c, &ui, &cat, rows, 5, 0, 128);
         pw_draw_lerp(&c, g_game, g_px, 128);
         save("hub-fading-in");
         c = begin(7000);
-        pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, pw_tr(PW_S_CONFIRM_QUIT), NULL, 0);
+        pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, pw_tr(PW_S_CONFIRM_QUIT), NULL, 0, 256);
         save("dialog-quit");
         c = begin(8000);
         pw_view_dialog(&c, &ui, PW_VIEW_CONFIRM, pw_tr(PW_S_CONFIRM_LOAD),
-                       pw_tr(PW_S_CONFIRM_LOAD2), 0);
+                       pw_tr(PW_S_CONFIRM_LOAD2), 0, 256);
         save("dialog-confirm");
         c = begin(9000);
-        pw_view_dialog(&c, &ui, PW_VIEW_MESSAGE, pw_tr(PW_S_G_BATTERY), pw_tr(PW_S_H_BATTERY), 1);
+        pw_view_dialog(&c, &ui, PW_VIEW_MESSAGE, pw_tr(PW_S_G_BATTERY), pw_tr(PW_S_H_BATTERY), 1,
+                       256);
         save("dialog-message");
         c = begin(10000);
         {
@@ -295,12 +296,16 @@ int main(void)
         };
         c = begin(11000);
         pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles",
-                      slots, 5, 1, 1);
+                      slots, 5, 1 * 256, 1, 256);
         save("slots-save");
         c = begin(12000);
         pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles",
-                      slots, 5, 2, 1);
+                      slots, 5, 2 * 256, 1, 256);
         save("slots-new");
+        c = begin(12500); /* half way from slot 2 to slot 3, the list fading in */
+        pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles",
+                      slots, 5, 256 + 128, 1, 200);
+        save("slots-moving");
 
         pw_hub_cat scat = {art(A_SET), PW_ICON_GEAR, pw_tr(PW_S_SETTINGS), NULL};
         static const int style_names[PW_STYLE_COUNT] = {PW_S_STYLE_XMB, PW_S_STYLE_MODERN,
@@ -322,10 +327,10 @@ int main(void)
                                "Русский",
                                "Українська"};
         c = begin(13000);
-        pw_view_settings(&c, &ui, &scat, set, 4, 1, NULL, 0, -1);
+        pw_view_settings(&c, &ui, &scat, set, 4, 1, NULL, 0, -1, 256);
         save("settings");
         c = begin(14000);
-        pw_view_settings(&c, &ui, &scat, set, 4, 3, langs, 10, 8);
+        pw_view_settings(&c, &ui, &scat, set, 4, 3, langs, 10, 8, 256);
         save("settings-language");
     }
     return 0;

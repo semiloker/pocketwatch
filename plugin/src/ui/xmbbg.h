@@ -20,6 +20,7 @@ void pw_xmbbg_wave(pw_canvas *c, unsigned int t_ms);
 
 /* Rows the wave can touch (for partial redraws). */
 #define PW_XMBBG_WAVE_TOP    96
+#define PW_XMBBG_MAX_W       512 /* widest canvas the wave handles */
 #define PW_XMBBG_WAVE_BOTTOM 272
 
 #endif

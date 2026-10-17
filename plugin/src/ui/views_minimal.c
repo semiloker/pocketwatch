@@ -55,8 +55,9 @@ void pw_minimal_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label,
 }
 
 void pw_minimal_status(pw_canvas *c, const pw_ui *ui, const char *clock, int battery, int charging,
-                       int alpha)
+                       int alpha, unsigned int t_ms)
 {
+    (void)t_ms;
     char line[32];
     int n = 0;
 
@@ -120,35 +121,38 @@ void pw_minimal_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const 
     pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), fade);
 }
 
-static void choice(pw_canvas *c, const pw_ui *ui, int cx, int y, const char *label, int selected)
+static void choice(pw_canvas *c, const pw_ui *ui, int cx, int y, const char *label, int selected,
+                   int alpha)
 {
     int w = pw_text_width(ui->title, label);
 
-    pw_text_draw(c, ui->title, cx - w / 2, y, label, C_TEXT, selected ? 256 : FAINT, 0);
+    pw_text_draw(c, ui->title, cx - w / 2, y, label, C_TEXT, (selected ? 256 : FAINT) * alpha / 256,
+                 0);
     if (selected)
-        pw_draw_blend(c, cx - w / 2, y + 5, w, 1, C_TEXT, 230);
+        pw_draw_blend(c, cx - w / 2, y + 5, w, 1, C_TEXT, 230 * alpha / 256);
 }
 
 void pw_minimal_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1,
-                       const char *line2, int yes)
+                       const char *line2, int yes, int appear)
 {
     char lines[4][PW_VIEW_LINE_MAX];
     int n = pw_view_wrap(ui->title, line1, 380, lines, 0, line2 ? 2 : 3), y0;
+    int a = clampi(appear, 0, 256);
 
     if (line2)
         n = pw_view_wrap(ui->title, line2, 380, lines, n, n + 2 > 4 ? 4 : n + 2);
-    pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 130);
+    pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 130 * a / 256);
     y0 = 128 - (n - 1) * 10;
     for (int i = 0; i < n; i++)
         text_center(c, ui->title, SCREEN_W / 2, y0 + i * 20, lines[i], 420, C_TEXT,
-                    i == 0 ? 256 : 170);
+                    (i == 0 ? 256 : 170) * a / 256);
     if (kind == PW_VIEW_CONFIRM) {
-        choice(c, ui, SCREEN_W / 2 - 44, y0 + n * 20 + 22, pw_tr(PW_S_YES), yes);
-        choice(c, ui, SCREEN_W / 2 + 44, y0 + n * 20 + 22, pw_tr(PW_S_NO), !yes);
-        pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
+        choice(c, ui, SCREEN_W / 2 - 44, y0 + n * 20 + 22, pw_tr(PW_S_YES), yes, a);
+        choice(c, ui, SCREEN_W / 2 + 44, y0 + n * 20 + 22, pw_tr(PW_S_NO), !yes, a);
+        pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), a);
     } else {
-        choice(c, ui, SCREEN_W / 2, y0 + n * 20 + 22, pw_tr(PW_S_OK), 1);
-        pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), 0, 256);
+        choice(c, ui, SCREEN_W / 2, y0 + n * 20 + 22, pw_tr(PW_S_OK), 1, a);
+        pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), 0, a);
     }
 }
 
@@ -172,39 +176,41 @@ void pw_minimal_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned i
 #define PIC_H    108
 
 void pw_minimal_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
-                      const pw_slot_row *rows, int count, int sel, int can_delete)
+                      const pw_slot_row *rows, int count, int selpos, int can_delete, int appear)
 {
+    int sel = clampi((selpos + 128) / 256, 0, count - 1), off = sel * 256 - selpos;
+    int dn = 256 - 2 * (off < 0 ? -off : off), pic_a = (dn < 0 ? 0 : dn) * appear / 256;
     const pw_slot_row *r = &rows[sel];
 
-    pw_text_draw_fit(c, ui->body, 20, 24, heading, 200, C_DIM, 256, 0);
+    pw_text_draw_fit(c, ui->body, 20, 24, heading, 200, C_DIM, appear, 0);
     if (game)
         pw_text_draw_fit(c, ui->body, PIC_X, PIC_Y + PIC_H + 40, game, SCREEN_W - PIC_X - 10, C_DIM,
-                         256, 0);
-    for (int i = 0; i < count; i++) {
-        int y = LIST_CY + (i - sel) * SLOT_PIT, alpha = i == sel ? 256 : FAINT;
+                         appear, 0);
+    for (int i = 0; i < count; i++) { /* the lines glide past a fixed mark */
+        int p = i * 256 - selpos, y = LIST_CY + p * SLOT_PIT / 256;
+        int near = 256 - clampi(p < 0 ? -p : p, 0, 256);
 
         if (y < 44 || y > SCREEN_H - 34)
             continue;
-        pw_text_draw_fit(c, ui->title, SLOT_X, y, rows[i].title, PIC_X - SLOT_X - 16, C_TEXT, alpha,
-                         0);
-        if (i == sel)
-            pw_draw_blend(c, SLOT_X - 14, y - 9, 2, 12, C_TEXT, 230);
+        pw_text_draw_fit(c, ui->title, SLOT_X, y, rows[i].title, PIC_X - SLOT_X - 16, C_TEXT,
+                         (FAINT + (256 - FAINT) * near / 256) * appear / 256, 0);
     }
+    pw_draw_blend(c, SLOT_X - 14, LIST_CY - 9, 2, 12, C_TEXT, 230 * appear / 256);
     if (r->exists && r->icon) {
-        pw_draw_image_scaled(c, r->icon, 144, 80, PIC_X, PIC_Y, PIC_W, PIC_H, 256);
+        pw_draw_image_scaled(c, r->icon, 144, 80, PIC_X, PIC_Y, PIC_W, PIC_H, pic_a);
     } else {
         int cx = PIC_X + PIC_W / 2, cy = PIC_Y + PIC_H / 2;
 
         pw_shape_rrect(c, PW_FX(PIC_X), PW_FX(PIC_Y), PW_FX(PIC_W), PW_FX(PIC_H), PW_FX(2),
-                       PW_FX(1), C_DIM, 160);
+                       PW_FX(1), C_DIM, 160 * pic_a / 256);
         pw_shape_capsule(c, PW_FX(cx - 9), PW_FX(cy), PW_FX(cx + 9), PW_FX(cy), PW_FX(1), C_DIM,
-                         200);
+                         200 * pic_a / 256);
         pw_shape_capsule(c, PW_FX(cx), PW_FX(cy - 9), PW_FX(cx), PW_FX(cy + 9), PW_FX(1), C_DIM,
-                         200);
+                         200 * pic_a / 256);
     }
     if (r->info)
         pw_text_draw_fit(c, ui->body, PIC_X, PIC_Y + PIC_H + 20, r->info, SCREEN_W - PIC_X - 10,
-                         C_TEXT, 220, 0);
+                         C_TEXT, 220 * pic_a / 256, 0);
     pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
     if (can_delete && r->exists) {
         pw_view_button(c, ui, PW_BTN_TRIANGLE, SCREEN_W - 70, 254, 180);
@@ -219,7 +225,7 @@ void pw_minimal_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const 
 
 void pw_minimal_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
                          const pw_setting_row *rows, int count, int sel, const char *const *options,
-                         int n_options, int opt_sel)
+                         int n_options, int opt_sel, int opt_appear)
 {
     int editing = opt_sel >= 0 && options && n_options > 0;
     int top = LIST_CY - (count - 1) * SET_PIT / 2;
@@ -245,7 +251,7 @@ void pw_minimal_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
             if (y < 36 || y > SCREEN_H - 30)
                 continue;
             pw_text_draw(c, ui->body, VALUE_X - pw_text_width(ui->body, options[k]), y, options[k],
-                         C_TEXT, k == opt_sel ? 256 : 80, 0);
+                         C_TEXT, (k == opt_sel ? 256 : 80) * clampi(opt_appear, 0, 256) / 256, 0);
         }
     }
     pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);

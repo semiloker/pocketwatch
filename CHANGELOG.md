@@ -43,6 +43,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- The menu ran at a very low frame rate: the background wave and the drawn shapes cost far less
+  per frame now, and every movement runs by time instead of by frame.
+- The state lists, dialogs and the option panel animate (glide, grow, fade, slide) like the
+  system's; the Classic style uses the XMB's own battery picture (animated while charging) and the
+  XMB's option-list look.
 - Exiting a game hung on "Please wait...": `module_stop` now stops and joins all plugin threads.
 - Quitting after a fast save hung on a black screen: the IPL's seeds are put back after every
   touch-and-go suspend.

@@ -27,9 +27,9 @@ typedef struct {
     const char *subtitle; /* the game's title (the modern and minimal styles show it), or NULL */
 } pw_hub_cat;
 
-/* The corner: clock text, battery percent (-1: none), charging. */
+/* The corner: clock text, battery percent (-1: none), charging (the battery fills in a loop). */
 void pw_view_status(pw_canvas *c, const pw_ui *ui, const char *clock, int battery, int charging,
-                    int alpha);
+                    int alpha, unsigned int t_ms);
 
 /* The XMB-style column. selpos: animated cursor position (1/256 rows); fade 0-256. */
 void pw_view_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const pw_hub_row *rows,
@@ -43,10 +43,10 @@ typedef struct {
     const char *info;         /* "2026/10/16 14:05   18.2 MB" */
 } pw_slot_row;
 
-/* heading: "Save State" / "Load State"; game: the game's title; can_delete: show the triangle hint.
- */
+/* heading: "Save State" / "Load State"; game: the game's title; selpos: the animated cursor
+   (1/256 slots); can_delete: show the triangle hint; appear: the opening fade 0-256. */
 void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
-                   const pw_slot_row *rows, int count, int sel, int can_delete);
+                   const pw_slot_row *rows, int count, int selpos, int can_delete, int appear);
 
 /* Settings: the XMB's option list; while choosing (opt_sel >= 0) the options of row sel are listed
    on a darker panel on the right, like the XMB's option popup. */
@@ -57,13 +57,14 @@ typedef struct {
 
 void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
                       const pw_setting_row *rows, int count, int sel, const char *const *options,
-                      int n_options, int opt_sel);
+                      int n_options, int opt_sel, int opt_appear);
 
 enum { PW_VIEW_CONFIRM, PW_VIEW_MESSAGE };
 
-/* The HOME screen's dialog: line2 may be NULL; yes = the selected choice (confirm). */
+/* The HOME screen's dialog: line2 may be NULL; yes = the selected choice (confirm); appear: its
+   fade-in 0-256. */
 void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, const char *line2,
-                    int yes);
+                    int yes, int appear);
 void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int t_ms);
 
 /* Shared pieces. */

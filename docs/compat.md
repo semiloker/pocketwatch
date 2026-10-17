@@ -13,7 +13,7 @@ afterwards returns to the XMB.
 | Game (file name) | Format | Slot | Load | Reboot | 10× | Busy | Quit | Notes |
 |---|---|---|---|---|---|---|---|---|
 | Assassin's Creed: Bloodlines (USA) | ISO | | | | | | | |
-| Castlevania: The Dracula X Chronicles (USA) | ISO | | | | | | | RAM save/load VERIFIED (E2, speed runs 1-7, 2026-10-16); T1 passed here |
+| Castlevania: The Dracula X Chronicles (USA) | ISO | ok | | | | | ok | RAM save/load VERIFIED (E2, speed runs 1-7, 2026-10-16); T1 passed here; slot 1 written 2026-10-17 (13.5 MB, 7.5 s save) |
 | Crisis Core: Final Fantasy VII (Europe) | ISO | | | | | | | |
 | Dante's Inferno (USA) v1.01 | ISO | | | | | | | |
 | Daxter (USA, PSN) | ISO | | | | | | | |
@@ -31,7 +31,7 @@ afterwards returns to the XMB.
 | Shin Megami Tensei: Persona (USA) | ISO | | | | | | | |
 | Silent Hill: Shattered Memories (USA, PSN) | ISO | | | | | | | |
 | Tekken 6 (USA) | ISO | | | | | | | |
-| The 3rd Birthday (EUR, undub) | ISO | | | | | | | |
+| The 3rd Birthday (EUR, undub) | ISO | fail | | | | | | 2026-10-17: rebooted into the XMB during the first save's sleep (Memory Stick Test); RISK-016, isolation test M13 |
 | The Legend of Heroes: Trails in the Sky (USA) | ISO | | | | | | | |
 | The Sims 2 (USA) | ISO | | | | | | | |
 

@@ -142,9 +142,15 @@ static void open_hub(void)
     sceCtrlSetButtonMasks(GAME_BUTTONS, 1); /* the game reads no button until we close */
     wait_ge();
     char clock[24];
-    int month = pw_sysinfo_clock(clock, sizeof(clock));
+    int month = pw_sysinfo_clock(clock, sizeof(clock)), sky = pw_sysinfo_sky_index(month);
+    static int logged_sky = -1;
 
-    if (pw_fb_open(pw_assets_sky(pw_sysinfo_sky_index(month)), pw_config_get()->style) < 0) {
+    if (sky != logged_sky) { /* which of the twelve skies, and why (theme colour or month) */
+        pw_log("shell: sky %d (theme colour %d, month %d)", sky, pw_sysinfo_get()->color_mode,
+               month);
+        logged_sky = sky;
+    }
+    if (pw_fb_open(pw_assets_sky(sky), pw_config_get()->style) < 0) {
         pw_log("shell: no memory for the screen");
         sceCtrlSetButtonMasks(GAME_BUTTONS, 0);
         g_open = 0;

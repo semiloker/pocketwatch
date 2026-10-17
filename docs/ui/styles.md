@@ -34,6 +34,22 @@ Status: implemented, host previews reviewed; device review pending ([testing gui
 - Host previews: `make -C tests preview ...` writes every screen three times
   (`<screen>.png`, `modern-<screen>.png`, `minimal-<screen>.png`).
 
+## Speed and motion (2026-10-17)
+
+The owner reported a very low frame rate in Classic and Modern. `make -C tests bench` times a
+frame by part on the host (only the proportions mean anything; the PSP is ~50x slower):
+
+| Style | before (us) | after (us) | what changed |
+|---|---|---|---|
+| Classic | 680 | 343 | the wave: tables instead of two divisions a pixel, row order instead of column order (every pixel was a cache miss on the PSP) |
+| Modern | 824 | 234 | shapes: the square root only on the one-pixel edge, discs on their own path, a triangle's edge lengths once |
+| Minimal | 69 | 53 | blits: no division by 255 per pixel, two channels per multiply |
+
+Motion follows the XMB's curve by time (an exponential with a 50 ms constant, "200 ms": VitaXMB's
+reading of the PSP's engine), so a slower frame no longer slows the movement down. The state
+list glides and grows the chosen icon, its details cross-fade; dialogs fade in (150 ms); the
+Classic option panel slides in from the right. The hub logs its frame rate when it closes.
+
 ## Adding a style
 
 Add a `PW_STYLE_*` value and its name in `core/config.c`, a `views_<name>.c` implementing the seven

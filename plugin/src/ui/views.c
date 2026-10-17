@@ -93,18 +93,27 @@ void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const
 }
 
 void pw_view_status(pw_canvas *c, const pw_ui *ui, const char *clock, int battery, int charging,
-                    int alpha)
+                    int alpha, unsigned int t_ms)
 {
     if (ui->style == PW_STYLE_MODERN) {
-        pw_modern_status(c, ui, clock, battery, charging, alpha);
+        pw_modern_status(c, ui, clock, battery, charging, alpha, t_ms);
         return;
     }
     if (ui->style == PW_STYLE_MINIMAL) {
-        pw_minimal_status(c, ui, clock, battery, charging, alpha);
+        pw_minimal_status(c, ui, clock, battery, charging, alpha, t_ms);
         return;
     }
-    /* the battery: an outlined cell with three bars, its tip on the right (XMB at 451..474) */
-    if (battery >= 0) {
+    if (battery >= 0 && ui->battery && ui->battery->h >= 4 && ui->battery->h % 4 == 0) {
+        /* the XMB's own picture: four frames, full to empty, centred at (463, 12); charging, it
+           fills up in a loop */
+        const pw_image *b = ui->battery;
+        int fh = b->h / 4, frame = battery > 66 ? 0 : battery > 33 ? 1 : battery > 5 ? 2 : 3;
+
+        if (charging)
+            frame = 3 - (int)((t_ms / 600) % 4);
+        pw_draw_image(c, b->px + frame * fh * b->w, b->w, fh, 463 - b->w / 2, 12 - fh / 2, alpha);
+    } else if (battery >= 0) {
+        /* drawn: an outlined cell with three bars, its tip on the right (XMB at 451..474) */
         int bars = battery > 66 ? 3 : battery > 33 ? 2 : battery > 5 ? 1 : 0;
 
         pw_shape_rrect(c, PW_FX(451), PW_FX(7), PW_FX(21), PW_FX(10), PW_FX(2), PW_FX(1) + 4,
@@ -186,13 +195,14 @@ void pw_view_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const pw_
     }
 }
 
-static void choice(pw_canvas *c, const pw_ui *ui, int x, const char *label, int selected)
+static void choice(pw_canvas *c, const pw_ui *ui, int x, const char *label, int selected, int alpha)
 {
     int w = pw_text_width(ui->title, label), bw = w + 8 > 30 ? w + 8 : 30;
 
     if (selected) /* the HOME screen's light box behind the chosen answer */
-        pw_draw_blend(c, x - bw / 2, CHOICE_Y - 12, bw, 16, PW_RGB(0xCF, 0xCF, 0xCF), 110);
-    pw_text_draw(c, ui->title, x - w / 2, CHOICE_Y, label, PW_C_TEXT, 256, 1);
+        pw_draw_blend(c, x - bw / 2, CHOICE_Y - 12, bw, 16, PW_RGB(0xCF, 0xCF, 0xCF),
+                      110 * alpha / 256);
+    pw_text_draw(c, ui->title, x - w / 2, CHOICE_Y, label, PW_C_TEXT, alpha, 1);
 }
 
 #define DLG_LINES    4
@@ -254,14 +264,14 @@ int pw_view_wrap(pw_font *f, const char *s, int max, char (*out)[DLG_LINE_MAX], 
 }
 
 void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, const char *line2,
-                    int yes)
+                    int yes, int appear)
 {
     if (ui->style == PW_STYLE_MODERN) {
-        pw_modern_dialog(c, ui, kind, line1, line2, yes);
+        pw_modern_dialog(c, ui, kind, line1, line2, yes, appear);
         return;
     }
     if (ui->style == PW_STYLE_MINIMAL) {
-        pw_minimal_dialog(c, ui, kind, line1, line2, yes);
+        pw_minimal_dialog(c, ui, kind, line1, line2, yes, appear);
         return;
     }
     char lines[DLG_LINES][DLG_LINE_MAX];
@@ -272,20 +282,20 @@ void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, 
     if (line2)
         n = pw_view_wrap(ui->title, line2, max, lines, n, n + 2 > DLG_LINES ? DLG_LINES : n + 2);
     top = n > 2 ? RULE_TOP - (n - 2) * (TEXT_Y2 - TEXT_Y1) : RULE_TOP;
-    pw_draw_fill(c, RULE_X0, top, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
-    pw_draw_fill(c, RULE_X0, RULE_BOT, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
+    pw_draw_blend(c, RULE_X0, top, RULE_X1 - RULE_X0, 1, PW_C_TEXT, appear);
+    pw_draw_blend(c, RULE_X0, RULE_BOT, RULE_X1 - RULE_X0, 1, PW_C_TEXT, appear);
     for (int i = 0; i < n; i++) {
         int y = n == 1 ? (TEXT_Y1 + TEXT_Y2) / 2 : TEXT_Y2 - (n - 1 - i) * (TEXT_Y2 - TEXT_Y1);
 
-        pw_view_text_centered(c, ui->title, SCREEN_W / 2, y, lines[i], PW_C_TEXT, 256);
+        pw_view_text_centered(c, ui->title, SCREEN_W / 2, y, lines[i], PW_C_TEXT, appear);
     }
     if (kind == PW_VIEW_CONFIRM) {
-        choice(c, ui, YES_X, pw_tr(PW_S_YES), yes);
-        choice(c, ui, NO_X, pw_tr(PW_S_NO), !yes);
-        pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
+        choice(c, ui, YES_X, pw_tr(PW_S_YES), yes, appear);
+        choice(c, ui, NO_X, pw_tr(PW_S_NO), !yes, appear);
+        pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), appear);
     } else {
-        choice(c, ui, SCREEN_W / 2, pw_tr(PW_S_OK), 1);
-        pw_view_hints(c, ui, pw_tr(PW_S_ENTER), 0, 256);
+        choice(c, ui, SCREEN_W / 2, pw_tr(PW_S_OK), 1, appear);
+        pw_view_hints(c, ui, pw_tr(PW_S_ENTER), 0, appear);
     }
 }
 
@@ -337,46 +347,76 @@ static void slot_icon(pw_canvas *c, const pw_slot_row *r, int x, int y, int w, i
     }
 }
 
+/* Centre y of a slot icon at p (1/256 slots from the cursor): the chosen one in the frame, the
+   others in a column above and below, moving smoothly between those places. */
+static int slot_cy(int p)
+{
+    const int sel_cy = LIST_ICON_Y + 40, below = LIST_ICON_Y + 80 + 6 + LIST_SMALL_H / 2;
+    const int above = LIST_ICON_Y - 6 - LIST_SMALL_H / 2, pitch = LIST_SMALL_H + 6;
+
+    if (p >= 256)
+        return below + (p - 256) * pitch / 256;
+    if (p >= 0)
+        return sel_cy + (below - sel_cy) * p / 256;
+    if (p >= -256)
+        return sel_cy + (sel_cy - above) * p / 256;
+    return above + (p + 256) * pitch / 256;
+}
+
+static int nearness(int p)
+{
+    return p >= 256 || p <= -256 ? 0 : 256 - (p < 0 ? -p : p);
+}
+
 void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
-                   const pw_slot_row *rows, int count, int sel, int can_delete)
+                   const pw_slot_row *rows, int count, int selpos, int can_delete, int appear)
 {
     if (ui->style == PW_STYLE_MODERN) {
-        pw_modern_slots(c, ui, heading, game, rows, count, sel, can_delete);
+        pw_modern_slots(c, ui, heading, game, rows, count, selpos, can_delete, appear);
         return;
     }
     if (ui->style == PW_STYLE_MINIMAL) {
-        pw_minimal_slots(c, ui, heading, game, rows, count, sel, can_delete);
+        pw_minimal_slots(c, ui, heading, game, rows, count, selpos, can_delete, appear);
         return;
     }
-    const pw_slot_row *r = &rows[sel];
+    int sel = (selpos + 128) / 256, slide = (256 - appear) * 24 / 256,
+        cx = LIST_ICON_X + 72 - slide;
+    const pw_slot_row *r;
+    int dn, text_a;
+
+    sel = sel < 0 ? 0 : sel >= count ? count - 1 : sel;
+    r = &rows[sel];
+    /* the details cross-fade while the list moves: gone half way, back when it settles */
+    dn = 256 - 2 * ((sel * 256 - selpos) < 0 ? selpos - sel * 256 : sel * 256 - selpos);
+    text_a = (dn < 0 ? 0 : dn) * appear / 256;
 
     for (int i = 0; i < count; i++) {
-        int k = i - sel, y;
+        int p = i * 256 - selpos, near = nearness(p);
+        int w = LIST_SMALL_W + (144 - LIST_SMALL_W) * near / 256;
+        int h = LIST_SMALL_H + (80 - LIST_SMALL_H) * near / 256, cy = slot_cy(p);
 
-        if (k == 0)
+        if (cy + h / 2 < 0 || cy - h / 2 > SCREEN_H)
             continue;
-        y = k < 0 ? LIST_ICON_Y - 6 - LIST_SMALL_H + (k + 1) * (LIST_SMALL_H + 6)
-                  : LIST_ICON_Y + 80 + 6 + (k - 1) * (LIST_SMALL_H + 6);
-        if (y < 23 - LIST_SMALL_H || y > SCREEN_H)
-            continue;
-        slot_icon(c, &rows[i], LIST_SMALL_X, y, LIST_SMALL_W, LIST_SMALL_H, 200);
+        slot_icon(c, &rows[i], cx - w / 2, cy - h / 2, w, h,
+                  (200 + 56 * near / 256) * appear / 256);
     }
-    slot_icon(c, r, LIST_ICON_X, LIST_ICON_Y, 144, 80, 256);
-    pw_draw_fill(c, LIST_ICON_X - 1, LIST_ICON_Y - 1, 146, 1, PW_C_TEXT);
-    pw_draw_fill(c, LIST_ICON_X - 1, LIST_ICON_Y + 80, 146, 1, PW_C_TEXT);
-    pw_draw_fill(c, LIST_ICON_X - 1, LIST_ICON_Y, 1, 80, PW_C_TEXT);
-    pw_draw_fill(c, LIST_ICON_X + 144, LIST_ICON_Y, 1, 80, PW_C_TEXT);
+    /* the white frame stays put: the icons pass through it */
+    pw_draw_blend(c, cx - 73, LIST_ICON_Y - 1, 146, 1, PW_C_TEXT, appear);
+    pw_draw_blend(c, cx - 73, LIST_ICON_Y + 80, 146, 1, PW_C_TEXT, appear);
+    pw_draw_blend(c, cx - 73, LIST_ICON_Y, 1, 80, PW_C_TEXT, appear);
+    pw_draw_blend(c, cx + 72, LIST_ICON_Y, 1, 80, PW_C_TEXT, appear);
     /* the banner over everything that scrolls under it */
     pw_draw_blend(c, 0, 0, SCREEN_W, 23, PW_RGB(0x58, 0x63, 0x63), 160);
     pw_text_draw(c, ui->title, 30, 17, heading, PW_C_TEXT, 256, 1);
 
-    pw_text_draw_fit(c, ui->title, DETAIL_X, 132, game, SCREEN_W - DETAIL_X - 6, PW_C_GREY, 256, 1);
-    pw_draw_fill(c, DETAIL_X, 136, SCREEN_W - DETAIL_X, 1, PW_C_TEXT);
+    pw_text_draw_fit(c, ui->title, DETAIL_X, 132, game, SCREEN_W - DETAIL_X - 6, PW_C_GREY, appear,
+                     1);
+    pw_draw_blend(c, DETAIL_X, 136, SCREEN_W - DETAIL_X, 1, PW_C_TEXT, appear);
     if (r->info)
-        pw_text_draw(c, ui->body, DETAIL_X, 152, r->info, PW_C_TEXT, 256, 1);
-    pw_text_draw_fit(c, ui->title, 175, 174, r->title, SCREEN_W - 181, PW_C_TEXT, 256, 1);
+        pw_text_draw(c, ui->body, DETAIL_X, 152, r->info, PW_C_TEXT, text_a, 1);
+    pw_text_draw_fit(c, ui->title, 175, 174, r->title, SCREEN_W - 181, PW_C_TEXT, text_a, 1);
     if (r->exists)
-        pw_text_draw(c, ui->body, 175, 192, "Pocketwatch", PW_C_GREY, 256, 1);
+        pw_text_draw(c, ui->body, 175, 192, "Pocketwatch", PW_C_GREY, text_a, 1);
 
     pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
     if (can_delete && r->exists) {
@@ -388,20 +428,21 @@ void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const cha
 }
 
 #define SET_Y0     128 /* first option row (baseline), under the category's label */
+#define SET_VAL_X  380 /* the values' column (the XMB's option lists)  */
 #define SET_PITCH  30
 #define POPUP_X    296
 #define POPUP_TEXT 312
 
 void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
                       const pw_setting_row *rows, int count, int sel, const char *const *options,
-                      int n_options, int opt_sel)
+                      int n_options, int opt_sel, int opt_appear)
 {
     if (ui->style == PW_STYLE_MODERN) {
-        pw_modern_settings(c, ui, cat, rows, count, sel, options, n_options, opt_sel);
+        pw_modern_settings(c, ui, cat, rows, count, sel, options, n_options, opt_sel, opt_appear);
         return;
     }
     if (ui->style == PW_STYLE_MINIMAL) {
-        pw_minimal_settings(c, ui, cat, rows, count, sel, options, n_options, opt_sel);
+        pw_minimal_settings(c, ui, cat, rows, count, sel, options, n_options, opt_sel, opt_appear);
         return;
     }
     int editing = opt_sel >= 0 && options && n_options > 0;
@@ -416,30 +457,38 @@ void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
 
     for (int i = 0; i < count; i++) {
         int y = SET_Y0 + i * SET_PITCH, alpha = i == sel ? 256 : DIM_ALPHA;
-        int vw = !editing && rows[i].value ? pw_text_width(ui->body, rows[i].value) : 0;
-        int max = (editing ? POPUP_X - 8 : SCREEN_W - 12 - (vw ? vw + 16 : 0)) - TEXT_X;
+        int max = (editing ? POPUP_X - 8 : SET_VAL_X - 10) - TEXT_X;
 
-        /* the name, and the current value at the right edge (hidden while choosing) */
+        /* like the XMB's option lists (ARK-4's captures): the name, the value in a column of its
+           own, a thin line under the chosen row out to the edge */
         pw_text_draw_fit(c, ui->title, TEXT_X, y, rows[i].label, max, PW_C_TEXT, alpha, 1);
-        if (vw)
-            pw_text_draw(c, ui->body, SCREEN_W - 12 - vw, y, rows[i].value, PW_C_TEXT,
-                         alpha * 3 / 4, 1);
+        if (!editing && rows[i].value)
+            pw_text_draw_fit(c, ui->body, SET_VAL_X, y, rows[i].value, SCREEN_W - SET_VAL_X - 6,
+                             PW_C_TEXT, alpha * 3 / 4, 1);
+        if (i == sel)
+            pw_draw_blend(c, TEXT_X, y + 5, (editing ? POPUP_X : SCREEN_W) - TEXT_X - 6, 1,
+                          PW_C_TEXT, 200);
     }
 
-    if (editing) {
-        int cy = SET_Y0 + sel * SET_PITCH;
+    if (editing) { /* the option panel slides in from the right edge */
+        int cy = SET_Y0 + sel * SET_PITCH, a = opt_appear < 0     ? 0
+                                               : opt_appear > 256 ? 256
+                                                                  : opt_appear;
+        int dx = (256 - a) * (SCREEN_W - POPUP_X) / 256;
 
-        pw_draw_blend(c, POPUP_X, 0, SCREEN_W - POPUP_X, SCREEN_H, PW_C_BLACK, 150);
+        pw_draw_blend(c, POPUP_X + dx, 0, SCREEN_W - POPUP_X - dx, SCREEN_H, PW_C_BLACK,
+                      150 * a / 256);
         for (int k = 0; k < n_options; k++) {
             int y = cy + (k - opt_sel) * 24;
 
             if (y < 12 || y > SCREEN_H - 24)
                 continue;
             if (k == opt_sel)
-                pw_draw_blend(c, POPUP_X + 6, y - 15, SCREEN_W - POPUP_X - 12, 20,
-                              PW_RGB(0xCF, 0xCF, 0xCF), 70);
-            pw_text_draw_fit(c, ui->title, POPUP_TEXT, y, options[k], SCREEN_W - POPUP_TEXT - 10,
-                             PW_C_TEXT, k == opt_sel ? 256 : DIM_ALPHA, 1);
+                pw_draw_blend(c, POPUP_X + 6 + dx, y - 15, SCREEN_W - POPUP_X - 12, 20,
+                              PW_RGB(0xCF, 0xCF, 0xCF), 70 * a / 256);
+            pw_text_draw_fit(c, ui->title, POPUP_TEXT + dx, y, options[k],
+                             SCREEN_W - POPUP_TEXT - 10, PW_C_TEXT,
+                             (k == opt_sel ? 256 : DIM_ALPHA) * a / 256, 1);
         }
     }
     pw_view_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);

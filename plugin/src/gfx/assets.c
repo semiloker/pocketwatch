@@ -46,6 +46,10 @@ static const struct {
     {PW_ART_BTN_CIRCLE, 1, "tex_circle"},
     {PW_ART_BTN_TRIANGLE, 1, "tex_triangle"},
     {PW_ART_BTN_SQUARE, 1, "tex_square"},
+    /* system_plugin_fg.rco's battery and topmenu_icon.rco's list focus bar (labels as VitaXMB
+       reads them from the PSP's files and from themes) */
+    {PW_ART_BATTERY, 1, "tex_battery"},
+    {PW_ART_FOCUS, 0, "FL"},
 };
 
 static pw_mem_block g_block;

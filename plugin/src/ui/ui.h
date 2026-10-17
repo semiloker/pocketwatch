@@ -20,6 +20,8 @@ typedef struct {
     pw_font *title, *body;
     int style;                /* PW_STYLE_* */
     const pw_image *btn[4];   /* the system's X O triangle square pictures, or NULL (drawn) */
+    const pw_image *battery;  /* the XMB's battery (4 frames, full to empty), or NULL (drawn) */
+    const pw_image *focus;    /* the XMB's focus bar for text lists, or NULL */
     int cross_enter;          /* 1: X confirms (outside Japan), 0: O confirms */
     unsigned int enter, back; /* the matching PSP_CTRL_* bits */
     pw_keys keys;

@@ -31,29 +31,43 @@ void pw_draw_fill(pw_canvas *c, int x, int y, int w, int h, unsigned int color)
     }
 }
 
+/* dst..src by alpha 0-256, two channels per multiply (the menu's inner loops all end here). */
 static unsigned int mix(unsigned int dst, unsigned int src, int alpha)
 {
-    unsigned int out = 0xFF000000u;
+    unsigned int a = (unsigned int)alpha, na = 256 - a;
+    unsigned int rb = (((dst & 0xFF00FF) * na + (src & 0xFF00FF) * a) >> 8) & 0xFF00FF;
+    unsigned int g = (((dst & 0x00FF00) * na + (src & 0x00FF00) * a) >> 8) & 0x00FF00;
 
-    for (int shift = 0; shift < 24; shift += 8) {
-        int d = (int)((dst >> shift) & 0xFF), s = (int)((src >> shift) & 0xFF);
+    return 0xFF000000u | rb | g;
+}
 
-        out |= (unsigned int)(d + (((s - d) * alpha) >> 8)) << shift;
-    }
-    return out;
+/* An 8-bit coverage or alpha (0-255) times alpha (0-256) as 0-256, without a division. */
+static unsigned int scale_a(unsigned int v, int alpha)
+{
+    return ((v + (v >> 7)) * (unsigned int)alpha) >> 8;
 }
 
 void pw_draw_blend(pw_canvas *c, int x, int y, int w, int h, unsigned int color, int alpha)
 {
+    unsigned int a, na, src_rb, src_g;
+
     if (alpha <= 0 || !clip(c, &x, &y, &w, &h))
         return;
     if (alpha > 256)
         alpha = 256;
+    a = (unsigned int)alpha;
+    na = 256 - a;
+    src_rb = (color & 0xFF00FF) * a; /* the colour's share, once */
+    src_g = (color & 0x00FF00) * a;
     for (int j = 0; j < h; j++) {
         unsigned int *row = c->px + (y + j) * c->stride + x;
 
-        for (int i = 0; i < w; i++)
-            row[i] = mix(row[i], color, alpha);
+        for (int i = 0; i < w; i++) {
+            unsigned int d = row[i];
+
+            row[i] = 0xFF000000u | ((((d & 0xFF00FF) * na + src_rb) >> 8) & 0xFF00FF) |
+                     ((((d & 0x00FF00) * na + src_g) >> 8) & 0x00FF00);
+        }
     }
 }
 
@@ -108,7 +122,7 @@ void pw_draw_mask(pw_canvas *c, int x, int y, const unsigned char *mask, int w, 
 
         for (int i = 0; i < cw; i++)
             if (m[i])
-                row[i] = mix(row[i], color, (m[i] * alpha + 127) / 255);
+                row[i] = mix(row[i], color, (int)scale_a(m[i], alpha));
     }
 }
 
@@ -198,10 +212,10 @@ void pw_draw_image(pw_canvas *c, const unsigned int *px, int w, int h, int x, in
         unsigned int *row = c->px + (y0 + j) * c->stride + x0;
 
         for (int i = 0; i < cw; i++) {
-            unsigned int p = s[i], a = (p >> 24) * (unsigned int)alpha / 255;
+            unsigned int p = s[i], a = scale_a(p >> 24, alpha);
 
             if (a)
-                row[i] = mix(row[i], p, (int)a);
+                row[i] = a >= 256 ? p | 0xFF000000u : mix(row[i], p, (int)a);
         }
     }
 }
@@ -209,12 +223,17 @@ void pw_draw_image(pw_canvas *c, const unsigned int *px, int w, int h, int x, in
 void pw_draw_image_scaled(pw_canvas *c, const unsigned int *px, int w, int h, int x, int y, int dw,
                           int dh, int alpha)
 {
+    unsigned int step_x, step_y;
+
     if (alpha <= 0 || dw <= 0 || dh <= 0)
         return;
     if (alpha > 256)
         alpha = 256;
+    step_x = ((unsigned int)w << 16) / (unsigned int)dw; /* 16.16 source steps */
+    step_y = ((unsigned int)h << 16) / (unsigned int)dh;
     for (int j = 0; j < dh; j++) {
-        int yy = y + j, sy = j * h / dh;
+        int yy = y + j;
+        const unsigned int *src = px + ((j * step_y) >> 16) * (unsigned int)w;
 
         if (yy < 0 || yy >= c->h)
             continue;
@@ -224,8 +243,8 @@ void pw_draw_image_scaled(pw_canvas *c, const unsigned int *px, int w, int h, in
 
             if (xx < 0 || xx >= c->w)
                 continue;
-            p = px[sy * w + i * w / dw];
-            a = (p >> 24) * (unsigned int)alpha / 255;
+            p = src[(i * step_x) >> 16];
+            a = scale_a(p >> 24, alpha);
             if (a)
                 c->px[yy * c->stride + xx] = mix(c->px[yy * c->stride + xx], p, (int)a);
         }

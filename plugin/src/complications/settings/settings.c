@@ -7,6 +7,7 @@
 #include "core/log.h"
 #include "gfx/assets.h"
 #include "stb_sprintf.h"
+#include "ui/anim.h"
 #include "ui/dialog.h"
 #include "ui/fb.h"
 #include "ui/i18n.h"
@@ -100,12 +101,14 @@ static void build(screen *s)
 /* The option popup: returns the chosen index, or -1 for Back. */
 static int pick(pw_ui *ui, const screen *s, int sel, const char *const *options, int n, int cur)
 {
+    unsigned int t_open = pw_ui_now_ms();
+
     pw_ui_flush_input(ui);
     for (;;) {
-        unsigned int ev;
+        unsigned int ev, now = pw_ui_now_ms();
 
-        pw_view_settings(pw_fb_begin(256, pw_ui_now_ms()), ui, &s->cat, s->rows, SET_COUNT, sel,
-                         options, n, cur);
+        pw_view_settings(pw_fb_begin(256, now), ui, &s->cat, s->rows, SET_COUNT, sel, options, n,
+                         cur, pw_ramp(now, t_open, 180));
         pw_fb_present();
         ev = pw_ui_poll(ui);
         if (ev & PSP_CTRL_UP) {
@@ -139,7 +142,7 @@ static void settings_screen(pw_ui *ui)
         unsigned int ev;
 
         pw_view_settings(pw_fb_begin(256, pw_ui_now_ms()), ui, &s.cat, s.rows, SET_COUNT, sel, 0, 0,
-                         -1);
+                         -1, 256);
         pw_fb_present();
         ev = pw_ui_poll(ui);
         if (ev & PSP_CTRL_UP) {

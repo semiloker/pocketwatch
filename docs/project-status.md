@@ -20,6 +20,17 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 | Documentation system (DOC-1) | **Done** (kept current with every change) | this file |
 | Firmware feasibility | **Research** — FW-G1 partial | [feasibility study](firmware/independent-firmware-feasibility.md) |
 
+## Device results 2026-10-17 (owner)
+
+- Castlevania: save to slot 1 worked (13.5 MB, 7.5 s), Settings and styles switch, Quit Game ok.
+- The 3rd Birthday: the Memory Stick Test's save rebooted the PSP into the XMB during its sleep
+  (RISK-016, test M13).
+- The menu: very low frame rate in Classic and Modern, no animation in the state lists, the
+  battery icon and some screens not like the XMB, the hub not following the XMB's theme colour.
+  Answered in this change (frame cost, time-based motion, the XMB's own battery picture, option
+  lists like the XMB's); the theme colour already selects the sky - the log now says which one
+  (test H12).
+
 ## Next actions (in order)
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the

@@ -33,6 +33,9 @@ void pw_fb_present(void); /* show what was drawn since pw_fb_begin (at the next 
 void pw_fb_hide(void);      /* give the display back, keep the buffers (before a suspend) */
 void pw_fb_recapture(void); /* the game's frame and the sky again (after a suspend) */
 
+/* Debug: the page on the screen now as shot-NNN.png next to the log (SELECT in a menu). */
+int pw_fb_screenshot(void);
+
 /* The game's frame as captured (PW_FB_W x PW_FB_H, PW_FB_STRIDE pixels per row), or NULL. */
 const unsigned int *pw_fb_game(void);
 

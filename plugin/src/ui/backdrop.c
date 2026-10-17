@@ -5,10 +5,10 @@
 #include "ui/ui.h"
 #include "ui/xmbbg.h"
 
-#define BLUR_RADIUS  7
-#define MODERN_DIM   120 /* of 256: the game stays recognisable behind the cards */
-#define MINIMAL_DIM  60
-#define SHADE_TOP    140 /* modern: darker towards the bottom, where the controls are */
+#define BLUR_RADIUS 7
+#define MODERN_DIM  120 /* of 256: the game stays recognisable behind the cards */
+#define MINIMAL_DIM 60
+#define SHADE_TOP   140 /* modern: darker towards the bottom, where the controls are */
 
 static void copy(pw_canvas *dst, const pw_canvas *src)
 {

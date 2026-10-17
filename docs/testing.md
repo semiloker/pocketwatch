@@ -51,6 +51,9 @@ damaged, restore it from the backup.
 | H9 | System Settings → Language: French (then German, Russian), start the game, open the hub, Save State list, a dialog. | Everything in that language, no missing letters (a box or "?" instead of a letter is a fail), long dialog lines wrap instead of ending in "...". Log: `i18n: fr, 58 of 58 strings translated`. Write down any wording that reads wrong. |
 | H10 | Put a file `seplugins/pocketwatch/language.txt` containing `uk`, start the game. Delete the file afterwards. | Ukrainian text, or English with the log line `i18n: ... has letters the system font lacks` (then the system font has no Ukrainian letters: report it). |
 | H11 | Save to a slot in one language, change the system language, start the game, load it. | It loads; after the load the hub speaks the language of the moment it was saved (by design: the state brings its own). |
+| H12 | XMB → Settings → Theme Settings → Theme Color: pick a colour other than the default; start the game, open the hub (Classic style). | The hub's sky has the XMB's colour. Log: `shell: sky N (theme colour M, month 10)`. If the colours differ, write down which colour you picked (its place in the list, counting from 1 after the default) and what the hub showed. |
+| H13 | In each style: open the hub, move up and down for about 10 s, close it. | Moves look smooth. Log after each: `hub: N frames in T ms (F fps), drawing D ms a frame on average, W ms at worst (style S)` - send these lines. |
+| H14 | (debug build) Anywhere in the menu press SELECT. | `seplugins/pocketwatch/shot-000.png` (then 001, ...) is the exact picture on the screen. Send shots of anything that looks wrong, e.g. icons that look banded. |
 
 ### Settings
 
@@ -89,6 +92,20 @@ and loads use the fast suspend (~2-3 s dark). Then the state is written to the c
 | M10 | On the PC, open `PSP/SAVEDATA/PWULUS1027701/DATA.BIN` in a hex editor and change one byte in the middle (or truncate the file). Load slot 1. | "This state cannot be loaded." with "This state is damaged." (or "...could not be written or read."); the game keeps running untouched. Restore the file from the backup afterwards. |
 | M11 | Fill the card (copy a big file until less than ~20 MB is free), save to a new slot. | "The state could not be written to the Memory Stick." with the reason; the game continues; the slot stays empty. Free the space again. |
 | M12 | A PSN game or homebrew, if you have one: hub → Save State, Load State. | No list: the state stays in RAM (as before E3), Load State loads it once. Log: `store: no game ID: states stay in RAM`. |
+
+### M13
+
+The 3rd Birthday rebooted into the XMB during the first save's sleep (2026-10-17, RISK-016). To
+find out whether the game or our save is the cause:
+
+1. Start The 3rd Birthday, play to a calm spot. **Without opening the hub**, slide POWER down
+   (sleep), wait 10 s, slide it up. Does the game continue? (no: the game itself does not survive a
+   sleep here - nothing Pocketwatch can fix; stop.)
+2. If it continued: now hub → Save State → a slot. Does it come back? (the first save sleeps for
+   real)
+3. If 2 failed: restart, sleep once with the POWER switch as in step 1 (that gives the session its
+   real wake), then hub → Save State: this save is a fast one, without a real sleep. Does it work?
+4. Send the log and which steps worked.
 
 ### T1b
 

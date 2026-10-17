@@ -6,6 +6,7 @@
 #include "core/mem.h"
 #include "core/sysinfo.h"
 #include "stb_sprintf.h"
+#include "ui/anim.h"
 #include "ui/dialog.h"
 #include "ui/fb.h"
 #include "ui/slots.h"
@@ -70,43 +71,52 @@ int pw_slots_pick(pw_ui *ui, int mode, int start)
         if (l.map[i] == start)
             sel = i;
     pw_ui_flush_input(ui);
-    for (;;) {
-        unsigned int ev;
+    {
+        unsigned int t_open = pw_ui_now_ms(), t_prev = t_open;
+        int selpos = sel * 256;
 
-        pw_view_slots(pw_fb_begin(256, pw_ui_now_ms()), ui,
-                      mode == PW_SLOTS_SAVE ? pw_tr(PW_S_SAVE_STATE) : pw_tr(PW_S_LOAD_STATE),
-                      pw_game_get()->title, l.rows, l.count, sel, 1);
-        pw_fb_present();
-        ev = pw_ui_poll(ui);
-        if (ev & PSP_CTRL_UP) {
-            if (sel > 0)
-                sel--;
-        } else if (ev & PSP_CTRL_DOWN) {
-            if (sel < l.count - 1)
-                sel++;
-        } else if (ev & (ui->back | PSP_CTRL_HOME)) {
-            break;
-        } else if (ev & ui->enter) {
-            char q[48];
+        for (;;) {
+            unsigned int ev, now = pw_ui_now_ms();
 
-            if (mode == PW_SLOTS_SAVE && l.rows[sel].exists) {
-                stbsp_snprintf(q, sizeof(q), pw_tr(PW_S_CONFIRM_OVERWRITE), l.map[sel] + 1);
-                if (!pw_dialog_confirm(ui, q, pw_tr(PW_S_CONFIRM_OVERWRITE2), 0))
-                    continue;
-            }
-            result = l.map[sel];
-            break;
-        } else if ((ev & PSP_CTRL_TRIANGLE) && l.rows[sel].exists) {
-            char q[48];
+            /* the list glides to the cursor like the Saved Data Utility's, by time */
+            selpos = pw_ease(selpos, sel * 256, (int)(now - t_prev), PW_ANIM_TAU_MS, 6);
+            t_prev = now;
+            pw_view_slots(pw_fb_begin(256, now), ui,
+                          mode == PW_SLOTS_SAVE ? pw_tr(PW_S_SAVE_STATE) : pw_tr(PW_S_LOAD_STATE),
+                          pw_game_get()->title, l.rows, l.count, selpos, 1,
+                          pw_ramp(now, t_open, 200));
+            pw_fb_present();
+            ev = pw_ui_poll(ui);
+            if (ev & PSP_CTRL_UP) {
+                if (sel > 0)
+                    sel--;
+            } else if (ev & PSP_CTRL_DOWN) {
+                if (sel < l.count - 1)
+                    sel++;
+            } else if (ev & (ui->back | PSP_CTRL_HOME)) {
+                break;
+            } else if (ev & ui->enter) {
+                char q[48];
 
-            stbsp_snprintf(q, sizeof(q), pw_tr(PW_S_CONFIRM_DELETE), l.map[sel] + 1);
-            if (pw_dialog_confirm(ui, q, 0, 0)) {
-                pw_store_delete(l.map[sel]);
-                build(&l, mode, icons);
-                if (l.count == 0)
-                    break;
-                if (sel >= l.count)
-                    sel = l.count - 1;
+                if (mode == PW_SLOTS_SAVE && l.rows[sel].exists) {
+                    stbsp_snprintf(q, sizeof(q), pw_tr(PW_S_CONFIRM_OVERWRITE), l.map[sel] + 1);
+                    if (!pw_dialog_confirm(ui, q, pw_tr(PW_S_CONFIRM_OVERWRITE2), 0))
+                        continue;
+                }
+                result = l.map[sel];
+                break;
+            } else if ((ev & PSP_CTRL_TRIANGLE) && l.rows[sel].exists) {
+                char q[48];
+
+                stbsp_snprintf(q, sizeof(q), pw_tr(PW_S_CONFIRM_DELETE), l.map[sel] + 1);
+                if (pw_dialog_confirm(ui, q, 0, 0)) {
+                    pw_store_delete(l.map[sel]);
+                    build(&l, mode, icons);
+                    if (l.count == 0)
+                        break;
+                    if (sel >= l.count)
+                        sel = l.count - 1;
+                }
             }
         }
     }

@@ -5,7 +5,11 @@
 #include <psputilsforkernel.h>
 #include <string.h>
 
+#include "core/log.h"
 #include "core/mem.h"
+#include "core/platform.h"
+#include "core/png.h"
+#include "stb_sprintf.h"
 #include "ui/fb.h"
 #include "ui/backdrop.h"
 
@@ -99,6 +103,41 @@ void pw_fb_set_style(int style)
     g_style = style;
     if (g_game != NULL)
         make_backdrop();
+}
+
+static void shot_row(void *ctx, unsigned int y, unsigned char *rgb)
+{
+    const unsigned int *row = (const unsigned int *)ctx + y * FB_STRIDE;
+
+    for (int x = 0; x < PW_FB_W; x++) {
+        rgb[3 * x] = (unsigned char)(row[x] & 0xFF);
+        rgb[3 * x + 1] = (unsigned char)((row[x] >> 8) & 0xFF);
+        rgb[3 * x + 2] = (unsigned char)((row[x] >> 16) & 0xFF);
+    }
+}
+
+int pw_fb_screenshot(void)
+{
+    static int n;
+    unsigned int cap = pw_png_size(PW_FB_W, PW_FB_H);
+    const unsigned int *shown = g_page[g_back ^ 1]; /* the page on the screen now */
+    char dir[200], path[256];
+    pw_mem_block mem;
+    int len, ret = -1;
+
+    if (shown == NULL || pw_log_card_blocked() ||
+        pw_mem_alloc(&mem, "PwShot", cap + 1 + 3 * PW_FB_W + 64) < 0)
+        return -1;
+    if (pw_log_dir(dir, sizeof(dir)) < 0)
+        stbsp_snprintf(dir, sizeof(dir), "ms0:/seplugins/pocketwatch/");
+    len = pw_png_encode_rgb(PW_FB_W, PW_FB_H, shot_row, (void *)shown,
+                            (unsigned char *)mem.ptr + cap, mem.ptr, cap);
+    stbsp_snprintf(path, sizeof(path), "%sshot-%03d.png", dir, n++);
+    if (len > 0 && pw_file_write(path, mem.ptr, (unsigned int)len, 0) == len)
+        ret = 0;
+    pw_mem_free(&mem);
+    pw_log("fb: screenshot %s %s", path, ret == 0 ? "written" : "FAILED");
+    return ret;
 }
 
 const unsigned int *pw_fb_game(void)

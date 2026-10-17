@@ -22,6 +22,7 @@ risk; close it with the evidence.
 | [RISK-013](#risk-013--licensing-and-redistribution) | Licensing and redistribution | L | H | Mitigated |
 | [RISK-014](#risk-014--intermittent-device-behaviour) | Intermittent device behaviour | M | M | Open |
 | [RISK-015](#risk-015--sleep-or-usb-while-the-menu-is-open) | Sleep or USB while the menu is open | M | M | Open |
+| [RISK-016](#risk-016--a-game-that-does-not-survive-the-saves-sleep) | A game that does not survive the save's sleep | M | H | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -135,3 +136,16 @@ risk; close it with the evidence.
   freeze, the display and the buttons.
 - **Mitigation (PROPOSED):** a power-query handler closes the menu and thaws before the suspend
   proceeds; USB guard (M3).
+
+## RISK-016 — A game that does not survive the save's sleep
+
+- **Description:** The 3rd Birthday (ULES01513, 2026-10-17): the first save of the session (a
+  real sleep) never came back; the PSP restarted into the XMB. The log ends at "save: requesting a
+  real suspend" ([log](research/logs/2026-10-17-3rd-birthday-t1.log)); two of the frozen threads
+  were waiting on the game's file streaming. Root cause unknown (RESEARCH REQUIRED): the game may
+  not survive a sleep at all under this ISO/ARK setup, or only our frozen-game sleep.
+- **Likelihood M / Impact H:** a lost session and a cold boot; no damage seen (settings intact,
+  the next sessions normal).
+- **Mitigation:** the isolation protocol M13 in the [testing guide](testing.md#m13); a
+  per-game refusal list once the cause is known; the compatibility matrix records it.
+

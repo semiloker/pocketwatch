@@ -46,6 +46,10 @@ The project's full workflow is imported here and applies to every session:
   `plugin/lang/<code>.txt`, deployed to `seplugins/pocketwatch/lang/`; `language.txt` there with
   one code overrides the system language. A new string needs a key in every lang file (the host
   test fails otherwise) with the same printf conversions as the English one.
+- Frame cost of the menu by part (host, proportions only): `make -C tests bench`. The hub logs its
+  real frame rate on the PSP when it closes (`hub: ... fps`). Motion must run by time (`ui/anim.h`),
+  never by frame; no division or square root per pixel in drawing code (`ui/shapes.c`, `ui/draw.c`).
+- Debug builds: SELECT in any menu screen writes `shot-NNN.png` (the exact screen) next to the log.
 - Debug-build combos in a game: L+R+START+RIGHT = save state to RAM, L+R+START+LEFT = load it;
   L+R+SELECT+UP = drop the state, write the held log lines and dump memory/modules/threads;
   L+R+SELECT+RIGHT = rollback self-test, L+R+SELECT+LEFT = frozen save + immediate load;

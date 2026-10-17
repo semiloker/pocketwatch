@@ -64,8 +64,8 @@ static void text_right(pw_canvas *c, pw_font *f, int x1, int y, const char *s, u
     pw_text_draw(c, f, x1 - pw_text_width(f, s), y, s, color, alpha, 0);
 }
 
-void pw_modern_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label,
-                     const char *back_label, int alpha)
+void pw_modern_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const char *back_label,
+                     int alpha)
 {
     /* the right edge of the band: X first, then O, like the console's own hints */
     const char *cross = ui->cross_enter ? enter_label : back_label;
@@ -86,8 +86,9 @@ void pw_modern_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label,
 }
 
 void pw_modern_status(pw_canvas *c, const pw_ui *ui, const char *clock, int battery, int charging,
-                      int alpha)
+                      int alpha, unsigned int t_ms)
 {
+    (void)t_ms;
     int tw = clock && clock[0] ? pw_text_width(ui->body, clock) : 0;
     int w = tw + (battery >= 0 ? 34 : 0) + 20, x = SCREEN_W - 12 - w;
 
@@ -99,8 +100,8 @@ void pw_modern_status(pw_canvas *c, const pw_ui *ui, const char *clock, int batt
     if (battery >= 0) { /* a small cell, filled to the level */
         int bx = x + w - 30, fill = 14 * clampi(battery, 0, 100) / 100;
 
-        pw_shape_rrect(c, PW_FX(bx), PW_FX(13), PW_FX(18), PW_FX(10), PW_FX(2), PW_FX(1) + 4, C_TEXT,
-                       alpha);
+        pw_shape_rrect(c, PW_FX(bx), PW_FX(13), PW_FX(18), PW_FX(10), PW_FX(2), PW_FX(1) + 4,
+                       C_TEXT, alpha);
         pw_draw_blend(c, bx + 18, 16, 2, 4, C_TEXT, alpha);
         pw_draw_blend(c, bx + 2, 15, fill, 6, charging ? PW_RGB(120, 220, 120) : C_TEXT, alpha);
     }
@@ -109,7 +110,8 @@ void pw_modern_status(pw_canvas *c, const pw_ui *ui, const char *clock, int batt
 void pw_modern_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const pw_hub_row *rows,
                    int count, int selpos, int fade)
 {
-    int x0 = SCREEN_W / 2 - (count - 1) * BTN_GAP / 2, sel = clampi((selpos + 128) / 256, 0, count - 1);
+    int x0 = SCREEN_W / 2 - (count - 1) * BTN_GAP / 2,
+        sel = clampi((selpos + 128) / 256, 0, count - 1);
 
     if (cat->subtitle) /* the game, top left, like a card's title */
         pw_text_draw_fit(c, ui->title, 20, 32, cat->subtitle, 280, C_TEXT, fade, 0);
@@ -121,8 +123,8 @@ void pw_modern_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const p
         pw_shape_disc(c, PW_FX(x0 + i * BTN_GAP), PW_FX(BTN_Y), PW_FX(BTN_R), C_KNOB,
                       fade * 170 / 256);
     if (count > 0) /* the cursor glides between them */
-        pw_shape_disc(c, PW_FX(x0) + selpos * BTN_GAP * 16 / 256, PW_FX(BTN_Y), PW_FX(SEL_R), C_TEXT,
-                      fade);
+        pw_shape_disc(c, PW_FX(x0) + selpos * BTN_GAP * 16 / 256, PW_FX(BTN_Y), PW_FX(SEL_R),
+                      C_TEXT, fade);
     for (int i = 0; i < count; i++) {
         int d = i * 256 - selpos, near = 256 - clampi(d < 0 ? -d : d, 0, 256);
         int alpha = rows[i].enabled ? fade : fade * 110 / 256;
@@ -143,38 +145,39 @@ void pw_modern_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const p
 }
 
 static void pill_button(pw_canvas *c, const pw_ui *ui, int cx, int y, const char *label,
-                        int selected)
+                        int selected, int alpha)
 {
     int w = pw_text_width(ui->title, label) + 36;
 
     if (w < 96)
         w = 96;
-    rrect(c, cx - w / 2, y, w, 26, 13, C_TEXT, selected ? 256 : 40);
-    text_center(c, ui->title, cx, y + 18, label, w - 12, selected ? C_INK : C_TEXT, 256);
+    rrect(c, cx - w / 2, y, w, 26, 13, C_TEXT, (selected ? 256 : 40) * alpha / 256);
+    text_center(c, ui->title, cx, y + 18, label, w - 12, selected ? C_INK : C_TEXT, alpha);
 }
 
-void pw_modern_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1,
-                      const char *line2, int yes)
+void pw_modern_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, const char *line2,
+                      int yes, int appear)
 {
     char lines[4][PW_VIEW_LINE_MAX];
     int n = pw_view_wrap(ui->title, line1, 270, lines, 0, line2 ? 2 : 3), h, y;
+    int a = appear < 0 ? 0 : appear > 256 ? 256 : appear;
 
     if (line2)
         n = pw_view_wrap(ui->title, line2, 270, lines, n, n + 2 > 4 ? 4 : n + 2);
     h = 30 + n * 18 + 46;
-    y = SCREEN_H / 2 - h / 2 - 6;
-    pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 90);
-    rrect(c, 80, y, 320, h, 14, C_CARD, 240);
+    y = SCREEN_H / 2 - h / 2 - 6 + (256 - a) * 12 / 256; /* the card rises into place */
+    pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 90 * a / 256);
+    rrect(c, 80, y, 320, h, 14, C_CARD, 240 * a / 256);
     for (int i = 0; i < n; i++)
         text_center(c, ui->title, SCREEN_W / 2, y + 32 + i * 18, lines[i], 290,
-                    i == 0 ? C_TEXT : C_SUB, 256);
+                    i == 0 ? C_TEXT : C_SUB, a);
     if (kind == PW_VIEW_CONFIRM) {
-        pill_button(c, ui, SCREEN_W / 2 - 64, y + h - 40, pw_tr(PW_S_YES), yes);
-        pill_button(c, ui, SCREEN_W / 2 + 64, y + h - 40, pw_tr(PW_S_NO), !yes);
-        pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
+        pill_button(c, ui, SCREEN_W / 2 - 64, y + h - 40, pw_tr(PW_S_YES), yes, a);
+        pill_button(c, ui, SCREEN_W / 2 + 64, y + h - 40, pw_tr(PW_S_NO), !yes, a);
+        pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), a);
     } else {
-        pill_button(c, ui, SCREEN_W / 2, y + h - 40, pw_tr(PW_S_OK), 1);
-        pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), 0, 256);
+        pill_button(c, ui, SCREEN_W / 2, y + h - 40, pw_tr(PW_S_OK), 1, a);
+        pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), 0, a);
     }
 }
 
@@ -184,9 +187,9 @@ void pw_modern_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned in
 
     pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 70);
     for (int i = 0; i < 12; i++) { /* a ring of dots, the bright one chasing round */
-        static const signed char k[12][2] = {{0, -16}, {8, -14},  {14, -8},  {16, 0},
-                                             {14, 8},  {8, 14},   {0, 16},   {-8, 14},
-                                             {-14, 8}, {-16, 0},  {-14, -8}, {-8, -14}};
+        static const signed char k[12][2] = {{0, -16}, {8, -14}, {14, -8},  {16, 0},
+                                             {14, 8},  {8, 14},  {0, 16},   {-8, 14},
+                                             {-14, 8}, {-16, 0}, {-14, -8}, {-8, -14}};
         int age = (head - i + 12) % 12;
 
         pw_shape_disc(c, PW_FX(cx + k[i][0]), PW_FX(cy + k[i][1]), PW_FX(2) + 4, C_TEXT,
@@ -203,9 +206,9 @@ void pw_modern_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned in
 #define TILE_CY 112
 #define TILE_DX 132
 
-static void tile(pw_canvas *c, const pw_slot_row *r, int cx, int w, int h, int alpha)
+static void tile(pw_canvas *c, const pw_slot_row *r, int cx, int cy, int w, int h, int alpha)
 {
-    int x = cx - w / 2, y = TILE_CY - h / 2;
+    int x = cx - w / 2, y = cy - h / 2;
 
     if (x + w < 0 || x > SCREEN_W)
         return;
@@ -213,32 +216,43 @@ static void tile(pw_canvas *c, const pw_slot_row *r, int cx, int w, int h, int a
         pw_draw_image_scaled(c, r->icon, 144, 80, x, y, w, h, alpha);
     } else {
         rrect(c, x, y, w, h, 6, C_CARD, alpha * 200 / 256);
-        pw_shape_capsule(c, PW_FX(cx - 10), PW_FX(TILE_CY), PW_FX(cx + 10), PW_FX(TILE_CY),
-                         PW_FX(1) + 4, C_SUB, alpha);
-        pw_shape_capsule(c, PW_FX(cx), PW_FX(TILE_CY - 10), PW_FX(cx), PW_FX(TILE_CY + 10),
-                         PW_FX(1) + 4, C_SUB, alpha);
+        pw_shape_capsule(c, PW_FX(cx - 10), PW_FX(cy), PW_FX(cx + 10), PW_FX(cy), PW_FX(1) + 4,
+                         C_SUB, alpha);
+        pw_shape_capsule(c, PW_FX(cx), PW_FX(cy - 10), PW_FX(cx), PW_FX(cy + 10), PW_FX(1) + 4,
+                         C_SUB, alpha);
     }
 }
 
-void pw_modern_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
-                     const pw_slot_row *rows, int count, int sel, int can_delete)
+static int nearness(int p)
 {
+    return p >= 256 || p <= -256 ? 0 : 256 - (p < 0 ? -p : p);
+}
+
+void pw_modern_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
+                     const pw_slot_row *rows, int count, int selpos, int can_delete, int appear)
+{
+    int sel = clampi((selpos + 128) / 256, 0, count - 1), off = sel * 256 - selpos;
+    int dn = 256 - 2 * (off < 0 ? -off : off), text_a = (dn < 0 ? 0 : dn) * appear / 256;
+    int cy = TILE_CY + (256 - appear) * 14 / 256; /* the row rises into place */
     const pw_slot_row *r = &rows[sel];
 
-    pw_text_draw_fit(c, ui->title, 20, 32, heading, 300, C_TEXT, 256, 0);
+    pw_text_draw_fit(c, ui->title, 20, 32, heading, 300, C_TEXT, appear, 0);
     if (game)
-        pw_text_draw_fit(c, ui->body, 20, 48, game, 300, C_SUB, 256, 0);
-    for (int i = 0; i < count; i++)
-        if (i != sel)
-            tile(c, &rows[i], SCREEN_W / 2 + (i - sel) * TILE_DX, SMALL_W, SMALL_H, 150);
-    tile(c, r, SCREEN_W / 2, TILE_W, TILE_H, 256);
-    pw_shape_rrect(c, PW_FX(SCREEN_W / 2 - TILE_W / 2 - 3), PW_FX(TILE_CY - TILE_H / 2 - 3),
-                   PW_FX(TILE_W + 6), PW_FX(TILE_H + 6), PW_FX(5), PW_FX(2), C_TEXT, 256);
+        pw_text_draw_fit(c, ui->body, 20, 48, game, 300, C_SUB, appear, 0);
+    for (int i = 0; i < count; i++) { /* the tiles glide; the one in the middle grows */
+        int p = i * 256 - selpos, near = nearness(p);
+
+        tile(c, &rows[i], SCREEN_W / 2 + p * TILE_DX / 256, cy,
+             SMALL_W + (TILE_W - SMALL_W) * near / 256, SMALL_H + (TILE_H - SMALL_H) * near / 256,
+             (150 + 106 * near / 256) * appear / 256);
+    }
+    pw_shape_rrect(c, PW_FX(SCREEN_W / 2 - TILE_W / 2 - 3), PW_FX(cy - TILE_H / 2 - 3),
+                   PW_FX(TILE_W + 6), PW_FX(TILE_H + 6), PW_FX(5), PW_FX(2), C_TEXT, appear);
 
     pw_draw_blend(c, 0, BAND_Y, SCREEN_W, SCREEN_H - BAND_Y, C_BAND, 150);
-    text_center(c, ui->title, SCREEN_W / 2, 172, r->title, 440, C_TEXT, 256);
+    text_center(c, ui->title, SCREEN_W / 2, 172, r->title, 440, C_TEXT, text_a);
     if (r->info)
-        text_center(c, ui->body, SCREEN_W / 2, 214, r->info, 440, C_SUB, 256);
+        text_center(c, ui->body, SCREEN_W / 2, 214, r->info, 440, C_SUB, text_a);
     pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
     if (can_delete && r->exists) {
         pw_view_button(c, ui, PW_BTN_TRIANGLE, 22, 260, 256);
@@ -260,7 +274,7 @@ static void toggle(pw_canvas *c, int x, int y, int on)
 
 void pw_modern_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
                         const pw_setting_row *rows, int count, int sel, const char *const *options,
-                        int n_options, int opt_sel)
+                        int n_options, int opt_sel, int opt_appear)
 {
     int editing = opt_sel >= 0 && options && n_options > 0;
 
@@ -281,18 +295,20 @@ void pw_modern_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
             text_right(c, ui->body, CARD_X + CARD_W - 18, y + 24, rows[i].value, C_SUB, 256);
     }
     if (editing) { /* the choices on their own card, centred on the chosen one */
-        int show = n_options < 7 ? n_options : 7, first = clampi(opt_sel - show / 2, 0, n_options - show);
-        int h = show * 28 + 12, y = SCREEN_H / 2 - h / 2 - 8;
+        int show = n_options < 7 ? n_options : 7,
+            first = clampi(opt_sel - show / 2, 0, n_options - show);
+        int a = clampi(opt_appear, 0, 256), h = show * 28 + 12;
+        int y = SCREEN_H / 2 - h / 2 - 8 + (256 - a) * 12 / 256;
 
-        pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 80);
-        rrect(c, 140, y, 200, h, 14, C_CARD, 245);
+        pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 80 * a / 256);
+        rrect(c, 140, y, 200, h, 14, C_CARD, 245 * a / 256);
         for (int k = first; k < first + show; k++) {
             int ry = y + 6 + (k - first) * 28;
 
             if (k == opt_sel)
-                rrect(c, 146, ry, 188, 28, 9, C_TEXT, 256);
+                rrect(c, 146, ry, 188, 28, 9, C_TEXT, a);
             text_center(c, ui->title, SCREEN_W / 2, ry + 19, options[k], 176,
-                        k == opt_sel ? C_INK : C_TEXT, 256);
+                        k == opt_sel ? C_INK : C_TEXT, a);
         }
     }
     pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);

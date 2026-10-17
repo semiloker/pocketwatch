@@ -1,0 +1,51 @@
+Pocketwatch e9edd01 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 101 import(s): 99 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULES-01513 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   273 KB maxfree=   238 KB
+probe: partition  2 start=0x08800000 size= 24576 KB attr=0xF free= 19028 KB maxfree= 19028 KB
+probe: partition  3 start=0x88000000 size=  3072 KB attr=0xC free=   273 KB maxfree=   238 KB
+probe: partition  4 start=0x88300000 size=  1024 KB attr=0xC free=  1024 KB maxfree=  1024 KB
+probe: partition  5 start=0x08400000 size=  4096 KB attr=0xF free=  4096 KB maxfree=  4096 KB
+probe: partition  6 start=0x08800000 size= 24576 KB attr=0xF free= 19028 KB maxfree= 19028 KB
+probe: partition  8 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+probe: partition  9 start=0x8A000000 size= 24576 KB attr=0xC free= 24576 KB maxfree= 24576 KB
+probe: partition 11 start=0x8BC00000 size=  4096 KB attr=0xC free=  4096 KB maxfree=  4096 KB
+probe: partition 12 start=0x8BB00000 size=  1024 KB attr=0xC free=   681 KB maxfree=   681 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 11 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 4 image(s) decoded, 0 missing (RCO compression 2)
+assets: 411 KB of 640 KB kept
+i18n: system language 8
+i18n: ru, 70 of 70 strings translated
+game: ULES01513 "The 3rd Birthday" from ms0:/ISO/The_3rd_Birthday_EUR_UNDUB.iso (1355398 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULES01513, PARAM.SFO hashed
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
+settings: style 1, fast 1, status 1 saved
+cardtest: T1 armed (the hook is part of the next snapshot)
+engine: ---- SAVE ----
+engine: CP0 Count runs at 5853 kHz
+freeze: 6 game thread(s) suspended in 0 ms (0 forced past the timeout)
+freeze:   user_main                       prio= 32 status=0x08 wait=0
+freeze:   CDevSd VSYNCHandler             prio= 28 status=0x08 wait=0
+freeze:   CDevSd MSECHandler              prio= 28 status=0x08 wait=0
+freeze:   CDevSd StreamHandler            prio= 32 status=0x0C wait=259
+freeze:   AUDIO MIXER THREAD              prio= 16 status=0x08 wait=0
+freeze:   SQEX FILE READING THREAD        prio= 24 status=0x0C wait=257
+engine: save: GE 0, packed in 873 ms:
+engine:   game     24576 KB ->   3769 KB (384 chunks, 0 raw) crc 00000000
+engine:   eDRAM     2048 KB ->     41 KB (32 chunks, 0 raw) crc 00000000
+engine:   scratch     16 KB ->      0 KB (1 chunks, 0 raw) crc 00000000
+engine:   270 FILL chunk(s) (one repeated word)
+engine:   ME save   4096 KB at 0x8BC00000, copied with the kernel image
+engine:   P8        1024 KB at 0x8BB00000, copied with the kernel image
+engine: state record at 8a000000 (post-mortem if a load goes wrong)
+engine: save: requesting a real suspend
+
+==== new session ====
+Pocketwatch e9edd01 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx

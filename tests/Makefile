@@ -64,9 +64,15 @@ preview: $(PREVIEW_OBJS)
 	mkdir -p $(BUILD)/preview
 	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
 
+# Frame cost by part (tests/bench/bench_ui.c), -O2 without sanitizers: only the proportions matter.
+BENCH_SRCS = bench/bench_ui.c $(filter-out %/store.c %/log.c %/ring.c,$(PLUGIN_SRCS))
+bench: | $(BUILD)
+	$(CC) -std=gnu11 -O2 -I$(SRC_DIR) -I$(LIB_DIR) -I. -Wno-sign-compare -o $(BUILD)/bench_ui $(BENCH_SRCS) platform_host.c
+	./$(BUILD)/bench_ui
+
 clean:
 	rm -rf $(BUILD)
 
 -include $(OBJS:.o=.d) $(BUILD)/preview_ui.d
 
-.PHONY: all run clean preview
+.PHONY: all run clean preview bench

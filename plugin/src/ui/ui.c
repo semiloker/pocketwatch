@@ -6,6 +6,7 @@
 
 #include "core/config.h"
 #include "gfx/assets.h"
+#include "ui/fb.h"
 #include "ui/ui.h"
 
 #define DPAD (PSP_CTRL_UP | PSP_CTRL_DOWN | PSP_CTRL_LEFT | PSP_CTRL_RIGHT)
@@ -35,6 +36,8 @@ void pw_ui_init(pw_ui *ui)
     ui->btn[1] = pw_assets_art(PW_ART_BTN_CIRCLE);
     ui->btn[2] = pw_assets_art(PW_ART_BTN_TRIANGLE);
     ui->btn[3] = pw_assets_art(PW_ART_BTN_SQUARE);
+    ui->battery = pw_assets_art(PW_ART_BATTERY);
+    ui->focus = pw_assets_art(PW_ART_FOCUS);
     if (sceImposeGetLanguageMode(&lang, &button) < 0)
         button = 1;
     ui->cross_enter = button != 0;
@@ -60,5 +63,16 @@ unsigned int pw_ui_poll(pw_ui *ui)
         scePowerTick(0);
         ui->t_tick = now;
     }
-    return pw_keys_update(&ui->keys, pw_ui_buttons(), DPAD, sceKernelGetSystemTimeLow());
+    {
+        unsigned int ev =
+            pw_keys_update(&ui->keys, pw_ui_buttons(), DPAD, sceKernelGetSystemTimeLow());
+
+#ifdef PW_DEBUG
+        if (ev & PSP_CTRL_SELECT) { /* debug builds: SELECT photographs the menu for the docs */
+            pw_fb_screenshot();
+            ev &= ~(unsigned int)PSP_CTRL_SELECT;
+        }
+#endif
+        return ev;
+    }
 }

@@ -8,10 +8,14 @@
 #include "core/platform.h"
 #include "core/ring.h"
 
-#define PW_LOG_NAME         "pocketwatch.log"
-#define PW_LOG_PATH_MAX     256
-#define PW_LOG_LINE_MAX     256
-#define PW_LOG_RING_SIZE    16384 /* holds a few loads worth of lines while a state is held */
+#define PW_LOG_NAME     "pocketwatch.log"
+#define PW_LOG_PATH_MAX 256
+#define PW_LOG_LINE_MAX 256
+#ifdef PW_DEBUG
+#define PW_LOG_RING_SIZE 16384 /* the debug engine's traces: a few loads worth of lines */
+#else
+#define PW_LOG_RING_SIZE 8192 /* a release save or load logs about 2 KB while it holds lines */
+#endif
 #define PW_LOG_CHUNK        512
 #define PW_LOG_MAX_BYTES    (256 * 1024)
 #define PW_LOG_SESSION_MARK "\n==== new session ====\n"
