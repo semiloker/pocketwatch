@@ -312,3 +312,21 @@ void pw_modern_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
     }
     pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
 }
+
+/* A pill on the right edge, filled from the bottom, that swells a little at each change. */
+void pw_modern_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
+{
+    int a = v->alpha, bump = v->flash * 3 / 256, w = 22 + 2 * bump, h = 136 + 2 * bump,
+        x = SCREEN_W - 26 - w / 2, y = 68 - bump, cx = x + w / 2, top = y + 14, bottom = y + h - 36,
+        level = bottom - (bottom - top) * v->shown / (PW_VOLUME_MAX * 256);
+
+    (void)ui;
+    if (a <= 0)
+        return;
+    rrect(c, x, y, w, h, w / 2, C_CARD, a * 210 / 256);
+    pw_shape_capsule(c, PW_FX(cx), PW_FX(top), PW_FX(cx), PW_FX(bottom), PW_FX(3), C_KNOB, a);
+    if (v->shown > 0)
+        pw_shape_capsule(c, PW_FX(cx), PW_FX(level), PW_FX(cx), PW_FX(bottom), PW_FX(3),
+                         v->muted ? C_SUB : C_TEXT, a);
+    pw_view_speaker(c, cx - 8, y + h - 28, v->muted, C_TEXT, a);
+}

@@ -23,7 +23,8 @@
                        const char *line2, int yes, int appear);                                    \
     void name##_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int t_ms);          \
     void name##_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label,                      \
-                      const char *back_label, int alpha);
+                      const char *back_label, int alpha);                                          \
+    void name##_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v);
 
 PW_DECLARE_STYLE(pw_modern)
 PW_DECLARE_STYLE(pw_minimal)

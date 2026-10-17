@@ -83,7 +83,8 @@ stateDiagram-v2
 ## D. User experience and visual design
 
 Behaviour only; visuals in the [UI spec](../ui/README.md). Native expectations: HOME is a toggle,
-the hub appears on release, O backs out of a sub-screen before closing, the cursor position is
+the hub appears as HOME goes down (it waited for the release until 2026-10-17, which the owner
+noticed as a delay; the held HOME counts as handled, so its release does nothing), O backs out of a sub-screen before closing, the cursor position is
 remembered for the session, buttons pressed while closing never reach the game.
 
 ## E. Reference material
@@ -96,7 +97,8 @@ to 1 unconditionally (TempAR), hooking syscon (MacroFire; too invasive).
 
 ## F. Implementation plan
 
-1. `shell/` module with the state machine above; HOME detection on release; NOTE keeps mute.
+1. `shell/` module with the state machine above; HOME detection on the press (on release until
+   2026-10-17); NOTE keeps mute.
 2. Popup ownership: wait for the exit callback, save `orig`, `SetHomePopup(0)`, re-apply at
    RESUME_COMPLETED (from the engine's sysevent handler, no I/O), restore at stop.
 3. Respect the game: hook `sceImpose` 0x5595A71A (ARK `sctrlHENFindFunction` + patch).

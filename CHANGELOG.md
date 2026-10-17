@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- A volume bar over the menu in each style: the level glides to the new value and the bar fades
+  out after the last change (the system's own bar does not show over the menu).
 - ARK-4's exit combos cannot fire in the middle of a save or load: Pocketwatch reads the buttons
   through a controller function ARK-4 does not hook.
 - Continue a game from a state at its start: a `continue.txt` next to the plugin
@@ -44,6 +46,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   and the T1 Memory Stick test.
 
 ### Changed
+- HOME opens the hub as it goes down, not when it is released, and the hub no longer reads the
+  slots from the Memory Stick each time it opens.
 - Relicensed from MIT to GPL-3.0-or-later.
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 

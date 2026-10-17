@@ -4,6 +4,7 @@
 
 #include "gfx/image.h"
 #include "ui/ui.h"
+#include "ui/volume.h"
 
 /*
  * Drawing of every menu screen, separated from input and the display so the host can render them
@@ -67,7 +68,14 @@ void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, 
                     int yes, int appear);
 void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int t_ms);
 
+/* The volume bar over any screen while v->alpha > 0 (ui/volume.h): Classic after the PSP's own
+   (a speaker and 30 steps on a dark strip at the bottom), Modern a pill on the right edge, Minimal
+   a line and the number. */
+void pw_view_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v);
+
 /* Shared pieces. */
+/* A speaker in a 16 x 16 px box at (x, y): waves, or a cross when muted. */
+void pw_view_speaker(pw_canvas *c, int x, int y, int muted, unsigned int color, int alpha);
 void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const char *back_label,
                    int alpha);
 void pw_view_text_centered(pw_canvas *c, pw_font *f, int cx, int y, const char *s,

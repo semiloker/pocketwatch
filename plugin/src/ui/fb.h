@@ -33,6 +33,14 @@ void pw_fb_present(void); /* show what was drawn since pw_fb_begin (at the next 
 void pw_fb_hide(void);      /* give the display back, keep the buffers (before a suspend) */
 void pw_fb_recapture(void); /* the game's frame and the sky again (after a suspend) */
 
+/* Drawn over every frame just before it is shown (the volume bar); NULL: nothing. Cleared by
+   pw_fb_close. */
+typedef void (*pw_fb_overlay)(pw_canvas *c, void *ctx);
+void pw_fb_set_overlay(pw_fb_overlay draw, void *ctx);
+
+/* sceKernelGetSystemTimeLow() when the first frame since pw_fb_open was shown, or 0. */
+unsigned int pw_fb_first_frame_us(void);
+
 /* Debug: the page on the screen now as shot-NNN.png next to the log (SELECT in a menu). */
 int pw_fb_screenshot(void);
 

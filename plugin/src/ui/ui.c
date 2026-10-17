@@ -9,10 +9,39 @@
 #include "gfx/assets.h"
 #include "ui/fb.h"
 #include "ui/ui.h"
+#include "ui/views.h"
 
-#define DPAD (PSP_CTRL_UP | PSP_CTRL_DOWN | PSP_CTRL_LEFT | PSP_CTRL_RIGHT)
+#define DPAD     (PSP_CTRL_UP | PSP_CTRL_DOWN | PSP_CTRL_LEFT | PSP_CTRL_RIGHT)
+#define VOL_KEYS (PSP_CTRL_VOLUP | PSP_CTRL_VOLDOWN)
 
-int sceImposeGetLanguageMode(int *lang, int *button); /* core/stubs/sceImpose_driver.S */
+/* core/stubs/sceImpose_driver.S; the parameter numbers are PSPSDK's pspimpose_driver.h */
+int sceImposeGetLanguageMode(int *lang, int *button);
+int sceImposeGetParam(int param);
+#define IMPOSE_MAIN_VOLUME 0x1
+#define IMPOSE_MUTE        0x8
+
+/* The system's volume and mute now into the bar; returns 1 when the screen needs a frame. */
+static int volume_tick(pw_ui *ui, unsigned int buttons)
+{
+    unsigned int vol = buttons & VOL_KEYS;
+    int level = sceImposeGetParam(IMPOSE_MAIN_VOLUME), muted = sceImposeGetParam(IMPOSE_MUTE),
+        pressed = (vol & ~ui->vol_held) != 0;
+
+    ui->vol_held = vol;
+    if (level < 0)
+        return 0;
+    return pw_volume_update(&ui->volume, level, muted > 0, pressed, pw_ui_now_ms());
+}
+
+/* Over every frame just before it is shown (pw_fb_present), so every screen has the bar. */
+static void draw_overlay(pw_canvas *c, void *ctx)
+{
+    pw_ui *ui = ctx;
+
+    volume_tick(ui, pw_ui_buttons());
+    if (ui->volume.alpha > 0)
+        pw_view_volume(c, ui, &ui->volume);
+}
 
 unsigned int pw_ui_now_ms(void)
 {
@@ -48,6 +77,9 @@ void pw_ui_init(pw_ui *ui)
     ui->enter = ui->cross_enter ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
     ui->back = ui->cross_enter ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
     ui->t_tick = 0;
+    pw_volume_reset(&ui->volume);
+    ui->vol_held = pw_ui_buttons() & VOL_KEYS;
+    pw_fb_set_overlay(draw_overlay, ui);
     pw_ui_flush_input(ui);
 }
 
@@ -68,8 +100,11 @@ unsigned int pw_ui_poll(pw_ui *ui)
         ui->t_tick = now;
     }
     {
-        unsigned int ev =
-            pw_keys_update(&ui->keys, pw_ui_buttons(), DPAD, sceKernelGetSystemTimeLow());
+        unsigned int buttons = pw_ui_buttons(),
+                     ev = pw_keys_update(&ui->keys, buttons, DPAD, sceKernelGetSystemTimeLow());
+
+        if (volume_tick(ui, buttons))
+            ev |= PW_UI_EV_FRAME;
 
 #ifdef PW_DEBUG
         if (ev & PSP_CTRL_SELECT) { /* debug builds: SELECT photographs the menu for the docs */

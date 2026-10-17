@@ -256,3 +256,25 @@ void pw_minimal_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
     }
     pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
 }
+
+/* A thin line at the bottom and the number, nothing else. */
+void pw_minimal_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
+{
+    int a = v->alpha, w = 160, x = (SCREEN_W - w) / 2 - 14, y = SCREEN_H - 40, /* over the hints */
+        fill = w * v->shown / (PW_VOLUME_MAX * 256);
+    char num[4];
+
+    if (a <= 0)
+        return;
+    pw_draw_blend(c, x, y, w, 2, C_DIM, a * 90 / 256);
+    pw_draw_blend(c, x, y, fill, 2, v->muted ? C_DIM : C_TEXT, a);
+    if (v->muted) {
+        num[0] = num[1] = '-';
+        num[2] = 0;
+    } else {
+        num[0] = (char)(v->level >= 10 ? '0' + v->level / 10 : '0' + v->level);
+        num[1] = (char)(v->level >= 10 ? '0' + v->level % 10 : 0);
+        num[2] = 0;
+    }
+    pw_text_draw(c, ui->body, x + w + 10, y + 6, num, v->flash ? C_TEXT : C_DIM, a, 0);
+}

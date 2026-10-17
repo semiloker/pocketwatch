@@ -45,6 +45,14 @@ the SHL-REQ-012 change read the buttons from the controller's latch, whose press
 until someone reads the latch, so the release of HOME was never seen. Fixed: the buttons come
 from `sceCtrlPeekBufferPositive2` (same buffer, not hooked by ARK-4); device check pending.
 
+Fourth run (2026-10-17, build a03f2b4): HOME opens the hub again (log `ctrl: buttons through
+sceCtrlPeekBufferPositive2`, hub 8.7 s at 143 frames). Owner: L+R+START+DOWN in the game turned
+the PSP off instead of starting ARK's launcher (`ARK_01234/VBOOT.PBP` exists, so ARK starts it);
+nothing of ours runs on that path (no log line after the hub) - RESEARCH REQUIRED: the same combo
+with Pocketwatch off in PLUGINS.TXT (testing guide SH2). Also: the hub opened late (answered: it
+opens on the press, the slot count is kept, each open is timed, H16) and a volume bar was asked
+for (UI-REQ-016, H15). Next asked: a Pocketwatch entry in the XMB's settings (VSH-REQ-006).
+
 ## Next actions (in order)
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the

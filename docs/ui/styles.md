@@ -65,6 +65,15 @@ reading of the PSP's engine), so a slower frame no longer slows the movement dow
 list glides and grows the chosen icon, its details cross-fade; dialogs fade in (150 ms); the
 Classic option panel slides in from the right. The hub logs its frame rate when it closes.
 
+## The volume bar (UI-REQ-016)
+
+Drawn over every frame of every screen (`pw_fb_present` calls the overlay that `pw_ui_init`
+sets), fed from `sceImposeGetParam` each frame (`ui/volume.c`, portable; `ui/ui.c` reads the
+system). Classic: a dark strip at the bottom with a speaker and 30 steps, the step being reached
+filling in. Modern: a pill on the right edge, filled from the bottom, that swells for a moment at
+each change. Minimal: a line above the hints and the number (`--` when muted). Previews:
+`hub-volume.png`, `hub-volume-muted.png` per style.
+
 ## Adding a style
 
 Add a `PW_STYLE_*` value and its name in `core/config.c`, a `views_<name>.c` implementing the seven

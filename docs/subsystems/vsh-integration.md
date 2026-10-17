@@ -23,6 +23,7 @@
 | `VSH-REQ-003` | The GAME-side plugin loads the requested state automatically once the game runs; a refusal falls back to a normal boot with a message. | P2 | Implemented (device test pending): `continue.txt` (below), the complications' start-up hook | testing guide V1, `registry_finds_a_pending_startup` |
 | `VSH-REQ-004` | XMB icons and texts come from the firmware's own resources ([rendering](../ui/rendering.md)). | P2 | Planned | owner review |
 | `VSH-REQ-005` | Nothing breaks ARK-4's own XMB additions (xmbctrl's "Custom Firmware Settings" and its plugin manager). | P2 | Planned | device test with ARK's menus |
+| `VSH-REQ-006` | The XMB has a "Pocketwatch" entry under Settings that opens the plugin's settings (style, fast save and load, clock and battery, language) as the XMB's own option list, saved to the same `config.txt` the game side reads (owner request 2026-10-17). | P2 | Planned (research: ARK-4 xmbctrl's "Custom Firmware Settings" mechanism) | device test |
 
 ## C. Research (2026-10-17)
 

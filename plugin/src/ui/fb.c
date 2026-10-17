@@ -30,6 +30,9 @@ static int g_back;
 static pw_canvas g_canvas;
 static const pw_image *g_sky_img;
 static int g_style;
+static pw_fb_overlay g_overlay;
+static void *g_overlay_ctx;
+static unsigned int g_first_us;
 
 static void make_backdrop(void)
 {
@@ -87,9 +90,21 @@ int pw_fb_open(const pw_image *sky, int style)
     g_page[1] = g_page[0] + FB_PIXELS;
     g_moving = g_page[1] + FB_PIXELS;
     g_back = 0;
+    g_first_us = 0;
     pw_icon_cache(g_moving + FB_PIXELS, ICON_CACHE);
     capture();
     return 0;
+}
+
+void pw_fb_set_overlay(pw_fb_overlay draw, void *ctx)
+{
+    g_overlay = draw;
+    g_overlay_ctx = ctx;
+}
+
+unsigned int pw_fb_first_frame_us(void)
+{
+    return g_first_us;
 }
 
 pw_canvas *pw_fb_begin(int show, unsigned int t_ms)
@@ -111,10 +126,14 @@ pw_canvas *pw_fb_begin(int show, unsigned int t_ms)
 
 void pw_fb_present(void)
 {
+    if (g_overlay)
+        g_overlay(&g_canvas, g_overlay_ctx);
     sceKernelDcacheWritebackAll(); /* the display reads memory, not our cache */
     sceDisplaySetFrameBufferInternal(0, UNCACHED(g_page[g_back]), FB_STRIDE,
                                      PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
     g_back ^= 1;
+    if (g_first_us == 0)
+        g_first_us = sceKernelGetSystemTimeLow() | 1;
 }
 
 void pw_fb_hide(void)
@@ -182,6 +201,7 @@ const unsigned int *pw_fb_game(void)
 void pw_fb_close(void)
 {
     pw_fb_hide();
+    g_overlay = NULL;
     pw_icon_cache(NULL, 0);
     pw_mem_free(&g_mem);
     g_game = g_sky = g_page[0] = g_page[1] = g_moving = NULL;

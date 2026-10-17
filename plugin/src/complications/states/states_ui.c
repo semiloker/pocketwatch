@@ -29,6 +29,7 @@ enum { ROW_SAVE, ROW_LOAD };
 static struct {
     char saved_at[16];    /* "14:05" of the state held, or "" */
     int slots_used;       /* states on the Memory Stick for this game */
+    int recount;          /* slots_used may be stale: count again when the hub opens */
     int last_slot;        /* the slot used last (cursor of the state list) */
     int guard;            /* PW_GUARD_* when the rows were built */
     const char *busy_fmt; /* "Saving... %d%%" in the current language */
@@ -102,6 +103,9 @@ static void read_continue(void)
 static void states_init(void)
 {
     pw_store_init(); /* the slots' hashed PARAM.SFO, while no game thread holds anything */
+    /* Counted once here and after each of our own changes, not at every HOME: five reads of the
+       card made the hub open late. Nothing else changes our slots while the game runs. */
+    g.slots_used = count_slots();
     read_continue();
 }
 
@@ -114,7 +118,10 @@ static void states_open(void)
 {
     if (!pw_engine_has_state())
         g.saved_at[0] = 0;
-    g.slots_used = count_slots();
+    if (g.recount) {
+        g.recount = 0;
+        g.slots_used = count_slots();
+    }
 }
 
 static void row(pw_cpl_item *it, int art, int glow, int fallback, int title, int enabled)
@@ -221,6 +228,7 @@ static int run_save(const pw_cpl_env *env)
     pw_engine_set_load_hook(pw_store_after_load); /* part of the snapshot */
     ret = do_save(env);
     if (ret == PW_ENGINE_LOADED) { /* back in the saved moment */
+        g.recount = 1; /* this world's count is from the save; the card may have changed since */
         if (pw_store_check_failed()) {
             pw_fb_recapture();
             g.saved_at[0] = 0;

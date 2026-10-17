@@ -130,13 +130,16 @@ static void quit_game(void)
     sctrlKernelExitVSH(NULL);
 }
 
-/* Freeze the game, open the screen, run the hub (or a complication's start-up action). */
-static void open_screen(const pw_complication *startup)
+/* Freeze the game, open the screen, run the hub (or a complication's start-up action). t_press:
+   when HOME went down (us), for the log line that says where the time to the first frame went. */
+static void open_screen(const pw_complication *startup, unsigned int t_press)
 {
     pw_freeze_set frozen;
+    unsigned int t_frozen, t_ge, t_screen;
     int result;
 
     pw_freeze_game(&frozen, FREEZE_MS);
+    t_frozen = sceKernelGetSystemTimeLow();
     if (frozen.count == 0) { /* no game running (or someone else froze it) */
         pw_thaw_game(&frozen);
         return;
@@ -144,6 +147,7 @@ static void open_screen(const pw_complication *startup)
     g_open = 1;
     sceCtrlSetButtonMasks(GAME_BUTTONS, 1); /* the game reads no button until we close */
     wait_ge();
+    t_ge = sceKernelGetSystemTimeLow();
     char clock[24];
     int month = pw_sysinfo_clock(clock, sizeof(clock)), sky = pw_sysinfo_sky_index(month);
     static int logged_sky = -1;
@@ -161,8 +165,15 @@ static void open_screen(const pw_complication *startup)
         return;
     }
 
+    t_screen = sceKernelGetSystemTimeLow();
+
     result = startup ? pw_hub_startup(&frozen, startup) : pw_hub_run(&frozen);
 
+    if (pw_fb_first_frame_us())
+        pw_log("shell: open: freeze %u ms, GE %u ms, screen %u ms, first frame %u ms after the "
+               "press",
+               (t_frozen - t_press) / 1000, (t_ge - t_frozen) / 1000, (t_screen - t_ge) / 1000,
+               (pw_fb_first_frame_us() - t_press) / 1000);
     pw_fb_close();
     /* The game must not see the button that closed us: wait until everything is up. */
     for (unsigned int t0 = now_ms(); (buttons() & ANY_BUTTON) && now_ms() - t0 < RELEASE_WAIT_MS;)
@@ -174,9 +185,9 @@ static void open_screen(const pw_complication *startup)
         quit_game();
 }
 
-static void open_hub(void)
+static void open_hub(unsigned int t_press)
 {
-    open_screen(0);
+    open_screen(0, t_press);
 }
 
 /* Why the screen cannot open now, or NULL. */
@@ -227,13 +238,13 @@ static void run_startup(unsigned int ready_ms)
         return;
     }
     pw_log("shell: %s has a start-up action", cpl->id);
-    open_screen(cpl);
+    open_screen(cpl, sceKernelGetSystemTimeLow());
 }
 
 static int shell_thread(SceSize args, void *argp)
 {
     pw_tap tap = {0, 0, 0};
-    unsigned int start = now_ms(), last_check = 0, ready = 0;
+    unsigned int start = now_ms(), last_check = 0, ready = 0, t_poll;
     int home_was_down = 0;
 
     (void)args;
@@ -243,6 +254,7 @@ static int shell_thread(SceSize args, void *argp)
 
         sceKernelDelayThread(POLL_US);
         b = buttons();
+        t_poll = sceKernelGetSystemTimeLow();
         if (g_home == HOME_WAITING) {
             take_home(start, b);
             ready = now_ms();
@@ -257,19 +269,20 @@ static int shell_thread(SceSize args, void *argp)
                     pw_log("shell: the system HOME screen was switched back on: off again");
                 }
             }
-            /* HOME is kernel-only: the game never sees it. Open on release, like Custom Home. */
-            if (b & PSP_CTRL_HOME) {
-                home_was_down = 1;
-            } else if (home_was_down) {
-                home_was_down = 0;
-                if (may_open())
-                    open_hub();
-            }
+            /* HOME is kernel-only: the game never sees it. Open as it goes down, like the system's
+               HOME screen; the menu takes the held HOME as handled, so its release does nothing
+               and the next press closes. After the menu, HOME must come up before it opens again.
+             */
+            int home = (b & PSP_CTRL_HOME) != 0;
+
+            if (home && !home_was_down && may_open())
+                open_hub(t_poll);
+            home_was_down = home;
         } else if (pw_tap_update(&tap, (b & PSP_CTRL_NOTE) != 0,
                                  (b & (GAME_BUTTONS | PSP_CTRL_HOME)) != 0,
                                  sceKernelGetSystemTimeLow()) &&
                    may_open()) {
-            open_hub();
+            open_hub(t_poll);
         }
     }
     return 0;

@@ -250,6 +250,24 @@ int main(void)
         pw_view_status(&c, &ui, "10/16 14:05", 20, 1, 256, 0);
         pw_view_hub(&c, &ui, &cat, rows, 5, 256 + 128, 256);
         save("hub-moving");
+        {
+            /* the volume bar while a step fills in, and muted */
+            pw_volume vol = {1, 1, 18, 0, 17 * 256 + 160, 256, 200, 1, 0, 0};
+
+            c = begin(1500);
+            pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
+            pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
+            pw_view_volume(&c, &ui, &vol);
+            save("hub-volume");
+            vol.muted = 1;
+            vol.flash = 0;
+            vol.shown = 18 * 256;
+            c = begin(1500);
+            pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
+            pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
+            pw_view_volume(&c, &ui, &vol);
+            save("hub-volume-muted");
+        }
         rows[2].enabled = 0;
         rows[2].desc = pw_tr(PW_S_NO_SAVED_STATE);
         c = begin(4500);

@@ -53,6 +53,8 @@ damaged, restore it from the backup.
 | H11 | Save to a slot in one language, change the system language, start the game, load it. | It loads; after the load the hub speaks the language of the moment it was saved (by design: the state brings its own). |
 | H12 | XMB → Settings → Theme Settings → Theme Color: pick a colour other than the default; start the game, open the hub (Classic style). | The hub's sky has the XMB's colour. Log: `shell: sky N (theme colour M, month 10)`. If the colours differ, write down which colour you picked (its place in the list, counting from 1 after the default) and what the hub showed. |
 | H13 | In each style: open the hub, move up and down for about 10 s, close it; once in Castlevania and once in another game. | Moves look smooth. Log after each: `hub: style S, T ms: N frames drawn in L vblank waits; a frame: backdrop .. us, content .. us, present .. us, worst .. us; waiting .. us a loop` and `cpu: hub, T ms: <thread> NN% ...` - send these lines. |
+| H15 | Open the hub and press VOL+ a few times, then VOL- a few times; hold VOL+ at the top; press NOTE (mute) and press it again. Do it in each style. | A volume bar appears at once and fades out about 1.5 s after the last press: Classic at the bottom (speaker and 30 steps), Modern a pill on the right, Minimal a line with the number. The level glides to the new value; at the top a press still shows it; muted, the speaker is crossed out. Compare Classic with the PSP's own bar in a game (no hub): write down what differs, or a photo of both. |
+| H16 | Open and close the hub five times in a game. | The hub appears as soon as HOME goes down. Log, each open: `shell: open: freeze .. ms, GE .. ms, screen .. ms, first frame .. ms after the press` - send these lines (the target is 300 ms or less). |
 | H14 | (debug build) Anywhere in the menu press SELECT. | `seplugins/pocketwatch/shot-000.png` (then 001, ...) is the exact picture on the screen. Send shots of anything that looks wrong, e.g. icons that look banded. |
 
 ### Settings
@@ -69,6 +71,7 @@ damaged, restore it from the backup.
 
 | ID | Do | Expect |
 |---|---|---|
+| SH2 | Owner report 2026-10-17: SH1's first step turned the PSP off. In PLUGINS.TXT set the Pocketwatch line to `off`, start the same game, press L+R+START+DOWN. Then XMB → Game → Memory Stick (or ARK's "Custom Launcher" item): start ARK's menu directly. Set the line back to `on`. | Write down for each: ARK's menu appeared / the PSP turned off (power light off) / black screen with the light on. If it also turns off without Pocketwatch, it is ARK's launcher or another plugin, not ours. |
 | SH1 | In gameplay press L+R+START+DOWN (ARK's exit). Start the game again, open the hub, press it there. Then Save State to a slot while holding L+R+START+DOWN. | In gameplay it exits as usual. In the hub nothing happens (use Quit Game). The save finishes normally and the PSP stays in the game. |
 
 ## 3. Quit Game

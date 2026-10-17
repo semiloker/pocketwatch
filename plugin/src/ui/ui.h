@@ -6,6 +6,7 @@
 #include "gfx/text.h"
 #include "ui/draw.h"
 #include "ui/input.h"
+#include "ui/volume.h"
 
 /* What every screen of the menu shares: fonts, the system's button assignment, input pacing. */
 
@@ -26,7 +27,12 @@ typedef struct {
     unsigned int enter, back; /* the matching PSP_CTRL_* bits */
     pw_keys keys;
     unsigned int t_tick;
+    pw_volume volume;      /* the volume bar over every screen (ui/volume.h) */
+    unsigned int vol_held; /* the volume buttons held at the last look */
 } pw_ui;
+
+/* pw_ui_poll: no button went down, but the volume bar moves and the screen needs a frame. */
+#define PW_UI_EV_FRAME 0x80000000u
 
 void pw_ui_init(pw_ui *ui); /* fonts, Enter/Back from sceImposeGetLanguageMode */
 unsigned int pw_ui_now_us(void);
