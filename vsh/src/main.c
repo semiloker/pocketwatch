@@ -19,14 +19,17 @@ start_handler sctrlHENSetStartModuleHandler(start_handler handler); /* src/stubs
 
 static start_handler g_previous;
 
-/* The patch lines are written once the XMB is up (no file I/O in the module manager's thread);
-   later lines are written by the XMB's own threads as things happen. */
+/* The patch lines are written from here (no file I/O in the module manager's thread): every 2 s
+   for the XMB's first minute, so they reach the card even when a game starts soon; later lines
+   are written by the XMB's own threads as things happen. */
 static int flush_later(SceSize args, void *argp)
 {
     (void)args;
     (void)argp;
-    sceKernelDelayThread(15 * 1000 * 1000);
-    pwx_log_flush();
+    for (int i = 0; i < 30; i++) {
+        sceKernelDelayThread(2 * 1000 * 1000);
+        pwx_log_flush();
+    }
     sceKernelExitDeleteThread(0);
     return 0;
 }
