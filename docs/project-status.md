@@ -53,7 +53,6 @@ per-thread CPU line in the log.
 | T1b: is the card view fresh after rolling back a touch-and-go save? (the marker check guards it meanwhile) | RESEARCH REQUIRED | Owner (device run) |
 | What else differs between boots in the kernel image (cross-boot loads, T3/T6) | RESEARCH REQUIRED | Owner (device run) + Dev |
 | Hub layout A vs B (A built by default, [ADR-016](architecture/decisions.md#adr-016--hub-concept-a-by-default)) | OPEN QUESTION | Owner |
-| How to keep ARK-4's exit combos from rebooting while a state is held (`SHL-REQ-012`) | RESEARCH REQUIRED | Dev |
 | TV-out with states (not guarded) | OPEN QUESTION | Dev |
 | Firmware study: re-verify REPORTED boot/recovery claims with primary sources | RESEARCH REQUIRED | Dev |
 

@@ -65,6 +65,12 @@ damaged, restore it from the backup.
 | ST4 | Back / HOME inside Settings and inside the option list. | Back closes the list without a change; HOME closes too. |
 | ST5 | Settings → Style → Modern, then Minimal, then Classic (XMB). In each: the hub, Save State list, Load State list, a dialog (Quit Game → No), Settings itself. | The screen changes at once. Modern: the game blurred behind, round buttons at the bottom with a white disc moving between them, cards and pill buttons. Minimal: the game darkened, only text in a centred column. After Quit and restart the chosen style stays. Note anything cut off, overlapping or slow (how long the hub takes to appear in Modern). |
 
+### ARK's exit combos
+
+| ID | Do | Expect |
+|---|---|---|
+| SH1 | In gameplay press L+R+START+DOWN (ARK's exit). Start the game again, open the hub, press it there. Then Save State to a slot while holding L+R+START+DOWN. | In gameplay it exits as usual. In the hub nothing happens (use Quit Game). The save finishes normally and the PSP stays in the game. |
+
 ## 3. Quit Game
 
 | ID | Do | Expect |

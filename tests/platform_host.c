@@ -139,3 +139,8 @@ unsigned int pw_time_ms(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (unsigned int)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
+
+unsigned int pw_buttons_held(void)
+{
+    return 0;
+}

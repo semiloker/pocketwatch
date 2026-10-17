@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "core/log.h"
+#include "core/platform.h"
 #include "debug/bench.h"
 #include "debug/probe.h"
 #include "complications/states/engine.h"
@@ -150,12 +151,9 @@ void pw_probe_boot(void)
 /* One action per press: wait until the combo is let go. */
 static void wait_release(unsigned int combo)
 {
-    SceCtrlData pad;
-
-    do {
+    do
         sceKernelDelayThread(100 * 1000);
-        sceCtrlPeekBufferPositive(&pad, 1);
-    } while (!g_probe_stop && (pad.Buttons & combo) == combo);
+    while (!g_probe_stop && (pw_buttons_held() & combo) == combo);
 }
 
 static int probe_thread(SceSize args, void *argp)
@@ -177,7 +175,8 @@ static int probe_thread(SceSize args, void *argp)
                    sceKernelGetSystemTimeLow() / 1000);
             last_request = request;
         }
-        if (sceCtrlPeekBufferPositive(&pad, 1) < 0 || pw_shell_is_open())
+        pad.Buttons = pw_buttons_held();
+        if (pw_shell_is_open())
             continue; /* the menu owns the buttons (and the frozen game) while it is open */
 
         if ((pad.Buttons & PROBE_COMBO) == PROBE_COMBO) {

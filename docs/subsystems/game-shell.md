@@ -38,7 +38,7 @@
 | `SHL-REQ-009` | Guards refuse save and load below 15 % battery without the AC adaptor and under ARK's highmem. A full card is detected by the short write (no free-space query: it scans the whole FAT). TV-out is not guarded (OPEN QUESTION). | P1 | Implemented (battery, highmem, card full) | testing guide G1, G4, M11 |
 | `SHL-REQ-010` | When Custom Home (`CustomHOME`) or PSPStates (`PspStates`) is loaded (module names read from their PRX files), States refuses naming them. ARK's `mscache` is no longer a conflict: its window is dropped before the check after a load (STS-REQ-009). | P1 | Implemented | testing guide G5 |
 | `SHL-REQ-011` | Once HOME is the trigger, the NOTE button keeps its system function (mute on hold) and opens nothing. | P0 | Implemented, device test pending | device test |
-| `SHL-REQ-012` | ARK-4's exit combos (L+R+START/SELECT+DOWN) cannot reboot the PSP while a state is held without the state being discarded first. | P1 | Planned (RESEARCH REQUIRED) | code review + device test |
+| `SHL-REQ-012` | ARK-4's exit combos (L+R+START/SELECT+DOWN) cannot fire in the middle of a save or load. ARK-4 hijacks `sceCtrlPeek/ReadBuffer{Positive,Negative}` and starts the exit from inside whichever thread calls them (VERIFIED: ARK-4 `core/systemctrl/src/exitgame.c`, `patchController`), our own polling threads included. Pocketwatch reads the buttons from the controller's kernel latch instead (`pw_buttons_held`, `sceCtrlPeekLatch`; for a kernel caller `btnPress` is the last unmasked sample, VERIFIED: uOFW `src/kd/ctrl/ctrl.c`). The game is frozen while the hub is open and during every save and load, so nothing of ours or the game's can fire the combos then; in gameplay they work as before (a state held in RAM is dropped; its slot on the card stays). Residual: another plugin's thread polling the hooked functions during a save (RISK-017). | P1 | Implemented | code review + testing guide SH1 |
 | `SHL-NFR-001` | First hub frame ≤ 300 ms after the HOME release (freeze timeout 500 ms worst case). | P1 | Planned (phase 1 not measured) | log timestamps |
 | `SHL-NFR-002` | No cost while closed: one kernel thread polling every 20 ms, no allocation. | P1 | Done | code |
 
@@ -108,7 +108,7 @@ to 1 unconditionally (TempAR), hooking syscon (MacroFire; too invasive).
 7. Guards (M3b) as a list of `pw_guard` checks shared by the hub and the engine.
 
 Open: what `sceImposeHomeButton`'s argument means (GUESS: 0 dismisses); whether impose re-enables
-the popup after a resume; how to keep ARK's exit combos from firing under us (SHL-REQ-012).
+the popup after a resume.
 
 ## G. Testing and acceptance
 

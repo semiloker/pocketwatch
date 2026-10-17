@@ -39,6 +39,14 @@ typedef struct {
 void pw_local_time(pw_datetime *t);
 
 void pw_delay_ms(unsigned int ms);
+
+/*
+ * The buttons held now (PSP_CTRL_* bits, HOME and NOTE included). Read from the controller's
+ * kernel latch, never through sceCtrlPeek/ReadBuffer*: ARK-4 hijacks those four and starts its
+ * exit-to-launcher / exit-to-XMB combos (L+R+START/SELECT+DOWN) from inside whichever thread calls
+ * them - ours too, in the middle of a save or load (SHL-REQ-012). The host returns 0.
+ */
+unsigned int pw_buttons_held(void);
 unsigned int pw_time_ms(void); /* a monotonic millisecond counter (wraps) */
 
 #endif

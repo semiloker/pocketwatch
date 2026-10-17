@@ -5,6 +5,7 @@
 #include <psppower.h>
 
 #include "core/config.h"
+#include "core/platform.h"
 #include "gfx/assets.h"
 #include "ui/fb.h"
 #include "ui/ui.h"
@@ -25,9 +26,7 @@ unsigned int pw_ui_now_us(void)
 
 unsigned int pw_ui_buttons(void)
 {
-    SceCtrlData pad;
-
-    return sceCtrlPeekBufferPositive(&pad, 1) < 0 ? 0 : pad.Buttons;
+    return pw_buttons_held(); /* ARK-4's exit combos stay off while the menu runs (SHL-REQ-012) */
 }
 
 void pw_ui_init(pw_ui *ui)

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <pspctrl.h>
 #include <pspintrman.h>
 #include <pspkernel.h>
 #include <pspthreadman.h>
@@ -107,4 +108,13 @@ void pw_delay_ms(unsigned int ms)
 unsigned int pw_time_ms(void)
 {
     return sceKernelGetSystemTimeLow() / 1000;
+}
+
+unsigned int pw_buttons_held(void)
+{
+    SceCtrlLatch latch;
+
+    /* For a kernel caller this is the kernel latch: btnPress is the last sample, unmasked
+       (uOFW src/kd/ctrl/ctrl.c, _sceCtrlUpdateButtons and sceCtrlPeekLatch). */
+    return sceCtrlPeekLatch(&latch) < 0 ? 0 : latch.uiPress;
 }

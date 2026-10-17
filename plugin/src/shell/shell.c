@@ -9,6 +9,7 @@
 #include "complications/states/engine.h"
 #include "core/freeze.h"
 #include "core/log.h"
+#include "core/platform.h"
 #include "core/sysinfo.h"
 #include "gfx/assets.h"
 #include "core/sysctrl.h"
@@ -46,9 +47,7 @@ static unsigned int now_ms(void)
 
 static unsigned int buttons(void)
 {
-    SceCtrlData pad;
-
-    return sceCtrlPeekBufferPositive(&pad, 1) < 0 ? 0 : pad.Buttons;
+    return pw_buttons_held(); /* not through the functions ARK-4 hooks for its exit combos */
 }
 
 /* A system dialog of the game (save, message, keyboard, network) is up: HOME is the system's. */

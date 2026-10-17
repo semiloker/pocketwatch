@@ -23,6 +23,7 @@ risk; close it with the evidence.
 | [RISK-014](#risk-014--intermittent-device-behaviour) | Intermittent device behaviour | M | M | Open |
 | [RISK-015](#risk-015--sleep-or-usb-while-the-menu-is-open) | Sleep or USB while the menu is open | M | M | Open |
 | [RISK-016](#risk-016--a-game-that-does-not-survive-the-saves-sleep) | A game that does not survive the save's sleep | M | H | Open |
+| [RISK-017](#risk-017--arks-exit-combo-fired-by-another-plugin-during-a-save) | ARK's exit combo fired by another plugin during a save | L | H | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -148,4 +149,14 @@ risk; close it with the evidence.
   the next sessions normal).
 - **Mitigation:** the isolation protocol M13 in the [testing guide](testing.md#m13); a
   per-game refusal list once the cause is known; the compatibility matrix records it.
+
+## RISK-017 — ARK's exit combo fired by another plugin during a save
+
+- **Description:** ARK-4 checks its exit combos inside the controller functions it hijacks, in the
+  caller's thread. Pocketwatch no longer calls them (SHL-REQ-012) and the game is frozen during a
+  save or load, but another plugin's own thread (a cheat engine, an overlay) that polls them could
+  start the exit if the user holds L+R+START/SELECT+DOWN during the few seconds of a save.
+- **Likelihood L** (four buttons held on purpose during a save) / **Impact H** (a reboot in the
+  middle of the suspend sequence).
+- **Mitigation:** none possible from outside ARK; the testing guide (SH1) checks the common case.
 
