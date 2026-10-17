@@ -6,19 +6,18 @@
 #include <pspkernel.h>
 #include <string.h>
 
+#include "complications/registry.h"
 #include "complications/states/engine.h"
 #include "core/crc32.h"
+#include "core/game.h"
 #include "core/log.h"
 #include "core/mem.h"
 #include "core/platform.h"
 #include "core/selfcheck.h"
 #include "core/sysinfo.h"
-#include "core/game.h"
-#include "complications/states/store.h"
 #include "gfx/assets.h"
 #include "shell/shell.h"
 #include "ui/lang.h"
-#include "ui/settings.h"
 
 #ifdef PW_DEBUG
 #include "debug/probe.h"
@@ -88,21 +87,21 @@ static int main_thread(SceSize args, void *argp)
     int ret = pw_engine_init();
     if (ret < 0)
         pw_log("engine: sysevent handler registration failed 0x%08X", ret);
-    pw_settings_init(); /* config.txt: fast mode, the status corner */
 
 #ifdef PW_DEBUG
     pw_probe_boot();
     pw_probe_start();
 #endif
 
-    /* Complications (States, ...) are started from here. */
     pw_sysinfo_init(); /* date/time format and theme colour from the registry, read only */
     pw_assets_init();  /* the system's font, icons and skies: the menu must not wait for flash0 */
     pw_engine_set_env_extra(0, pw_assets_base()); /* a state must find this block where it was */
     pw_engine_set_env_extra(1, module_file_crc());
     pw_lang_init(); /* after the fonts: it checks their glyphs; before the store (SFO titles) */
     pw_game_init();
-    pw_store_init(); /* the slots' hashed PARAM.SFO, while no game thread holds anything */
+    /* The complications (complications/table.c): Settings reads config.txt, States prepares
+       the slots' hashed PARAM.SFO while no game thread holds anything. */
+    pw_registry_init(pw_complications, pw_complication_count);
     ret = pw_shell_start();
     if (ret < 0)
         pw_log("shell: thread start failed 0x%08X", ret);
@@ -138,7 +137,7 @@ int module_stop(SceSize args, void *argp)
 #endif
     pw_engine_shutdown();
     pw_assets_shutdown();
-    pw_store_shutdown();
+    pw_registry_shutdown(pw_complications, pw_complication_count);
 
     if (g_main_thread >= 0) {
         SceUInt timeout = PW_STOP_TIMEOUT_US;

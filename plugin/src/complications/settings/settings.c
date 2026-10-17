@@ -12,7 +12,7 @@
 #include "ui/i18n.h"
 #include "ui/icons.h"
 #include "ui/lang.h"
-#include "ui/settings.h"
+#include "complications/complication.h"
 #include "ui/views.h"
 
 enum { SET_FAST, SET_STATUS, SET_LANGUAGE, SET_COUNT };
@@ -22,9 +22,15 @@ static const struct {
     const char *code, *name;
 } g_langs[] = {
     {0, 0}, /* the system's: PW_S_SYSTEM_LANGUAGE */
-    {"en", "English"},   {"fr", "Français"},   {"es", "Español"},
-    {"de", "Deutsch"},   {"it", "Italiano"},   {"nl", "Nederlands"},
-    {"pt", "Português"}, {"ru", "Русский"},    {"uk", "Українська"},
+    {"en", "English"},
+    {"fr", "Français"},
+    {"es", "Español"},
+    {"de", "Deutsch"},
+    {"it", "Italiano"},
+    {"nl", "Nederlands"},
+    {"pt", "Português"},
+    {"ru", "Русский"},
+    {"uk", "Українська"},
 };
 #define LANGS ((int)(sizeof(g_langs) / sizeof(g_langs[0])))
 
@@ -37,7 +43,7 @@ static void config_path(char *out, unsigned int cap)
     stbsp_snprintf(out, (int)cap, "%sconfig.txt", dir);
 }
 
-void pw_settings_init(void)
+static void settings_init(void)
 {
     char path[256];
 
@@ -106,7 +112,11 @@ static int pick(pw_ui *ui, const screen *s, int sel, const char *const *options,
     }
 }
 
-void pw_settings_run(pw_ui *ui)
+/*
+ * The hub's Settings screen (CPL-REQ-006): fast save and load, the clock and battery corner, the
+ * language. Changes apply at once; config.txt / language.txt are written when it closes.
+ */
+static void settings_screen(pw_ui *ui)
 {
     static screen s;
     pw_config *cfg = pw_config_get();
@@ -117,8 +127,8 @@ void pw_settings_run(pw_ui *ui)
     for (;;) {
         unsigned int ev;
 
-        pw_view_settings(pw_fb_begin(256, pw_ui_now_ms()), ui, &s.cat, s.rows, SET_COUNT, sel, 0,
-                         0, -1);
+        pw_view_settings(pw_fb_begin(256, pw_ui_now_ms()), ui, &s.cat, s.rows, SET_COUNT, sel, 0, 0,
+                         -1);
         pw_fb_present();
         ev = pw_ui_poll(ui);
         if (ev & PSP_CTRL_UP) {
@@ -168,3 +178,25 @@ void pw_settings_run(pw_ui *ui)
         pw_dialog_message(ui, pw_tr(PW_S_SETTINGS_NOT_SAVED), pw_tr(PW_S_E_IO));
     pw_ui_flush_input(ui);
 }
+
+static int settings_items(pw_cpl_item *out, int max)
+{
+    if (max < 1)
+        return 0;
+    out[0].art = PW_ART_SETTINGS;
+    out[0].glow = PW_ART_SETTINGS_GLOW;
+    out[0].fallback = PW_ICON_WATCH;
+    out[0].title = pw_tr(PW_S_SETTINGS);
+    out[0].enabled = 1;
+    return 1;
+}
+
+static int settings_run(int index, const pw_cpl_env *env)
+{
+    (void)index;
+    settings_screen(env->ui);
+    return PW_CPL_STAY; /* the hub rebuilds its rows: the language may have changed */
+}
+
+const pw_complication pw_cpl_settings = {"settings",     settings_init, 0, 0,
+                                         settings_items, settings_run,  0};

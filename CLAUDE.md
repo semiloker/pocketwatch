@@ -80,6 +80,9 @@ The project's full workflow is imported here and applies to every session:
   version, the PRX file's CRC, model, P9/P8/ME layout, the assets and PARAM.SFO block addresses): never relax it
   without a device test (T5).
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).
+- A hub feature is a complication: its folder under `complications/` with a `pw_complication`
+  (`complications/complication.h`) and one line in `complications/table.c`; the hub (`ui/hub.c`)
+  must not learn about any feature.
 - New source files must be added to `OBJS` in `plugin/Makefile`.
 - `.ps1` files must stay ASCII-only (Windows PowerShell 5.1 reads them as ANSI).
 - License is GPL-3.0-or-later: start every new source file with `// SPDX-License-Identifier: GPL-3.0-or-later`

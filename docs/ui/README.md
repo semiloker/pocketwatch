@@ -47,7 +47,7 @@ in the system font and language.
 | ID | Requirement | Priority | Status | Verification |
 |---|---|---|---|---|
 | `UI-REQ-001` | The hub is drawn over the frozen game's last frame, dimmed; the game's frame itself is never modified. | P0 | Done | device test 2026-10-16 |
-| `UI-REQ-002` | Hub items (target): Resume Game, Save State, Load State, Settings, Quit Game, built from the complication registry. | P0 | Implemented (all five; hard-coded in `ui/hub.c` until the registry, CPL-REQ-001) | device test |
+| `UI-REQ-002` | Hub items (target): Resume Game, Save State, Load State, Settings, Quit Game, built from the complication registry. | P0 | Implemented (all five, from the complication registry) | device test |
 | `UI-REQ-003` | Unavailable items are shown disabled with a reason (e.g. Load State without states); they cannot be confirmed. | P0 | Done (greyed Load) | device test |
 | `UI-REQ-004` | Up/Down move the cursor with auto-repeat (400 ms delay, 100 ms interval); Enter confirms, Back goes one level up or closes; HOME closes from any level. | P0 | Partial (repeat, X/O fixed) | host test `keys_edges_and_repeat`, device |
 | `UI-REQ-005` | Enter/Back follow the system's button assignment (`sceImposeGetLanguageMode`); the hint bar shows the system's button pictures in the system order. | P0 | Implemented (drawn button symbols until the RCO pictures) | device test with the setting swapped (ARK VSH menu) |

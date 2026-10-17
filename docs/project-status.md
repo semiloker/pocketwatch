@@ -12,6 +12,7 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 | T1 (FAT freshness after a rollback) | **Passed** for a state saved through a real sleep; T1b (touch-and-go save) pending | [m3-menu-e3](research/m3-menu-e3.md#t1-device-protocol), [ADR-017](architecture/decisions.md#adr-017--state-files-are-written-after-the-capture) |
 | Native look (M4) | **Implemented, owner review pending**: XMB background and wave, ltn0, RCO icons and button pictures, clock/battery, the system language (7 translations + Ukrainian, ADR-018) | [ui](ui/README.md), [m4-native-icons](research/m4-native-icons.md) |
 | States on the card (E3) + state list (M5) | **Implemented and host-tested, device tests pending** | [states storage](subsystems/states-storage.md), [testing guide](testing.md#4-states-on-the-memory-stick) |
+| Complication framework (CPL) | **Implemented** 2026-10-17: the hub builds its rows from `complications/table.c` (System, States, Settings, debug card test); host-tested, device run of the refactored hub pending | [complications](subsystems/complications.md) |
 | Settings (CPL-REQ-006) | **Implemented, device tests pending**: Fast Save and Load, Clock and Battery, Language; `config.txt` | [complications](subsystems/complications.md), [testing guide](testing.md#settings) |
 | Guards (M3b) | **Implemented, device tests pending**: battery, USB, WLAN, highmem, Custom Home / PSPStates; redraw after a sleep | [game shell](subsystems/game-shell.md), [testing guide](testing.md#7-guards) |
 | Release preparation (M6) | **In progress**: release build switch, changelog rewritten, testing guide; compatibility matrix and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
@@ -22,9 +23,9 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
-2. **Dev, after the results:** fix what they show; then the complication registry (CPL-REQ-001),
-   the compatibility matrix (`docs/compat.md`) from the owner's ISOs, and the v0.1.0 tag. Release
-   build: 94 % of its PRX budget (RISK-005).
+2. **Dev, after the results:** fix what they show; then the compatibility matrix
+   (`docs/compat.md`) from the owner's ISOs and the v0.1.0 tag. Release build: 94 % of its PRX
+   budget (RISK-005).
 
 ## Blockers and open questions
 

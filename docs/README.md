@@ -32,7 +32,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | `SHL` | In-game shell (HOME, guards, Quit Game) | Partial | [subsystems/game-shell.md](subsystems/game-shell.md) |
 | `UI` | User interface | Partial (phase-1 menu) | [ui/README.md](ui/README.md) |
 | `GFX` | Rendering and native assets | Partial | [ui/rendering.md](ui/rendering.md) |
-| `CPL` | Complication framework | Planned | [subsystems/complications.md](subsystems/complications.md) |
+| `CPL` | Complication framework | Implemented (registry, System, States, Settings) | [subsystems/complications.md](subsystems/complications.md) |
 | `DBG` | Debug tooling | Done | [subsystems/debug-tooling.md](subsystems/debug-tooling.md) |
 | `BLD` | Build and verification | Done | [subsystems/build-and-verification.md](subsystems/build-and-verification.md) |
 | `VSH` | XMB integration | Planned (M7) | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |

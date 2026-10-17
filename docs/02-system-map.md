@@ -14,7 +14,7 @@ verified on the device), **Partial** (some requirements done), **Planned** (spec
 | `SHL` | In-game shell: trigger button, freeze for the menu, button masking, guards, Quit Game | Partial (freeze, masking Done; HOME, NOTE fallback, Quit implemented, device test pending; guards Planned) | [`plugin/src/shell/`](../plugin/src/shell/) | [game-shell](subsystems/game-shell.md) | SYS, UI |
 | `UI` | Interface: hub, state list, dialogs, theme, navigation, i18n | Partial (hub concept A, dialogs implemented; state list, i18n Planned) | [`plugin/src/ui/`](../plugin/src/ui/) | [ui](ui/README.md) | GFX, SHL, CPL |
 | `GFX` | Rendering and native assets: overlay framebuffer, drawing, PGF fonts, RCO/GIM icons | Partial (framebuffer Done; PGF text, shapes implemented; RCO Planned) | [`plugin/src/gfx/`](../plugin/src/gfx/), `ui/fb.c`, `ui/draw.c`, `ui/shapes.c` | [rendering](ui/rendering.md) | SYS |
-| `CPL` | Complication framework: registry, items, lifecycle; System and Settings complications | Planned | — | [complications](subsystems/complications.md) | SYS, UI |
+| `CPL` | Complication framework: registry, items, lifecycle; System and Settings complications | Implemented (2026-10-17) | `complications/registry.c`, `table.c` | [complications](subsystems/complications.md) | SYS, UI |
 | `DBG` | Debug tooling: combos, dumps, benchmark, diagnostics | Done | [`plugin/src/debug/`](../plugin/src/debug/) | [debug-tooling](subsystems/debug-tooling.md) | STE, SYS |
 | `BLD` | Build and verification: scripts, NID/size checks, host tests, CI, format, docs check | Done | [`scripts/`](../scripts/), [`tools/`](../tools/), [`tests/`](../tests/) | [build-and-verification](subsystems/build-and-verification.md) | — |
 | `VSH` | XMB integration: continue a game from a state (M7) | Planned | — | [vsh-integration](subsystems/vsh-integration.md) | STS |
@@ -79,7 +79,7 @@ the follow-up is tracked in [project status](project-status.md).
 
 | # | Finding | Why it matters | Proposed action |
 |---|---|---|---|
-| A1 | No complication boundary: the menu hard-codes Save/Load/Resume and calls the engine. | Owner priority 3 (extension); every new feature would edit `menu.c`. | Introduce CPL with the hub rewrite (M3/M4). |
+| A1 | No complication boundary: the menu hard-codes Save/Load/Resume and calls the engine. | Owner priority 3 (extension); every new feature would edit `menu.c`. | Resolved 2026-10-17: the hub iterates `complications/table.c`. |
 | A2 | No arbiter for Memory Stick writes while a state is held; only the log is deferred. | A game save or any plugin write between save and load may corrupt the FAT after a rollback. | T1 test decides the policy; then a `pw_ms_write_allowed()` gate in SYS used by every writer ([STS](subsystems/states-storage.md)). |
 | A3 | Two engine drivers (menu thread, debug probe) coordinate only through `pw_menu_is_open()`. | A probe save racing a menu save would double-freeze. | Done 2026-10-16: engine busy flag (`STE-REQ-011`), `pw_shell_is_open()`. |
 | A4 | `sfo.c`, `savedata_hash.c` and `png.c` are linked into the PRX but have no caller (spike S2b code was removed). | A few KB of the size budget. **VERIFIED** by grep. | Keep (M5 needs them) but count them in the budget; or link only when STS lands. |

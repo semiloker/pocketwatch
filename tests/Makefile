@@ -22,11 +22,12 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/ui/shapes.c $(SRC_DIR)/ui/icons.c $(SRC_DIR)/ui/views.c \
               $(SRC_DIR)/gfx/pgf.c $(SRC_DIR)/gfx/text.c $(SRC_DIR)/gfx/rlz.c $(SRC_DIR)/gfx/rco.c \
               $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
+              $(SRC_DIR)/complications/registry.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
 OBJS = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(TEST_SRCS) $(PLUGIN_SRCS)))
-vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications/states $(SRC_DIR)/ui $(SRC_DIR)/gfx $(LIB_DIR)
+vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications $(SRC_DIR)/complications/states $(SRC_DIR)/ui $(SRC_DIR)/gfx $(LIB_DIR)
 
 all: run
 

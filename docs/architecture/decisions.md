@@ -117,7 +117,7 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-009 — Complication framework and UI layering
 
-- **Status:** Accepted (2026-10-04), **not implemented** (the phase-1 menu hard-codes its items)
+- **Status:** Accepted (2026-10-04), implemented 2026-10-17 (`complications/`, the hub iterates the table)
 - **Decision:** Each complication is a folder exposing
   `pw_complication { id, title, icon, init, build_items, on_menu_open, on_menu_close, shutdown }`,
   registered in one table; the hub builds its items from the registry. UI layering: theme
