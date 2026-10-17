@@ -30,7 +30,7 @@ PW_TEST(volume_change_shows_glides_and_fades)
     pw_volume_reset(&v);
     pw_volume_update(&v, 10, 0, 0, 0);
     CHECK_EQ(pw_volume_update(&v, 11, 0, 0, 16), 1);
-    CHECK(v.alpha > 0 && v.alpha < 256); /* fading in */
+    CHECK(v.alpha > 0 && v.alpha < 256);             /* fading in */
     CHECK(v.shown > 10 * 256 && v.shown < 11 * 256); /* on its way */
     CHECK(v.flash > 0 && v.up == 1);
     run(&v, 11, 0, 32, 400);

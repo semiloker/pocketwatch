@@ -29,7 +29,11 @@ The project's full workflow is imported here and applies to every session:
 - Build + static checks (Linux/WSL): `bash scripts/build.sh` then `bash scripts/build.sh check`
 - Host unit tests: `make -C tests` (in WSL; `make -C tests run T=<name filter>`)
 - Format: `bash scripts/format.sh` (`--check` in CI; clang-format 18.1.8, set `CLANG_FORMAT` to override)
-- Deploy to the USB-connected PSP: `scripts\deploy.cmd` (add `-Enable` to register in `PLUGINS.TXT`)
+- Deploy to the USB-connected PSP: `scripts\deploy.cmd` (add `-Enable` to register in `PLUGINS.TXT`,
+  `-EnableXmb` for the XMB plugin). `vsh/` builds `pocketwatch_xmb.prx` (user mode, VSH runlevel,
+  Settings -> Pocketwatch, ADR-021; log `seplugins/pocketwatch/xmb.log`); build.sh builds both. Its
+  patches must keep the chaining rule: find every site before the previous start-module handler
+  (ARK-4's xmbctrl) runs, wrap what is there after it. A broken VSH plugin: hold START at boot.
 - Device test protocols for every feature: `docs/testing.md`.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save

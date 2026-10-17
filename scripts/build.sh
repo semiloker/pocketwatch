@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the Pocketwatch PRX with the PSPDEV toolchain.
+# Build the Pocketwatch PRX files (plugin/ for games, vsh/ for the XMB) with the PSPDEV toolchain.
 #
 #   scripts/build.sh [make-target] [version] [debug: 1 = debug build (default), 0 = release]
 #
@@ -24,3 +24,9 @@ if [ -n "${3:-}" ]; then
 fi
 
 make -C "$ROOT/plugin" "${args[@]}"
+# The XMB plugin (vsh/): the same target and version; it has no debug profile.
+vargs=("${1:-all}")
+if [ -n "${2:-}" ]; then
+    vargs+=("VERSION=$2")
+fi
+make -C "$ROOT/vsh" "${vargs[@]}"

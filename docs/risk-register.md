@@ -24,6 +24,7 @@ risk; close it with the evidence.
 | [RISK-015](#risk-015--sleep-or-usb-while-the-menu-is-open) | Sleep or USB while the menu is open | M | M | Open |
 | [RISK-016](#risk-016--a-game-that-does-not-survive-the-saves-sleep) | A game that does not survive the save's sleep | M | H | Open |
 | [RISK-017](#risk-017--arks-exit-combo-fired-by-another-plugin-during-a-save) | ARK's exit combo fired by another plugin during a save | L | H | Open |
+| [RISK-018](#risk-018--the-xmb-plugin-stops-the-xmb-from-starting) | The XMB plugin stops the XMB from starting | L | M | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -159,4 +160,15 @@ risk; close it with the evidence.
 - **Likelihood L** (four buttons held on purpose during a save) / **Impact H** (a reboot in the
   middle of the suspend sequence).
 - **Mitigation:** none possible from outside ARK; the testing guide (SH1) checks the common case.
+
+## RISK-018 — The XMB plugin stops the XMB from starting
+
+- **Description:** `pocketwatch_xmb.prx` patches `vsh_module` and `sysconf_plugin` as they start
+  (ADR-021). A wrong site on a firmware or ARK-4 build other than the one the patterns come from,
+  or a plugin that patches the same sites differently, could crash the XMB.
+- **Likelihood L** (the patterns are ARK-4's own for 6.60/6.61; any missing or inconsistent site
+  leaves the module untouched) / **Impact M** (the XMB does not start until the plugin is off; no
+  data is touched).
+- **Mitigation:** the checks above; `xmb.log`; recovery by holding START at boot (ARK-4 loads no
+  plugins) and removing the `VSH` line; installed only with `deploy -EnableXmb`.
 

@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Area code | `VSH` |
-| Status | In progress (M7): variant B chosen ([ADR-020](../architecture/decisions.md#adr-020--continue-from-a-state-through-the-games-options-menu)); the GAME side (VSH-REQ-003) implemented 2026-10-17, device test V1 pending; the XMB side not started; depends on the cross-boot load (T3/T6, not yet run on the device) |
-| Code | GAME side: `continue.txt` in [`states_ui.c`](../../plugin/src/complications/states/states_ui.c), the start-up hook in [`shell.c`](../../plugin/src/shell/shell.c); XMB side: — (a VSH-runlevel PRX under `vsh/`) |
+| Status | In progress (M7): variant B chosen ([ADR-020](../architecture/decisions.md#adr-020--continue-from-a-state-through-the-games-options-menu)); the GAME side (VSH-REQ-003) implemented 2026-10-17, device test V1 pending; the XMB plugin exists for the Settings entry (VSH-REQ-006, [ADR-021](../architecture/decisions.md#adr-021--the-xmb-entry-is-a-user-mode-vsh-plugin-chained-after-ark-4s-xmbctrl), device test X1 pending), the game's △ menu entry not started; depends on the cross-boot load (T3/T6, not yet run on the device) |
+| Code | GAME side: `continue.txt` in [`states_ui.c`](../../plugin/src/complications/states/states_ui.c), the start-up hook in [`shell.c`](../../plugin/src/shell/shell.c); XMB plugin: [`vsh/`](../../vsh/) (`pocketwatch_xmb.prx`, VSH runlevel, user mode): [`xmb.c`](../../vsh/src/xmb.c) the patches, [`xsettings.c`](../../vsh/src/xsettings.c) the rows over the game side's `core/config.c` and `ui/i18n.c` |
 
 ## A. Overview
 
@@ -23,7 +23,7 @@
 | `VSH-REQ-003` | The GAME-side plugin loads the requested state automatically once the game runs; a refusal falls back to a normal boot with a message. | P2 | Implemented (device test pending): `continue.txt` (below), the complications' start-up hook | testing guide V1, `registry_finds_a_pending_startup` |
 | `VSH-REQ-004` | XMB icons and texts come from the firmware's own resources ([rendering](../ui/rendering.md)). | P2 | Planned | owner review |
 | `VSH-REQ-005` | Nothing breaks ARK-4's own XMB additions (xmbctrl's "Custom Firmware Settings" and its plugin manager). | P2 | Planned | device test with ARK's menus |
-| `VSH-REQ-006` | The XMB has a "Pocketwatch" entry under Settings that opens the plugin's settings (style, fast save and load, clock and battery, language) as the XMB's own option list, saved to the same `config.txt` the game side reads (owner request 2026-10-17). | P2 | Planned (research: ARK-4 xmbctrl's "Custom Firmware Settings" mechanism) | device test |
+| `VSH-REQ-006` | The XMB has a "Pocketwatch" entry under Settings that opens the plugin's settings (style, fast save and load, clock and battery, language) as the XMB's own option list, saved to the same `config.txt` the game side reads (owner request 2026-10-17). | P2 | Implemented (builds, `make check`; device test X1 pending): the item after System Settings, its page is System Settings' with our rows (§C2) | testing guide X1 |
 
 ## C. Research (2026-10-17)
 
@@ -54,6 +54,39 @@ same path as Load State (guards, store load with progress, `pw_store_arm`, rollb
 check), without the confirmation. A guard or a failed load shows its message and the game goes on
 from its start. While a system dialog is up or the PSP has just resumed it retries for up to 30 s,
 then drops the request (logged).
+
+### C2. The Settings entry (2026-10-17, VSH-REQ-006)
+
+How ARK-4 shows "Custom Firmware Settings" (VERIFIED: `extras/modules/xmbctrl/main.c`,
+GPL-3.0-or-later): its start-module handler patches `vsh_module` as it starts - the call of
+`AddVshItem` (pattern `0x00063100`, +12) to add items next to a known one, two calls of
+`ExecuteAction` (`0x3A14000F` -108, `0x8E050038` +4) to turn its item's action into the System
+Settings page's, the call of the module unloader (`0xAC520124` +4) so that page loads anew, and the
+`scePafGetText` import stub for the item's name; then `sysconf_plugin_module` as it starts - the
+page's init function in its table (`0xAFBF0060`... -20, then the word holding it), the call of
+`GetSysconfItem` (`0x2C620012` -16), the registry calls the rows read and write (`0x01202821` +8 and
++44), the import stubs of `PAF_Resource_GetPageNodeByID` (the values list of a row is the RCO page
+`page_psp_config_umd_autoboot`, rewritten in place) and `ResolveRefWString` (a value whose text is
+marked `0xDEAD` is a pointer to UTF-8), and the "fiji" string that locates the page's row list.
+
+What Pocketwatch adds ([ADR-021](../architecture/decisions.md#adr-021--the-xmb-entry-is-a-user-mode-vsh-plugin-chained-after-ark-4s-xmbctrl)):
+ARK-4 loads xmbctrl before any plugin and calls the newest start-module handler first, each handler
+calling the one before (VERIFIED: `core/systemctrl/src/loadercore.c` `loadXmbControl` then
+`LoadPlugins`; `modulemanager.c` `prologue_module_hook`; `sctrl_hen.c` - the handler runs in
+kernel mode, at the kernel alias of its address). So Pocketwatch's handler finds every site first,
+calls the previous handler (xmbctrl patches), then points each site at its own function, which
+calls what the site called after xmbctrl: xmbctrl's function, or the firmware's when xmbctrl is
+absent. It takes the first match of each pattern, as xmbctrl does (its patch counter equals its
+number of patterns); a module where a site is missing, is not a call, or where sites disagree is
+left untouched and `seplugins/pocketwatch/xmb.log` says which. The item goes right after System
+Settings with its icon; Pocketwatch's action argument (0x1500) is turned into System Settings' own
+before xmbctrl sees it, so xmbctrl takes it for System Settings. INFERRED, to be shown by test X1:
+the patterns hold on the owner's 6.61 (they are ARK-4's for 6.60/6.61); the Settings column and the
+page take a fifth plugin item as they take xmbctrl's.
+
+Recovery: holding START while the PSP boots makes ARK-4 load no plugins (VERIFIED:
+`exitgame.c` `checkControllerInput`, `plugin.c` `LoadPlugins`); then remove the `VSH` line from
+`seplugins/PLUGINS.TXT` over USB.
 
 ## D. Variants (owner chose B, 2026-10-17)
 

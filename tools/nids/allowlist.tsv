@@ -15,3 +15,7 @@ IoFileMgrForKernel	0x6D08A871	sceIoUnassign	assumed	used with this NID by ARK-4 
 IoFileMgrForKernel	0xACE946E8	sceIoGetstat	assumed	used with this NID by ARK-4 core (22 calls)
 IoFileMgrForKernel	0xF27A9C51	sceIoRemove	assumed	used by ARK-4 core (compat/pentazemin LflashFatfmt.c, vshctrl) with the pre-6.x NID; IoFileMgrForKernel randomizes only the entries in ark4_660.tsv
 IoFileMgrForKernel	0x1117C65F	sceIoRmdir	assumed	used by ARK-4 core (compat/pentazemin LflashFatfmt.c) with the pre-6.x NID
+scePaf	0x3874A5F8	scePafGetText	assumed	XMB plugin (vsh/): ARK-4's xmbctrl imports it with this NID on 6.60/6.61 (extras/modules/xmbctrl/stub.S); used only to find the same import in vsh_module and sysconf_plugin
+scePaf	0x50DCB767	PAF_Resource_GetPageNodeByID	assumed	XMB plugin: as scePafGetText (xmbctrl stub.S)
+scePaf	0x64A31513	PAF_Resource_ResolveRefWString	assumed	XMB plugin: as scePafGetText (xmbctrl stub.S)
+scePaf	0x5E909060	sce_paf_private_malloc	assumed	XMB plugin: the 6.60 NID itself - ARK-4's table maps the old 0x48BB05D5 to it (tools/nids/ark4_660.tsv); xmbctrl imports it so

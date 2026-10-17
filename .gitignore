@@ -4,6 +4,8 @@
 *.elf
 *.prx
 plugin/exports.c
+vsh/exports.c
+vsh/build/
 plugin/.version
 plugin/.buildflags
 dist/

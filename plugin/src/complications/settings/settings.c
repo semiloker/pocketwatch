@@ -13,6 +13,7 @@
 #include "ui/i18n.h"
 #include "ui/icons.h"
 #include "ui/lang.h"
+#include "ui/langnames.h"
 #include "complications/complication.h"
 #include "ui/views.h"
 
@@ -21,22 +22,7 @@ enum { SET_STYLE, SET_FAST, SET_STATUS, SET_LANGUAGE, SET_COUNT };
 static const int g_style_names[PW_STYLE_COUNT] = {PW_S_STYLE_XMB, PW_S_STYLE_MODERN,
                                                   PW_S_STYLE_MINIMAL};
 
-/* Each language under its own name, as the system's language setting lists them. */
-static const struct {
-    const char *code, *name;
-} g_langs[] = {
-    {0, 0}, /* the system's: PW_S_SYSTEM_LANGUAGE */
-    {"en", "English"},
-    {"fr", "Français"},
-    {"es", "Español"},
-    {"de", "Deutsch"},
-    {"it", "Italiano"},
-    {"nl", "Nederlands"},
-    {"pt", "Português"},
-    {"ru", "Русский"},
-    {"uk", "Українська"},
-};
-#define LANGS ((int)(sizeof(g_langs) / sizeof(g_langs[0])))
+#define LANGS pw_lang_name_count
 
 static void config_path(char *out, unsigned int cap)
 {
@@ -58,17 +44,12 @@ static void settings_init(void)
 
 static int language_index(void)
 {
-    const char *code = pw_lang_chosen();
-
-    for (int i = 1; code && i < LANGS; i++)
-        if (strcmp(code, g_langs[i].code) == 0)
-            return i;
-    return 0;
+    return pw_lang_name_index(pw_lang_chosen());
 }
 
 static const char *language_name(int i)
 {
-    return i == 0 ? pw_tr(PW_S_SYSTEM_LANGUAGE) : g_langs[i].name;
+    return i == 0 ? pw_tr(PW_S_SYSTEM_LANGUAGE) : pw_lang_names[i].name;
 }
 
 typedef struct {
@@ -168,14 +149,14 @@ static void settings_screen(pw_ui *ui)
                     changed = 1;
                 }
             } else if (sel == SET_LANGUAGE) {
-                const char *names[LANGS];
+                const char *names[16];
                 int k;
 
                 for (int i = 0; i < LANGS; i++)
                     names[i] = language_name(i);
                 k = pick(ui, &s, sel, names, LANGS, language_index());
                 if (k >= 0 && k != language_index())
-                    lang_failed |= pw_lang_choose(g_langs[k].code) < 0;
+                    lang_failed |= pw_lang_choose(pw_lang_names[k].code) < 0;
             } else {
                 const char *names[2] = {pw_tr(PW_S_ON), pw_tr(PW_S_OFF)};
                 int *v = sel == SET_FAST ? &cfg->fast : &cfg->status;

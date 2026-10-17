@@ -36,7 +36,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | `CPL` | Complication framework | Implemented (registry, System, States, Settings) | [subsystems/complications.md](subsystems/complications.md) |
 | `DBG` | Debug tooling | Done | [subsystems/debug-tooling.md](subsystems/debug-tooling.md) |
 | `BLD` | Build and verification | Done | [subsystems/build-and-verification.md](subsystems/build-and-verification.md) |
-| `VSH` | XMB integration | In progress (M7, ADR-020): GAME-side start-up load implemented, XMB side planned | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |
+| `VSH` | XMB integration | In progress (M7, ADR-020/021): the XMB plugin with the Settings entry and the GAME-side start-up load implemented (device tests X1, V1 pending); the game's △ menu entry planned | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |
 | `FW` | Independent firmware feasibility | Research | [firmware/independent-firmware-feasibility.md](firmware/independent-firmware-feasibility.md) |
 
 UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual references](ui/references.md), [customization architecture](ui/customization.md),

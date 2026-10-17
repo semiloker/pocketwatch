@@ -17,15 +17,15 @@
 #define PW_VOLUME_FLASH_MS  250 /* the step that just changed glows this long */
 
 typedef struct {
-    int known;              /* a first reading was taken (it shows nothing) */
-    int active;             /* on the screen or fading */
-    int level, muted;       /* the system's values now */
-    int shown;              /* the drawn level in 1/256 steps, gliding to level */
-    int alpha;              /* 0-256 */
-    int flash;              /* 0-256: just changed */
-    int up;                 /* the last change went up */
-    unsigned int t_change;  /* ms of the last change or press */
-    unsigned int t_last;    /* ms of the last update */
+    int known;             /* a first reading was taken (it shows nothing) */
+    int active;            /* on the screen or fading */
+    int level, muted;      /* the system's values now */
+    int shown;             /* the drawn level in 1/256 steps, gliding to level */
+    int alpha;             /* 0-256 */
+    int flash;             /* 0-256: just changed */
+    int up;                /* the last change went up */
+    unsigned int t_change; /* ms of the last change or press */
+    unsigned int t_last;   /* ms of the last update */
 } pw_volume;
 
 void pw_volume_reset(pw_volume *v); /* the next reading is the first again */

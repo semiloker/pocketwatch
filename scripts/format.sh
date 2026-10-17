@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLANG_FORMAT="${CLANG_FORMAT:-clang-format}"
 
 cd "$ROOT"
-mapfile -t files < <(git ls-files 'plugin/src/*.c' 'plugin/src/*.h' 'tests/*.c' 'tests/*.h')
+mapfile -t files < <(git ls-files 'plugin/src/*.c' 'plugin/src/*.h' 'vsh/src/*.c' 'vsh/src/*.h' 'tests/*.c' 'tests/*.h')
 
 if [ "${1:-}" = "--check" ]; then
     "$CLANG_FORMAT" --dry-run --Werror "${files[@]}"

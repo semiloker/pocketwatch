@@ -7,6 +7,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Settings → Pocketwatch in the XMB: the plugin's settings (style, fast save and load, clock and
+  battery, language) in the XMB's own option list, from a second, small XMB plugin
+  (`pocketwatch_xmb.prx`) that works alongside ARK-4's own XMB additions.
 - A volume bar over the menu in each style: the level glides to the new value and the bar fades
   out after the last change (the system's own bar does not show over the menu).
 - ARK-4's exit combos cannot fire in the middle of a save or load: Pocketwatch reads the buttons

@@ -143,6 +143,17 @@ output.
 | T5b | Deploy another build (`scripts\build.cmd -Release`, then `scripts\deploy.cmd`), start the game, load a slot saved with the debug build. | "...was saved with another setup."; log `engine: adopt: saved in another setup: build ... prx .../...`. Deploy the debug build again. |
 | T5c | Start a different game. | Its lists show none of the first game's slots. |
 
+### Pocketwatch in the XMB's Settings (VSH-REQ-006)
+
+Install with `scripts\deploy.cmd -EnableXmb` (adds `VSH, ms0:/seplugins/pocketwatch/pocketwatch_xmb.prx, on`
+to PLUGINS.TXT). If the XMB does not come up: turn the PSP off, hold START while turning it on (ARK-4
+then loads no plugins), connect USB and remove that line.
+
+| ID | Do | Expect |
+|---|---|---|
+| X1 | Restart the PSP. XMB → Settings: find "Pocketwatch" right after System Settings; open it. Change Style to Modern, Fast Save and Load to Off, Language to another one; back out. Open System Settings, then ARK's Custom Firmware Settings. | "Pocketwatch" with System Settings' icon; its page lists Style / Fast Save and Load / Clock and Battery / Language with the XMB's own value popup. System Settings and ARK's pages look as before. In a game the hub has the chosen style; `seplugins/pocketwatch/config.txt` shows the values. Send `seplugins/pocketwatch/xmb.log` (lines `xmb: vsh_module patched ...`, `xmb: item added ...`, `xmb: sysconf_plugin patched`). |
+| X1b | If X1 shows no item: send `xmb.log` (it says which site was missing). | - |
+
 ### Continue from a state at the game's start (M7, GAME side)
 
 The XMB entry does not exist yet; this tests the half that loads the state.

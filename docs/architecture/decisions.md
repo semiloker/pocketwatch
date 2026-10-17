@@ -269,3 +269,26 @@ decision was taken; the evidence column links the research behind it.
   `vsh_module` call sites, and a VSH crash needs ARK's recovery menu to undo (RISK register at
   implementation). The complication initialisers now use designated fields.
 
+## ADR-021 — The XMB entry is a user-mode VSH plugin chained after ARK-4's xmbctrl
+
+- **Status:** Accepted (2026-10-17), on the owner's request ("add a button in the XMB, in the
+  Settings section or elsewhere, to configure the plugin").
+- **Context:** the plugin's settings could only be changed in a game (hub → Settings). The XMB's
+  native way to show settings is a Settings page; ARK-4's xmbctrl already adds "Custom Firmware
+  Settings" by patching `vsh_module` and `sysconf_plugin` (GPL-3.0-or-later, so its mechanism and
+  patterns can be reused with attribution). Both are user modules, so the hooks must live in user
+  memory: a second PRX, separate from the kernel game plugin.
+- **Decision:** `vsh/` builds `pocketwatch_xmb.prx` (VSH runlevel, user mode, no newlib, ~32 KB)
+  that adds "Pocketwatch" after System Settings and fills System Settings' page with our four rows
+  (the XMB's own option list), saving to `config.txt` / `language.txt` with the game side's own
+  `core/config.c` and `ui/i18n.c` compiled again. Every patched site is located before xmbctrl's
+  handler and wrapped after it (vsh-integration §C2), so xmbctrl keeps working and is not
+  required. Any missing or inconsistent site leaves that module unpatched.
+- **Alternatives considered:** a homebrew app in Game → Memory Stick (not in Settings, our own
+  renderer, a reboot to open it); an item in xmbctrl's own CFW Settings list (xmbctrl reads a
+  fixed table, no way in); patching before xmbctrl (its handler would overwrite our call sites
+  with calls of the firmware's functions and bypass ours).
+- **Consequences:** a second file to deploy and a `VSH` line in PLUGINS.TXT (`scripts\deploy.cmd
+  -EnableXmb`); a crash in the XMB would need the START-at-boot recovery; the same chained hooks
+  are the base for the game's △ menu entry (ADR-020). Device behaviour is unverified until X1.
+
