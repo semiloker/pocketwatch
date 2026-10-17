@@ -417,11 +417,16 @@ int pw_store_load(int slot, pw_store_progress cb, void *ctx)
                g->iso);
         return PW_STORE_E_OTHER_GAME;
     }
-    pw_engine_env_now(&now);
+    /* Checked before the state in RAM is dropped, against what a load would have. */
+    if ((ret = pw_engine_env_for_load(&now)) < 0)
+        return ret == PW_ENGINE_BUSY ? ret : PW_STORE_E_OTHER_SETUP;
     if (strncmp(h.build, PW_ENGINE_BUILD, sizeof(h.build)) != 0 ||
-        memcmp(&h.env, &now, sizeof(now)) != 0) { /* before the state in RAM is dropped */
-        pw_log("store: slot %d was saved in another setup (build %s, %08X/%08X)", slot + 1, h.build,
-               h.env.build, now.build);
+        memcmp(&h.env, &now, sizeof(now)) != 0) {
+        char who[48];
+
+        stbsp_snprintf(who, sizeof(who), "store: slot %d saved in another setup", slot + 1);
+        pw_log("%s (build %s)", who, h.build);
+        pw_engine_env_log(who, &h.env, &now);
         return PW_STORE_E_OTHER_SETUP;
     }
     if ((ret = pw_engine_import(&parts)) < 0)

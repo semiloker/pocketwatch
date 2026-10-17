@@ -53,6 +53,17 @@ with Pocketwatch off in PLUGINS.TXT (testing guide SH2). Also: the hub opened la
 opens on the press, the slot count is kept, each open is timed, H16) and a volume bar was asked
 for (UI-REQ-016, H15). Next asked: a Pocketwatch entry in the XMB's settings (VSH-REQ-006).
 
+Fifth run (2026-10-17, build d2579ea, [log](research/logs/2026-10-17-t3-refused-castlevania.log)) -
+the first T3: Castlevania saved to slot 1 (real sleep, 8.0 s, 18.5 MB on the card), Quit Game,
+started again, Load State → slot 1: refused, "saved with another setup". Cause (VERIFIED by
+reading the code, regression test `store_loads_a_state_from_an_earlier_boot`): the store compared
+the saved environment with `pw_engine_env_now` before the engine had staged, so the P9 block
+address and the P8/ME partition fields were 0 in a fresh boot - every state from an earlier boot
+was refused; same-boot loads passed because the save had staged. Fixed: `pw_engine_env_for_load`
+measures and stages first; a refusal now logs each differing field. T3 must be run again. Also:
+the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms of it is
+`screen`: the frame capture and the backdrop). No `xmb.log` appeared (see X1).
+
 ## Next actions (in order)
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the

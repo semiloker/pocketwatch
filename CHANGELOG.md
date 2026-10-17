@@ -55,6 +55,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- A state saved before Quit Game or a power-off was always refused as "saved with another
+  setup": the check ran before the engine had measured its memory, so it compared with zeros.
 - The menu ran at a very low frame rate: the background wave and the drawn shapes cost far less
   per frame now, and every movement runs by time instead of by frame.
 - The state lists, dialogs and the option panel animate (glide, grow, fade, slide) like the

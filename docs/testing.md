@@ -136,7 +136,7 @@ output.
 
 | ID | Do | Expect |
 |---|---|---|
-| T3 | Save to slot 1. Quit Game. Start the same game again, get to gameplay (or the title screen). Hub → Load State → slot 1 → Yes. | "Loading... %" then the saved moment, sound and controls working. Log: `engine: adopted a state from the Memory Stick`, `engine: ---- LOAD`, `store: after the load: the card is current`. |
+| T3 | (Failed on 2026-10-17 with "another setup" because of a bug, fixed: run it again.) Save to slot 1. Quit Game. Start the same game again, get to gameplay (or the title screen). Hub → Load State → slot 1 → Yes. | "Loading... %" then the saved moment, sound and controls working. Log: `engine: adopted a state from the Memory Stick`, `engine: ---- LOAD`, `store: after the load: the card is current`. |
 | T3b | Right after T3: play 1 minute, make a save **in the game**, then Quit Game. | The XMB comes back normally (no black screen: this checks the IPL seeds after a cross-boot load). Start the game again: its own save loads. |
 | T6 | Save to slot 2. Turn the PSP fully off (hold POWER up 3 s). Later (an hour, a day) turn it on, start the game, load slot 2. | As T3. Note how long the PSP was off. |
 | T5a | Rename the game's ISO on the PC (keep the extension), start it from the new name, load slot 1. | "This state cannot be loaded." / "This state belongs to another game or ISO."; nothing else happens. Rename it back. |

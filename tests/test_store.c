@@ -31,8 +31,9 @@ static struct {
     unsigned char *arena;
     unsigned int arena_used;
     unsigned int env_build;
+    int staged; /* the real engine's staging block (and partition sizes) exist */
     unsigned int user[PW_ENGINE_USER_WORDS];
-    int imports, adopts;
+    int imports, adopts, env_logs;
 } E;
 
 const pw_game *pw_game_get(void)
@@ -95,11 +96,29 @@ void pw_engine_set_env_extra(int index, unsigned int value)
     (void)value;
 }
 
+/* Like the real one, part of the environment exists only once the engine has staged: a fresh
+   boot that compared before staging refused every state from the card (device, 2026-10-17). */
 void pw_engine_env_now(pw_engine_env *e)
 {
     memset(e, 0, sizeof(*e));
     e->layout = 0x1234;
     e->build = E.env_build;
+    e->stage = E.staged ? 0x8A000000u : 0;
+}
+
+int pw_engine_env_for_load(pw_engine_env *e)
+{
+    E.staged = 1;
+    pw_engine_env_now(e);
+    return 0;
+}
+
+void pw_engine_env_log(const char *who, const pw_engine_env *saved, const pw_engine_env *now)
+{
+    (void)who;
+    (void)saved;
+    (void)now;
+    E.env_logs++;
 }
 
 int pw_engine_export(pw_state_parts *p)
@@ -180,7 +199,8 @@ static void setup(void)
     if (E.arena == NULL)
         E.arena = malloc(FAKE_ARENA);
     E.has = 0;
-    E.imports = E.adopts = 0;
+    E.staged = 0;
+    E.imports = E.adopts = E.env_logs = 0;
     E.env_build = 7;
     CHECK_EQ(pw_store_init(), 0);
 }
@@ -194,6 +214,7 @@ static void make_state(unsigned int seed)
         E.arena[i] = (unsigned char)((i >> 3) ^ seed);
     seal();
     E.has = 1;
+    E.staged = 1; /* a state in RAM sits in the staging block */
 }
 
 static unsigned int frame[272 * 512];
@@ -453,5 +474,21 @@ PW_TEST(store_refuses_writes_while_the_card_is_blocked)
     CHECK_EQ(pw_store_delete(0), PW_STORE_E_BLOCKED);
     pw_log_set_card_blocked(0);
     CHECK_EQ(pw_store_delete(0), 0);
+    pw_store_shutdown();
+}
+
+PW_TEST(store_loads_a_state_from_an_earlier_boot)
+{
+    setup();
+    make_state(9);
+    CHECK_EQ(pw_store_save(0, NULL, 0, NULL, NULL), 0);
+    /* Quit Game and start again: nothing in RAM, nothing staged */
+    pw_store_shutdown();
+    E.has = 0;
+    E.staged = 0;
+    CHECK_EQ(pw_store_init(), 0);
+    CHECK_EQ(pw_store_load(0, NULL, NULL), 0);
+    CHECK_EQ(E.imports, 1);
+    CHECK_EQ(E.env_logs, 0);
     pw_store_shutdown();
 }

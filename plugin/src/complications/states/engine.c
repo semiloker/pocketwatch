@@ -1762,6 +1762,34 @@ void pw_engine_env_now(pw_engine_env *e)
         e->extra[i] = g_env_extra[i];
 }
 
+int pw_engine_env_for_load(pw_engine_env *e)
+{
+    if (g_busy)
+        return PW_ENGINE_BUSY;
+    if (check_environment() < 0 || ensure_staging() < 0)
+        return -1;
+    pw_engine_env_now(e);
+    return 0;
+}
+
+void pw_engine_env_log(const char *who, const pw_engine_env *saved, const pw_engine_env *now)
+{
+    static const char *const names[] = {"layout", "build",   "header",  "model",   "devkit",
+                                        "P9",     "P8 base", "P8 size", "ME base", "ME size",
+                                        "assets", "prx crc", "sfo",     "extra3"};
+    const unsigned int *a = (const unsigned int *)saved, *b = (const unsigned int *)now;
+    int n = (int)(sizeof(*saved) / sizeof(unsigned int)), any = 0;
+
+    for (int i = 0; i < n; i++)
+        if (a[i] != b[i]) {
+            pw_log("%s: %s saved %08X, now %08X", who,
+                   i < (int)(sizeof(names) / sizeof(names[0])) ? names[i] : "?", a[i], b[i]);
+            any = 1;
+        }
+    if (!any)
+        pw_log("%s: the setup is the same", who);
+}
+
 int pw_engine_export(pw_state_parts *p)
 {
     StateHeader *h = g_hdr;
@@ -1810,13 +1838,7 @@ int pw_engine_adopt(void)
         return PW_ENGINE_E_LAYOUT;
     }
     if (memcmp(&h->env, &now, sizeof(now)) != 0) {
-        pw_log(
-            "engine: adopt: saved in another setup: build %08X/%08X model %u/%u devkit %08X/%08X "
-            "P9 %08X/%08X P8 %08X+%X/%08X+%X ME %08X+%X/%08X+%X assets %08X/%08X prx %08X/%08X",
-            h->env.build, now.build, h->env.model, now.model, h->env.devkit, now.devkit,
-            h->env.stage, now.stage, h->env.p8_base, h->env.p8_size, now.p8_base, now.p8_size,
-            h->env.me_base, h->env.me_size, now.me_base, now.me_size, h->env.extra[0], now.extra[0],
-            h->env.extra[1], now.extra[1]);
+        pw_engine_env_log("engine: adopt: saved in another setup", &h->env, &now);
         h->magic = 0;
         return PW_ENGINE_E_ENV;
     }

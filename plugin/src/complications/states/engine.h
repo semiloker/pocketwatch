@@ -99,6 +99,18 @@ int pw_engine_adopt(void);
 void pw_engine_env_now(pw_engine_env *e);
 void pw_engine_set_env_extra(int index, unsigned int value);
 
+/*
+ * The environment a state from the card is checked against. Part of it exists only once the
+ * engine has measured the partitions and set up its staging block (both happen at a save, and at
+ * a load only inside pw_engine_import): this does both first, without dropping a state held in
+ * RAM. Comparing pw_engine_env_now before that refused every state from an earlier boot (device,
+ * 2026-10-17). Returns 0, PW_ENGINE_BUSY, or < 0 when the setup is not supported or P9 is full.
+ */
+int pw_engine_env_for_load(pw_engine_env *e);
+
+/* Log each field in which two environments differ, prefixed by who. */
+void pw_engine_env_log(const char *who, const pw_engine_env *saved, const pw_engine_env *now);
+
 /* Debug experiments (see engine.c): rollback mechanics alone; save + immediate frozen load. */
 int pw_engine_selftest(void);
 int pw_engine_save_load_frozen(void);
