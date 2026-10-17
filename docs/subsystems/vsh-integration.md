@@ -3,17 +3,16 @@
 | | |
 |---|---|
 | Area code | `VSH` |
-| Status | Planned (M7); depends on [states storage](states-storage.md) |
-| Code | — (future separate VSH-runlevel PRX under `vsh/`) |
+| Status | Planned (M7); research done 2026-10-17 (§C), variant OPEN QUESTION (owner); depends on the cross-boot load (T3/T6, not yet run on the device) |
+| Code | — (a VSH-runlevel PRX under `vsh/`, and a start-up hook in the GAME plugin) |
 
 ## A. Overview
 
 - **Purpose:** continue a game from a state straight from the XMB, so a state behaves like a
   native "resume" point.
-- **Current state:** none. States already appear natively in Game → Saved Data Utility once M5
-  writes SAVEDATA folders (no VSH code needed for browsing and deleting, **VERIFIED** by S2b).
-- **Target state:** a "Save States" entry or a per-game option that launches the ISO and loads the
-  chosen state after the first frames.
+- **Current state:** states already appear natively in Game → Saved Data Utility (M5): browse,
+  see the picture, delete. Continuing needs the game started and HOME → Load State.
+- **Target state:** pick a state from the XMB and the game starts in that moment.
 
 ## B. Requirements
 
@@ -23,26 +22,58 @@
 | `VSH-REQ-002` | The game is launched the same way the XMB launches it (same path, same ARK boot config), so the E3 fingerprint matches. | P2 | Planned | device test |
 | `VSH-REQ-003` | The GAME-side plugin loads the requested state automatically once the game runs; a refusal falls back to a normal boot with a message. | P2 | Planned | device test |
 | `VSH-REQ-004` | XMB icons and texts come from the firmware's own resources ([rendering](../ui/rendering.md)). | P2 | Planned | owner review |
+| `VSH-REQ-005` | Nothing breaks ARK-4's own XMB additions (xmbctrl's "Custom Firmware Settings" and its plugin manager). | P2 | Planned | device test with ARK's menus |
 
-## C. Architecture and integration
+## C. Research (2026-10-17)
 
-PROPOSED: a VSH PRX adds the entry (ARK-4 xmbctrl-style hooks, GPL-3.0) and passes the slot to the
-GAME plugin through a file or ARK's reboot config; the GAME plugin waits for the first stable
-frames, then runs a normal E3 load.
+**Launching an ISO the XMB's way** (VERIFIED, ARK-4 `core/vshctrl/vshpatch.c`, `umdLoadExec`):
+vshctrl hooks the XMB's `sceVshBridge` launch imports (NIDs `0x63E69956`, `0x0C0D5913`) and,
+for an ISO on a PSP-3000, sets `sctrlSESetBootConfFileIndex(MODE_UMD)` /
+`sctrlSESetUmdFile` and calls `sctrlKernelLoadExecVSHWithApitype(0x120, "disc0:/PSP_GAME/SYSDIR/EBOOT.BIN", param)`
+(Inferno mounts the ISO; apitype 0x123/0x125 are the PSP Go's ms0/ef0 paths). A VSH plugin can
+repeat exactly that with the ISO path from the state's STATE.BIN, which keeps the fingerprint
+(path, size) identical.
 
-## D. User experience and visual design
+**Adding XMB items** (VERIFIED, ARK-4 `extras/modules/xmbctrl/main.c`, GPL-3.0 like ours):
+xmbctrl scans `vsh_module`'s code for instruction patterns and patches the calls to
+`AddVshItem` (insert items into a category), `ExecuteAction` (what an item does),
+`OnXmbPush` / `OnXmbContextMenu` (sub-menus, the △ menu) and `scePafGetText` (the items' texts).
+The patterns are 6.61-specific; ARK's own xmbctrl already holds those call sites on the owner's
+PSP, so a second patcher must find the already-patched call and chain to it (feasible: the call
+target can be read back from the instruction, `U_EXTRACT_CALL`), and must load after it.
 
-Native XMB item with the state's ICON0/PIC1; options menu (△) like the Saved Data Utility.
+**Handing the slot to the game:** a small request file next to the PRX
+(`seplugins/pocketwatch/continue.txt`: disc ID, slot, ISO path) written by the VSH side and
+deleted by the GAME side when it starts; the GAME side waits until the game runs (its exit
+callback registered, as the HOME takeover does) and then performs the same load as Load State
+(store load, rollback, marker check).
+
+## D. Variants (OPEN QUESTION: the owner chooses)
+
+| Variant | What the user does | Work and risk |
+|---|---|---|
+| **A. "Save States" item in the Game category** | XMB → Game → Save States → a list of every game's states (our state list, drawn by us over the XMB) → Enter starts the game in that state | new VSH PRX: item injection chained after ARK's xmbctrl, a renderer in the VSH, the launch; highest effort, the most native |
+| **B. △ on a game's icon → "Continue from Save State"** | the game's own options menu gets an entry; then a slot list | the same hooks (context menu); needs the selected game's path from the XMB's item; less screen work than A |
+| **C. No XMB code: a prompt at the game's start** | start the game as usual; when it has states, Pocketwatch asks over its first frames "Continue from Save State N?" (✕/○) | only the GAME side; lowest risk; not inside the XMB |
+
+The GAME-side start-up load (VSH-REQ-003) is shared by all three.
 
 ## E. Reference material
 
-ARK-4 xmbctrl ([ARK-4](https://github.com/PSP-Archive/ARK-4), GPL-3.0): adding XMB items.
+| Reference | Source | What to learn | Adopt / adapt / avoid | License |
+|---|---|---|---|---|
+| ARK-4 vshctrl | `core/vshctrl/vshpatch.c` | the ISO launch path and boot config | adopt (same calls) | GPL-3.0 |
+| ARK-4 xmbctrl | `extras/modules/xmbctrl/main.c` | item injection, actions, texts | adapt, chained after it | GPL-3.0 |
 
 ## F. Implementation plan
 
-After M6. RESEARCH REQUIRED: how to launch an ISO from a VSH plugin with the same boot config as the
-XMB; how to hand the slot to the GAME runlevel.
+1. Owner: run T3/T6 (load after a restart / power-off): M7 is only useful when they pass.
+2. Owner: choose A, B or C.
+3. GAME side: the start-up load from a request (all variants).
+4. VSH side for A/B: chained hooks, the list, the launch; device tests with ARK's menus.
 
 ## G-H. Testing, risks
 
-To be written when M7 starts. Depends on [RISK-006](../risk-register.md#risk-006--cross-boot-load-into-a-different-environment).
+Device tests per variant, written with the implementation. Risks:
+[RISK-006](../risk-register.md#risk-006--cross-boot-load-into-a-different-environment); for A/B a
+VSH crash on boot (recovery: ARK's recovery menu / disabling the plugin in PLUGINS.TXT from a PC).
