@@ -132,6 +132,8 @@ Run after section 5, with the backup at hand.
    run `/f`; send the output and the log, then restore the backup.
 5. The full gate (T7) is 100 cycles on five games with the check every 10 cycles; run it when the
    10-cycle run is clean.
+6. For every other game you play, fill its row in the [compatibility matrix](compat.md) (save to
+   a slot, load, load after a restart, ten loads, a save during sound or a menu, Quit Game).
 
 ## 7. Guards
 

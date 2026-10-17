@@ -21,6 +21,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | [glossary.md](glossary.md) | terms and abbreviations |
 | [backlog.md](backlog.md) | understood but unscheduled work (speed S1-S7) |
 | [testing.md](testing.md) | step-by-step device tests for every feature, what to send back |
+| [compat.md](compat.md) | the owner's 22 games and how States behaves in each (v0.1.0 gate) |
 
 ## Subsystems
 

@@ -15,7 +15,7 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 | Complication framework (CPL) | **Implemented** 2026-10-17: the hub builds its rows from `complications/table.c` (System, States, Settings, debug card test); host-tested, device run of the refactored hub pending | [complications](subsystems/complications.md) |
 | Settings (CPL-REQ-006) | **Implemented, device tests pending**: Fast Save and Load, Clock and Battery, Language; `config.txt` | [complications](subsystems/complications.md), [testing guide](testing.md#settings) |
 | Guards (M3b) | **Implemented, device tests pending**: battery, USB, WLAN, highmem, Custom Home / PSPStates; redraw after a sleep | [game shell](subsystems/game-shell.md), [testing guide](testing.md#7-guards) |
-| Release preparation (M6) | **In progress**: release build switch, changelog rewritten, testing guide; compatibility matrix and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
+| Release preparation (M6) | **In progress**: release build switch, changelog rewritten, testing guide, [compatibility matrix](compat.md) prepared for the owner's 22 games; filling it and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
 | Documentation system (DOC-1) | **Done** (kept current with every change) | this file |
 | Firmware feasibility | **Research** — FW-G1 partial | [feasibility study](firmware/independent-firmware-feasibility.md) |
 
@@ -23,8 +23,8 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
-2. **Dev, after the results:** fix what they show; then the compatibility matrix
-   (`docs/compat.md`) from the owner's ISOs and the v0.1.0 tag. Release build: 94 % of its PRX
+2. **Dev, after the results:** fix what they show; then, with the [compatibility
+   matrix](compat.md) filled and the 100-cycle gate passed, the v0.1.0 tag. Release build: 94 % of its PRX
    budget (RISK-005).
 
 ## Blockers and open questions
