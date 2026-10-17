@@ -5,6 +5,7 @@
 #include <pspkernel.h>
 #include <psploadcore.h>
 
+#include "core/config.h"
 #include "complications/states/engine.h"
 #include "core/freeze.h"
 #include "core/log.h"
@@ -143,7 +144,7 @@ static void open_hub(void)
     char clock[24];
     int month = pw_sysinfo_clock(clock, sizeof(clock));
 
-    if (pw_fb_open(pw_assets_sky(pw_sysinfo_sky_index(month))) < 0) {
+    if (pw_fb_open(pw_assets_sky(pw_sysinfo_sky_index(month)), pw_config_get()->style) < 0) {
         pw_log("shell: no memory for the screen");
         sceCtrlSetButtonMasks(GAME_BUTTONS, 0);
         g_open = 0;

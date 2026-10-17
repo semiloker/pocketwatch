@@ -17,6 +17,7 @@ enum {
     PW_ICON_LOAD,   /* tray, arrow up */
     PW_ICON_QUIT,   /* power symbol */
     PW_ICON_CARD,   /* Memory Stick (debug test) */
+    PW_ICON_GEAR,   /* Settings */
 };
 
 /* Draw icon centred at (cx, cy), fitting a size x size box, coverage scaled by alpha (0-256). */

@@ -50,6 +50,17 @@ void pw_icon_draw(pw_canvas *c, int icon, int cx, int cy, int size, unsigned int
         pw_shape_ring(c, x, y + S(3), S(21), t, S(9), color, alpha);
         pw_shape_capsule(c, x, y + S(-26), x, y + S(-2), t / 2, color, alpha);
         break;
+    case PW_ICON_GEAR: { /* a ring with eight teeth and a hole */
+        static const signed char teeth[8][4] = {
+            {0, -19, 0, -26},   {0, 19, 0, 26},       {-19, 0, -26, 0}, {19, 0, 26, 0},
+            {13, -13, 18, -18}, {-13, -13, -18, -18}, {13, 13, 18, 18}, {-13, 13, -18, 18}};
+
+        pw_shape_ring(c, x, y, S(15), S(8), 0, color, alpha);
+        for (int i = 0; i < 8; i++)
+            pw_shape_capsule(c, x + S(teeth[i][0]), y + S(teeth[i][1]), x + S(teeth[i][2]),
+                             y + S(teeth[i][3]), S(4), color, alpha);
+        break;
+    }
     case PW_ICON_CARD:
         pw_shape_rrect(c, x + S(-16), y + S(-26), S(32), S(52), S(5), t, color, alpha);
         pw_shape_capsule(c, x + S(-6), y + S(-16), x + S(6), y + S(-16), t / 2, color, alpha);

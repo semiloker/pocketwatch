@@ -24,6 +24,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Savestate engine: freeze the game, pack game RAM / eDRAM / scratchpad with LZ4, capture the
   kernel during a suspend (touch-and-go after the first save of a session), roll it back on load
   with the flash drivers rebuilt and the IPL's seeds put back.
+- Two more looks for the menu, chosen in Settings → Style: Modern (the game blurred behind round
+  buttons, cards and switches) and Minimal (only text over the darkened game); Classic (XMB)
+  stays the default.
 - Settings in the hub: fast save and load on or off, the clock and battery corner, the language
   (any of the translations, or the system's); kept in `config.txt` / `language.txt`.
 - The interface in the system language: French, Spanish, German, Italian, Dutch, Portuguese and

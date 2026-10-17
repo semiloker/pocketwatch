@@ -39,7 +39,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | `VSH` | XMB integration | Planned (M7) | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |
 | `FW` | Independent firmware feasibility | Research | [firmware/independent-firmware-feasibility.md](firmware/independent-firmware-feasibility.md) |
 
-UI companions: [visual references](ui/references.md), [customization architecture](ui/customization.md),
+UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual references](ui/references.md), [customization architecture](ui/customization.md),
 [concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md).
 
 ## Research notes

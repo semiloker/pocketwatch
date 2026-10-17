@@ -4,6 +4,7 @@
 #include "complications/registry.h"
 #include "complications/states/engine.h"
 #include "core/config.h"
+#include "core/game.h"
 #include "core/sysinfo.h"
 #include "gfx/assets.h"
 #include "ui/fb.h"
@@ -43,6 +44,7 @@ static void build(hub *h)
     h->cat.icon = pw_assets_art(PW_ART_CAT_GAME);
     h->cat.fallback = PW_ICON_WATCH;
     h->cat.label = pw_tr(PW_S_GAME);
+    h->cat.subtitle = pw_game_get()->title[0] ? pw_game_get()->title : 0;
     h->count = pw_registry_collect(pw_complications, pw_complication_count, h->entries, ROWS_MAX);
     for (int i = 0; i < h->count; i++) {
         const pw_cpl_item *it = &h->entries[i].item;

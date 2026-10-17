@@ -17,8 +17,11 @@
 #define PW_FB_H      272
 #define PW_FB_STRIDE 512
 
-int pw_fb_open(const pw_image *sky); /* allocate, capture the game's frame, paint the sky */
-void pw_fb_close(void);              /* give the display back to the game and free everything */
+/* Allocate, capture the game's frame, make the backdrop for style (ui/ui.h PW_STYLE_*; sky is the
+   XMB style's month picture). */
+int pw_fb_open(const pw_image *sky, int style);
+void pw_fb_set_style(int style); /* a new look from the Settings screen: the backdrop again */
+void pw_fb_close(void);          /* give the display back to the game and free everything */
 
 /*
  * The canvas to draw the next frame on: the sky with the wave at t_ms, mixed with the game's

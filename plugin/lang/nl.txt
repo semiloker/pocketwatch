@@ -65,3 +65,7 @@ system_language = Systeemtaal
 on = Aan
 off = Uit
 settings_not_saved = De instellingen kunnen niet worden opgeslagen.
+set_style = Stijl
+style_xmb = Klassiek (XMB)
+style_modern = Modern
+style_minimal = Minimaal

@@ -13,8 +13,12 @@
 #define PW_C_GREY  PW_RGB(192, 192, 192)
 #define PW_C_BLACK PW_RGB(0, 0, 0)
 
+/* The menu's look (docs/ui/styles.md): the XMB's own (default) or one of Pocketwatch's styles. */
+enum { PW_STYLE_XMB, PW_STYLE_MODERN, PW_STYLE_MINIMAL, PW_STYLE_COUNT };
+
 typedef struct {
     pw_font *title, *body;
+    int style;                /* PW_STYLE_* */
     const pw_image *btn[4];   /* the system's X O triangle square pictures, or NULL (drawn) */
     int cross_enter;          /* 1: X confirms (outside Japan), 0: O confirms */
     unsigned int enter, back; /* the matching PSP_CTRL_* bits */

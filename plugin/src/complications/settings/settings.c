@@ -15,7 +15,10 @@
 #include "complications/complication.h"
 #include "ui/views.h"
 
-enum { SET_FAST, SET_STATUS, SET_LANGUAGE, SET_COUNT };
+enum { SET_STYLE, SET_FAST, SET_STATUS, SET_LANGUAGE, SET_COUNT };
+
+static const int g_style_names[PW_STYLE_COUNT] = {PW_S_STYLE_XMB, PW_S_STYLE_MODERN,
+                                                  PW_S_STYLE_MINIMAL};
 
 /* Each language under its own name, as the system's language setting lists them. */
 static const struct {
@@ -77,14 +80,21 @@ static void build(screen *s)
     const pw_config *cfg = pw_config_get();
 
     s->cat.icon = pw_assets_art(PW_ART_SETTINGS);
-    s->cat.fallback = PW_ICON_WATCH;
+    s->cat.fallback = PW_ICON_GEAR;
     s->cat.label = pw_tr(PW_S_SETTINGS);
+    s->cat.subtitle = 0;
+    s->rows[SET_STYLE].label = pw_tr(PW_S_SET_STYLE);
+    s->rows[SET_STYLE].value = pw_tr(g_style_names[cfg->style % PW_STYLE_COUNT]);
+    s->rows[SET_STYLE].toggle = -1;
     s->rows[SET_FAST].label = pw_tr(PW_S_SET_FAST);
     s->rows[SET_FAST].value = pw_tr(cfg->fast ? PW_S_ON : PW_S_OFF);
+    s->rows[SET_FAST].toggle = cfg->fast != 0;
     s->rows[SET_STATUS].label = pw_tr(PW_S_SET_STATUS);
     s->rows[SET_STATUS].value = pw_tr(cfg->status ? PW_S_ON : PW_S_OFF);
+    s->rows[SET_STATUS].toggle = cfg->status != 0;
     s->rows[SET_LANGUAGE].label = pw_tr(PW_S_SET_LANGUAGE);
     s->rows[SET_LANGUAGE].value = language_name(language_index());
+    s->rows[SET_LANGUAGE].toggle = -1;
 }
 
 /* The option popup: returns the chosen index, or -1 for Back. */
@@ -113,8 +123,9 @@ static int pick(pw_ui *ui, const screen *s, int sel, const char *const *options,
 }
 
 /*
- * The hub's Settings screen (CPL-REQ-006): fast save and load, the clock and battery corner, the
- * language. Changes apply at once; config.txt / language.txt are written when it closes.
+ * The hub's Settings screen (CPL-REQ-006): the style, fast save and load, the clock and battery
+ * corner, the language. Changes apply at once; config.txt / language.txt are written when it
+ * closes.
  */
 static void settings_screen(pw_ui *ui)
 {
@@ -140,7 +151,20 @@ static void settings_screen(pw_ui *ui)
         } else if (ev & (ui->back | PSP_CTRL_HOME)) {
             break;
         } else if (ev & ui->enter) {
-            if (sel == SET_LANGUAGE) {
+            if (sel == SET_STYLE) {
+                const char *names[PW_STYLE_COUNT];
+                int k;
+
+                for (int i = 0; i < PW_STYLE_COUNT; i++)
+                    names[i] = pw_tr(g_style_names[i]);
+                k = pick(ui, &s, sel, names, PW_STYLE_COUNT, cfg->style % PW_STYLE_COUNT);
+                if (k >= 0 && k != cfg->style) {
+                    cfg->style = k;
+                    ui->style = k;      /* this very screen redraws in the new style */
+                    pw_fb_set_style(k); /* and on its backdrop */
+                    changed = 1;
+                }
+            } else if (sel == SET_LANGUAGE) {
                 const char *names[LANGS];
                 int k;
 
@@ -172,7 +196,8 @@ static void settings_screen(pw_ui *ui)
         if (pw_log_card_blocked() || pw_config_save(path) < 0)
             lang_failed = 1;
         else
-            pw_log("settings: fast %d, status %d saved", cfg->fast, cfg->status);
+            pw_log("settings: style %d, fast %d, status %d saved", cfg->style, cfg->fast,
+                   cfg->status);
     }
     if (lang_failed)
         pw_dialog_message(ui, pw_tr(PW_S_SETTINGS_NOT_SAVED), pw_tr(PW_S_E_IO));
@@ -185,7 +210,7 @@ static int settings_items(pw_cpl_item *out, int max)
         return 0;
     out[0].art = PW_ART_SETTINGS;
     out[0].glow = PW_ART_SETTINGS_GLOW;
-    out[0].fallback = PW_ICON_WATCH;
+    out[0].fallback = PW_ICON_GEAR;
     out[0].title = pw_tr(PW_S_SETTINGS);
     out[0].enabled = 1;
     return 1;

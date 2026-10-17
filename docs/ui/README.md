@@ -60,6 +60,7 @@ in the system font and language.
 | `UI-REQ-012` | A status corner shows the clock and battery like the XMB (optional, setting). | P2 | Implemented (Settings → Clock and Battery) | testing guide ST2 |
 | `UI-REQ-013` | The cursor position is remembered while the game runs; the hub reopens on the last item. | P2 | Implemented | device test |
 | `UI-REQ-014` | When a native asset cannot be read, the hub still works with fallbacks (built-in 8x8 font, drawn shapes) and logs why. | P0 | Done (8x8 only today) | test with assets missing |
+| `UI-REQ-015` | Besides the native look (default), the menu offers the Modern and Minimal styles ([styles](styles.md)), switchable in Settings at once, every screen drawn in each. | P2 | Implemented (host previews) | testing guide ST5 |
 | `UI-NFR-001` | First frame ≤ 300 ms after the trigger; redraw only on change; every animation at the display rate (60 Hz) without dropped frames. | P1 | Planned (phase 1 unmeasured) | log timestamps, review |
 | `UI-NFR-002` | Memory: hub buffers and asset caches live in P11 (or P9 when no state is held) and are freed on close; ≤ 2 MB total; nothing large in P1. | P0 | Done for the framebuffer (1.6 MB in P11) | code, `make check` |
 | `UI-NFR-003` | Geometry within ±2 px and colours within ±8 per channel of the reference captures for equivalent screens. | P1 | Planned | side-by-side capture comparison |

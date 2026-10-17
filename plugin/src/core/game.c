@@ -7,6 +7,7 @@
 #include "complications/states/sfo.h"
 #include "core/game.h"
 #include "core/log.h"
+#include "core/mem.h"
 #include "core/platform.h"
 
 /* ARK-4 SystemCtrlForKernel (core/stubs/SystemCtrlForKernel.S): the mounted ISO's path. */
@@ -39,12 +40,19 @@ static void read_id(void)
 
 static void read_sfo(void)
 {
-    static unsigned char sfo[SFO_MAX];
-    int n = pw_file_read("disc0:/PSP_GAME/PARAM.SFO", sfo, sizeof(sfo));
+    pw_mem_block mem;
+    unsigned char *sfo;
     unsigned int off, len;
+    int n;
 
-    if (n <= 0)
+    if (pw_mem_alloc(&mem, "PwGameSfo", SFO_MAX) < 0)
         return;
+    sfo = mem.ptr;
+    n = pw_file_read("disc0:/PSP_GAME/PARAM.SFO", sfo, SFO_MAX);
+    if (n <= 0) {
+        pw_mem_free(&mem);
+        return;
+    }
     if (pw_sfo_find(sfo, (unsigned int)n, "TITLE", &off, &len) == 0) {
         if (len >= sizeof(g_game.title))
             len = sizeof(g_game.title) - 1;
@@ -53,6 +61,7 @@ static void read_sfo(void)
     }
     if (pw_sfo_find(sfo, (unsigned int)n, "PARENTAL_LEVEL", &off, &len) == 0 && len >= 4)
         g_game.parental = sfo[off] | (sfo[off + 1] << 8);
+    pw_mem_free(&mem);
 }
 
 void pw_game_init(void)

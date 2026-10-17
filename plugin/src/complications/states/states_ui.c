@@ -154,7 +154,8 @@ static int do_save(const pw_cpl_env *env)
     if (ret == PW_ENGINE_SAVED)
         clock_hm(g.saved_at, sizeof(g.saved_at));
     else
-        pw_dialog_message(env->ui, ret == PW_ENGINE_BUSY ? pw_tr(PW_S_BUSY) : pw_tr(PW_S_SAVE_FAILED),
+        pw_dialog_message(env->ui,
+                          ret == PW_ENGINE_BUSY ? pw_tr(PW_S_BUSY) : pw_tr(PW_S_SAVE_FAILED),
                           pw_tr(PW_S_DETAILS_LOG));
     return ret;
 }
@@ -232,8 +233,8 @@ static int states_run(int index, const pw_cpl_env *env)
     return PW_CPL_STAY;
 }
 
-const pw_complication pw_cpl_states = {"states",     states_init,  states_shutdown, states_open,
-                                       states_items, states_run,   states_changed};
+const pw_complication pw_cpl_states = {"states",     states_init, states_shutdown, states_open,
+                                       states_items, states_run,  states_changed};
 
 #ifdef PW_DEBUG
 /* T1 (docs/research/m3-menu-e3.md): save, write a probe file, load, check it after the rollback. */

@@ -80,6 +80,10 @@ enum {
     PW_S_ON,
     PW_S_OFF,
     PW_S_SETTINGS_NOT_SAVED,
+    PW_S_SET_STYLE,
+    PW_S_STYLE_XMB,
+    PW_S_STYLE_MODERN,
+    PW_S_STYLE_MINIMAL,
     PW_S_COUNT
 };
 

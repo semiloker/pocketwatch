@@ -39,12 +39,12 @@ enum {
 
 typedef struct {
     const char *id;
-    void (*init)(void);                          /* plugin start, may do I/O; NULL: none */
-    void (*shutdown)(void);                      /* module_stop, no I/O; NULL: none */
-    void (*on_open)(void);                       /* the hub opens; NULL: none */
-    int (*items)(pw_cpl_item *out, int max);     /* its rows, in order; returns how many */
+    void (*init)(void);                           /* plugin start, may do I/O; NULL: none */
+    void (*shutdown)(void);                       /* module_stop, no I/O; NULL: none */
+    void (*on_open)(void);                        /* the hub opens; NULL: none */
+    int (*items)(pw_cpl_item *out, int max);      /* its rows, in order; returns how many */
     int (*run)(int index, const pw_cpl_env *env); /* Enter on its row `index`: PW_CPL_* */
-    int (*changed)(void);                        /* asked every second: 1 = rebuild; NULL: never */
+    int (*changed)(void);                         /* asked every second: 1 = rebuild; NULL: never */
 } pw_complication;
 
 #endif

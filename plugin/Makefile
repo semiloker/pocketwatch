@@ -20,6 +20,7 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/ui/draw.o src/ui/font8x8.o src/ui/input.o src/ui/shapes.o src/ui/icons.o \
          src/ui/views.o src/ui/fb.o src/ui/ui.o src/ui/dialog.o src/ui/hub.o src/ui/slots.o src/ui/i18n.o src/ui/lang.o \
          src/core/config.o src/complications/registry.o src/complications/table.o \
+         src/ui/backdrop.o src/ui/views_modern.o src/ui/views_minimal.o \
          src/complications/system/system.o src/complications/states/states_ui.o \
          src/complications/settings/settings.o \
          src/shell/shell.o src/shell/guard.o src/core/game.o src/complications/states/store.o \
@@ -34,16 +35,17 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Budgets enforced by `make check`; raise them deliberately, not by accident.
-# 160 KB / 176 KB loaded: LZ4 at -O2, the shell, the hub in the system's look (PGF, RLZ/RCO/GIM, the
-# XMB background), the debug probe, benchmark and card test (2026-10-16). Kernel RAM is shared with
-# other plugins and the game's own drivers (RISK-005): every increase must be deliberate.
-MAX_PRX_SIZE = 163840
+# MAX_MEM is what costs: the loaded sections incl. bss live in kernel RAM, shared with other plugins
+# and the game's own drivers (RISK-005). 176 KB since 2026-10-16. MAX_PRX_SIZE is only the file on
+# the card (code + data + relocations): 192 KB since the UI styles (2026-10-17), when kernel RAM
+# went down by moving 14 KB of buffers to P9.
+MAX_PRX_SIZE = 196608
 MAX_MEM      = 180224 # loaded sections incl. bss (16 KB log ring, glyph caches)
 # The debug profile (probe, benchmark, card test, the engine's verification and traces) is for test
 # runs only and gets 16 KB more of each (2026-10-17, RISK-005); the release budget above is the one
 # that matters for the owner's games.
 ifeq ($(DEBUG),1)
-MAX_PRX_SIZE = 180224
+MAX_PRX_SIZE = 212992
 MAX_MEM      = 196608
 endif
 

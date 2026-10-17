@@ -34,8 +34,9 @@ The project's full workflow is imported here and applies to every session:
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
   State / Load State / Settings / Quit Game; debug builds add Memory Stick Test = T1). Settings
-  (fast save and load, clock and battery, language) live in `seplugins/pocketwatch/config.txt` and
-  `language.txt`. Save/Load open a list of
+  (style, fast save and load, clock and battery, language) live in `seplugins/pocketwatch/config.txt` and
+  `language.txt`. Styles: Classic (XMB, default), Modern, Minimal (`docs/ui/styles.md`); every
+  `pw_view_*` must have all three (previews write `modern-` / `minimal-` PNGs too). Save/Load open a list of
   five slots per game (`ms0:/PSP/SAVEDATA/PW<DISCID><NN>/`, triangle deletes). Enter/Back follow the
   system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
   screen off, a short tap of NOTE opens the hub instead. The game is frozen and sees no buttons.

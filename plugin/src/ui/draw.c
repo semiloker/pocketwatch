@@ -231,3 +231,58 @@ void pw_draw_image_scaled(pw_canvas *c, const unsigned int *px, int w, int h, in
         }
     }
 }
+
+#define BLUR_LINE_MAX 512
+
+static void blur_line(unsigned int *p, int n, int step, int r, unsigned int *tmp)
+{
+    int w = 2 * r + 1, inv = 65536 / w, sr = 0, sg = 0, sb = 0;
+
+    for (int i = 0; i < n; i++)
+        tmp[i] = p[i * step];
+    for (int k = -r; k <= r; k++) {
+        unsigned int v = tmp[k < 0 ? 0 : k >= n ? n - 1 : k];
+
+        sr += (int)(v & 0xFF);
+        sg += (int)((v >> 8) & 0xFF);
+        sb += (int)((v >> 16) & 0xFF);
+    }
+    for (int i = 0; i < n; i++) {
+        int out = i - r, in = i + r + 1;
+        unsigned int vo = tmp[out < 0 ? 0 : out], vi = tmp[in >= n ? n - 1 : in];
+
+        p[i * step] = PW_RGB((sr * inv) >> 16, (sg * inv) >> 16, (sb * inv) >> 16);
+        sr += (int)(vi & 0xFF) - (int)(vo & 0xFF);
+        sg += (int)((vi >> 8) & 0xFF) - (int)((vo >> 8) & 0xFF);
+        sb += (int)((vi >> 16) & 0xFF) - (int)((vo >> 16) & 0xFF);
+    }
+}
+
+void pw_draw_blur(pw_canvas *c, int radius)
+{
+    unsigned int tmp[BLUR_LINE_MAX];
+
+    if (radius <= 0 || c->w > BLUR_LINE_MAX || c->h > BLUR_LINE_MAX)
+        return;
+    for (int pass = 0; pass < 2; pass++) {
+        for (int y = 0; y < c->h; y++)
+            blur_line(c->px + y * c->stride, c->w, 1, radius, tmp);
+        for (int x = 0; x < c->w; x++)
+            blur_line(c->px + x, c->h, c->stride, radius, tmp);
+    }
+}
+
+void pw_draw_darken(pw_canvas *c, int k)
+{
+    for (int y = 0; y < c->h; y++) {
+        unsigned int *row = c->px + y * c->stride;
+
+        for (int x = 0; x < c->w; x++) {
+            unsigned int p = row[x];
+
+            row[x] = PW_RGB(((p & 0xFF) * (unsigned int)k) >> 8,
+                            (((p >> 8) & 0xFF) * (unsigned int)k) >> 8,
+                            (((p >> 16) & 0xFF) * (unsigned int)k) >> 8);
+        }
+    }
+}

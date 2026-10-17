@@ -24,6 +24,7 @@ typedef struct {
     const pw_image *icon;
     int fallback;
     const char *label;
+    const char *subtitle; /* the game's title (the modern and minimal styles show it), or NULL */
 } pw_hub_cat;
 
 /* The corner: clock text, battery percent (-1: none), charging. */
@@ -51,6 +52,7 @@ void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const cha
    on a darker panel on the right, like the XMB's option popup. */
 typedef struct {
     const char *label, *value;
+    int toggle; /* -1: a value; 0/1: an off/on switch (drawn as one in the modern style) */
 } pw_setting_row;
 
 void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
@@ -69,5 +71,10 @@ void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const
                    int alpha);
 void pw_view_text_centered(pw_canvas *c, pw_font *f, int cx, int y, const char *s,
                            unsigned int color, int alpha);
+void pw_view_button(pw_canvas *c, const pw_ui *ui, int which, int cx, int cy, int alpha);
+
+/* Break text at spaces into lines no wider than max (out[n..cap-1]; the last takes the rest). */
+#define PW_VIEW_LINE_MAX 160
+int pw_view_wrap(pw_font *f, const char *s, int max, char (*out)[PW_VIEW_LINE_MAX], int n, int cap);
 
 #endif

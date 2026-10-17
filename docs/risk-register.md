@@ -64,8 +64,8 @@ risk; close it with the evidence.
   icons, text) and E3 grow the module.
 - **Mitigation:** size budgets in `make check` (PRX 160 KB, loaded 176 KB); every large buffer in
   P9/P11; translations as files (ADR-018). 2026-10-17: the debug profile got its own budget (176 KB / 192 KB,
-  test runs only); with Settings the release build is at 94 % of its PRX budget and 92 % of the
-  loaded one: the next large feature needs a deliberate decision.
+  test runs only). With the UI styles (ADR-019) the PRX file budget became 192 KB (it costs no RAM);
+  kernel RAM went down to 162 KB of 176 KB by moving the sky and SFO buffers to P9.
 
 ## RISK-006 — Cross-boot load into a different environment
 

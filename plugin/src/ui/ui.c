@@ -4,6 +4,7 @@
 #include <pspkernel.h>
 #include <psppower.h>
 
+#include "core/config.h"
 #include "gfx/assets.h"
 #include "ui/ui.h"
 
@@ -28,6 +29,7 @@ void pw_ui_init(pw_ui *ui)
     int lang = 1, button = 1;
 
     ui->title = pw_assets_font(PW_FONT_TITLE);
+    ui->style = pw_config_get()->style;
     ui->body = pw_assets_font(PW_FONT_BODY);
     ui->btn[0] = pw_assets_art(PW_ART_BTN_CROSS);
     ui->btn[1] = pw_assets_art(PW_ART_BTN_CIRCLE);

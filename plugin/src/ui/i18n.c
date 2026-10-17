@@ -74,6 +74,10 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_ON] = {"on", "On"},
     [PW_S_OFF] = {"off", "Off"},
     [PW_S_SETTINGS_NOT_SAVED] = {"settings_not_saved", "The settings could not be saved."},
+    [PW_S_SET_STYLE] = {"set_style", "Style"},
+    [PW_S_STYLE_XMB] = {"style_xmb", "Classic (XMB)"},
+    [PW_S_STYLE_MODERN] = {"style_modern", "Modern"},
+    [PW_S_STYLE_MINIMAL] = {"style_minimal", "Minimal"},
 };
 
 static const char *g_text[PW_S_COUNT]; /* NULL: English */

@@ -60,6 +60,7 @@ damaged, restore it from the backup.
 | ST2 | Settings → Clock and Battery → Off, back to the hub. | No clock or battery in the corner; On brings them back. |
 | ST3 | Settings → Language → Deutsch. Back to the hub. Then Settings → Language → System Language. | German at once (hub, lists, dialogs); `seplugins/pocketwatch/language.txt` contains `de`; System Language removes the file and returns to the system's language. |
 | ST4 | Back / HOME inside Settings and inside the option list. | Back closes the list without a change; HOME closes too. |
+| ST5 | Settings → Style → Modern, then Minimal, then Classic (XMB). In each: the hub, Save State list, Load State list, a dialog (Quit Game → No), Settings itself. | The screen changes at once. Modern: the game blurred behind, round buttons at the bottom with a white disc moving between them, cards and pill buttons. Minimal: the game darkened, only text in a centred column. After Quit and restart the chosen style stays. Note anything cut off, overlapping or slow (how long the hub takes to appear in Modern). |
 
 ## 3. Quit Game
 

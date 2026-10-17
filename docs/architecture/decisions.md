@@ -231,3 +231,21 @@ decision was taken; the evidence column links the research behind it.
   shipped file is complete and format-safe. Japanese, Korean and Chinese fall back to English until
   their system fonts are loaded.
 
+## ADR-019 — Optional UI styles next to the native look
+
+- **Status:** Accepted (2026-10-17), on the owner's request ("make more variants of UI like ps5
+  or modern ui, minimalistic").
+- **Context:** owner priority 1 is the native look (ADR-012, M4), and it stays the reference. The
+  owner also wants modern, minimal variants to choose from.
+- **Decision:** Classic (XMB) remains the default; Modern (a console control-centre style over the
+  blurred game) and Minimal (text only over the darkened game) are selectable in Settings → Style
+  and saved in `config.txt`. Each screen function dispatches to the style's file with the same
+  parameters, so the hub and the complications do not change ([styles](../ui/styles.md)). The
+  new styles use no Sony pictures beyond the font and the button symbols, and are not named after
+  any product.
+- **Alternatives considered:** a theme file of colours and sizes (too weak: the styles differ in
+  layout, not only in colours); separate builds per style (the owner could not switch on the PSP).
+- **Consequences:** +12 KB of code; kernel RAM did not grow (14 KB of buffers moved to P9 at the
+  same time); the PRX file budget was raised to 192 KB (RISK-005). Every new screen needs three
+  drawings, or falls back to the XMB one.
+

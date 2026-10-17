@@ -45,6 +45,12 @@ void pw_draw_image_scaled(pw_canvas *c, const unsigned int *px, int w, int h, in
 /* Linear mix of two whole canvases of the same size into dst: t 0 = a, 256 = b. */
 void pw_draw_lerp(pw_canvas *dst, const unsigned int *a, const unsigned int *b, int t);
 
+/* Soften the whole canvas: a box blur of the given radius across and down (twice ~ Gaussian). */
+void pw_draw_blur(pw_canvas *c, int radius);
+
+/* Scale every pixel's colour by k/256 (0 black .. 256 unchanged). */
+void pw_draw_darken(pw_canvas *c, int k);
+
 /*
  * Copy a frame in one of the PSP display formats (src_stride pixels per row) into the canvas,
  * scaled by bright (0-256; 256 = unchanged). Rows/columns beyond the canvas are ignored.

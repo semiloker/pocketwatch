@@ -12,7 +12,11 @@
 typedef struct {
     int fast;   /* touch-and-go suspends after the first save of a session (default 1) */
     int status; /* clock and battery in the hub's corner (default 1) */
+    int style;  /* the menu's look: 0 XMB (default), 1 modern, 2 minimal (ui/ui.h PW_STYLE_*) */
 } pw_config;
+
+/* The names config.txt uses for the styles, by index. */
+extern const char *const pw_config_style_names[3];
 
 void pw_config_defaults(pw_config *c);
 

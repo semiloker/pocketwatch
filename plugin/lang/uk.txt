@@ -67,3 +67,7 @@ system_language = Мова системи
 on = Увімк.
 off = Вимк.
 settings_not_saved = Не вдалося зберегти налаштування.
+set_style = Стиль
+style_xmb = Класичний (XMB)
+style_modern = Сучасний
+style_minimal = Мінімальний

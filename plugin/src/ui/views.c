@@ -5,6 +5,7 @@
 #include "ui/icons.h"
 #include "ui/shapes.h"
 #include "ui/i18n.h"
+#include "ui/views_style.h"
 
 #define SCREEN_W 480
 #define SCREEN_H 272
@@ -52,7 +53,7 @@ static void image_centered(pw_canvas *c, const pw_image *img, int cx, int cy, in
     pw_draw_image(c, img->px, img->w, img->h, cx - img->w / 2, cy - img->h / 2, alpha);
 }
 
-static void button(pw_canvas *c, const pw_ui *ui, int which, int cx, int cy, int alpha)
+void pw_view_button(pw_canvas *c, const pw_ui *ui, int which, int cx, int cy, int alpha)
 {
     const pw_image *img = ui->btn[which];
 
@@ -65,6 +66,14 @@ static void button(pw_canvas *c, const pw_ui *ui, int which, int cx, int cy, int
 void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const char *back_label,
                    int alpha)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_hints(c, ui, enter_label, back_label, alpha);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_hints(c, ui, enter_label, back_label, alpha);
+        return;
+    }
     /* The PSP always shows X left of O and swaps only what they mean. */
     const char *cross = ui->cross_enter ? enter_label : back_label;
     const char *circle = ui->cross_enter ? back_label : enter_label;
@@ -73,12 +82,12 @@ void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const
     int x = SCREEN_W / 2 - (wc + wo + (cross && circle ? 16 : 0)) / 2;
 
     if (cross) {
-        button(c, ui, PW_BTN_CROSS, x + 6, 256, alpha);
+        pw_view_button(c, ui, PW_BTN_CROSS, x + 6, 256, alpha);
         pw_text_draw(c, ui->body, x + 14, 260, cross, PW_C_TEXT, alpha, 1);
         x += wc + 16;
     }
     if (circle) {
-        button(c, ui, PW_BTN_CIRCLE, x + 6, 256, alpha);
+        pw_view_button(c, ui, PW_BTN_CIRCLE, x + 6, 256, alpha);
         pw_text_draw(c, ui->body, x + 14, 260, circle, PW_C_TEXT, alpha, 1);
     }
 }
@@ -86,6 +95,14 @@ void pw_view_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const
 void pw_view_status(pw_canvas *c, const pw_ui *ui, const char *clock, int battery, int charging,
                     int alpha)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_status(c, ui, clock, battery, charging, alpha);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_status(c, ui, clock, battery, charging, alpha);
+        return;
+    }
     /* the battery: an outlined cell with three bars, its tip on the right (XMB at 451..474) */
     if (battery >= 0) {
         int bars = battery > 66 ? 3 : battery > 33 ? 2 : battery > 5 ? 1 : 0;
@@ -131,6 +148,14 @@ static void row_icon(pw_canvas *c, const pw_hub_row *r, int y, int near, int alp
 void pw_view_hub(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat, const pw_hub_row *rows,
                  int count, int selpos, int fade)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_hub(c, ui, cat, rows, count, selpos, fade);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_hub(c, ui, cat, rows, count, selpos, fade);
+        return;
+    }
     if (cat->icon)
         image_centered(c, cat->icon, CAT_X, CAT_Y, fade);
     else
@@ -171,13 +196,13 @@ static void choice(pw_canvas *c, const pw_ui *ui, int x, const char *label, int 
 }
 
 #define DLG_LINES    4
-#define DLG_LINE_MAX 160
+#define DLG_LINE_MAX PW_VIEW_LINE_MAX
 
 /*
  * Break s at spaces into lines no wider than max, from out[n] on, at most up to line `cap`; the
  * last allowed line takes the rest (drawn with "..." if it is still too wide). Returns the new n.
  */
-static int wrap(pw_font *f, const char *s, int max, char (*out)[DLG_LINE_MAX], int n, int cap)
+int pw_view_wrap(pw_font *f, const char *s, int max, char (*out)[DLG_LINE_MAX], int n, int cap)
 {
     while (*s == ' ')
         s++;
@@ -231,13 +256,21 @@ static int wrap(pw_font *f, const char *s, int max, char (*out)[DLG_LINE_MAX], i
 void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, const char *line2,
                     int yes)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_dialog(c, ui, kind, line1, line2, yes);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_dialog(c, ui, kind, line1, line2, yes);
+        return;
+    }
     char lines[DLG_LINES][DLG_LINE_MAX];
     int max = RULE_X1 - RULE_X0 + 20, n, top;
 
     /* Like the system's dialogs, long text wraps; the band grows upwards for a third line. */
-    n = wrap(ui->title, line1, max, lines, 0, line2 ? 2 : 3);
+    n = pw_view_wrap(ui->title, line1, max, lines, 0, line2 ? 2 : 3);
     if (line2)
-        n = wrap(ui->title, line2, max, lines, n, n + 2 > DLG_LINES ? DLG_LINES : n + 2);
+        n = pw_view_wrap(ui->title, line2, max, lines, n, n + 2 > DLG_LINES ? DLG_LINES : n + 2);
     top = n > 2 ? RULE_TOP - (n - 2) * (TEXT_Y2 - TEXT_Y1) : RULE_TOP;
     pw_draw_fill(c, RULE_X0, top, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
     pw_draw_fill(c, RULE_X0, RULE_BOT, RULE_X1 - RULE_X0, 1, PW_C_TEXT);
@@ -258,6 +291,14 @@ void pw_view_dialog(pw_canvas *c, const pw_ui *ui, int kind, const char *line1, 
 
 void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int t_ms)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_busy(c, ui, text, t_ms);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_busy(c, ui, text, t_ms);
+        return;
+    }
     int cx = SCREEN_W / 2, cy = 120, head = (int)(t_ms / 90) % 8;
 
     for (int i = 0; i < 8; i++) { /* eight dots, the brightest one turning */
@@ -299,6 +340,14 @@ static void slot_icon(pw_canvas *c, const pw_slot_row *r, int x, int y, int w, i
 void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
                    const pw_slot_row *rows, int count, int sel, int can_delete)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_slots(c, ui, heading, game, rows, count, sel, can_delete);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_slots(c, ui, heading, game, rows, count, sel, can_delete);
+        return;
+    }
     const pw_slot_row *r = &rows[sel];
 
     for (int i = 0; i < count; i++) {
@@ -333,13 +382,13 @@ void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const cha
     if (can_delete && r->exists) {
         int w = pw_text_width(ui->body, pw_tr(PW_S_DELETE)), x = SCREEN_W - 10 - w;
 
-        button(c, ui, PW_BTN_TRIANGLE, x - 8, 256, 256);
+        pw_view_button(c, ui, PW_BTN_TRIANGLE, x - 8, 256, 256);
         pw_text_draw(c, ui->body, x, 260, pw_tr(PW_S_DELETE), PW_C_TEXT, 256, 1);
     }
 }
 
-#define SET_Y0     138 /* first option row (baseline), level with the hub's cursor row */
-#define SET_PITCH  38
+#define SET_Y0     128 /* first option row (baseline), under the category's label */
+#define SET_PITCH  30
 #define POPUP_X    296
 #define POPUP_TEXT 312
 
@@ -347,6 +396,14 @@ void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
                       const pw_setting_row *rows, int count, int sel, const char *const *options,
                       int n_options, int opt_sel)
 {
+    if (ui->style == PW_STYLE_MODERN) {
+        pw_modern_settings(c, ui, cat, rows, count, sel, options, n_options, opt_sel);
+        return;
+    }
+    if (ui->style == PW_STYLE_MINIMAL) {
+        pw_minimal_settings(c, ui, cat, rows, count, sel, options, n_options, opt_sel);
+        return;
+    }
     int editing = opt_sel >= 0 && options && n_options > 0;
 
     if (cat->icon)
@@ -359,13 +416,14 @@ void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
 
     for (int i = 0; i < count; i++) {
         int y = SET_Y0 + i * SET_PITCH, alpha = i == sel ? 256 : DIM_ALPHA;
-        int max = (editing ? POPUP_X - 8 : SCREEN_W - 6) - TEXT_X;
+        int vw = !editing && rows[i].value ? pw_text_width(ui->body, rows[i].value) : 0;
+        int max = (editing ? POPUP_X - 8 : SCREEN_W - 12 - (vw ? vw + 16 : 0)) - TEXT_X;
 
-        /* like a hub row: the name, and the current value under it */
+        /* the name, and the current value at the right edge (hidden while choosing) */
         pw_text_draw_fit(c, ui->title, TEXT_X, y, rows[i].label, max, PW_C_TEXT, alpha, 1);
-        if (rows[i].value)
-            pw_text_draw_fit(c, ui->body, TEXT_X, y + 17, rows[i].value, max, PW_C_TEXT,
-                             alpha * 3 / 4, 1);
+        if (vw)
+            pw_text_draw(c, ui->body, SCREEN_W - 12 - vw, y, rows[i].value, PW_C_TEXT,
+                         alpha * 3 / 4, 1);
     }
 
     if (editing) {

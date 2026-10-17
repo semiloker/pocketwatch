@@ -65,3 +65,7 @@ system_language = Systemsprache
 on = Ein
 off = Aus
 settings_not_saved = Die Einstellungen konnten nicht gespeichert werden.
+set_style = Stil
+style_xmb = Klassisch (XMB)
+style_modern = Modern
+style_minimal = Minimal

@@ -61,7 +61,7 @@ static pw_image g_art[PW_ART_COUNT];
 static int g_have_art[PW_ART_COUNT];
 static const unsigned char *g_sky_file;
 static unsigned int g_sky_len;
-static unsigned int g_sky_px[SKY_PIXELS];
+static unsigned int *g_sky_px; /* SKY_PIXELS, in the block (kernel RAM is scarce) */
 static pw_image g_sky;
 static int g_sky_index = -1;
 
@@ -192,7 +192,8 @@ static void load_sky(void)
         path = SKY_PATH2;
         size = pw_file_size(path);
     }
-    if (size <= 0 || size > FILE_MAX || (keep = take((unsigned int)size)) == 0 ||
+    if (size <= 0 || size > FILE_MAX || (g_sky_px = take(SKY_PIXELS * 4)) == 0 ||
+        (keep = take((unsigned int)size)) == 0 ||
         pw_file_read(path, keep, (unsigned int)size) != size) {
         pw_log("assets: no month sky picture: plain background");
         return;
@@ -238,6 +239,7 @@ void pw_assets_shutdown(void)
     fallback_fonts();
     memset(g_have_art, 0, sizeof(g_have_art));
     g_sky_file = 0;
+    g_sky_px = 0;
     g_sky_index = -1;
     g_base = 0;
     pw_mem_free(&g_block);
@@ -265,13 +267,13 @@ const pw_image *pw_assets_art(int id)
 
 const pw_image *pw_assets_sky(int index)
 {
-    if (g_sky_file == 0)
+    if (g_sky_file == 0 || g_sky_px == 0)
         return 0;
-    if (index != g_sky_index) {
-        if (pw_bmp_decode(g_sky_file, g_sky_len, index, g_sky_px, SKY_PIXELS, &g_sky) < 0 &&
-            pw_bmp_decode(g_sky_file, g_sky_len, 0, g_sky_px, SKY_PIXELS, &g_sky) < 0)
-            return 0;
-        g_sky_index = index;
-    }
+    /* Decoded every time (2,000 pixels): a state loaded in another boot brings back this module's
+       memory, but the block's contents are this boot's. */
+    if (pw_bmp_decode(g_sky_file, g_sky_len, index, g_sky_px, SKY_PIXELS, &g_sky) < 0 &&
+        pw_bmp_decode(g_sky_file, g_sky_len, 0, g_sky_px, SKY_PIXELS, &g_sky) < 0)
+        return 0;
+    g_sky_index = index;
     return &g_sky;
 }
