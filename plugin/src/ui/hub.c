@@ -224,3 +224,16 @@ int pw_hub_run(const pw_freeze_set *frozen)
     pw_cpuwatch_stop("hub");
     return result;
 }
+
+int pw_hub_startup(const pw_freeze_set *frozen, const pw_complication *cpl)
+{
+    static pw_ui ui;
+    pw_cpl_env env;
+    int ret;
+
+    pw_ui_init(&ui);
+    env.ui = &ui;
+    env.frozen = frozen;
+    ret = cpl->startup(&env);
+    return ret == PW_CPL_LOADED ? PW_HUB_LOADED : ret == PW_CPL_QUIT ? PW_HUB_QUIT : PW_HUB_CLOSE;
+}

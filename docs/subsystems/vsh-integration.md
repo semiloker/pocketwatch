@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Area code | `VSH` |
-| Status | Planned (M7); research done 2026-10-17 (§C), variant OPEN QUESTION (owner); depends on the cross-boot load (T3/T6, not yet run on the device) |
-| Code | — (a VSH-runlevel PRX under `vsh/`, and a start-up hook in the GAME plugin) |
+| Status | In progress (M7): variant B chosen ([ADR-020](../architecture/decisions.md#adr-020--continue-from-a-state-through-the-games-options-menu)); the GAME side (VSH-REQ-003) implemented 2026-10-17, device test V1 pending; the XMB side not started; depends on the cross-boot load (T3/T6, not yet run on the device) |
+| Code | GAME side: `continue.txt` in [`states_ui.c`](../../plugin/src/complications/states/states_ui.c), the start-up hook in [`shell.c`](../../plugin/src/shell/shell.c); XMB side: — (a VSH-runlevel PRX under `vsh/`) |
 
 ## A. Overview
 
@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | `VSH-REQ-001` | From the XMB the user can pick a state of a game and start the game from it. | P2 | Planned | device test |
 | `VSH-REQ-002` | The game is launched the same way the XMB launches it (same path, same ARK boot config), so the E3 fingerprint matches. | P2 | Planned | device test |
-| `VSH-REQ-003` | The GAME-side plugin loads the requested state automatically once the game runs; a refusal falls back to a normal boot with a message. | P2 | Planned | device test |
+| `VSH-REQ-003` | The GAME-side plugin loads the requested state automatically once the game runs; a refusal falls back to a normal boot with a message. | P2 | Implemented (device test pending): `continue.txt` (below), the complications' start-up hook | testing guide V1, `registry_finds_a_pending_startup` |
 | `VSH-REQ-004` | XMB icons and texts come from the firmware's own resources ([rendering](../ui/rendering.md)). | P2 | Planned | owner review |
 | `VSH-REQ-005` | Nothing breaks ARK-4's own XMB additions (xmbctrl's "Custom Firmware Settings" and its plugin manager). | P2 | Planned | device test with ARK's menus |
 
@@ -42,13 +42,19 @@ The patterns are 6.61-specific; ARK's own xmbctrl already holds those call sites
 PSP, so a second patcher must find the already-patched call and chain to it (feasible: the call
 target can be read back from the instruction, `U_EXTRACT_CALL`), and must load after it.
 
-**Handing the slot to the game:** a small request file next to the PRX
-(`seplugins/pocketwatch/continue.txt`: disc ID, slot, ISO path) written by the VSH side and
-deleted by the GAME side when it starts; the GAME side waits until the game runs (its exit
-callback registered, as the HOME takeover does) and then performs the same load as Load State
-(store load, rollback, marker check).
+**Handing the slot to the game** (implemented, GAME side): a request file next to the PRX,
+`seplugins/pocketwatch/continue.txt`, one line `<disc ID> <slot 1-5>` (`ULUS10277 2`; a dash in
+the ID is ignored). The XMB side will write it before the launch. The GAME side reads and deletes
+it at plugin start (it acts once, even if the game crashes) and ignores it for another game.
+Once the game runs (its exit callback registered, as for the HOME takeover, or the 30 s timeout)
+and 1.5 s later (INFERRED: games load their own modules right after registering the callback),
+the shell freezes the game, opens the screen and calls the States complication's `startup`: the
+same path as Load State (guards, store load with progress, `pw_store_arm`, rollback, marker
+check), without the confirmation. A guard or a failed load shows its message and the game goes on
+from its start. While a system dialog is up or the PSP has just resumed it retries for up to 30 s,
+then drops the request (logged).
 
-## D. Variants (OPEN QUESTION: the owner chooses)
+## D. Variants (owner chose B, 2026-10-17)
 
 | Variant | What the user does | Work and risk |
 |---|---|---|
@@ -68,9 +74,11 @@ The GAME-side start-up load (VSH-REQ-003) is shared by all three.
 ## F. Implementation plan
 
 1. Owner: run T3/T6 (load after a restart / power-off): M7 is only useful when they pass.
-2. Owner: choose A, B or C.
-3. GAME side: the start-up load from a request (all variants).
-4. VSH side for A/B: chained hooks, the list, the launch; device tests with ARK's menus.
+2. ~~Owner: choose A, B or C~~ — B ([ADR-020](../architecture/decisions.md#adr-020--continue-from-a-state-through-the-games-options-menu)).
+3. ~~GAME side: the start-up load from a request~~ — done; owner: V1.
+4. VSH side (RESEARCH REQUIRED first): the XMB's △ menu call sites in 6.61's `vsh_module` and
+   how xmbctrl already patches them; how the context menu knows the selected game's path; then a
+   VSH PRX with chained hooks, the slot list and the launch; device tests with ARK's menus.
 
 ## G-H. Testing, risks
 

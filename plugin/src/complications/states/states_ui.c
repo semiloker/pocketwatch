@@ -4,10 +4,14 @@
  * and the guards (docs/subsystems/states-storage.md, game-shell.md M3b).
  */
 #include <psprtc.h>
+#include <string.h>
 
 #include "complications/complication.h"
 #include "complications/states/engine.h"
 #include "complications/states/store.h"
+#include "core/game.h"
+#include "core/log.h"
+#include "core/platform.h"
 #include "gfx/assets.h"
 #include "shell/guard.h"
 #include "stb_sprintf.h"
@@ -29,7 +33,8 @@ static struct {
     int guard;            /* PW_GUARD_* when the rows were built */
     const char *busy_fmt; /* "Saving... %d%%" in the current language */
     pw_ui *ui;            /* for the progress callback */
-} g;
+    int continue_slot;    /* a slot to load as soon as the game runs (continue.txt), or -1 */
+} g = {.continue_slot = -1};
 
 static void clock_hm(char *out, unsigned int cap)
 {
@@ -54,9 +59,50 @@ static int count_slots(void)
     return n;
 }
 
+/*
+ * continue.txt next to the PRX, "<disc ID> <slot 1-5>": continue this game from that slot as soon
+ * as it runs (VSH-REQ-003; the XMB side will write it, docs/subsystems/vsh-integration.md). Read
+ * and removed at plugin start, so it acts once whatever happens next.
+ */
+static void read_continue(void)
+{
+    char dir[200], path[256], text[48], id[16];
+    int n, slot = 0, j = 0, i = 0;
+
+    if (pw_log_dir(dir, sizeof(dir)) < 0)
+        stbsp_snprintf(dir, sizeof(dir), "ms0:/seplugins/pocketwatch/");
+    stbsp_snprintf(path, sizeof(path), "%scontinue.txt", dir);
+    n = pw_file_read(path, text, sizeof(text) - 1);
+    if (n <= 0)
+        return;
+    pw_file_remove(path);
+    text[n] = 0;
+    while (text[i] == ' ' || text[i] == '\t')
+        i++;
+    while (text[i] && text[i] != ' ' && text[i] != '\t' && text[i] != '\r' && text[i] != '\n' &&
+           j < (int)sizeof(id) - 1) {
+        if (text[i] != '-')
+            id[j++] = text[i];
+        i++;
+    }
+    id[j] = 0;
+    while (text[i] == ' ' || text[i] == '\t')
+        i++;
+    while (text[i] >= '0' && text[i] <= '9')
+        slot = slot * 10 + (text[i++] - '0');
+    if (strcmp(id, pw_game_get()->id) != 0 || slot < 1 || slot > PW_STORE_SLOTS) {
+        pw_log("states: continue.txt asks for %s slot %d; this is %s: ignored", id, slot,
+               pw_game_get()->id);
+        return;
+    }
+    g.continue_slot = slot - 1;
+    pw_log("states: continue from slot %d once the game runs", slot);
+}
+
 static void states_init(void)
 {
     pw_store_init(); /* the slots' hashed PARAM.SFO, while no game thread holds anything */
+    read_continue();
 }
 
 static void states_shutdown(void)
@@ -187,9 +233,11 @@ static int run_save(const pw_cpl_env *env)
     return PW_CPL_STAY;
 }
 
+static void load_slot(const pw_cpl_env *env, int slot);
+
 static void run_load(const pw_cpl_env *env)
 {
-    int slot = -1, ret;
+    int slot = -1;
 
     if (pw_store_available() && g.slots_used > 0) {
         slot = pw_slots_pick(env->ui, PW_SLOTS_LOAD, g.last_slot);
@@ -200,6 +248,14 @@ static void run_load(const pw_cpl_env *env)
     }
     if (!pw_dialog_confirm(env->ui, pw_tr(PW_S_CONFIRM_LOAD), pw_tr(PW_S_CONFIRM_LOAD2), 0))
         return;
+    load_slot(env, slot);
+}
+
+/* Read slot (or use the state in RAM: slot < 0) and roll back; returns only when that failed. */
+static void load_slot(const pw_cpl_env *env, int slot)
+{
+    int ret;
+
     if (slot >= 0) {
         g.busy_fmt = pw_tr(PW_S_LOADING_PCT);
         g.ui = env->ui;
@@ -218,6 +274,27 @@ static void run_load(const pw_cpl_env *env)
     pw_dialog_message(env->ui, pw_tr(PW_S_LOAD_FAILED), pw_tr(PW_S_DETAILS_LOG));
 }
 
+static int states_startup_pending(void)
+{
+    return g.continue_slot >= 0;
+}
+
+static int states_startup(const pw_cpl_env *env)
+{
+    int slot = g.continue_slot, guard = pw_guard_states();
+
+    g.continue_slot = -1; /* once, whatever happens */
+    if (guard) {
+        pw_dialog_message(env->ui, pw_guard_reason(guard), pw_guard_hint(guard));
+        return PW_CPL_STAY;
+    }
+    pw_log("states: continuing from slot %d", slot + 1);
+    g.slots_used = count_slots();
+    g.last_slot = slot;
+    load_slot(env, slot);
+    return PW_CPL_STAY; /* only reached when the load failed: the game goes on from its start */
+}
+
 static int states_run(int index, const pw_cpl_env *env)
 {
     int any = pw_engine_has_state() || g.slots_used > 0;
@@ -233,8 +310,15 @@ static int states_run(int index, const pw_cpl_env *env)
     return PW_CPL_STAY;
 }
 
-const pw_complication pw_cpl_states = {"states",     states_init, states_shutdown, states_open,
-                                       states_items, states_run,  states_changed};
+const pw_complication pw_cpl_states = {.id = "states",
+                                       .init = states_init,
+                                       .shutdown = states_shutdown,
+                                       .on_open = states_open,
+                                       .items = states_items,
+                                       .run = states_run,
+                                       .changed = states_changed,
+                                       .startup_pending = states_startup_pending,
+                                       .startup = states_startup};
 
 #ifdef PW_DEBUG
 /* T1 (docs/research/m3-menu-e3.md): save, write a probe file, load, check it after the rollback. */
@@ -292,5 +376,5 @@ static int card_run(int index, const pw_cpl_env *env)
     return PW_CPL_STAY;
 }
 
-const pw_complication pw_cpl_cardtest = {"cardtest", 0, 0, 0, card_items, card_run, 0};
+const pw_complication pw_cpl_cardtest = {.id = "cardtest", .items = card_items, .run = card_run};
 #endif

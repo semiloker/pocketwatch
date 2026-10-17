@@ -140,6 +140,15 @@ output.
 | T5b | Deploy another build (`scripts\build.cmd -Release`, then `scripts\deploy.cmd`), start the game, load a slot saved with the debug build. | "...was saved with another setup."; log `engine: adopt: saved in another setup: build ... prx .../...`. Deploy the debug build again. |
 | T5c | Start a different game. | Its lists show none of the first game's slots. |
 
+### Continue from a state at the game's start (M7, GAME side)
+
+The XMB entry does not exist yet; this tests the half that loads the state.
+
+| ID | Do | Expect |
+|---|---|---|
+| V1 | After T3 passes: save to slot 2, Quit Game. On the PC create `seplugins/pocketwatch/continue.txt` with one line `ULUS10277 2` (your game's disc ID). Start the game and touch nothing. | About 2 s after the game starts: "Loading... %", then the saved moment. `continue.txt` is gone. Log: `states: continue from slot 2 once the game runs`, `shell: states has a start-up action`, then as T3. |
+| V1b | Create `continue.txt` with another game's ID (or slot 9) and start the game. | The game starts normally; the file is gone; log `states: continue.txt asks for ...: ignored`. |
+
 ## 6. File-system integrity (E4)
 
 Run after section 5, with the backup at hand.

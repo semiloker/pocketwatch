@@ -17,6 +17,7 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 | Settings (CPL-REQ-006) | **Implemented, device tests pending**: Fast Save and Load, Clock and Battery, Language; `config.txt` | [complications](subsystems/complications.md), [testing guide](testing.md#settings) |
 | Guards (M3b) | **Implemented, device tests pending**: battery, USB, WLAN, highmem, Custom Home / PSPStates; redraw after a sleep | [game shell](subsystems/game-shell.md), [testing guide](testing.md#7-guards) |
 | Release preparation (M6) | **In progress**: release build switch, changelog rewritten, testing guide, [compatibility matrix](compat.md) prepared for the owner's 22 games; filling it and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
+| XMB integration (M7) | **In progress**: variant B chosen (ADR-020); the GAME side (load a slot named in `continue.txt` once the game runs) implemented and host-tested, device test V1 pending; the XMB side is next (research first) | [vsh-integration](subsystems/vsh-integration.md) |
 | Documentation system (DOC-1) | **Done** (kept current with every change) | this file |
 | Firmware feasibility | **Research** — FW-G1 partial | [feasibility study](firmware/independent-firmware-feasibility.md) |
 
@@ -42,7 +43,9 @@ per-thread CPU line in the log.
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
-2. **Dev, after the results:** fix what they show; then, with the [compatibility
+2. **Dev, meanwhile:** M7 XMB side: research the 6.61 XMB's △ menu (call sites, how xmbctrl
+   chains, the selected item's path), then the VSH PRX ([vsh-integration](subsystems/vsh-integration.md#f-implementation-plan)).
+3. **Dev, after the results:** fix what they show; then, with the [compatibility
    matrix](compat.md) filled and the 100-cycle gate passed, the v0.1.0 tag. Release build: 94 % of its PRX
    budget (RISK-005).
 

@@ -2,6 +2,7 @@
 #ifndef PW_HUB_H
 #define PW_HUB_H
 
+#include "complications/complication.h"
 #include "core/freeze.h"
 
 /*
@@ -17,5 +18,8 @@ enum {
 };
 
 int pw_hub_run(const pw_freeze_set *frozen);
+
+/* A complication's start-up action (pw_complication.startup) on the open screen. PW_HUB_*. */
+int pw_hub_startup(const pw_freeze_set *frozen, const pw_complication *cpl);
 
 #endif

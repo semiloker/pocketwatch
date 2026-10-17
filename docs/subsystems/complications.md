@@ -23,7 +23,7 @@
 |---|---|---|---|---|
 | `CPL-REQ-001` | A complication is one folder plus one line in a registry table; nothing else changes to add it. | P1 | Implemented (`complications/table.c`) | review: the debug card test was added as one table line |
 | `CPL-REQ-002` | The hub builds its items from the registry in registry order; each complication contributes items (action, sub-list, toggle, information). | P1 | Implemented (rows with icon, title, description, enabled; sub-lists are the complication's own screens) | `registry_collects_rows_in_table_order` |
-| `CPL-REQ-003` | Lifecycle hooks: `init` (plugin start), `on_menu_open`, `on_menu_close`, `shutdown` (`module_stop`, no I/O). | P1 | Implemented: `init`, `on_open`, `changed` (polled every second), `shutdown` (reverse order); `on_menu_close` dropped (no user yet) | `registry_lifecycle_order_and_changes` |
+| `CPL-REQ-003` | Lifecycle hooks: `init` (plugin start), `on_menu_open`, `on_menu_close`, `shutdown` (`module_stop`, no I/O). | P1 | Implemented: `init`, `on_open`, `changed` (polled every second), `shutdown` (reverse order), `startup_pending` / `startup` (once, when the game runs, ADR-020); `on_menu_close` dropped (no user yet) | `registry_lifecycle_order_and_changes`, `registry_finds_a_pending_startup` |
 | `CPL-REQ-004` | Items can be disabled with a reason (e.g. "No state to load") and are shown disabled, not hidden. | P1 | Implemented: a disabled row still gets Enter so its complication can explain (the guards) | testing guide G1-G5 |
 | `CPL-REQ-005` | System complication: Resume Game, Quit Game ([game shell](game-shell.md) `SHL-REQ-005`). | P0 | Done (device test 2026-10-16); two table entries so the others sit between them | device test M3a |
 | `CPL-REQ-006` | Settings complication: per-complication settings through the config store (`SYS-REQ-010`), edited in the hub. | P2 | Implemented: Fast Save and Load, Clock and Battery, Language (an XMB-style option list with the option popup) | testing guide ST1-ST3 |
@@ -42,6 +42,8 @@ typedef struct {
     int (*items)(pw_cpl_item *out, int max);      /* its rows (icon, title, desc, enabled) */
     int (*run)(int index, const pw_cpl_env *env); /* Enter: PW_CPL_STAY / CLOSE / QUIT / LOADED */
     int (*changed)(void);                         /* polled every second: rebuild the rows */
+    int (*startup_pending)(void);                 /* once the game runs: something to do now? */
+    int (*startup)(const pw_cpl_env *env);        /* then this, once, on the open screen */
 } pw_complication;
 ```
 

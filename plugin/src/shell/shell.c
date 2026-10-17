@@ -5,6 +5,7 @@
 #include <pspkernel.h>
 #include <psploadcore.h>
 
+#include "complications/registry.h"
 #include "core/config.h"
 #include "complications/states/engine.h"
 #include "core/freeze.h"
@@ -18,16 +19,18 @@
 #include "ui/hub.h"
 #include "ui/input.h"
 
-#define POLL_US         20000
-#define FREEZE_MS       500
-#define GE_WAIT_MS      100
-#define RELEASE_WAIT_MS 3000
-#define TAKEOVER_MAX_MS 30000       /* give up waiting for the game's exit callback */
-#define RESUME_QUIET_MS 2000        /* no hub right after a resume (Custom Home does the same) */
-#define RECHECK_MS      500         /* someone may switch the system HOME screen back on */
-#define QUIT_WAIT_MS    5000        /* the game's own exit callback, then ARK's way */
-#define GAME_BUTTONS    0x0000FFFFu /* what the game can see; masked while the hub is open */
-#define ANY_BUTTON      (GAME_BUTTONS | PSP_CTRL_HOME | PSP_CTRL_NOTE)
+#define POLL_US           20000
+#define FREEZE_MS         500
+#define GE_WAIT_MS        100
+#define RELEASE_WAIT_MS   3000
+#define TAKEOVER_MAX_MS   30000       /* give up waiting for the game's exit callback */
+#define RESUME_QUIET_MS   2000        /* no hub right after a resume (Custom Home does the same) */
+#define RECHECK_MS        500         /* someone may switch the system HOME screen back on */
+#define QUIT_WAIT_MS      5000        /* the game's own exit callback, then ARK's way */
+#define STARTUP_SETTLE_MS 1500        /* a start-up action waits this long after the takeover */
+#define STARTUP_MAX_MS    30000       /* and gives up when the screen could not open for so long */
+#define GAME_BUTTONS      0x0000FFFFu /* what the game can see; masked while the hub is open */
+#define ANY_BUTTON        (GAME_BUTTONS | PSP_CTRL_HOME | PSP_CTRL_NOTE)
 
 /* core/stubs: sceImpose_driver, LoadExecForKernel, LoadCoreForKernel */
 int sceImposeSetHomePopup(int value);
@@ -127,7 +130,8 @@ static void quit_game(void)
     sctrlKernelExitVSH(NULL);
 }
 
-static void open_hub(void)
+/* Freeze the game, open the screen, run the hub (or a complication's start-up action). */
+static void open_screen(const pw_complication *startup)
 {
     pw_freeze_set frozen;
     int result;
@@ -157,7 +161,7 @@ static void open_hub(void)
         return;
     }
 
-    result = pw_hub_run(&frozen);
+    result = startup ? pw_hub_startup(&frozen, startup) : pw_hub_run(&frozen);
 
     pw_fb_close();
     /* The game must not see the button that closed us: wait until everything is up. */
@@ -170,25 +174,66 @@ static void open_hub(void)
         quit_game();
 }
 
+static void open_hub(void)
+{
+    open_screen(0);
+}
+
+/* Why the screen cannot open now, or NULL. */
+static const char *why_not_open(void)
+{
+    if (pw_engine_busy())
+        return "a save or load is running";
+    if (now_ms() - pw_engine_last_resume_ms() <= RESUME_QUIET_MS)
+        return "the PSP has just resumed";
+    if (system_dialog_up())
+        return "a system dialog (saved data, keyboard, network) is open";
+    return 0;
+}
+
 static int may_open(void)
 {
-    const char *why = 0;
+    const char *why = why_not_open();
 
-    if (pw_engine_busy())
-        why = "a save or load is running";
-    else if (now_ms() - pw_engine_last_resume_ms() <= RESUME_QUIET_MS)
-        why = "the PSP has just resumed";
-    else if (system_dialog_up())
-        why = "a system dialog (saved data, keyboard, network) is open";
     if (why)
         pw_log("shell: HOME ignored: %s", why);
     return why == 0;
 }
 
+/*
+ * Once per game, after it runs (its exit callback registered, or we gave up waiting for it): a
+ * complication may have something to do at once (a state to continue from, VSH-REQ-003). It waits
+ * a little first: games load their own modules right after registering the callback (INFERRED).
+ */
+static void run_startup(unsigned int ready_ms)
+{
+    static int done;
+    const pw_complication *cpl;
+    const char *why;
+
+    if (done || now_ms() - ready_ms < STARTUP_SETTLE_MS)
+        return;
+    cpl = pw_registry_startup(pw_complications, pw_complication_count);
+    if (!cpl) {
+        done = 1;
+        return;
+    }
+    why = why_not_open();
+    if (why && now_ms() - ready_ms < STARTUP_MAX_MS)
+        return; /* try again on the next poll */
+    done = 1;
+    if (why) {
+        pw_log("shell: %s's start-up action dropped: %s", cpl->id, why);
+        return;
+    }
+    pw_log("shell: %s has a start-up action", cpl->id);
+    open_screen(cpl);
+}
+
 static int shell_thread(SceSize args, void *argp)
 {
     pw_tap tap = {0, 0, 0};
-    unsigned int start = now_ms(), last_check = 0;
+    unsigned int start = now_ms(), last_check = 0, ready = 0;
     int home_was_down = 0;
 
     (void)args;
@@ -198,8 +243,12 @@ static int shell_thread(SceSize args, void *argp)
 
         sceKernelDelayThread(POLL_US);
         b = buttons();
-        if (g_home == HOME_WAITING)
+        if (g_home == HOME_WAITING) {
             take_home(start, b);
+            ready = now_ms();
+        } else {
+            run_startup(ready); /* the game runs: its exit callback is there, or we gave up */
+        }
         if (g_home == HOME_OWNED) {
             if (now_ms() - last_check > RECHECK_MS) {
                 last_check = now_ms();

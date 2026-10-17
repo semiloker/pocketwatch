@@ -58,6 +58,8 @@ ifeq ($(DEBUG),1)
 CFLAGS += -DPW_DEBUG
 endif
 ASFLAGS = $(CFLAGS)
+# Every object depends on the headers it includes (gcc writes the .d files next to the objects).
+CFLAGS += -MMD -MP
 
 LIBDIR =
 # Order matters: sceRtcGetCurrentTick resolves from the user library sceRtc (NIDs not randomized,
@@ -84,6 +86,8 @@ $(OBJS): .buildflags
 .buildflags: FORCE
 	@echo 'DEBUG=$(DEBUG) LIBS=$(LIBS)' | cmp -s - $@ || echo 'DEBUG=$(DEBUG) LIBS=$(LIBS)' > $@
 
+-include $(OBJS:.o=.d)
+
 check: $(FINAL_TARGET)
 	python3 ../tools/check_prx.py --elf $(TARGET).elf --prx $(TARGET).prx \
 		--nid-table ../tools/nids/ark4_660.tsv --allowlist ../tools/nids/allowlist.tsv \
@@ -92,5 +96,6 @@ check: $(FINAL_TARGET)
 clean: clean-local
 clean-local:
 	-rm -f exports.c .version .buildflags src/debug/*.o
+	-find src lib -name '*.d' -delete
 
 .PHONY: FORCE check clean-local

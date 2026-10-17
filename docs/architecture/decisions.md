@@ -249,3 +249,23 @@ decision was taken; the evidence column links the research behind it.
   same time); the PRX file budget was raised to 192 KB (RISK-005). Every new screen needs three
   drawings, or falls back to the XMB one.
 
+## ADR-020 — Continue from a state through the game's options menu
+
+- **Status:** Accepted (2026-10-17), the owner's choice among the three variants of
+  [vsh-integration](../subsystems/vsh-integration.md#d-variants-owner-chose-b-2026-10-17).
+- **Context:** M7 lets the user start a game straight in a state. States are already native saved
+  data (M5); continuing needs a way to pick the state in the XMB and a way to load it once the
+  game runs.
+- **Decision:** variant B: the game's own options menu (△ on its icon) gets "Continue from Save
+  State" and then a slot list; the VSH side writes `continue.txt` and launches the game the way
+  ARK-4's vshctrl does; the GAME side loads the slot once the game runs through a general
+  complication hook (`startup_pending` / `startup` in `pw_complication`), so other complications
+  can use the same moment later.
+- **Alternatives considered:** A, a "Save States" item in the Game category (the most screen work
+  and its own renderer in the VSH); C, a prompt at every game start (no XMB code, but not in the
+  XMB and it would ask on every start).
+- **Consequences:** the GAME side works without the XMB part (a hand-written `continue.txt`,
+  test V1). The XMB part must chain after ARK-4's xmbctrl, which already patches the same
+  `vsh_module` call sites, and a VSH crash needs ARK's recovery menu to undo (RISK register at
+  implementation). The complication initialisers now use designated fields.
+

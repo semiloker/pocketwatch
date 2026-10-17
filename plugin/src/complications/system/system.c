@@ -46,5 +46,5 @@ static int quit_run(int index, const pw_cpl_env *env)
     return pw_dialog_confirm(env->ui, pw_tr(PW_S_CONFIRM_QUIT), 0, 0) ? PW_CPL_QUIT : PW_CPL_STAY;
 }
 
-const pw_complication pw_cpl_resume = {"resume", 0, 0, 0, resume_items, resume_run, 0};
-const pw_complication pw_cpl_quit = {"quit", 0, 0, 0, quit_items, quit_run, 0};
+const pw_complication pw_cpl_resume = {.id = "resume", .items = resume_items, .run = resume_run};
+const pw_complication pw_cpl_quit = {.id = "quit", .items = quit_items, .run = quit_run};

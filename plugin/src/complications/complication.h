@@ -45,6 +45,10 @@ typedef struct {
     int (*items)(pw_cpl_item *out, int max);      /* its rows, in order; returns how many */
     int (*run)(int index, const pw_cpl_env *env); /* Enter on its row `index`: PW_CPL_* */
     int (*changed)(void);                         /* asked every second: 1 = rebuild; NULL: never */
+    /* Once the game runs (HOME taken): something to do at once? Then the shell freezes the game,
+       opens the screen and calls startup (once); it returns PW_CPL_*. NULL: never. */
+    int (*startup_pending)(void);
+    int (*startup)(const pw_cpl_env *env);
 } pw_complication;
 
 #endif

@@ -78,9 +78,36 @@ static void any_open(void)
     g_opens++;
 }
 
-static const pw_complication A = {"a", a_init, a_shutdown, any_open, a_items, run_none, 0};
-static const pw_complication B = {"b", 0, 0, 0, b_items, run_none, 0};
-static const pw_complication C = {"c", c_init, c_shutdown, any_open, c_items, run_none, c_changed};
+static int c_pending = 1;
+
+static int c_startup_pending(void)
+{
+    return c_pending;
+}
+
+static int c_startup(const pw_cpl_env *env)
+{
+    (void)env;
+    c_pending = 0;
+    return PW_CPL_STAY;
+}
+
+static const pw_complication A = {.id = "a",
+                                  .init = a_init,
+                                  .shutdown = a_shutdown,
+                                  .on_open = any_open,
+                                  .items = a_items,
+                                  .run = run_none};
+static const pw_complication B = {.id = "b", .items = b_items, .run = run_none};
+static const pw_complication C = {.id = "c",
+                                  .init = c_init,
+                                  .shutdown = c_shutdown,
+                                  .on_open = any_open,
+                                  .items = c_items,
+                                  .run = run_none,
+                                  .changed = c_changed,
+                                  .startup_pending = c_startup_pending,
+                                  .startup = c_startup};
 static const pw_complication *const LIST[] = {&A, &B, &C};
 
 PW_TEST(registry_collects_rows_in_table_order)
@@ -112,4 +139,13 @@ PW_TEST(registry_lifecycle_order_and_changes)
     c_changed_once = 1;
     CHECK_EQ(pw_registry_changed(LIST, 3), 1);
     CHECK_EQ(pw_registry_changed(LIST, 3), 0);
+}
+
+PW_TEST(registry_finds_a_pending_startup)
+{
+    c_pending = 1;
+    CHECK(pw_registry_startup(LIST, 3) == &C);
+    C.startup(NULL);
+    CHECK(pw_registry_startup(LIST, 3) == NULL);
+    CHECK(pw_registry_startup(LIST, 2) == NULL); /* A and B have none */
 }

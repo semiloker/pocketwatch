@@ -1,5 +1,6 @@
 # Build output
 *.o
+*.d
 *.elf
 *.prx
 plugin/exports.c

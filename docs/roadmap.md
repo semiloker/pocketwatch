@@ -49,7 +49,7 @@ flowchart LR
 | [E4 — file-system integrity gate](#e4--file-system-integrity-gate) | Validation | P1 | Planned (protocol in the testing guide) |
 | [M5 — States UX on native saved data](#m5--states-ux-on-native-saved-data) | Implementation | P1 | In Progress (implemented, device tests M1-M12 pending) |
 | [M6 — hardening, v0.1.0](#m6--hardening-v010) | Validation | P1 | In Progress (release build, changelog, testing guide) |
-| [M7 — XMB integration](#m7--xmb-integration) | Implementation | P2 | Planned |
+| [M7 — XMB integration](#m7--xmb-integration) | Implementation | P2 | In Progress (variant B, GAME side implemented) |
 | [Speed backlog S1-S7](#speed-backlog) | Research | P2 | Planned |
 | [FW — independent firmware research](#fw--independent-firmware-research) | Research | P3 | Planned |
 
@@ -152,8 +152,10 @@ native; settings and card intact.
 
 ## M7 — XMB integration
 
-A VSH-side PRX: "Save States" entry, continue a game from a state (launch the ISO the XMB's way,
-auto-load after the first frames). [vsh-integration](subsystems/vsh-integration.md).
+Continue a game from a state from the XMB: "Continue from Save State" in the game's △ menu
+(ADR-020), the ISO launched the XMB's way, the slot loaded once the game runs (GAME side done:
+`continue.txt`, test V1). Next: research the XMB's △ menu call sites, then the VSH PRX.
+[vsh-integration](subsystems/vsh-integration.md).
 
 ## Speed backlog
 

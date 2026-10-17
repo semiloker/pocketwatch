@@ -226,5 +226,5 @@ static int settings_run(int index, const pw_cpl_env *env)
     return PW_CPL_STAY; /* the hub rebuilds its rows: the language may have changed */
 }
 
-const pw_complication pw_cpl_settings = {"settings",     settings_init, 0, 0,
-                                         settings_items, settings_run,  0};
+const pw_complication pw_cpl_settings = {
+    .id = "settings", .init = settings_init, .items = settings_items, .run = settings_run};

@@ -40,6 +40,9 @@ The project's full workflow is imported here and applies to every session:
   five slots per game (`ms0:/PSP/SAVEDATA/PW<DISCID><NN>/`, triangle deletes). Enter/Back follow the
   system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
   screen off, a short tap of NOTE opens the hub instead. The game is frozen and sees no buttons.
+- Continue from a state at the game's start (M7 GAME side, test V1): put `continue.txt` with one
+  line `<disc ID> <slot>` (e.g. `ULUS10277 2`) into `seplugins\pocketwatch\`; read and deleted at
+  plugin start.
 - Host previews of every menu screen as PNGs: `make -C tests preview FONT=<path to a .pgf>`
   (in WSL; never commit renders made with a Sony font); `UI_LANG=ru` renders a translation.
 - UI text goes through `pw_tr(PW_S_...)` (`ui/i18n.h`, English built in); translations are

@@ -58,3 +58,11 @@ int pw_registry_changed(const pw_complication *const *list, int n)
             any = 1;
     return any;
 }
+
+const pw_complication *pw_registry_startup(const pw_complication *const *list, int n)
+{
+    for (int i = 0; i < n; i++)
+        if (list[i] && list[i]->startup && list[i]->startup_pending && list[i]->startup_pending())
+            return list[i];
+    return 0;
+}

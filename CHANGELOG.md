@@ -7,6 +7,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Continue a game from a state at its start: a `continue.txt` next to the plugin
+  (`<disc ID> <slot>`) loads that slot as soon as the game runs, once; the XMB's "Continue from
+  Save State" will write it.
 - States on the Memory Stick: five slots per game as native saved data
   (`PSP/SAVEDATA/PW<DISCID><NN>`, hashed PARAM.SFO, the game's frame as ICON0/PIC1), listed and
   deletable in the XMB's Saved Data Utility; a state list in the Saved Data Utility's layout with
