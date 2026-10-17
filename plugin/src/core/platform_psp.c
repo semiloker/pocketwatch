@@ -7,7 +7,9 @@
 #include <psprtc.h>
 #include <string.h>
 
+#include "core/log.h"
 #include "core/platform.h"
+#include "core/sysctrl.h"
 
 unsigned int pw_irq_lock(void)
 {
@@ -110,11 +112,47 @@ unsigned int pw_time_ms(void)
     return sceKernelGetSystemTimeLow() / 1000;
 }
 
+/*
+ * sceCtrlPeekBufferPositive2(port, data, count): the same kernel buffer as
+ * sceCtrlPeekBufferPositive, for port 0 (the PSP's own buttons) in the 48-byte SceCtrlData2 layout
+ * (uOFW src/kd/ctrl/ctrl.c, _sceCtrlReadBuf; include/ctrl.h). ARK-4 does not hook it. Found at
+ * run time, so a missing export costs only ARK's combos guard: sceCtrl's NID (user libraries keep
+ * their NIDs) first, then sceCtrl_driver's 6.60 NID (uOFW exports.exp; ARK-4 uses its 6.60 table
+ * on 6.61).
+ */
+#define NID_PEEK2_USER   0x5A36B1C2
+#define NID_PEEK2_DRIVER 0xD4692E77
+
+typedef struct {
+    unsigned int stamp, buttons;
+    unsigned char ax, ay, rx, ry, rsrv[4];
+    int sense[8];
+} ctrl_data2;
+
+static int (*g_peek2)(unsigned int port, ctrl_data2 *data, unsigned char count);
+static int g_peek2_looked;
+
 unsigned int pw_buttons_held(void)
 {
-    SceCtrlLatch latch;
+    SceCtrlData pad;
 
-    /* For a kernel caller this is the kernel latch: btnPress is the last sample, unmasked
-       (uOFW src/kd/ctrl/ctrl.c, _sceCtrlUpdateButtons and sceCtrlPeekLatch). */
-    return sceCtrlPeekLatch(&latch) < 0 ? 0 : latch.uiPress;
+    if (!g_peek2_looked) {
+        g_peek2_looked = 1;
+        g_peek2 = (void *)sctrlHENFindFunction("sceController_Service", "sceCtrl", NID_PEEK2_USER);
+        if (!g_peek2)
+            g_peek2 = (void *)sctrlHENFindFunction("sceController_Service", "sceCtrl_driver",
+                                                   NID_PEEK2_DRIVER);
+        if (g_peek2)
+            pw_log("ctrl: buttons through sceCtrlPeekBufferPositive2 at %08X",
+                   (unsigned int)g_peek2);
+        else
+            pw_log(
+                "ctrl: no sceCtrlPeekBufferPositive2: ARK's exit combos stay live in our threads");
+    }
+    if (g_peek2) {
+        ctrl_data2 data;
+
+        return g_peek2(0, &data, 1) < 0 ? 0 : data.buttons;
+    }
+    return sceCtrlPeekBufferPositive(&pad, 1) < 0 ? 0 : pad.Buttons;
 }

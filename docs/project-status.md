@@ -39,6 +39,12 @@ Castlevania slot save (ok), Persona hub and Quit (ok). The sky follows the theme
 Answered: half the wave per frame, rasterised icons, drawing only on change, a frame split and a
 per-thread CPU line in the log.
 
+Third run (2026-10-17, build be14f66, [log](research/logs/2026-10-17-home-dead-latch.log)): HOME
+showed nothing at all (the system HOME screen is off by design and the hub never opened). Cause:
+the SHL-REQ-012 change read the buttons from the controller's latch, whose press bits stay set
+until someone reads the latch, so the release of HOME was never seen. Fixed: the buttons come
+from `sceCtrlPeekBufferPositive2` (same buffer, not hooked by ARK-4); device check pending.
+
 ## Next actions (in order)
 
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the

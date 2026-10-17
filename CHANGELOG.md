@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- ARK-4's exit combos cannot fire in the middle of a save or load: Pocketwatch reads the buttons
+  through a controller function ARK-4 does not hook.
 - Continue a game from a state at its start: a `continue.txt` next to the plugin
   (`<disc ID> <slot>`) loads that slot as soon as the game runs, once; the XMB's "Continue from
   Save State" will write it.
