@@ -61,6 +61,15 @@ static void button(hm_gfx *g, int which, int cx, int cy, int size, unsigned int 
     pw_button_draw(canvas(g), which, cx, cy, size, color, alpha);
 }
 
+static int warm(hm_gfx *g, pw_font *f, const char *s, int max_w)
+{
+    (void)g;
+    (void)f;
+    (void)s;
+    (void)max_w;
+    return 1; /* nothing to prepare: the CPU draws text as it goes */
+}
+
 void hm_gfx_cpu_init(hm_gfx_cpu *g, pw_canvas *c)
 {
     g->ops.fill = fill;
@@ -70,5 +79,6 @@ void hm_gfx_cpu_init(hm_gfx_cpu *g, pw_canvas *c)
     g->ops.text = text;
     g->ops.icon = icon;
     g->ops.button = button;
+    g->ops.warm = warm;
     g->c = c;
 }

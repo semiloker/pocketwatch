@@ -445,3 +445,59 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** Home's look is defined twice (the GE backend must match the CPU one; the
   sprite test guards the corners); the display list takes 512 KB of Home's RAM; VRAM holds the
   two frames, textures stay in RAM. The in-game hub keeps the CPU renderer.
+
+## ADR-029 — 60 frames a second in every menu: measured on the host, checked in PPSSPP
+
+- **Status:** Accepted (2026-10-19), on the owner's request ("stable 60 fps in any mode and menu;
+  run the performance tests yourself").
+- **Context:** the in-game hub draws with the CPU at the game's clock (333 MHz: ARK-4's
+  `overclock` setting, VERIFIED in the engine's timing logs, so a higher clock is no way out). Its
+  last device numbers were 17-19 ms of drawing (Modern) and 18-21 ms (Classic) against a 16.7 ms
+  vblank (2026-10-17). The host bench (`make -C tests bench`), now with the system font
+  (`FONT=`) and the plugin's own `-Os` (`BENCH_OPT=-Os`), split a frame: at `-Os` the per-pixel
+  helpers were calls (10-35 % slower than `-O2`); the clock corner cost a fifth of a Modern
+  frame although it changes once a minute; the XMB style renewed half of its wave every frame.
+  Building the pixel files at `-O2` would have cost 3 KB of kernel RAM over the budget (RISK-005).
+- **Decision:**
+  - the per-pixel helpers are `PW_PIXEL` (always inlined, `ui/draw.h`) - `-O2`'s speed at
+    `-Os`'s size;
+  - the hub keeps the status corner as drawn (`hub.c`, in the screen's spare page when the style
+    has no moving backdrop) and redraws it only when the clock, battery, fade or backdrop change;
+  - the XMB style renews a quarter of its wave a frame (the crest drifts at most 0.12 px a frame,
+    so a band lags its neighbour by under half a pixel);
+  - the savedata PARAM.SFO writer no longer keeps a 3 KB table of zeros in kernel RAM;
+  - Pocketwatch Home's stamps are 8-bit textures with one palette (a quarter of the memory, up to
+    256 of them, 3 MB), and the titles and rows the next frames may need are made while the GE
+    draws the current frame, within 3 ms (`hm_prefetch`); scaled images are sampled half a texel
+    in from their edges;
+  - the GE backend is checked in PPSSPP on the PC (Home started from the build, the window
+    captured) before a device round.
+- **Result (host bench, `-Os`, µs a frame):** Classic 324 → 155, Modern 231 → 169, Minimal
+  57 → 48. With the device/host ratio of 2026-10-17 (~80x) every style lands under 16.7 ms
+  (INFERRED; device test H13 decides). Kernel RAM: release 174 KB of 176, debug 193 KB of 192+16.
+- **Alternatives considered:** the GE for the hub (the game's GE state and VRAM would have to be
+  saved around every frame and before every save - RESEARCH REQUIRED, risk to the states); dirty
+  rectangles in the CPU renderer (every primitive would need an origin; later if H13 says so);
+  rendering the wave at half resolution (visible).
+
+## ADR-030 — Home's backgrounds live in VRAM as dithered 5650; the free space is counted off the frame loop
+
+- **Status:** Accepted (2026-10-19), from the first device numbers of the GE version
+  ([log](../research/logs/2026-10-19-home-fps-ge1.log), build `5811f00`): 45-49 fps, CPU 2.7-4.8
+  ms + **GE 11-13 ms** a frame, and one frame of **2.7 s**.
+- **Context:** VERIFIED from that log: the GE, not the CPU, held the frame. Each frame read the
+  full-screen 8888 background from RAM (522 KB, twice during a cross-fade) and the 32-bit text
+  stamps from RAM. The 2.7 s frame matches `sceIoDevctl(0x02425818)` (free space: the FAT is
+  counted), called from the frame loop when System opened (INFERRED: the only call that long in
+  the loop; it went with it).
+- **Decision:** a finished background is copied by the loader into one of three VRAM slots as
+  5650 with a 4 x 4 ordered dither (two 8888 frames + three slots = 1.86 MB of the 2 MB), and the
+  GE draws it from there (`hm_gu_upload_bg`); the RAM picture remains the fallback while a slot
+  is rewritten. Text stamps were made 8-bit already (ADR-029). The free space is counted by the
+  loader thread when it has nothing else to do, and again after USB; System shows "..." until
+  then.
+- **Alternatives considered:** 16-bit framebuffers (more VRAM free, but the whole UI banded); a
+  block copy of the background (`sceGuCopyImage`) instead of a sprite (still needs it in VRAM;
+  the sprite also does the cross-fade); keeping 8888 in VRAM (only one fits beside two frames).
+- **Consequences:** a faint dither pattern on dark gradients (seen in PPSSPP at 3x; not at 1x);
+  VRAM is full - icons and stamps stay in RAM.

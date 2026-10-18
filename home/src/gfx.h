@@ -33,6 +33,9 @@ struct hm_gfx {
     /* A drawn icon (ui/icons.h PW_ICON_*) or a button glyph (PW_BTN_*), centred. */
     void (*icon)(hm_gfx *g, int icon, int cx, int cy, int size, unsigned int color, int alpha);
     void (*button)(hm_gfx *g, int button, int cx, int cy, int size, unsigned int color, int alpha);
+    /* Prepare the text as text() would draw it, for a later frame: within a time budget; 1 when
+       it is ready (the CPU backend: always). */
+    int (*warm)(hm_gfx *g, pw_font *f, const char *s, int max_w);
 };
 
 #endif

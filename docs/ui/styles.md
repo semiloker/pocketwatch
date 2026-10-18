@@ -45,6 +45,14 @@ frame by part on the host (only the proportions mean anything; the PSP is ~50x s
 | Modern | 824 | 234 | shapes: the square root only on the one-pixel edge, discs on their own path, a triangle's edge lengths once |
 | Minimal | 69 | 53 | blits: no division by 255 per pixel, two channels per multiply |
 
+Second pass (2026-10-19, ADR-029; host, the plugin's own `-Os`, the system font):
+
+| Style | before (us) | after (us) | what changed |
+|---|---|---|---|
+| Classic | 324 | 155 | a quarter of the wave a frame instead of half; per-pixel helpers inlined |
+| Modern | 231 | 169 | the clock corner from its cache; helpers inlined |
+| Minimal | 57 | 48 | helpers inlined |
+
 First device numbers after that change (2026-10-17,
 [log](../research/logs/2026-10-17-hub-fps-castlevania-persona.log)): Modern 19 and 30 fps with
 17-19 ms of drawing, Classic 11-16 fps with 18-21 ms. Two findings: a frame still took more than

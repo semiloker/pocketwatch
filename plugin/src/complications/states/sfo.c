@@ -55,7 +55,8 @@ int pw_sfo_build(const pw_sfo_entry *entries, int count, unsigned char *out, uns
         put_le32(index + 8, entries[i].max_len);
         put_le32(index + 12, data_off);
         memcpy(out + key_start + key_off, entries[i].key, key_len);
-        memcpy(out + data_start + data_off, entries[i].value, entries[i].len);
+        if (entries[i].value) /* NULL: zeros (the output starts cleared) */
+            memcpy(out + data_start + data_off, entries[i].value, entries[i].len);
         key_off += key_len;
         data_off += entries[i].max_len;
     }
@@ -65,8 +66,6 @@ int pw_sfo_build(const pw_sfo_entry *entries, int count, unsigned char *out, uns
 int pw_sfo_build_savedata(const pw_savedata_sfo *s, unsigned char *out, unsigned int cap,
                           unsigned int *params_offset)
 {
-    static const unsigned char zero_params[PW_SFO_PARAMS_SIZE];
-    static const unsigned char empty_list[PW_SFO_FILE_LIST_SIZE];
     unsigned char parental[4];
     int size;
 
@@ -79,10 +78,9 @@ int pw_sfo_build_savedata(const pw_savedata_sfo *s, unsigned char *out, unsigned
         {"SAVEDATA_DETAIL", PW_SFO_FMT_UTF8, 1024, s->detail, (unsigned int)strlen(s->detail) + 1},
         {"SAVEDATA_DIRECTORY", PW_SFO_FMT_UTF8, 64, s->directory,
          (unsigned int)strlen(s->directory) + 1},
-        {"SAVEDATA_FILE_LIST", PW_SFO_FMT_UTF8_RAW, PW_SFO_FILE_LIST_SIZE,
-         s->file_list ? s->file_list : empty_list, PW_SFO_FILE_LIST_SIZE},
-        {"SAVEDATA_PARAMS", PW_SFO_FMT_UTF8_RAW, PW_SFO_PARAMS_SIZE, zero_params,
-         PW_SFO_PARAMS_SIZE},
+        {"SAVEDATA_FILE_LIST", PW_SFO_FMT_UTF8_RAW, PW_SFO_FILE_LIST_SIZE, s->file_list,
+         PW_SFO_FILE_LIST_SIZE}, /* NULL: an empty list, all zeros */
+        {"SAVEDATA_PARAMS", PW_SFO_FMT_UTF8_RAW, PW_SFO_PARAMS_SIZE, NULL, PW_SFO_PARAMS_SIZE},
         {"SAVEDATA_TITLE", PW_SFO_FMT_UTF8, 128, s->savedata_title,
          (unsigned int)strlen(s->savedata_title) + 1},
         {"TITLE", PW_SFO_FMT_UTF8, 128, s->title, (unsigned int)strlen(s->title) + 1},

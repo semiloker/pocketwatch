@@ -27,7 +27,7 @@ static int isin(unsigned int phase)
     }
 }
 
-static unsigned int lerp_px(unsigned int a, unsigned int b, int t) /* t 0..256 */
+PW_PIXEL unsigned int lerp_px(unsigned int a, unsigned int b, int t) /* t 0..256 */
 {
     unsigned int rb =
         (((a & 0xFF00FF) * (unsigned int)(256 - t) + (b & 0xFF00FF) * (unsigned int)t) >> 8) &
@@ -82,7 +82,7 @@ void pw_xmbbg_sky(pw_canvas *c, const pw_image *sky)
 }
 
 /* Mix white into a pixel by a (0..256): each channel moves towards 255. */
-static unsigned int lighten(unsigned int p, unsigned int a)
+PW_PIXEL unsigned int lighten(unsigned int p, unsigned int a)
 {
     unsigned int rb = p & 0xFF00FF, g = p & 0x00FF00;
 

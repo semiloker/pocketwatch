@@ -177,8 +177,9 @@ from XMB → Game → Memory Stick → Pocketwatch Home.
 | HM7 | In Home start an ISO, a PS1 game (Final Fantasy Tactics, Metal Gear Solid) and a homebrew (PSP Filer); quit each. | Each starts; PS1 icons are square, not stretched; quitting returns to Home. |
 | HM8 | Switch on holding L. Then switch on holding START. | Holding L: the XMB with Pocketwatch's pages, `boot.txt` says `L held`. Holding START: the XMB without plugins (ARK-4); the next normal start is Home again. |
 | HM9 | Back to normal: Settings → Pocketwatch → Start screen → XMB, switch off and on. | The XMB, `boot.txt`: `start = xmb`. |
-| HM10 | In Home: move left and right through the games quickly for a minute, switch sections, wait 30 s. | Smooth movement. `seplugins/pocketwatch/home.log`: `home running: ... (NN fps), CPU ... us + GE ... us a frame, longest frame ... ms` - expect about 60 fps. Send the file. |
+| HM10 | In Home: move left and right through the games quickly for a minute, switch sections, wait 30 s. | Smooth movement. `seplugins/pocketwatch/home.log`: `home running: ... (NN fps), N late; a frame: CPU ... us, warm ... us, GE wait ... us; longest ... ms; stamps ...` - expect about 60 fps, few late frames, no frame over 100 ms. Send the file. |
 | HM11 | In Home press HOME; move through the panel; HOME again; HOME → Sleep (wake it), HOME → Exit to the XMB. | HOME opens Pocketwatch's panel (never the system's quit dialog), HOME or Back closes it; Sleep sleeps and Home is there after waking; Exit gives the XMB. |
+| HM12 | With the cable in the PC: HOME → USB Connection (once). Copy a file, then End (Back). Then start USB without the cable, plug it in after 5 s. | The PC sees the Memory Stick after one press (the card says Connecting..., then Connected); End gives Home back with the games read again. Without the cable: "Connect the USB cable", and plugging it in connects by itself. |
 
 ### Continue from a state at the game's start (M7, GAME side)
 

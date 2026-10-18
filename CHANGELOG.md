@@ -7,6 +7,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home keeps its backgrounds in video memory: the GE no longer spends most of a
+  frame reading them (45-49 fps measured before); opening System no longer freezes it for seconds.
+- USB Connection in Pocketwatch Home (HOME panel or System): one press; it reconnects by itself
+  when the computer does not take the card, and waits for the cable when there is none.
+- Faster in-game menu: every style should now make 60 frames a second (Classic's wave renewed in
+  quarters, the clock corner cached, the pixel helpers inlined).
 - Pocketwatch Home is drawn by the PSP's GPU (the GE): smooth instead of laggy; its frame rate
   goes to `seplugins/pocketwatch/home.log`.
 - HOME in Pocketwatch Home opens its own panel (Close, Exit to the XMB, Sleep, Turn Off) instead

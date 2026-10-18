@@ -41,6 +41,11 @@ The project's full workflow is imported here and applies to every session:
   (`home/src/gfx_gu.c`), the CPU renderer for previews (`gfx_cpu.c`) - every operation needs both,
   drawing the same pixels. Frame rate: `seplugins/pocketwatch/home.log`. Home's strings are the
   `PW_I18N_HOME` tier (after `PW_S_HOME_FIRST`); the XMB plugin builds without them.
+- Performance (ADR-029): `make -C tests bench FONT=<a .pgf> BENCH_OPT=-Os` is a frame of each
+  hub style as the PSP draws it, plus Home's stamp cost. Per-pixel helpers are `PW_PIXEL`
+  (always inlined; the plugin is `-Os` and its kernel RAM budget has no room for `-O2`). Check
+  Home's GE path in PPSSPP before a device round (`C:\Program Files\PPSSPP`, run
+  `home\EBOOT.PBP`, capture the window).
 - Start screen (ADR-026, ADR-027): `config.txt` `start = home`: the XMB plugin decides in
   `module_start` (`boot.txt`) and writes ARK-4's launcher field (`PWHOME.PBP`) from its start-module
   handler for sceMediaSync, after the older handlers - a write in `module_start` is cleared by

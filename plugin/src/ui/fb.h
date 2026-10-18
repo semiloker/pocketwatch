@@ -47,4 +47,10 @@ int pw_fb_screenshot(void);
 /* The game's frame as captured (PW_FB_W x PW_FB_H, PW_FB_STRIDE pixels per row), or NULL. */
 const unsigned int *pw_fb_game(void);
 
+/* Memory the open screen leaves unused (the moving backdrop's page, when the style has no moving
+   backdrop), for caches of drawn pixels; NULL when there is none. *bytes gets its size. */
+unsigned int *pw_fb_spare(unsigned int *bytes);
+/* Counts the backdrops made: pixels cached over the backdrop are stale once it changes. */
+unsigned int pw_fb_backdrop_version(void);
+
 #endif

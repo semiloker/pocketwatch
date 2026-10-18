@@ -45,6 +45,51 @@ typedef struct {
 
 static int g_last_sel = 0; /* the hub reopens on the last row used */
 
+/* The clock and battery corner, kept as drawn (ADR-029): it changes once a minute but cost a
+   fifth of a Modern frame (host bench). The pixels of the top right, over a still backdrop, in the
+   screen's spare page; redrawn only when what it shows - or the backdrop under it - changes. */
+#define CORNER_X 240
+#define CORNER_H 40
+
+typedef struct {
+    char clock[24];
+    int battery, charging, show, style;
+    unsigned int backdrop;
+} corner_key;
+
+static corner_key g_corner;
+static int g_corner_ok;
+
+static void status(hub *h, pw_canvas *c, int show, unsigned int t_ms)
+{
+    unsigned int bytes, *cache = pw_fb_spare(&bytes);
+    int w = c->w - CORNER_X;
+    corner_key k;
+
+    memset(&k, 0, sizeof(k));
+    strcpy(k.clock, h->clock);
+    k.battery = h->battery;
+    k.charging = h->charging;
+    k.show = show;
+    k.style = h->ui.style;
+    k.backdrop = pw_fb_backdrop_version();
+    if (!cache || bytes < (unsigned int)(w * CORNER_H * 4)) {
+        g_corner_ok = 0;
+        pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show, t_ms);
+        return;
+    }
+    if (g_corner_ok && memcmp(&k, &g_corner, sizeof(k)) == 0) {
+        for (int y = 0; y < CORNER_H; y++)
+            memcpy(c->px + y * c->stride + CORNER_X, cache + y * w, (unsigned int)w * 4);
+        return;
+    }
+    pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show, t_ms);
+    for (int y = 0; y < CORNER_H; y++)
+        memcpy(cache + y * w, c->px + y * c->stride + CORNER_X, (unsigned int)w * 4);
+    g_corner = k;
+    g_corner_ok = 1;
+}
+
 static void build(hub *h)
 {
     h->cat.icon = pw_assets_art(PW_ART_CAT_GAME);
@@ -98,7 +143,7 @@ static void draw(hub *h, int show)
 
     t1 = pw_ui_now_us();
     if (pw_config_get()->status)
-        pw_view_status(c, &h->ui, h->clock, h->battery, h->charging, show, t0 / 1000);
+        status(h, c, show, t0 / 1000);
     pw_view_hub(c, &h->ui, &h->cat, h->rows, h->count, h->selpos, show);
     t2 = pw_ui_now_us();
     pw_fb_present();

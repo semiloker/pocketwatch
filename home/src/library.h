@@ -40,4 +40,13 @@ void hm_library_focus(int sel);
 /* The chosen game's background (HM_W x HM_H, stride 512) once loaded for that game, or NULL. */
 const unsigned int *hm_library_background(int sel);
 
+/* USB (HOM-REQ-011): stop the loader's card reads (returns once it is idle) or let it go on. */
+void hm_library_pause(int on);
+/* After USB: the card may have changed - list it again (loader paused). Returns the count. */
+int hm_library_rescan(void);
+
+/* The card's free space in MB, counted by the loader (-1 until then); count it again. */
+int hm_library_free_mb(void);
+void hm_library_count_free(void);
+
 #endif

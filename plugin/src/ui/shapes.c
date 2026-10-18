@@ -29,7 +29,7 @@ static unsigned int isqrt(unsigned int v)
     return r;
 }
 
-static unsigned int mix(unsigned int dst, unsigned int src, int a)
+PW_PIXEL unsigned int mix(unsigned int dst, unsigned int src, int a)
 {
     unsigned int rb =
         (((dst & 0xFF00FF) * (unsigned int)(256 - a) + (src & 0xFF00FF) * (unsigned int)a) >> 8) &
@@ -42,14 +42,14 @@ static unsigned int mix(unsigned int dst, unsigned int src, int a)
 }
 
 /* Signed distance d (1/16 px, positive inside) to coverage 0-256 with a one-pixel ramp. */
-static int coverage(int d)
+PW_PIXEL int coverage(int d)
 {
     int v = d + HALF;
 
     return v <= 0 ? 0 : v >= ONE ? 256 : v * 16;
 }
 
-static void plot(pw_canvas *c, int x, int y, unsigned int color, int cov, int alpha)
+PW_PIXEL void plot(pw_canvas *c, int x, int y, unsigned int color, int cov, int alpha)
 {
     int a = (cov * alpha) >> 8;
 
@@ -68,7 +68,7 @@ static void span(int lo, int hi, int *a, int *b)
 }
 
 /* Coverage of a pixel at squared distance d2 from a centre line, for a radius r (all PW_FX). */
-static int round_cov(int d2, int r)
+PW_PIXEL int round_cov(int d2, int r)
 {
     int lo = r - HALF, hi = r + HALF;
 

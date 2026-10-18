@@ -22,7 +22,7 @@ typedef struct {
     const char *key;
     unsigned short fmt;
     unsigned int max_len;
-    const void *value;
+    const void *value; /* NULL: len zero bytes */
     unsigned int len;
 } pw_sfo_entry;
 

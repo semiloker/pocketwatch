@@ -286,6 +286,15 @@ static void home_previews(void)
     v.panel_pos = 256;
     hm_draw(&g.ops, &ui, &v);
     save("home-panel");
+    v.panel = 0; /* USB, connecting */
+    v.sheet = 256;
+    v.sheet_busy = 1;
+    v.sheet_title = "USB Connection";
+    v.sheet_text = "Connecting to the computer...";
+    v.sheet_hint = "End";
+    v.t_ms = 300;
+    hm_draw(&g.ops, &ui, &v);
+    save("home-usb");
 }
 
 int main(void)

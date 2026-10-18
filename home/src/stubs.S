@@ -16,3 +16,4 @@
 
 	IMPORT_START "KUBridge",0x40090000
 	IMPORT_FUNC  "KUBridge",0x9060F69D,kuKernelCall
+	IMPORT_FUNC  "KUBridge",0x4C25EA72,kuKernelLoadModule

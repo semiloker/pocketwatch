@@ -134,6 +134,12 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_HM_CLOSE] = {"hm_close", "Close"},
     [PW_S_HM_SLEEP] = {"hm_sleep", "Sleep"},
     [PW_S_HM_POWER_OFF] = {"hm_power_off", "Turn Off"},
+    [PW_S_HM_USB] = {"hm_usb", "USB Connection"},
+    [PW_S_HM_USB_CABLE] = {"hm_usb_cable", "Connect the USB cable to a computer."},
+    [PW_S_HM_USB_WAIT] = {"hm_usb_wait", "Connecting to the computer..."},
+    [PW_S_HM_USB_ON] = {"hm_usb_on", "Connected. The computer has the Memory Stick."},
+    [PW_S_HM_USB_FAIL] = {"hm_usb_fail", "USB could not be started."},
+    [PW_S_HM_USB_END] = {"hm_usb_end", "End"},
 #endif
 };
 

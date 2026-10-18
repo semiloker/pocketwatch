@@ -29,6 +29,9 @@ static int g_count;
 static volatile int g_focus, g_focus_ms;
 static unsigned int *g_bg[2]; /* two buffers: the screen may still mix from the older one */
 static volatile int g_bg_game[2] = {-1, -1};
+static volatile int g_pause, g_idle;    /* USB: the loader keeps off the card */
+static volatile unsigned int g_free_mb; /* 0: not counted yet */
+static volatile int g_free_want = 1;
 
 /* ---- one image file ---- */
 
@@ -355,6 +358,7 @@ static void load_background(int sel)
         g_bg_game[slot] = -2; /* being written */
         hm_make_background(px, w, h, g_bg[slot]);
         hm_gu_written(g_bg[slot], 512 * HM_H * 4);
+        hm_gu_upload_bg(slot, g_bg[slot]); /* the GE reads it from VRAM, 16-bit */
         g_bg_game[slot] = sel;
         g_next = !slot;
     }
@@ -371,6 +375,14 @@ static int loader(SceSize args, void *argp)
     for (;;) {
         int sel = g_focus, best = -1, dist = 1 << 30;
 
+        if (g_pause) {
+            g_idle = 1;
+            tried_bg = -1;
+            sceKernelDelayThread(20 * 1000);
+            continue;
+        }
+        g_idle = 0;
+
         if (sel != tried_bg && sel >= 0 && sel < g_count &&
             (int)(hm_hw_now_ms() - g_focus_ms) >= SETTLE_MS) {
             tried_bg = sel;
@@ -386,10 +398,15 @@ static int loader(SceSize args, void *argp)
                     best = i;
                 }
             }
-        if (best >= 0 && dist < 12)
+        if (best >= 0 && dist < 12) {
             load_icon(&g_games[best]);
-        else
+        } else if (g_free_want) { /* the card's free space: seconds on a large card (its FAT is
+                                     read), so here and not in the frame loop */
+            g_free_want = 0;
+            g_free_mb = hm_hw_free_mb() | 0x80000000u;
+        } else {
             sceKernelDelayThread(30 * 1000);
+        }
     }
     return 0;
 }
@@ -420,4 +437,32 @@ const unsigned int *hm_library_background(int sel)
         if (g_bg_game[i] == sel)
             return g_bg[i];
     return 0;
+}
+
+void hm_library_pause(int on)
+{
+    g_pause = on;
+    if (!on)
+        return;
+    g_idle = 0;
+    for (int i = 0; i < 200 && !g_idle; i++) /* at most 2 s: one image being read */
+        sceKernelDelayThread(10 * 1000);
+}
+
+int hm_library_rescan(void)
+{
+    for (int i = 0; i < g_count; i++)
+        free(g_games[i].icon);
+    g_bg_game[0] = g_bg_game[1] = -1;
+    return hm_library_scan();
+}
+
+int hm_library_free_mb(void)
+{
+    return g_free_mb ? (int)(g_free_mb & 0x7FFFFFFFu) : -1;
+}
+
+void hm_library_count_free(void)
+{
+    g_free_want = 1;
 }

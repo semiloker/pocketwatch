@@ -255,6 +255,66 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                  i == v->panel_sel ? C_TEXT : PW_RGB(222, 225, 232), p);
 }
 
+/* A message card: the screen dims, the card holds a title, a line and the way out. */
+static void sheet(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    int p = clampi(v->sheet, 0, 256), w = 400, h = 112, x0 = (HM_W - w) / 2,
+        y0 = (HM_H - h) / 2 + (256 - p) * 12 / 256;
+
+    g->fill(g, 0, 0, HM_W, HM_H, PW_RGB(0, 0, 0), p * 170 / 256);
+    rrect(g, x0, y0, w, h, 16, C_CARD, p * 245 / 256);
+    g->icon(g, PW_ICON_CARD, x0 + 30, y0 + 30, 14, C_TEXT, p);
+    if (v->sheet_title)
+        text(g, ui->title, x0 + 52, y0 + 36, v->sheet_title, C_TEXT, p);
+    if (v->sheet_text)
+        g->text(g, ui->body, x0 + 20, y0 + 68, v->sheet_text, w - 40, C_SUB, p);
+    if (v->sheet_busy)
+        for (int i = 0; i < 3; i++) { /* three dots, a wave through them */
+            int t = (int)((v->t_ms / 4 + (unsigned int)(i * 60)) % 256),
+                k = t < 128 ? t * 2 : (255 - t) * 2;
+
+            g->rrect(g, x0 + w - 56 + i * 12, y0 + 28, 6, 6, 3, 0, C_ON,
+                     p * (90 + k * 166 / 256) / 256);
+        }
+    if (v->sheet_hint) {
+        int tw = pw_text_width(ui->body, v->sheet_hint);
+
+        text(g, ui->body, x0 + w - 20 - tw, y0 + h - 14, v->sheet_hint, C_SUB, p);
+        g->button(g, ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, x0 + w - 32 - tw, y0 + h - 18,
+                  12, C_SUB, p);
+    }
+}
+
+void hm_prefetch(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    /* the games next to the chosen one, nearest first, as games() draws them */
+    for (int d = 1; d <= 3; d++)
+        for (int s = -1; s <= 1; s += 2) {
+            int i = v->sel + s * d;
+            const hm_tile *t;
+
+            if (i < 0 || i >= v->count)
+                continue;
+            t = &v->tiles[i];
+            if (!g->warm(g, ui->big, t->title ? t->title : "", HM_W - 2 * SEL_X) ||
+                (t->meta && !g->warm(g, ui->body, t->meta, HM_W - 2 * SEL_X)))
+                return; /* out of time this frame */
+        }
+    /* the other sections' rows, as card() draws them */
+    for (int k = 0; k < 2; k++)
+        for (int i = 0; i < v->other_nrows[k] && v->other_rows[k]; i++) {
+            const hm_row *r = &v->other_rows[k][i];
+
+            if (!g->warm(g, ui->body, r->label ? r->label : "",
+                         r->value ? CARD_W * 3 / 5 - 18 : CARD_W - 36) ||
+                (r->value && !g->warm(g, ui->body, r->value, 0)))
+                return;
+        }
+    for (int i = 0; i < v->panel_count; i++)
+        if (v->panel_items[i] && !g->warm(g, ui->body, v->panel_items[i], 0))
+            return;
+}
+
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = clampi(v->appear, 0, 256);
@@ -268,6 +328,8 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     hints(g, ui, v, a);
     if (v->panel > 0)
         panel(g, ui, v);
+    if (v->sheet > 0)
+        sheet(g, ui, v);
     if (a < 256) /* fading in, or out before a game starts */
         g->fill(g, 0, 0, HM_W, HM_H, PW_RGB(0, 0, 0), 256 - a);
 }

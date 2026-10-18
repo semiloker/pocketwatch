@@ -12,17 +12,29 @@
 #include "ui/icons.h"
 #include "ui/shapes.h"
 
-#define SCR_W  480
-#define SCR_H  272
-#define BUF_W  512
-#define FRAME  (BUF_W * SCR_H * 4) /* bytes of one frame in VRAM */
-#define SLICE  64                  /* wide 1:1 images go in columns: the GE's texture cache */
-#define STAMPS 96                  /* text lines, corners and icons kept as textures */
-#define KEY    112
+#define SCR_W 480
+#define SCR_H 272
+#define BUF_W 512
+#define FRAME (BUF_W * SCR_H * 4) /* bytes of one frame in VRAM */
+/* Backgrounds in VRAM as 5650 (ADR-030): the GE read 522 KB of RAM a frame for an 8888 one, and
+   took 11-13 ms a frame on the PSP (home.log, 2026-10-18). Two frames + three of these: 1.86 MB. */
+#define BG16      (BUF_W * SCR_H * 2)
+#define BG_SLOTS  3
+#define VRAM_GE   0x04000000u /* the GE's address of VRAM */
+#define VRAM_CPU  0x44000000u /* the CPU's, uncached */
+#define SLICE     64          /* wide 1:1 images go in columns: the GE's texture cache */
+#define STAMPS    256         /* text lines, corners and icons kept as textures */
+#define STAMP_RAM (3u << 20)  /* bytes of 8-bit stamps at most */
+#define KEY       112
+#define WARM_US   3000 /* stamps made ahead of need, per frame, while the GE draws */
 
 static unsigned int __attribute__((aligned(64))) g_list[128 * 1024];
+static unsigned int __attribute__((aligned(16))) g_clut[256]; /* index i: white, alpha i */
 static unsigned int g_frame; /* counts frames: what a stamp was last used in */
 static hm_gfx g_ops;
+static unsigned int g_warm_us;                         /* spent making stamps ahead this frame */
+static const unsigned int *volatile g_bg_of[BG_SLOTS]; /* the 8888 picture each VRAM slot holds */
+static unsigned int g_made; /* stamps made this frame (needed now or ahead) */
 
 /* ---- vertices (texture, colour, position: the GE's order) ---- */
 
@@ -91,68 +103,127 @@ static void sprite(hm_sprite s, unsigned int color)
     sceGuDrawArray(GU_SPRITES, TFMT, 2, 0, v);
 }
 
-/* ---- stamps: what the CPU renderer draws once, kept as alpha textures ---- */
+/* ---- stamps: what the CPU renderer draws once, kept as 8-bit alpha textures ---- */
 
 typedef struct {
+    unsigned int hash, used, bytes;
     char key[KEY];
-    int w, h, stride; /* the texture's size and row length (a multiple of 16 texels) */
-    int ox, oy;       /* where the drawing's origin is in it */
-    unsigned int *px, used;
+    int w, h, stride;  /* the texture's size and row length (a multiple of 16 texels) */
+    int ox, oy;        /* where the drawing's origin is in it */
+    unsigned char *px; /* coverage 0-255: an index into g_clut */
 } stamp;
 
 static stamp g_stamps[STAMPS];
+static unsigned int g_stamp_bytes;
+static unsigned int *g_scratch; /* the CPU renderer's canvas for one stamp */
+static int g_scratch_px;
 
 typedef void (*rasterise)(pw_canvas *c, const void *arg);
 
-/* The stamp for key, made by r (white on black, w x h, the origin at ox, oy) when missing. */
-static stamp *get_stamp(const char *key, int w, int h, int ox, int oy, rasterise r, const void *arg)
+/* FNV-1a */
+static unsigned int hash(const char *s)
 {
-    stamp *s = 0, *old = 0;
-    pw_canvas c;
+    unsigned int h = 2166136261u;
 
-    for (int i = 0; i < STAMPS; i++) {
-        if (g_stamps[i].px && strcmp(g_stamps[i].key, key) == 0) {
+    while (*s)
+        h = (h ^ (unsigned char)*s++) * 16777619u;
+    return h;
+}
+
+static stamp *find_stamp(const char *key, unsigned int h)
+{
+    for (int i = 0; i < STAMPS; i++)
+        if (g_stamps[i].px && g_stamps[i].hash == h && strcmp(g_stamps[i].key, key) == 0) {
             g_stamps[i].used = g_frame;
             return &g_stamps[i];
         }
-        if (!g_stamps[i].px && !s)
-            s = &g_stamps[i];
-        if (g_stamps[i].px && g_stamps[i].used != g_frame && (!old || g_stamps[i].used < old->used))
-            old = &g_stamps[i];
-    }
-    if (!s) { /* the least recently used, never one this frame's list still points at */
+    return 0;
+}
+
+/* Room for bytes more: a free slot, the least recently used ones dropped - never one this
+   frame's list still points at. */
+static stamp *free_slot(unsigned int bytes)
+{
+    for (;;) {
+        stamp *free_one = 0, *old = 0;
+
+        for (int i = 0; i < STAMPS; i++) {
+            if (!g_stamps[i].px) {
+                if (!free_one)
+                    free_one = &g_stamps[i];
+            } else if (g_stamps[i].used != g_frame && (!old || g_stamps[i].used < old->used)) {
+                old = &g_stamps[i];
+            }
+        }
+        if (free_one && g_stamp_bytes + bytes <= STAMP_RAM)
+            return free_one;
         if (!old)
             return 0;
+        g_stamp_bytes -= old->bytes;
         free(old->px);
         old->px = 0;
-        s = old;
     }
+}
+
+/* Make the stamp for key with r (white on black, w x h, the drawing's origin at ox, oy). */
+static stamp *make_stamp(const char *key, unsigned int h_key, int w, int h, int ox, int oy,
+                         rasterise r, const void *arg)
+{
+    stamp *s;
+    pw_canvas c;
+    int stride, n;
+
     w = w < 1 ? 1 : w > 512 ? 512 : w;
     h = h < 1 ? 1 : h > 512 ? 512 : h;
-    s->stride = (w + 15) & ~15;
-    s->px = memalign(16, (size_t)(s->stride * h * 4));
-    if (!s->px)
+    stride = (w + 15) & ~15;
+    n = stride * h;
+    if (n > g_scratch_px) {
+        free(g_scratch);
+        g_scratch = memalign(16, (size_t)n * 4);
+        g_scratch_px = g_scratch ? n : 0;
+        if (!g_scratch)
+            return 0;
+    }
+    if (!(s = free_slot((unsigned int)n)) || !(s->px = memalign(16, (size_t)n)))
         return 0;
-    memset(s->px, 0, (size_t)(s->stride * h * 4));
-    c.px = s->px;
+    memset(g_scratch, 0, (size_t)n * 4);
+    c.px = g_scratch;
     c.w = w;
     c.h = h;
-    c.stride = s->stride;
+    c.stride = stride;
     r(&c, arg);
-    for (int i = 0; i < s->stride * h; i++) { /* coverage (the red channel) becomes alpha */
-        unsigned int a = s->px[i] & 0xFF;
-
-        s->px[i] = a << 24 | 0x00FFFFFF;
-    }
-    sceKernelDcacheWritebackRange(s->px, (unsigned int)(s->stride * h * 4));
+    for (int i = 0; i < n; i++) /* coverage (the red channel) becomes the alpha index */
+        s->px[i] = (unsigned char)(g_scratch[i] & 0xFF);
+    sceKernelDcacheWritebackRange(s->px, (unsigned int)n);
+    s->hash = h_key;
     strncpy(s->key, key, KEY - 1);
     s->key[KEY - 1] = 0;
     s->w = w;
     s->h = h;
+    s->stride = stride;
     s->ox = ox;
     s->oy = oy;
     s->used = g_frame;
+    s->bytes = (unsigned int)n;
+    g_stamp_bytes += s->bytes;
+    g_made++;
     return s;
+}
+
+static stamp *get_stamp(const char *key, int w, int h, int ox, int oy, rasterise r, const void *arg)
+{
+    unsigned int k = hash(key);
+    stamp *s = find_stamp(key, k);
+
+    return s ? s : make_stamp(key, k, w, h, ox, oy, r, arg);
+}
+
+static void bind8(const stamp *s)
+{
+    texturing(1);
+    sceGuTexMode(GU_PSM_T8, 0, 0, 0);
+    sceGuTexImage(0, pow2(s->w), pow2(s->h), s->stride, s->px);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
 }
 
 static void draw_stamp(const stamp *s, float x, float y, unsigned int color)
@@ -160,7 +231,7 @@ static void draw_stamp(const stamp *s, float x, float y, unsigned int color)
     hm_sprite sp = {x - s->ox, y - s->oy, x - s->ox + s->w, y - s->oy + s->h,
                     0,         0,         (float)s->w,      (float)s->h};
 
-    bind(s->px, s->w, s->h, s->stride, 0);
+    bind8(s);
     sprite(sp, color);
 }
 
@@ -215,7 +286,7 @@ static void rrect(hm_gfx *g, int x, int y, int w, int h, int r, int line, unsign
     s = get_stamp(key, HM_STAMP_SIDE(a.r), HM_STAMP_SIDE(a.r), 0, 0, corner, &a);
     if (!s)
         return;
-    bind(s->px, s->w, s->h, s->stride, 0);
+    bind8(s);
     n = hm_rrect_sprites(x, y, w, h, a.r, line == 0, parts);
     for (int i = 0; i < n; i++)
         sprite(parts[i], ge_color(color, alpha));
@@ -224,12 +295,17 @@ static void rrect(hm_gfx *g, int x, int y, int w, int h, int r, int line, unsign
 static void image(hm_gfx *g, const unsigned int *px, int w, int h, int stride, int x, int y, int dw,
                   int dh, int alpha)
 {
-    hm_sprite s = {(float)x, (float)y, (float)(x + dw), (float)(y + dh), 0, 0, (float)w, (float)h};
+    int scaled = dw != w || dh != h;
+    /* Scaled, the GE filters between texels: half a texel in from the edges, so it never reads
+       past the image (the next row, or memory after it) - a thin line at the bottom otherwise. */
+    float in = scaled ? 0.5f : 0.0f;
+    hm_sprite s = {(float)x, (float)y, (float)(x + dw), (float)(y + dh),
+                   in,       in,       (float)w - in,   (float)h - in};
 
     (void)g;
     if (!px || alpha <= 0 || w <= 0 || h <= 0)
         return;
-    bind(px, w, h, stride, dw != w || dh != h);
+    bind(px, w, h, stride, scaled);
     sprite(s, ge_color(PW_RGB(255, 255, 255), alpha));
 }
 
@@ -245,6 +321,35 @@ static void screen_image(const unsigned int *px, int alpha)
     }
 }
 
+/* The VRAM copy of an 8888 background, or NULL (then the slow RAM texture is drawn). */
+static const void *vram_bg(const unsigned int *bg)
+{
+    for (int i = 0; i < BG_SLOTS; i++)
+        if (bg && g_bg_of[i] == bg)
+            return (const void *)(VRAM_GE + 2u * FRAME + (unsigned int)i * BG16);
+    return 0;
+}
+
+static void layer(const unsigned int *px, int alpha)
+{
+    const void *v = vram_bg(px);
+
+    if (!v) {
+        screen_image(px, alpha);
+        return;
+    }
+    texturing(1);
+    sceGuTexMode(GU_PSM_5650, 0, 0, 0);
+    sceGuTexImage(0, 512, 512, BUF_W, v);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
+    for (int x = 0; x < SCR_W; x += SLICE) {
+        int x1 = x + SLICE < SCR_W ? x + SLICE : SCR_W;
+        hm_sprite s = {(float)x, 0, (float)x1, SCR_H, (float)x, 0, (float)x1, SCR_H};
+
+        sprite(s, ge_color(PW_RGB(255, 255, 255), alpha));
+    }
+}
+
 static void backdrop(hm_gfx *g, const unsigned int *bg, const unsigned int *prev, int mix)
 {
     if (!bg) {
@@ -252,10 +357,39 @@ static void backdrop(hm_gfx *g, const unsigned int *bg, const unsigned int *prev
         return;
     }
     sceGuDisable(GU_BLEND); /* the bottom layer is opaque: nothing to read back */
-    screen_image(prev && mix < 256 ? prev : bg, 256);
+    layer(prev && mix < 256 ? prev : bg, 256);
     sceGuEnable(GU_BLEND);
     if (prev && mix < 256 && mix > 0)
-        screen_image(bg, mix);
+        layer(bg, mix);
+}
+
+/* 4 x 4 ordered dither, so the blurred art keeps its smooth gradients in 16 bits. */
+static const unsigned char k_bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+
+void hm_gu_upload_bg(int slot, const unsigned int *px)
+{
+    unsigned short *out;
+
+    if (slot < 0 || slot >= BG_SLOTS || !px)
+        return;
+    g_bg_of[slot] = 0; /* not drawn from VRAM while it changes */
+    out = (unsigned short *)(VRAM_CPU + 2u * FRAME + (unsigned int)slot * BG16);
+    for (int y = 0; y < SCR_H; y++) {
+        const unsigned int *row = px + y * BUF_W;
+        unsigned short *o = out + y * BUF_W;
+
+        for (int x = 0; x < SCR_W; x++) {
+            unsigned int p = row[x], d = k_bayer[(y & 3) * 4 + (x & 3)];
+            unsigned int r = (p & 0xFF) + (d >> 1), gg = ((p >> 8) & 0xFF) + (d >> 2),
+                         b = ((p >> 16) & 0xFF) + (d >> 1);
+
+            r = r > 255 ? 255 : r;
+            gg = gg > 255 ? 255 : gg;
+            b = b > 255 ? 255 : b;
+            o[x] = (unsigned short)((r >> 3) | (gg >> 2) << 5 | (b >> 3) << 11);
+        }
+    }
+    g_bg_of[slot] = px;
 }
 
 typedef struct {
@@ -274,35 +408,56 @@ static void text_line(pw_canvas *c, const void *arg)
         pw_text_draw(c, a->f, a->x, a->y, a->s, PW_RGB(255, 255, 255), 256, 0);
 }
 
-/* FNV-1a: the whole string in the key, whatever its length. */
-static unsigned int hash(const char *s)
+/* The text stamp of s as drawn with f and max_w: found, or made (when make). */
+static stamp *text_stamp(pw_font *f, const char *s, int max_w, int make)
 {
-    unsigned int h = 2166136261u;
+    char key[KEY];
+    unsigned int k;
+    text_arg a = {f, s, max_w, 3, 0};
+    stamp *st;
+    int w;
 
-    while (*s)
-        h = (h ^ (unsigned char)*s++) * 16777619u;
-    return h;
+    stbsp_snprintf(key, sizeof(key), "t%p/%d/%08x/%.80s", (void *)f, max_w, hash(s), s);
+    k = hash(key);
+    if ((st = find_stamp(key, k)) != 0 || !make)
+        return st;
+    w = pw_text_width(f, s);
+    if (max_w > 0 && w > max_w)
+        w = max_w;
+    a.y = f->ascent + 3; /* the baseline in the stamp: room above for accents */
+    return make_stamp(key, k, w + 8, f->ascent + f->descent + 7, a.x, a.y, text_line, &a);
 }
 
 static void text(hm_gfx *g, pw_font *f, int x, int y, const char *s, int max_w, unsigned int color,
                  int alpha)
 {
-    char key[KEY];
-    text_arg a = {f, s, max_w, 3, 0};
-    int w;
     stamp *st;
 
     (void)g;
     if (!s || !s[0] || alpha <= 0)
         return;
-    stbsp_snprintf(key, sizeof(key), "t%p/%d/%08x/%.80s", (void *)f, max_w, hash(s), s);
-    w = pw_text_width(f, s);
-    if (max_w > 0 && w > max_w)
-        w = max_w;
-    a.y = f->ascent + 3; /* the baseline in the stamp: room above for accents */
-    st = get_stamp(key, w + 8, f->ascent + f->descent + 7, a.x, a.y, text_line, &a);
-    if (st)
+    if ((st = text_stamp(f, s, max_w, 1)) != 0)
         draw_stamp(st, (float)x, (float)y, ge_color(color, alpha));
+}
+
+/* A text stamp made before it is needed, within WARM_US a frame (hm_gu_finish .. hm_gu_end, while
+   the GE draws). 1 when it is ready. */
+static int warm(hm_gfx *g, pw_font *f, const char *s, int max_w)
+{
+    unsigned int t0;
+    int ok;
+
+    (void)g;
+    if (!s || !s[0])
+        return 1;
+    if (text_stamp(f, s, max_w, 0))
+        return 1;
+    if (g_warm_us >= WARM_US)
+        return 0;
+    t0 = sceKernelGetSystemTimeLow();
+    ok = text_stamp(f, s, max_w, 1) != 0;
+    g_warm_us += sceKernelGetSystemTimeLow() - t0;
+    return ok;
 }
 
 typedef struct {
@@ -358,6 +513,10 @@ int hm_gu_init(void)
     g_ops.text = text;
     g_ops.icon = icon;
     g_ops.button = button;
+    g_ops.warm = warm;
+    for (int i = 0; i < 256; i++)
+        g_clut[i] = (unsigned int)i << 24 | 0x00FFFFFF;
+    sceKernelDcacheWritebackRange(g_clut, sizeof(g_clut));
 
     sceGuInit();
     sceGuStart(GU_DIRECT, g_list);
@@ -387,21 +546,40 @@ hm_gfx *hm_gu_begin(void)
 {
     g_frame++;
     g_textured = -1;
+    g_warm_us = 0;
+    g_made = 0;
     sceGuStart(GU_DIRECT, g_list);
+    sceGuClutMode(GU_PSM_8888, 0, 0xFF, 0);
+    sceGuClutLoad(256 / 8, g_clut);
     return &g_ops;
+}
+
+void hm_gu_finish(void)
+{
+    sceGuFinish(); /* the GE starts on the list; the CPU is free until hm_gu_end */
 }
 
 unsigned int hm_gu_end(void)
 {
     unsigned int t0, t1;
 
-    sceGuFinish();
     t0 = sceKernelGetSystemTimeLow();
     sceGuSync(0, 0);
     t1 = sceKernelGetSystemTimeLow();
     sceDisplayWaitVblankStart();
     sceGuSwapBuffers();
     return t1 - t0;
+}
+
+void hm_gu_stats(unsigned int *made, unsigned int *count, unsigned int *bytes)
+{
+    int n = 0;
+
+    for (int i = 0; i < STAMPS; i++)
+        n += g_stamps[i].px != 0;
+    *made = g_made;
+    *count = (unsigned int)n;
+    *bytes = g_stamp_bytes;
 }
 
 void hm_gu_written(const void *p, unsigned int bytes)

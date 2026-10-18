@@ -65,9 +65,21 @@ typedef struct {
     const char *panel_title;
     const char *panel_items[HM_PANEL_MAX];
     int panel_count;
+
+    /* A message card over everything while sheet > 0 (USB, HOM-REQ-011) */
+    int sheet, sheet_busy; /* busy: three dots pulse (t_ms) */
+    const char *sheet_title, *sheet_text, *sheet_hint;
+
+    /* For hm_prefetch: the other cards' rows, drawn when their section opens */
+    const hm_row *other_rows[2];
+    int other_nrows[2];
 } hm_view;
 
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v);
+
+/* Prepare what the next frames may draw (ADR-028): the neighbours' titles, the other sections'
+   rows, the panel - within the backend's budget, while the GE draws this frame. */
+void hm_prefetch(hm_gfx *g, const hm_ui *ui, const hm_view *v);
 
 /* A background from a game's PIC1 (any size): stretched to HM_W x HM_H, blurred and darkened
    towards the bottom, so text stays readable on any art. */

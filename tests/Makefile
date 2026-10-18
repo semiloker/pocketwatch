@@ -27,7 +27,7 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
               $(SRC_DIR)/complications/registry.c $(SRC_DIR)/ui/backdrop.c \
               $(SRC_DIR)/ui/views_modern.c $(SRC_DIR)/ui/views_minimal.c $(SRC_DIR)/ui/volume.c $(SRC_DIR)/ui/langnames.c $(SRC_DIR)/core/battmodel.c $(SRC_DIR)/core/playtime.c $(SRC_DIR)/core/bootpick.c \
-              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c \
+              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
@@ -69,10 +69,11 @@ preview: $(PREVIEW_OBJS)
 	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
 
 # Frame cost by part (tests/bench/bench_ui.c), -O2 without sanitizers: only the proportions matter.
+BENCH_OPT ?= -O2
 BENCH_SRCS = bench/bench_ui.c $(filter-out %/store.c %/log.c %/ring.c,$(PLUGIN_SRCS))
 bench: | $(BUILD)
-	$(CC) -std=gnu11 -O2 -I$(SRC_DIR) -I$(LIB_DIR) -I. -Wno-sign-compare -o $(BUILD)/bench_ui $(BENCH_SRCS) platform_host.c
-	./$(BUILD)/bench_ui
+	$(CC) -std=gnu11 $(BENCH_OPT) -I$(SRC_DIR) -I$(LIB_DIR) -I$(HOME_DIR) -I. -DPW_I18N_HOME -Wno-sign-compare -o $(BUILD)/bench_ui $(BENCH_SRCS) platform_host.c
+	PW_BENCH_FONT=$(FONT) ./$(BUILD)/bench_ui
 
 clean:
 	rm -rf $(BUILD)
