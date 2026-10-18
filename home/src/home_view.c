@@ -368,16 +368,24 @@ void hm_prefetch(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                 (t->meta && !g->warm(g, ui->body, t->meta, HM_W - 2 * SEL_X)))
                 return; /* out of time this frame */
         }
-    /* the other sections' rows, as card() draws them */
-    for (int k = 0; k < 3; k++)
-        for (int i = 0; i < v->other_nrows[k] && v->other_rows[k]; i++) {
+    /* the sections' rows, as card() draws them: around the cursor in this one, the first ones of
+       the others (a long list - the music - is not made all at once) */
+    for (int k = 0; k < HM_TABS; k++) {
+        int from = k == v->tab ? v->row_sel - SHOW : 0,
+            to = k == v->tab ? v->row_sel + SHOW : SHOW + 1;
+
+        for (int i = from < 0 ? 0 : from; i < v->other_nrows[k] && i <= to && v->other_rows[k];
+             i++) {
             const hm_row *r = &v->other_rows[k][i];
 
-            if (!g->warm(g, ui->body, r->label ? r->label : "",
-                         r->value ? CARD_W * 3 / 5 - 18 : CARD_W - 36) ||
-                (r->value && !g->warm(g, ui->body, r->value, 0)))
+            if (r->kind == HM_ROW_HEADER
+                    ? !g->warm(g, ui->body, r->label ? r->label : "", CARD_W - 36)
+                    : !g->warm(g, ui->body, r->label ? r->label : "",
+                               r->value ? CARD_W * 3 / 5 - 18 : CARD_W - 36) ||
+                          (r->value && !g->warm(g, ui->body, r->value, 0)))
                 return;
         }
+    }
     for (int i = 0; i < v->panel_count; i++)
         if (v->panel_items[i] && !g->warm(g, ui->body, v->panel_items[i], 0))
             return;
@@ -388,8 +396,18 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     int a = clampi(v->appear, 0, 256);
 
     g->backdrop(g, v->bg, v->bg_prev && v->bg_mix < 256 ? v->bg_prev : 0, v->bg_mix);
+    if (v->viewer >= 256) { /* the photo alone, and its name for a moment */
+        if (v->viewer_caption && v->caption > 0) {
+            int w = pw_text_width(ui->body, v->viewer_caption) + 28;
+
+            rrect(g, 12, HM_H - 36, w > HM_W - 24 ? HM_W - 24 : w, 24, 12, C_CARD,
+                  v->caption * 200 / 256);
+            g->text(g, ui->body, 26, HM_H - 20, v->viewer_caption, HM_W - 52, C_TEXT, v->caption);
+        }
+        return;
+    }
     tabs(g, ui, v, a, status(g, ui, v, a) - 12);
-    if (v->tab == HM_TAB_GAMES)
+    if (v->tab == HM_TAB_GAMES || v->tab == HM_TAB_PHOTOS) /* the same row of pictures */
         games(g, ui, v, a);
     else
         card(g, ui, v, a);
@@ -412,6 +430,19 @@ void hm_make_background(const unsigned int *pic, int w, int h, unsigned int *out
     pw_draw_darken(&c, 150);
     for (int y = 100; y < HM_H; y++) /* darker towards the text */
         pw_draw_blend(&c, 0, y, HM_W, 1, PW_RGB(0, 0, 0), (y - 100) * 150 / (HM_H - 100));
+}
+
+void hm_make_photo(const unsigned int *pic, int w, int h, unsigned int *out)
+{
+    pw_canvas c = {out, HM_W, HM_H, 512};
+    int fw = HM_W, fh = h * HM_W / (w > 0 ? w : 1);
+
+    if (fh > HM_H) {
+        fh = HM_H;
+        fw = w * HM_H / (h > 0 ? h : 1);
+    }
+    pw_draw_fill(&c, 0, 0, HM_W, HM_H, PW_RGB(0, 0, 0));
+    pw_draw_image_scaled(&c, pic, w, h, (HM_W - fw) / 2, (HM_H - fh) / 2, fw, fh, 256);
 }
 
 void hm_make_gradient(unsigned int *out)

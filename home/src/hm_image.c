@@ -3,6 +3,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
+#define STBI_ONLY_JPEG /* photos (HOM-REQ-016) */
+#define STBI_ONLY_BMP  /* screenshots of the PSP's own plugins */
 #define STBI_NO_STDIO
 #define STBI_NO_LINEAR
 #define STBI_NO_HDR
@@ -14,6 +16,13 @@ unsigned int *hm_png_decode(const void *data, int len, int *w, int *h)
     int channels;
 
     return (unsigned int *)stbi_load_from_memory(data, len, w, h, &channels, 4);
+}
+
+int hm_image_info(const void *data, int len, int *w, int *h)
+{
+    int channels;
+
+    return stbi_info_from_memory(data, len, w, h, &channels) ? 0 : -1;
 }
 
 void hm_image_free(void *pixels)

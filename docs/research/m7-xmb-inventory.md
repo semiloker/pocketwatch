@@ -31,7 +31,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 | USB Connection | USB mass storage | API (`sceUsb*`, drivers via `kuKernelLoadModule`) - with automatic reconnect | Implemented (HOM-REQ-011) |
 | System Update | firmware update | XMB - never from Home (CFW: an update removes ARK-4) | Dropped (safety) |
 | Video Settings | UMD Video / video playback options (language, subtitles, screen size) | needs a video player first | XMB (Planned with video, RESEARCH REQUIRED) |
-| Photo Settings | slideshow speed | OURS, with the photo viewer | Planned (HOM-REQ-016) |
+| Photo Settings | slideshow speed | OURS, with the photo viewer (a slideshow: Planned) | Planned |
 | System Settings → System Language | the UI language | API `sceUtilitySetSystemParamInt(LANGUAGE)` | Implemented (HOM-REQ-012) |
 | System Settings → Nickname | the PSP's name | SYS DIALOG (OSK) + API `SetSystemParamString(NICKNAME)` | Implemented (HOM-REQ-012) |
 | System Settings → System Information | MAC address, system software, nickname | API (`sceKernelDevkitVersion`, `sceWlanGetEtherAddr`, KUBridge model, ARK-4's version) | Implemented (HOM-REQ-013) |
@@ -54,8 +54,8 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 
 | Element | What it does | In Home: how | Status |
 |---|---|---|---|
-| Photo → Memory Stick | browse and view pictures (`PICTURE/`, `DCIM/`) | OURS: list, thumbnails, full screen (JPEG/PNG through stb_image) | Planned (HOM-REQ-016) |
-| Music → Memory Stick | play MP3/ATRAC from `MUSIC/` | OURS: `sceMp3` (firmware decoder, `PSP_MODULE_AV_MP3`) + `sceAudio`, playing on while Home is browsed | Planned (HOM-REQ-018) |
+| Photo → Memory Stick | browse and view pictures (`PICTURE/`, `DCIM/`) | OURS: list, thumbnails, full screen (JPEG/PNG/BMP through stb_image) | Implemented (HOM-REQ-016) |
+| Music → Memory Stick | play MP3/ATRAC from `MUSIC/` | OURS: `sceMp3` (firmware decoder, `PSP_MODULE_AV_MP3`) + `sceAudio`, playing on while Home is browsed; ATRAC: Planned | MP3 implemented (HOM-REQ-018) |
 | Music → UMD Music / Video → UMD Video | UMD media | ARK-4's `noumd` (the owner's setting) disables the drive | XMB |
 | Video → Memory Stick | play MP4/PMF | RESEARCH REQUIRED (`sceMpeg`/AVC; the XMB's player is part of `vsh`) | XMB |
 

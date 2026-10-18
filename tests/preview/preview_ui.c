@@ -226,6 +226,8 @@ static void home_previews(void)
     hm_gfx_cpu_init(&g, &c);
     memset(&v, 0, sizeof(v));
     v.tab_names[HM_TAB_GAMES] = "Games";
+    v.tab_names[HM_TAB_MUSIC] = "Music";
+    v.tab_names[HM_TAB_PHOTOS] = "Photos";
     v.tab_names[HM_TAB_PLAYTIME] = "Play Time";
     v.tab_names[HM_TAB_SETTINGS] = "Settings";
     v.tab_names[HM_TAB_SYSTEM] = "System";
@@ -253,7 +255,7 @@ static void home_previews(void)
     save("home-games-no-art");
     v.tab = v.tab_pos = 0;
     v.tab = HM_TAB_PLAYTIME;
-    v.tab_pos = 256;
+    v.tab_pos = HM_TAB_PLAYTIME * 256;
     v.rows = playtime;
     v.nrows = 5;
     v.row_sel = 1;
@@ -262,7 +264,7 @@ static void home_previews(void)
     hm_draw(&g.ops, &ui, &v);
     save("home-playtime");
     v.tab = HM_TAB_SYSTEM;
-    v.tab_pos = 3 * 256;
+    v.tab_pos = HM_TAB_SYSTEM * 256;
     v.rows = system;
     v.nrows = 6;
     v.row_sel = 5;
@@ -283,7 +285,7 @@ static void home_previews(void)
         };
 
         v.tab = HM_TAB_SETTINGS;
-        v.tab_pos = 2 * 256;
+        v.tab_pos = HM_TAB_SETTINGS * 256;
         v.rows = set;
         v.nrows = 9;
         v.row_sel = 1;

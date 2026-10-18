@@ -18,7 +18,15 @@
 #define HM_ICON_W 144
 #define HM_ICON_H 80
 
-enum { HM_TAB_GAMES, HM_TAB_PLAYTIME, HM_TAB_SETTINGS, HM_TAB_SYSTEM, HM_TABS };
+enum {
+    HM_TAB_GAMES,
+    HM_TAB_MUSIC,
+    HM_TAB_PHOTOS,
+    HM_TAB_PLAYTIME,
+    HM_TAB_SETTINGS,
+    HM_TAB_SYSTEM,
+    HM_TABS
+};
 
 #define HM_PANEL_MAX 8
 
@@ -75,13 +83,17 @@ typedef struct {
     int panel_count;
     const char *panel_hint; /* bottom right, or NULL */
 
+    /* A photo whole (HOM-REQ-016): the background alone, a caption that fades (0-256) */
+    int viewer, caption; /* caption: 0-256 */
+    const char *viewer_caption;
+
     /* A message card over everything while sheet > 0 (USB, HOM-REQ-011) */
     int sheet, sheet_busy; /* busy: three dots pulse (t_ms) */
     const char *sheet_title, *sheet_text, *sheet_hint;
 
-    /* For hm_prefetch: the other cards' rows, drawn when their section opens */
-    const hm_row *other_rows[3];
-    int other_nrows[3];
+    /* For hm_prefetch: every section's rows (by tab), drawn when their section opens */
+    const hm_row *other_rows[HM_TABS];
+    int other_nrows[HM_TABS];
 } hm_view;
 
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v);
@@ -95,5 +107,7 @@ void hm_prefetch(hm_gfx *g, const hm_ui *ui, const hm_view *v);
 void hm_make_background(const unsigned int *pic, int w, int h, unsigned int *out);
 /* The background without art (a slate gradient), into a HM_H x 512 buffer. */
 void hm_make_gradient(unsigned int *out);
+/* A photo as it is: fitted whole into the screen, centred on black (the viewer). */
+void hm_make_photo(const unsigned int *pic, int w, int h, unsigned int *out);
 
 #endif

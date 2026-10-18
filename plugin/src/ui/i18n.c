@@ -165,6 +165,13 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HM_OPTIONS] = {"hm_options", "Options"},
     [PW_S_HM_SAVED_DATA] = {"hm_saved_data", "Saved Data"},
     [PW_S_HM_CONTINUE] = {"hm_continue", "Continue"},
+    [PW_S_HM_MUSIC] = {"hm_music", "Music"},
+    [PW_S_HM_MU_IDLE] = {"hm_mu_idle", "Nothing playing"},
+    [PW_S_HM_MU_PAUSED] = {"hm_mu_paused", "Paused"},
+    [PW_S_HM_MU_NONE] = {"hm_mu_none", "No music in ms0:/MUSIC"},
+    [PW_S_HM_PHOTOS] = {"hm_photos", "Photos"},
+    [PW_S_HM_VIEW] = {"hm_view", "View"},
+    [PW_S_HM_PH_NONE] = {"hm_ph_none", "No pictures in ms0:/PICTURE"},
 #endif
 };
 

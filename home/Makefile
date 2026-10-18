@@ -9,7 +9,8 @@ TARGET = pocketwatch_home
 # (into build/, so the plugin's objects next to the sources stay apart).
 OBJS = build/main.o build/hw.o build/library.o build/launch.o build/texts.o build/home_view.o \
        build/disc.o build/hm_image.o build/gfx_gu.o build/sprites.o build/usb.o build/usb_link.o \
-       build/hsettings.o build/dialogs.o build/states.o build/platform_home.o build/stubs.o \
+       build/hsettings.o build/dialogs.o build/states.o build/platform_home.o build/music.o \
+       build/music_name.o build/stubs.o \
        build/draw.o build/shapes.o build/icons.o build/font8x8.o build/input.o build/i18n.o \
        build/text.o build/pgf.o build/sfo.o build/playtime.o build/crc32.o build/stb_sprintf.o \
        build/config.o build/langnames.o
@@ -19,7 +20,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 INCDIR  = src lib ../plugin/src ../plugin/lib
 CFLAGS  = -O2 -G0 -Wall -Wextra -Werror -DPW_I18N_HOME -DPW_VERSION=\"$(VERSION)\"
 ASFLAGS = $(CFLAGS)
-LIBS    = -lpspgu -lpspusb -lpspusbstor -lpspwlan -lpsppower -lpsprtc -lpsputility
+LIBS    = -lpspgu -lpspusb -lpspusbstor -lpspwlan -lpspmp3 -lpspaudio -lpsppower -lpsprtc -lpsputility
 
 BUILD_PRX      = 1
 PSP_FW_VERSION = 660

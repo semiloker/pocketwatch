@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: Music (the MP3s of MUSIC/, playing on while you browse, the next track
+  following) and Photos (PICTURE/ and DCIM/: thumbnails, the picture behind the row, full screen).
 - Pocketwatch Home: a Settings section (Pocketwatch's settings, nickname, system language, date
   and time formats, time zone, summer time, WLAN power save, brightness, AVLS), System
   Information (model, firmware, ARK-4, MAC), and Triangle on a game: its save states with

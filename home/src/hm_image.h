@@ -5,8 +5,10 @@
 /* PNG and raw deflate for Pocketwatch Home, through the vendored stb_image (public domain / MIT,
    home/lib/stb_image.h). Pixels come out as PW_RGB words (R in the low byte, alpha on top). */
 
-/* Decoded pixels (free with hm_image_free) and their size, or NULL. */
+/* Decoded pixels (free with hm_image_free) and their size, or NULL: PNG, JPEG, BMP. */
 unsigned int *hm_png_decode(const void *data, int len, int *w, int *h);
+/* The size of an encoded image without decoding it; 0, or < 0 when it is not one. */
+int hm_image_info(const void *data, int len, int *w, int *h);
 void hm_image_free(void *pixels);
 
 /* Raw deflate (no zlib header), as in CSO blocks: bytes produced, or < 0. */

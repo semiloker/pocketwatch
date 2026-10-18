@@ -31,6 +31,14 @@ static unsigned int *g_bg[2]; /* two buffers: the screen may still mix from the 
 static volatile int g_bg_game[2] = {-1, -1};
 static volatile int g_pause, g_idle;    /* USB: the loader keeps off the card */
 static volatile unsigned int g_free_mb; /* 0: not counted yet */
+static hm_photo g_photos[HM_PHOTOS_MAX];
+static unsigned long long g_photo_when[HM_PHOTOS_MAX];
+static int g_photo_count;
+static volatile int g_mode, g_photo_focus; /* hm_library_mode */
+#define PHOTO_FILE_MAX (6 << 20)           /* bytes of one picture file at most */
+#define PHOTO_PIXELS   (2600000) /* pixels of one picture at most (decoded: 4 bytes each) */
+#define TAG_PHOTO      10000     /* g_bg_game: a photo's background (+ its index) */
+#define TAG_WHOLE      20000     /* g_bg_game: a photo shown whole (+ its index) */
 static volatile int g_free_want = 1;
 
 /* ---- one image file ---- */
@@ -269,8 +277,11 @@ static int by_kind_and_title(const void *a, const void *b)
     return x->kind != y->kind ? x->kind - y->kind : strcmp(x->title, y->title);
 }
 
+static void scan_photos(void);
+
 int hm_library_scan(void)
 {
+    scan_photos();
     g_count = 0;
     scan_dir(ISO_DIR, 0);
     scan_apps();
@@ -307,16 +318,11 @@ hm_game *hm_library_game(int i)
 
 /* ---- the loader ---- */
 
-static void load_icon(hm_game *g)
+/* An icon-sized texture of a picture: as it is when it is icon-sized, else kept in shape. */
+static unsigned int *make_icon(const unsigned int *px, int w, int h)
 {
-    int len, w = 0, h = 0;
-    unsigned char *png = load(g->kind, g->path, PART_ICON0, ICON_MAX, &len);
-    unsigned int *px = png ? hm_png_decode(png, len, &w, &h) : 0, *icon = 0;
+    unsigned int *icon;
 
-    free(png);
-    g->icon_tried = 1;
-    if (!px)
-        return;
     if ((icon = memalign(16, HM_ICON_W * HM_ICON_H * 4)) != 0) { /* a GE texture */
         if (w == HM_ICON_W && h == HM_ICON_H) {
             memcpy(icon, px, HM_ICON_W * HM_ICON_H * 4);
@@ -338,12 +344,78 @@ static void load_icon(hm_game *g)
             }
         }
         hm_gu_written(icon, HM_ICON_W * HM_ICON_H * 4);
-        g->icon = icon;
     }
+    return icon;
+}
+
+static void load_icon(hm_game *g)
+{
+    int len, w = 0, h = 0;
+    unsigned char *png = load(g->kind, g->path, PART_ICON0, ICON_MAX, &len);
+    unsigned int *px = png ? hm_png_decode(png, len, &w, &h) : 0;
+
+    free(png);
+    g->icon_tried = 1;
+    if (!px)
+        return;
+    g->icon = make_icon(px, w, h);
     hm_image_free(px);
 }
 
+/* A picture file decoded, if it is not too large for memory. */
+static unsigned int *load_picture(const char *path, int *w, int *h)
+{
+    SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
+    int size = fd >= 0 ? (int)sceIoLseek32(fd, 0, PSP_SEEK_END) : -1;
+    unsigned char *file = size > 0 && size <= PHOTO_FILE_MAX ? malloc((size_t)size) : 0;
+    unsigned int *px = 0;
+
+    if (file) {
+        sceIoLseek32(fd, 0, PSP_SEEK_SET);
+        if (sceIoRead(fd, file, (unsigned int)size) == size &&
+            hm_image_info(file, size, w, h) == 0 && (long long)*w * *h <= PHOTO_PIXELS)
+            px = hm_png_decode(file, size, w, h);
+        free(file);
+    }
+    if (fd >= 0)
+        sceIoClose(fd);
+    return px;
+}
+
+static void load_thumb(hm_photo *p)
+{
+    int w = 0, h = 0;
+    unsigned int *px = load_picture(p->path, &w, &h);
+
+    p->tried = 1;
+    if (px) {
+        p->thumb = make_icon(px, w, h);
+        hm_image_free(px);
+    }
+}
+
 static int g_next; /* the buffer the next background goes to */
+
+/* A photo's background: blurred behind the row, or whole for the viewer. */
+static void load_photo_background(int sel, int whole)
+{
+    int slot = g_next, w = 0, h = 0;
+    unsigned int *px = load_picture(g_photos[sel].path, &w, &h);
+
+    if (px && g_bg[slot]) {
+        g_bg_game[slot] = -2; /* being written */
+        if (whole)
+            hm_make_photo(px, w, h, g_bg[slot]);
+        else
+            hm_make_background(px, w, h, g_bg[slot]);
+        hm_gu_written(g_bg[slot], 512 * HM_H * 4);
+        hm_gu_upload_bg(slot, g_bg[slot]);
+        g_bg_game[slot] = (whole ? TAG_WHOLE : TAG_PHOTO) + sel;
+        g_next = !slot;
+    }
+    if (px)
+        hm_image_free(px);
+}
 
 /* Into the buffer the screen does not show as the newest; the screen's cross-fade (300 ms) is
    shorter than SETTLE_MS, so it never mixes from a buffer being rewritten. */
@@ -383,12 +455,44 @@ static int loader(SceSize args, void *argp)
         }
         g_idle = 0;
 
-        if (sel != tried_bg && sel >= 0 && sel < g_count &&
-            (int)(hm_hw_now_ms() - g_focus_ms) >= SETTLE_MS) {
+        if (g_mode != 0) { /* the photos: the chosen one's background, then the thumbnails */
+            int ps = g_photo_focus, tag = (g_mode == 2 ? TAG_WHOLE : TAG_PHOTO) + ps;
+
+            if (tag != tried_bg && ps >= 0 && ps < g_photo_count &&
+                (g_mode == 2 || (int)(hm_hw_now_ms() - g_focus_ms) >= SETTLE_MS)) {
+                tried_bg = tag;
+                load_photo_background(ps, g_mode == 2);
+                continue;
+            }
+            for (int i = 0; i < g_photo_count; i++)
+                if (!g_photos[i].tried) {
+                    int d = i > ps ? i - ps : ps - i;
+
+                    if (d < dist) {
+                        dist = d;
+                        best = i;
+                    }
+                }
+            if (best >= 0 && dist < 8) {
+                load_thumb(&g_photos[best]);
+                continue;
+            }
+            for (int i = 0; i < g_photo_count; i++) /* far off screen: their memory back */
+                if (g_photos[i].thumb && (i > ps ? i - ps : ps - i) > 24) {
+                    unsigned int *t = g_photos[i].thumb;
+
+                    g_photos[i].thumb = 0;
+                    g_photos[i].tried = 0;
+                    free(t);
+                }
+        } else if (sel != tried_bg && sel >= 0 && sel < g_count &&
+                   (int)(hm_hw_now_ms() - g_focus_ms) >= SETTLE_MS) {
             tried_bg = sel;
             load_background(sel);
             continue;
         }
+        dist = 1 << 30;
+        best = -1;
         for (int i = 0; i < g_count; i++) /* the nearest icon not tried yet */
             if (!g_games[i].icon_tried) {
                 int d = i > sel ? i - sel : sel - i;
@@ -398,6 +502,8 @@ static int loader(SceSize args, void *argp)
                     best = i;
                 }
             }
+        if (g_mode != 0)
+            best = -1; /* (the games' icons wait while the photos are shown) */
         if (best >= 0 && dist < 12) {
             load_icon(&g_games[best]);
         } else if (g_free_want) { /* the card's free space: seconds on a large card (its FAT is
@@ -465,4 +571,105 @@ int hm_library_free_mb(void)
 void hm_library_count_free(void)
 {
     g_free_want = 1;
+}
+
+/* ---- photos ---- */
+
+static int is_picture(const char *name)
+{
+    static const char *const ext[] = {".png", ".jpg", ".jpeg", ".bmp"};
+
+    for (unsigned int i = 0; i < sizeof(ext) / sizeof(ext[0]); i++)
+        if (ends_with(name, ext[i]))
+            return 1;
+    return 0;
+}
+
+static unsigned long long when_of(const ScePspDateTime *t)
+{
+    return ((((unsigned long long)t->year * 13 + t->month) * 32 + t->day) * 24 + t->hour) * 3600 +
+           (unsigned long long)t->minute * 60 + t->second;
+}
+
+static void scan_pictures(const char *dir, const char *folder, int depth)
+{
+    SceUID dd = sceIoDopen(dir);
+    SceIoDirent e;
+
+    if (dd < 0)
+        return;
+    memset(&e, 0, sizeof(e));
+    while (sceIoDread(dd, &e) > 0 && g_photo_count < HM_PHOTOS_MAX) {
+        char path[192];
+
+        if (e.d_name[0] != '.') {
+            stbsp_snprintf(path, sizeof(path), "%s/%s", dir, e.d_name);
+            if (FIO_S_ISDIR(e.d_stat.st_mode)) {
+                if (depth < 1)
+                    scan_pictures(path, e.d_name, depth + 1);
+            } else if (is_picture(e.d_name)) {
+                hm_photo *p = &g_photos[g_photo_count];
+                const ScePspDateTime *t = &e.d_stat.sce_st_mtime;
+
+                memset(p, 0, sizeof(*p));
+                stbsp_snprintf(p->path, sizeof(p->path), "%s", path);
+                stbsp_snprintf(p->name, sizeof(p->name), "%s", e.d_name);
+                stbsp_snprintf(p->meta, sizeof(p->meta), "%s%s%d/%02d/%02d", folder ? folder : "",
+                               folder ? "   " : "", t->year, t->month, t->day);
+                g_photo_when[g_photo_count++] = when_of(t);
+            }
+        }
+        memset(&e, 0, sizeof(e));
+    }
+    sceIoDclose(dd);
+}
+
+static void scan_photos(void)
+{
+    for (int i = 0; i < g_photo_count; i++)
+        free(g_photos[i].thumb);
+    g_photo_count = 0;
+    scan_pictures("ms0:/PICTURE", 0, 0);
+    scan_pictures("ms0:/DCIM", 0, 0);
+    for (int i = 1; i < g_photo_count; i++) { /* newest first */
+        hm_photo p = g_photos[i];
+        unsigned long long w = g_photo_when[i];
+        int k = i;
+
+        while (k > 0 && g_photo_when[k - 1] < w) {
+            g_photos[k] = g_photos[k - 1];
+            g_photo_when[k] = g_photo_when[k - 1];
+            k--;
+        }
+        g_photos[k] = p;
+        g_photo_when[k] = w;
+    }
+}
+
+int hm_library_photo_count(void)
+{
+    return g_photo_count;
+}
+
+hm_photo *hm_library_photo(int i)
+{
+    return i >= 0 && i < g_photo_count ? &g_photos[i] : 0;
+}
+
+void hm_library_mode(int mode, int sel)
+{
+    if (mode != g_mode || sel != g_photo_focus)
+        g_focus_ms = (int)hm_hw_now_ms();
+    g_photo_focus = sel;
+    g_mode = mode;
+}
+
+const unsigned int *hm_library_photo_background(int sel, int whole)
+{
+    int tag = (whole ? TAG_WHOLE : TAG_PHOTO) + sel;
+
+    for (int i = 0; i < 2; i++)
+        if (g_bg_game[i] == tag)
+            return g_bg[i];
+    return 0;
 }

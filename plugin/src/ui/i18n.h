@@ -174,6 +174,13 @@ enum {
     PW_S_HM_OPTIONS,
     PW_S_HM_SAVED_DATA,
     PW_S_HM_CONTINUE,
+    PW_S_HM_MUSIC,
+    PW_S_HM_MU_IDLE,
+    PW_S_HM_MU_PAUSED,
+    PW_S_HM_MU_NONE,
+    PW_S_HM_PHOTOS,
+    PW_S_HM_VIEW,
+    PW_S_HM_PH_NONE,
     PW_S_COUNT
 };
 

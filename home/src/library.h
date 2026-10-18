@@ -45,6 +45,25 @@ void hm_library_pause(int on);
 /* After USB: the card may have changed - list it again (loader paused). Returns the count. */
 int hm_library_rescan(void);
 
+/* Photos (HOM-REQ-016): ms0:/PICTURE and ms0:/DCIM, two folder levels, newest first. */
+#define HM_PHOTOS_MAX 300
+
+typedef struct {
+    char path[192];
+    char name[64];
+    char meta[48];                /* its folder (a game's ID for screenshots) and date */
+    unsigned int *volatile thumb; /* HM_ICON_W x HM_ICON_H, kept in shape */
+    volatile int tried;
+} hm_photo;
+
+int hm_library_photo_count(void);
+hm_photo *hm_library_photo(int i);
+
+/* What the loader works for: the games (0), the photos (1), a photo shown whole (2); and which. */
+void hm_library_mode(int mode, int sel);
+/* The background the loader made for the chosen photo (blurred, or whole when viewing), or NULL. */
+const unsigned int *hm_library_photo_background(int sel, int whole);
+
 /* The card's free space in MB, counted by the loader (-1 until then); count it again. */
 int hm_library_free_mb(void);
 void hm_library_count_free(void);
