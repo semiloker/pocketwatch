@@ -55,8 +55,8 @@ static hm_ui g_ui;
 static pw_font g_fonts[3];
 static hm_tile g_tiles[HM_GAMES_MAX];
 static hm_tile g_ph_tiles[HM_PHOTOS_MAX];
-static hm_row g_pt_rows[ROWS_MAX], g_set_rows[32], g_sys_rows[20]; /* Play Time, Settings, System */
-static char g_pt_vals[ROWS_MAX][48], g_set_vals[32][48], g_sys_vals[20][48];
+static hm_row g_pt_rows[ROWS_MAX], g_set_rows[32], g_sys_rows[24]; /* Play Time, Settings, System */
+static char g_pt_vals[ROWS_MAX][48], g_set_vals[32][48], g_sys_vals[24][48];
 static char g_model[24], g_firmware[16], g_cfw[32], g_mac[24]; /* read once */
 static hm_row g_mu_rows[HM_TRACKS_MAX + 1];                    /* Music: now playing, the tracks */
 static char g_mu_now[32];
@@ -187,6 +187,30 @@ static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_ro
     out[rows] =
         (hm_row){pw_tr(PW_S_BATTERY), pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA), -1, HM_ROW_INFO};
     rows++;
+    {
+        int mv, temp, rcap, full, cycles;
+
+        hm_hw_battery_details(&mv, &temp, &rcap, &full, &cycles);
+        if (mv > 0) {
+            stbsp_snprintf(vals[rows], 48, "%d.%02d V", mv / 1000, mv % 1000 / 10);
+            out[rows++] = (hm_row){pw_tr(PW_S_BAT_VOLTAGE), vals[rows - 1], -1, HM_ROW_INFO};
+        }
+        if (temp > 0 && temp < 80) {
+            stbsp_snprintf(vals[rows], 48,
+                           "%d \xC2\xB0"
+                           "C",
+                           temp); /* U+00B0 */
+            out[rows++] = (hm_row){pw_tr(PW_S_BAT_TEMPERATURE), vals[rows - 1], -1, HM_ROW_INFO};
+        }
+        if (rcap > 0 && full > 0) {
+            stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_CAPACITY_V), rcap, full);
+            out[rows++] = (hm_row){pw_tr(PW_S_BAT_CAPACITY), vals[rows - 1], -1, HM_ROW_INFO};
+        }
+        if (cycles >= 0) {
+            stbsp_snprintf(vals[rows], 48, "%d", cycles);
+            out[rows++] = (hm_row){pw_tr(PW_S_BAT_CYCLES), vals[rows - 1], -1, HM_ROW_INFO};
+        }
+    }
     if (!charging && left > 0 && left < 24 * 60) {
         char d[32];
 
@@ -431,6 +455,7 @@ int main(void)
         hm_gu_written(g_gradient, 512 * HM_H * 4);
         hm_gu_upload_bg(2, g_gradient); /* slots 0-1: the loader's backgrounds */
     }
+    hm_library_sort(pw_config_get()->sort); /* (no games yet: only the order to use) */
     hm_library_scan();
     build_tiles();
     hm_library_start();
@@ -580,7 +605,15 @@ int main(void)
                 else if (ev & PSP_CTRL_DOWN)
                     row_sel = hs_next(row_sel, 1);
                 else if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) {
+                    int was = pw_config_get()->sort;
+
                     r = hs_step(row_sel, ev & PSP_CTRL_LEFT ? -1 : 1);
+                    if (pw_config_get()->sort != was) { /* the games in their new order */
+                        hm_library_sort(pw_config_get()->sort);
+                        build_tiles();
+                        g_sel = 0;
+                        g_selpos = 0;
+                    }
                     if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
                         hm_texts_load();
                         texts(&v, sheet);
@@ -735,6 +768,8 @@ int main(void)
                 launch_slot = 0; /* continue.txt not written: the game starts plainly */
             if (gm->kind == HM_KIND_ISO)
                 hm_launch(gm->path, hm_library_has(gm->path, "PSP_GAME/SYSDIR/EBOOT.OLD"));
+            else if (gm->kind == HM_KIND_PSN)
+                hm_launch_psn(gm->path);
             else
                 hm_launch_eboot(gm->path, gm->kind == HM_KIND_PS1);
             if (launch_slot > 0) /* it returned: the start failed; no state for a later start */

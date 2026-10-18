@@ -172,6 +172,9 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HM_PHOTOS] = {"hm_photos", "Photos"},
     [PW_S_HM_VIEW] = {"hm_view", "View"},
     [PW_S_HM_PH_NONE] = {"hm_ph_none", "No pictures in ms0:/PICTURE"},
+    [PW_S_HS_SORT] = {"hs_sort", "Sort Games"},
+    [PW_S_HS_SORT_NAME] = {"hs_sort_name", "By Name"},
+    [PW_S_HS_SORT_RECENT] = {"hs_sort_recent", "Recently Played"},
 #endif
 };
 

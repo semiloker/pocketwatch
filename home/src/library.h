@@ -12,7 +12,7 @@
  * a background. PSP games first, then PS1 games, then homebrew, each by title.
  */
 
-enum { HM_KIND_ISO, HM_KIND_PS1, HM_KIND_APP };
+enum { HM_KIND_ISO, HM_KIND_PSN, HM_KIND_PS1, HM_KIND_APP };
 
 #define HM_GAMES_MAX 96
 
@@ -23,12 +23,15 @@ typedef struct {
     char title[64];
     char meta[96];
     unsigned int play_s;
+    unsigned long long last; /* when it was last played (play-time file), 0: never */
     int states;
     unsigned int *volatile icon; /* HM_ICON_W x HM_ICON_H, set by the loader */
     volatile int icon_tried;
 } hm_game;
 
 int hm_library_scan(void); /* returns how many games */
+/* The order: by name (0) or the last played first (1); again now (the loader paused). */
+void hm_library_sort(int recent);
 int hm_library_count(void);
 int hm_library_has(const char *image, const char *inner); /* the image has that file */
 hm_game *hm_library_game(int i);

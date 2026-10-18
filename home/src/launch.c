@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <pspiofilemgr.h>
 #include <pspkernel.h>
 #include <string.h>
 
@@ -58,4 +59,30 @@ int hm_launch_eboot(const char *eboot, int ps1)
     sctrlSESetUmdFile("");
     sctrlSESetBootConfFileIndex(BOOT_UMD);
     return sctrlKernelLoadExecVSHWithApitype(ps1 ? PS1_RUNLEVEL : APP_RUNLEVEL, eboot, &p);
+}
+
+int hm_launch_psn(const char *eboot)
+{
+    static vsh_param p;
+    static char pboot[192];
+    const char *slash = strrchr(eboot, '/');
+    SceIoStat st;
+    int runlevel = ISO_RUNLEVEL;
+
+    memset(&p, 0, sizeof(p));
+    p.size = sizeof(p);
+    p.key = "umdemu";
+    p.argp = (void *)EBOOT_BIN;
+    if (slash && (unsigned int)(slash - eboot) + 11 < sizeof(pboot)) {
+        memcpy(pboot, eboot, (size_t)(slash - eboot + 1));
+        strcpy(pboot + (slash - eboot + 1), "PBOOT.PBP");
+        if (sceIoGetstat(pboot, &st) >= 0) { /* an update next to it */
+            runlevel = ISO_RUNLEVEL + 1;     /* 0x124 */
+            p.argp = pboot;
+        }
+    }
+    p.args = strlen((const char *)p.argp) + 1;
+    sctrlSESetBootConfFileIndex(BOOT_UMD); /* arkMenu: PSN_DRIVER (0) */
+    sctrlSESetUmdFile("");
+    return sctrlKernelLoadExecVSHWithApitype(runlevel, eboot, &p);
 }

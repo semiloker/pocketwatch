@@ -48,7 +48,7 @@ PW_TEST(config_format_roundtrip_and_file)
     n = pw_config_format(&c, text, sizeof(text));
     CHECK(n > 0);
     pw_config_defaults(&d);
-    CHECK_EQ(pw_config_parse(&d, text, (unsigned int)n), 4);
+    CHECK_EQ(pw_config_parse(&d, text, (unsigned int)n), 5);
     CHECK_EQ(d.fast, 0);
     CHECK_EQ(d.status, 1);
     CHECK_EQ(d.style, 1);
@@ -62,7 +62,7 @@ PW_TEST(config_format_roundtrip_and_file)
     pw_config_get()->status = 0;
     CHECK_EQ(pw_config_save(path), 0);
     pw_config_get()->status = 1;
-    CHECK_EQ(pw_config_load(path), 4);
+    CHECK_EQ(pw_config_load(path), 5);
     CHECK_EQ(pw_config_get()->status, 0);
     CHECK_EQ(pw_config_get()->fast, 1);
     pw_config_defaults(pw_config_get());

@@ -110,6 +110,20 @@ static void text_style(int o, char *out, int cap)
     stbsp_snprintf(out, cap, "%s", pw_tr(ids[o % 3]));
 }
 
+static int get_sort(void)
+{
+    return pw_config_get()->sort == 1;
+}
+static int set_sort(int o)
+{
+    pw_config_get()->sort = o;
+    return save_config();
+}
+static void text_sort(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s", pw_tr(o ? PW_S_HS_SORT_RECENT : PW_S_HS_SORT_NAME));
+}
+
 static int get_fast(void)
 {
     return pw_config_get()->fast != 0;
@@ -316,6 +330,7 @@ static int set_avls(int o)
 static const row k_rows[] = {
     {HS_HEADER, PW_S_HS_POCKETWATCH, 0, 0, 0, 0, 0},
     {HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
+    {HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
     {HS_CHOICE, PW_S_SET_STYLE, 0, three, get_style, set_style, text_style},
     {HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
     {HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},

@@ -238,7 +238,12 @@ void hm_hw_firmware(char *out, int cap)
 
 void hm_hw_cfw(char *out, int cap)
 {
-    stbsp_snprintf(out, cap, "ARK-4 4.%d.%d", sctrlHENGetVersion(), sctrlHENGetMinorVersion());
+    int minor = sctrlHENGetVersion(), micro = sctrlHENGetMinorVersion();
+
+    if (minor < 0 || minor > 999 || micro < 0 || micro > 999) /* not ARK-4's answer (an error) */
+        stbsp_snprintf(out, cap, "ARK-4");
+    else
+        stbsp_snprintf(out, cap, "ARK-4 4.%d.%d", minor, micro);
 }
 
 void hm_hw_mac(char *out, int cap)
@@ -250,4 +255,27 @@ void hm_hw_mac(char *out, int cap)
         return;
     }
     stbsp_snprintf(out, cap, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
+}
+
+void hm_hw_battery_details(int *mv, int *temp, int *rcap, int *full, int *cycles)
+{
+    static void *get_cycle;
+    static int looked;
+    struct hm_kcall a;
+    volatile int out = -1;
+
+    *mv = scePowerGetBatteryVolt();
+    *temp = scePowerGetBatteryTemp();
+    *rcap = scePowerGetBatteryRemainCapacity();
+    *full = scePowerGetBatteryFullCapacity();
+    *cycles = -1;
+    if (!looked) { /* the gauge's count, as the XMB plugin reads it (vsh/src/xbattery.c) */
+        looked = 1;
+        get_cycle =
+            (void *)sctrlHENFindFunction("sceSYSCON_Driver", "sceSyscon_driver", 0xB5105D51);
+    }
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = (unsigned int)&out;
+    if (get_cycle && kuKernelCall(get_cycle, &a) >= 0 && (int)a.ret1 >= 0)
+        *cycles = out;
 }

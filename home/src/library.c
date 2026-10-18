@@ -30,6 +30,7 @@ static volatile int g_focus, g_focus_ms;
 static unsigned int *g_bg[2]; /* two buffers: the screen may still mix from the older one */
 static volatile int g_bg_game[2] = {-1, -1};
 static volatile int g_pause, g_idle;    /* USB: the loader keeps off the card */
+static SceUID g_thread = -1;            /* the loader, once started */
 static volatile unsigned int g_free_mb; /* 0: not counted yet */
 static hm_photo g_photos[HM_PHOTOS_MAX];
 static unsigned long long g_photo_when[HM_PHOTOS_MAX];
@@ -142,8 +143,10 @@ static void add(int kind, const char *path, const char *name)
     if (kind != HM_KIND_ISO) {
         if (strcmp(category, "ME") == 0)
             g->kind = HM_KIND_PS1;
+        else if (strcmp(category, "EG") == 0)
+            g->kind = HM_KIND_PSN; /* a PSN game's EBOOT */
         else if (category[0] && strcmp(category, "MG") != 0)
-            return; /* a PSN or UMD game's EBOOT, an update: not started from here (yet) */
+            return; /* an update, a UMD game's EBOOT: not started from here */
         else
             g->kind = HM_KIND_APP;
     }
@@ -236,10 +239,18 @@ static void play_times(void)
         if (n > 0 && pw_pt_parse(t, buf, (unsigned int)n) > 0)
             for (int i = 0; i < g_count; i++) {
                 const pw_pt_game *p =
-                    g_games[i].kind == HM_KIND_ISO ? pw_pt_find(t, g_games[i].id, 0) : 0;
+                    g_games[i].kind <= HM_KIND_PSN ? pw_pt_find(t, g_games[i].id, 0) : 0;
 
-                if (p)
+                if (p) {
                     g_games[i].play_s = p->total_s;
+                    g_games[i].last =
+                        ((((unsigned long long)p->last.year * 13 + p->last.month) * 32 +
+                          p->last.day) *
+                             24 +
+                         p->last.hour) *
+                            3600 +
+                        (unsigned long long)p->last.minute * 60 + p->last.second;
+                }
             }
     }
 out:
@@ -260,7 +271,7 @@ static void save_states(void)
             for (int i = 0; i < g_count; i++) {
                 int n = (int)strlen(g_games[i].id);
 
-                if (n && g_games[i].kind == HM_KIND_ISO &&
+                if (n && g_games[i].kind <= HM_KIND_PSN &&
                     strncmp(e.d_name + 2, g_games[i].id, (size_t)n) == 0 &&
                     strlen(e.d_name) == (size_t)n + 4)
                     g_games[i].states++;
@@ -270,11 +281,18 @@ static void save_states(void)
     sceIoDclose(dd);
 }
 
+static int g_recent; /* hm_library_sort */
+
+/* PSP games, PS1 games, homebrew; each by title - or, by recent, the last played first. */
 static int by_kind_and_title(const void *a, const void *b)
 {
     const hm_game *x = a, *y = b;
+    int kx = x->kind == HM_KIND_PSN ? HM_KIND_ISO : x->kind,
+        ky = y->kind == HM_KIND_PSN ? HM_KIND_ISO : y->kind;
 
-    return x->kind != y->kind ? x->kind - y->kind : strcmp(x->title, y->title);
+    if (g_recent && x->last != y->last)
+        return x->last > y->last ? -1 : 1;
+    return kx != ky ? kx - ky : strcmp(x->title, y->title);
 }
 
 static void scan_photos(void);
@@ -285,9 +303,9 @@ int hm_library_scan(void)
     g_count = 0;
     scan_dir(ISO_DIR, 0);
     scan_apps();
-    qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
     play_times();
     save_states();
+    qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
     return g_count;
 }
 
@@ -527,6 +545,7 @@ void hm_library_start(void)
     th = sceKernelCreateThread("PocketwatchHomeLoader", loader, 0x30, 0x8000, 0, 0);
     if (th >= 0)
         sceKernelStartThread(th, 0, 0);
+    g_thread = th;
 }
 
 void hm_library_focus(int sel)
@@ -548,7 +567,7 @@ const unsigned int *hm_library_background(int sel)
 void hm_library_pause(int on)
 {
     g_pause = on;
-    if (!on)
+    if (!on || g_thread < 0)
         return;
     g_idle = 0;
     for (int i = 0; i < 200 && !g_idle; i++) /* at most 2 s: one image being read */
@@ -672,4 +691,13 @@ const unsigned int *hm_library_photo_background(int sel, int whole)
         if (g_bg_game[i] == tag)
             return g_bg[i];
     return 0;
+}
+
+void hm_library_sort(int recent)
+{
+    g_recent = recent;
+    hm_library_pause(1); /* the loader holds no game while they move */
+    qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
+    g_bg_game[0] = g_bg_game[1] = -1;
+    hm_library_pause(0);
 }

@@ -24,7 +24,9 @@ void hm_hw_firmware(char *out, int cap);
 void hm_hw_cfw(char *out, int cap);
 void hm_hw_mac(char *out, int cap);
 int hm_hw_battery(int *charging); /* percent or -1 */
-int hm_hw_cross_enter(void);      /* the system's Enter button is X */
+/* The battery's readings (each -1 when not known): mV, degrees C, mAh left and full, cycles. */
+void hm_hw_battery_details(int *mv, int *temp, int *rcap, int *full, int *cycles);
+int hm_hw_cross_enter(void); /* the system's Enter button is X */
 
 /* The marker files the XMB plugin reads at the next start (ADR-026): the RTC tick now. */
 void hm_hw_touch(const char *path);

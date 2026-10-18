@@ -181,6 +181,9 @@ enum {
     PW_S_HM_PHOTOS,
     PW_S_HM_VIEW,
     PW_S_HM_PH_NONE,
+    PW_S_HS_SORT,
+    PW_S_HS_SORT_NAME,
+    PW_S_HS_SORT_RECENT,
     PW_S_COUNT
 };
 

@@ -14,11 +14,13 @@ typedef struct {
     int status; /* clock and battery in the hub's corner (default 1) */
     int style;  /* the menu's look: 0 XMB (default), 1 modern, 2 minimal (ui/ui.h PW_STYLE_*) */
     int start; /* the screen the PSP starts in: 0 the XMB (default), 1 Pocketwatch Home (ADR-026) */
+    int sort;  /* Home's games: 0 by name (default), 1 the last played first */
 } pw_config;
 
 /* The names config.txt uses for the styles and the start screens, by index. */
 extern const char *const pw_config_style_names[3];
 extern const char *const pw_config_start_names[2];
+extern const char *const pw_config_sort_names[2];
 
 void pw_config_defaults(pw_config *c);
 

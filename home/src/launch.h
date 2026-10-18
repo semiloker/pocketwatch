@@ -11,4 +11,8 @@ int hm_launch(const char *image, int patched);
    apitype 0x141, a PS1 game with 0x144. Returns only on failure (< 0). */
 int hm_launch_eboot(const char *eboot, int ps1);
 
+/* A PSN game's EBOOT.PBP as ARK-4's menu does (Eboot::executePSN): the np9660 driver, the
+   disc's EBOOT.BIN (PBOOT.PBP next to it when there is one). Returns only on failure. */
+int hm_launch_psn(const char *eboot);
+
 #endif

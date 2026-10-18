@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: games sorted by name or the last played first; PSN games' EBOOTs; the
+  battery's voltage, temperature, capacity and charge cycles in System.
 - Pocketwatch Home: Music (the MP3s of MUSIC/, playing on while you browse, the next track
   following) and Photos (PICTURE/ and DCIM/: thumbnails, the picture behind the row, full screen).
 - Pocketwatch Home: a Settings section (Pocketwatch's settings, nickname, system language, date

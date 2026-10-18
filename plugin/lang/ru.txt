@@ -159,3 +159,6 @@ hm_mu_none = Нет музыки в ms0:/MUSIC
 hm_photos = Фото
 hm_view = Открыть
 hm_ph_none = Нет изображений в ms0:/PICTURE
+hs_sort = Сортировка игр
+hs_sort_name = По названию
+hs_sort_recent = Недавние
