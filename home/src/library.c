@@ -8,6 +8,7 @@
 #include "complications/states/sfo.h"
 #include "core/playtime.h"
 #include "disc.h"
+#include "gfx_gu.h"
 #include "hm_image.h"
 #include "hw.h"
 #include "library.h"
@@ -313,7 +314,7 @@ static void load_icon(hm_game *g)
     g->icon_tried = 1;
     if (!px)
         return;
-    if ((icon = malloc(HM_ICON_W * HM_ICON_H * 4)) != 0) {
+    if ((icon = memalign(16, HM_ICON_W * HM_ICON_H * 4)) != 0) { /* a GE texture */
         if (w == HM_ICON_W && h == HM_ICON_H) {
             memcpy(icon, px, HM_ICON_W * HM_ICON_H * 4);
         } else { /* kept in shape (a PS1 game's is 80 x 80), centred, the rest transparent */
@@ -333,6 +334,7 @@ static void load_icon(hm_game *g)
                 free(fit);
             }
         }
+        hm_gu_written(icon, HM_ICON_W * HM_ICON_H * 4);
         g->icon = icon;
     }
     hm_image_free(px);
@@ -352,6 +354,7 @@ static void load_background(int sel)
     if (px && g_bg[slot]) {
         g_bg_game[slot] = -2; /* being written */
         hm_make_background(px, w, h, g_bg[slot]);
+        hm_gu_written(g_bg[slot], 512 * HM_H * 4);
         g_bg_game[slot] = sel;
         g_next = !slot;
     }

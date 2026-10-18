@@ -28,6 +28,7 @@ risk; close it with the evidence.
 | [RISK-019](#risk-019--the-translation-pool-is-nearly-full) | The translation pool is nearly full | M | L | Open |
 | [RISK-020](#risk-020--a-game-started-from-home-is-in-another-setup-than-from-the-xmb) | A game started from Home is in another setup than from the XMB | M | M | Open |
 | [RISK-021](#risk-021--starting-in-home-depends-on-ark-4s-config-layout-and-boot-order) | Starting in Home depends on ARK-4's config layout and boot order | L | H | Open |
+| [RISK-022](#risk-022--the-xmb-plugin-is-at-its-64-kb-budget) | The XMB plugin is at its 64 KB budget | H | M | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -212,3 +213,14 @@ risk; close it with the evidence.
   at power-on loads no plugins (ARK-4), R opens ARK-4's recovery; a cold boot rebuilds
   `ARKConfig` from ARK-4's loader (INFERRED from `loader/`, the config is made at each cold boot).
   Device test HM5-HM9.
+
+## RISK-022 — The XMB plugin is at its 64 KB budget
+
+- **Description:** `vsh/pocketwatch_xmb.prx` loads 65 121 of its 65 536 bytes (2026-10-18). Every
+  new feature of the XMB side (rows, strings, the start screen) has to fit; `make check` fails
+  the build when it does not.
+- **Likelihood H** / **Impact M** (a feature has to wait or something has to go).
+- **Mitigation:** Home's strings moved to their own tier (`PW_I18N_HOME`, ADR-028), the boot log
+  keeps ~5 lines; next candidates: the battery history buffer, the English strings of rows
+  only Home shows, or a measured raise of the budget (RESEARCH REQUIRED: how much user memory
+  the XMB leaves with ARK-4's plugins).

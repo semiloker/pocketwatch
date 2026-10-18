@@ -4,8 +4,8 @@ Question: how can the PSP show Pocketwatch's own UI as soon as it is switched on
 XMB with Pocketwatch Home as an application to start (owner, 2026-10-18: "I just boot my PSP and
 it is already there")?
 Status: Answered (2026-10-18), implemented
-([ADR-026](../architecture/decisions.md#adr-026--the-psp-can-start-in-pocketwatch-home-chosen-by-the-xmb-plugin-through-ark-4s-launcher-field)),
-device test HM5-HM9 pending.
+([ADR-026](../architecture/decisions.md#adr-026--the-psp-can-start-in-pocketwatch-home-chosen-by-the-xmb-plugin-through-ark-4s-launcher-field),
+ADR-027); **VERIFIED on the device** (run 2: the PSP starts in Home). HM6-HM9 pending.
 
 ## Background and sources
 
@@ -135,11 +135,18 @@ or the marker was older - the first build had no way to tell. Two faults, both f
    the marker the XMB would have come. VERIFIED from source (uOFW and ARK-4, as cited); not yet
    on the device.
 
+**Run 2 — 2026-10-18, build `1fefdef`.** Raw files:
+[`logs/2026-10-18-boot-shell-run2.log`](logs/2026-10-18-boot-shell-run2.log). **VERIFIED: the
+PSP started in Pocketwatch Home** (`boot.txt` 06:41:24 `start: Pocketwatch Home`; the owner saw
+Home come up). 57 s later HOME → the system's quit dialog left Home and the XMB came, as designed
+then; the owner expected Pocketwatch's own screen there (HOME now opens Home's own panel,
+HOM-REQ-010, ADR-028). The owner also found Home's screen slow (ADR-028).
+
 ## Conclusions
 
 - VERIFIED from source: route B uses only what ARK-4 itself uses, at the moment ARK-4 itself
   decides.
-- OPEN: boot time to Home's first screen; that the write from the start-module handler holds on
-  the owner's ARK-4 build (if not: "... but the XMB started" in `boot.txt`, the field's value in
-  `xmb.log` - HM5 tells).
+- VERIFIED (run 2): the write from the start-module handler holds on the owner's ARK-4 build -
+  the PSP starts in Home.
+- OPEN: boot time to Home's first screen (not measured yet).
 - Next: device test; then UMD and PSN games, USB in Home, route D as research.

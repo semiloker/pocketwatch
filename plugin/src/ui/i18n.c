@@ -66,7 +66,7 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_H_WLAN] = {"h_wlan", "Leave the game's network mode first."},
     [PW_S_H_PLUGIN] = {"h_plugin", "Turn off Custom Home and PSPStates in PLUGINS.TXT."},
     [PW_S_H_HIGHMEM] = {"h_highmem", "Turn off ARK's high memory option for this game."},
-#ifdef PW_I18N_XMB
+#if defined(PW_I18N_XMB) || defined(PW_I18N_HOME)
     [PW_S_SETTINGS] = {"settings", "Settings"},
     [PW_S_SET_FAST] = {"set_fast", "Fast Save and Load"},
     [PW_S_SET_STATUS] = {"set_status", "Clock and Battery"},
@@ -113,6 +113,11 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_PT_NOTE] = {"pt_note", "Counted only while Pocketwatch runs"},
     [PW_S_PT_DESC] = {"pt_desc", "%s in total"},
     [PW_S_PT_NONE] = {"pt_none", "Nothing recorded yet"},
+    [PW_S_SET_START] = {"set_start", "Start screen"},
+    [PW_S_START_XMB] = {"start_xmb", "XMB"},
+    [PW_S_START_HOME] = {"start_home", "Pocketwatch Home"},
+#endif
+#ifdef PW_I18N_HOME
     [PW_S_HM_GAMES] = {"hm_games", "Games"},
     [PW_S_HM_SYSTEM] = {"hm_system", "System"},
     [PW_S_HM_PLAY] = {"hm_play", "Play"},
@@ -124,11 +129,11 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_HM_FREE] = {"hm_free", "Free space"},
     [PW_S_HM_VERSION] = {"hm_version", "Version"},
     [PW_S_HM_INSTALLED] = {"hm_installed", "Games on the card"},
-    [PW_S_SET_START] = {"set_start", "Start screen"},
-    [PW_S_START_XMB] = {"start_xmb", "XMB"},
-    [PW_S_START_HOME] = {"start_home", "Pocketwatch Home"},
     [PW_S_HM_HOMEBREW] = {"hm_homebrew", "Homebrew"},
     [PW_S_HM_PS1] = {"hm_ps1", "PlayStation"},
+    [PW_S_HM_CLOSE] = {"hm_close", "Close"},
+    [PW_S_HM_SLEEP] = {"hm_sleep", "Sleep"},
+    [PW_S_HM_POWER_OFF] = {"hm_power_off", "Turn Off"},
 #endif
 };
 

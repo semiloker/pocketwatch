@@ -31,14 +31,17 @@
 | `HOM-REQ-007` | The PSP can start in Home instead of the XMB: Settings → Pocketwatch → Start screen; ARK-4's menu and settings untouched; the XMB comes instead when L is held at power-on, when Home asked for it, or when Home's last start never reached its first screen ([m7-boot-shell](../research/m7-boot-shell.md), ADR-026). | P1 | Implemented 2026-10-18; run 1 gave the XMB (ADR-027 fixes both causes); HM5-HM9 pending | `boot_*` host tests, HM5-HM9 |
 | `HOM-REQ-008` | Home lists every `ms0:/PSP/GAME/<folder>/EBOOT.PBP` that is homebrew (CATEGORY `MG`) or a PS1 game (`ME`) with its own icon (kept in shape) and PIC1, after the PSP games, and starts it as ARK-4's menu does (apitype 0x141 / 0x144). | P1 | Implemented; reader VERIFIED on the owner's 9 EBOOTs on the PC; starting: HM7 pending | `disc_finds_the_parts_of_an_eboot_pbp`, HM7 |
 | `HOM-REQ-009` | Exit to the XMB and HOME → Quit in Home lead to the XMB even when Home is the start screen (marker `xmb-once`); after its first frame Home clears the start guard (`boot-pending`). | P1 | Implemented; HM6, HM8 pending | HM6, HM8 |
-| `HOM-NFR-001` | Motion by time (`ui/anim.h`), 60 Hz while nothing loads; texts in the user's language. | P1 | Implemented (device fps not measured) | HM1 |
+| `HOM-REQ-010` | HOME in Home opens Home's own panel (Close, Exit to the XMB, Sleep, Turn Off), never the system's quit dialog; HOME or Back closes it. | P1 | Implemented 2026-10-18 (ADR-028); HM11 pending | preview `home-panel.png`, HM11 |
+| `HOM-NFR-001` | 60 frames a second on the PSP (drawn by the GE, ADR-028), motion by time (`ui/anim.h`); texts in the user's language; the frame rate in `home.log`. | P1 | Implemented with the GE 2026-10-18; the CPU version was "very laggy" (owner, run 2); HM10 pending | `home.log`, HM10 |
 
 ## C. Architecture
 
 A user-mode application (newlib, `build.mak`, BUILD_PRX) built from the plugin's portable code
 (`ui/draw.c`, `ui/shapes.c`, `ui/icons.c`, `gfx/pgf.c`, `gfx/text.c`, `ui/i18n.c`,
-`core/playtime.c`, `complications/states/sfo.c`) plus `home/src`. Two 8888 frames in RAM shown in
-turn (`sceDisplaySetFrameBuf`); the system font `flash0:/font/ltn0.pgf`; PNG and the CSO's raw
+`core/playtime.c`, `complications/states/sfo.c`) plus `home/src`. The screens draw through
+`hm_gfx` (ADR-028): the GE on the PSP (`gfx_gu.c`, two 8888 frames in VRAM, textures in RAM, text
+and corners as stamps rasterised once by the CPU renderer), the CPU renderer for the host
+previews (`gfx_cpu.c`); the system font `flash0:/font/ltn0.pgf`; PNG and the CSO's raw
 deflate through the vendored `stb_image.h` (public domain / MIT, `home/lib/`). Translations:
 `seplugins/pocketwatch/lang/` as the plugins use them. Launch: `SystemCtrlForUser`
 (`home/src/stubs.S`).

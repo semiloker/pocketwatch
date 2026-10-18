@@ -9,16 +9,24 @@
 #include <psputility_sysparam.h>
 #include <string.h>
 
+#include "gfx_gu.h"
 #include "hw.h"
 #include "stb_sprintf.h"
 
-#define STRIDE 512
-#define FRAME  (STRIDE * 272)
+/* ARK-4 (src/stubs.S): find a kernel function, and run it for this user program. */
+unsigned int sctrlHENFindFunction(const char *module, const char *library, unsigned int nid);
+struct hm_kcall {
+    unsigned int arg[12], ret1, ret2;
+};
+int kuKernelCall(void *func, struct hm_kcall *args);
 
-static unsigned int *g_frame[2];
-static int g_back;
-static pw_canvas g_canvas;
+/* Pre-6.x NIDs, translated by sctrlHENFindFunction with ARK-4's table (the game plugin imports
+   the same: plugin/src/core/stubs/sceImpose_driver.S; ARK-4's exitgame.c the peek). */
+#define NID_SET_HOME_POPUP 0x5595A71A
+#define NID_PEEK_DRIVER    0x3A622550
+
 static volatile int g_exit;
+static void *g_peek; /* sceCtrl_driver's peek: every button, HOME too */
 
 static int exit_cb(int a, int b, void *c)
 {
@@ -43,47 +51,49 @@ static int callback_thread(SceSize args, void *argp)
 int hm_hw_init(void)
 {
     SceUID th = sceKernelCreateThread("PocketwatchHomeCb", callback_thread, 0x11, 0x1000, 0, 0);
+    void *popup;
 
     if (th >= 0)
         sceKernelStartThread(th, 0, 0);
-    for (int i = 0; i < 2; i++) {
-        g_frame[i] = memalign(64, FRAME * 4);
-        if (!g_frame[i])
-            return -1;
-        memset(g_frame[i], 0, FRAME * 4);
-    }
-    sceKernelDcacheWritebackAll();
-    sceDisplaySetMode(0, 480, 272);
-    sceDisplaySetFrameBuf(g_frame[0], STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888,
-                          PSP_DISPLAY_SETBUF_NEXTFRAME);
-    g_back = 1;
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
-    return 0;
+    /* HOME is ours (HOM-REQ-010): the system's quit dialog off, the button read in kernel mode.
+       Only when both are found - else HOME keeps the system's dialog. */
+    g_peek =
+        (void *)sctrlHENFindFunction("sceController_Service", "sceCtrl_driver", NID_PEEK_DRIVER);
+    popup =
+        (void *)sctrlHENFindFunction("sceImpose_Driver", "sceImpose_driver", NID_SET_HOME_POPUP);
+    if (g_peek && popup) {
+        struct hm_kcall a;
+
+        memset(&a, 0, sizeof(a));
+        if (kuKernelCall(popup, &a) < 0)
+            g_peek = 0;
+    } else {
+        g_peek = 0;
+    }
+    return hm_gu_init();
 }
 
-pw_canvas *hm_hw_begin(void)
+int hm_hw_home_ours(void)
 {
-    g_canvas.px = g_frame[g_back];
-    g_canvas.w = 480;
-    g_canvas.h = 272;
-    g_canvas.stride = STRIDE;
-    return &g_canvas;
-}
-
-void hm_hw_present(void)
-{
-    sceKernelDcacheWritebackRange(g_frame[g_back], FRAME * 4); /* the display reads memory */
-    sceDisplayWaitVblankStart();
-    sceDisplaySetFrameBuf(g_frame[g_back], STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888,
-                          PSP_DISPLAY_SETBUF_IMMEDIATE);
-    g_back ^= 1;
+    return g_peek != 0;
 }
 
 unsigned int hm_hw_buttons(void)
 {
     SceCtrlData pad;
 
+    if (g_peek) {
+        struct hm_kcall a;
+
+        memset(&a, 0, sizeof(a));
+        memset(&pad, 0, sizeof(pad));
+        a.arg[0] = (unsigned int)&pad;
+        a.arg[1] = 1;
+        if (kuKernelCall(g_peek, &a) >= 0 && (int)a.ret1 > 0)
+            return pad.Buttons;
+    }
     return sceCtrlPeekBufferPositive(&pad, 1) < 0 ? 0 : pad.Buttons;
 }
 

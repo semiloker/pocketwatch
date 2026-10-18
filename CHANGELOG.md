@@ -7,6 +7,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home is drawn by the PSP's GPU (the GE): smooth instead of laggy; its frame rate
+  goes to `seplugins/pocketwatch/home.log`.
+- HOME in Pocketwatch Home opens its own panel (Close, Exit to the XMB, Sleep, Turn Off) instead
+  of the system's quit dialog.
 - The PSP can start in Pocketwatch Home instead of the XMB: XMB → Settings → Pocketwatch → Start
   screen. Hold L while switching on for the XMB; Home's Exit and HOME → Quit go to the XMB once.
 - Pocketwatch Home lists and starts homebrew and PS1 games from `PSP/GAME` too.

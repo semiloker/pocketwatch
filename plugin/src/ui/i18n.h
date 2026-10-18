@@ -12,8 +12,9 @@
  */
 
 /* Bytes of translated text: the game keeps its own strings in kernel RAM (Russian ~2.4 KB); the
-   XMB plugin and Home (PW_I18N_XMB, user memory) take every string (Russian ~3.9 KB, RISK-019). */
-#ifdef PW_I18N_XMB
+   XMB plugin and Home (PW_I18N_XMB / PW_I18N_HOME, user memory) take their tiers (Russian ~3.9 KB
+   for all, RISK-019). */
+#if defined(PW_I18N_XMB) || defined(PW_I18N_HOME)
 #define PW_I18N_POOL 8192
 #else
 #define PW_I18N_POOL 4096
@@ -124,6 +125,9 @@ enum {
     PW_S_PT_NOTE,
     PW_S_PT_DESC,
     PW_S_PT_NONE,
+    PW_S_SET_START,
+    PW_S_START_XMB,
+    PW_S_START_HOME,
     PW_S_HM_GAMES,
     PW_S_HM_SYSTEM,
     PW_S_HM_PLAY,
@@ -135,20 +139,24 @@ enum {
     PW_S_HM_FREE,
     PW_S_HM_VERSION,
     PW_S_HM_INSTALLED,
-    PW_S_SET_START,
-    PW_S_START_XMB,
-    PW_S_START_HOME,
     PW_S_HM_HOMEBREW,
     PW_S_HM_PS1,
+    PW_S_HM_CLOSE,
+    PW_S_HM_SLEEP,
+    PW_S_HM_POWER_OFF,
     PW_S_COUNT
 };
 
-/* Strings from PW_S_SETTINGS on are shown only by the XMB plugin (vsh/, built with PW_I18N_XMB):
-   the game build keeps neither their English nor their translations (kernel RAM and the 4 KB pool,
-   RISK-019); pw_tr gives "" for them there. */
-#define PW_S_XMB_FIRST PW_S_SETTINGS
-#ifdef PW_I18N_XMB
+/* Three tiers, each build keeping only its own (English and translations; pw_tr gives "" for the
+   others): the game (below PW_S_XMB_FIRST: kernel RAM and the 4 KB pool, RISK-019), the XMB
+   plugin (PW_I18N_XMB: up to PW_S_HOME_FIRST, its 64 KB budget) and Pocketwatch Home with the
+   host tests (PW_I18N_HOME: everything). */
+#define PW_S_XMB_FIRST  PW_S_SETTINGS
+#define PW_S_HOME_FIRST PW_S_HM_GAMES
+#if defined(PW_I18N_HOME)
 #define PW_I18N_HELD PW_S_COUNT
+#elif defined(PW_I18N_XMB)
+#define PW_I18N_HELD PW_S_HOME_FIRST
 #else
 #define PW_I18N_HELD PW_S_XMB_FIRST
 #endif

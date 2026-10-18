@@ -119,3 +119,6 @@ start_xmb = XMB
 start_home = Pocketwatch Home
 hm_homebrew = Homebrew
 hm_ps1 = PlayStation
+hm_close = Schließen
+hm_sleep = Ruhemodus
+hm_power_off = Ausschalten

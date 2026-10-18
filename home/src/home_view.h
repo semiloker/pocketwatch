@@ -2,6 +2,7 @@
 #ifndef HM_HOME_VIEW_H
 #define HM_HOME_VIEW_H
 
+#include "gfx.h"
 #include "gfx/text.h"
 #include "ui/draw.h"
 
@@ -18,6 +19,8 @@
 #define HM_ICON_H 80
 
 enum { HM_TAB_GAMES, HM_TAB_PLAYTIME, HM_TAB_SYSTEM, HM_TABS };
+
+#define HM_PANEL_MAX 6
 
 typedef struct {
     pw_font *title, *body, *big;
@@ -56,9 +59,15 @@ typedef struct {
     const char *hint_enter, *hint_tabs; /* the bottom hints ("Play", "Section") */
     unsigned int t_ms;
     int appear; /* 0-256: the screen fading in, or out before a game starts */
+
+    /* The HOME panel (HOM-REQ-010): over everything while panel > 0 (0-256, fading) */
+    int panel, panel_sel, panel_pos;
+    const char *panel_title;
+    const char *panel_items[HM_PANEL_MAX];
+    int panel_count;
 } hm_view;
 
-void hm_draw(pw_canvas *c, const hm_ui *ui, const hm_view *v);
+void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v);
 
 /* A background from a game's PIC1 (any size): stretched to HM_W x HM_H, blurred and darkened
    towards the bottom, so text stays readable on any art. */

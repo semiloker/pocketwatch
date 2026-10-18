@@ -23,6 +23,7 @@
 #include "ui/shapes.h"
 #include "ui/views.h"
 #include "ui/xmbbg.h"
+#include "gfx_cpu.h"
 #include "home_view.h"
 
 #define W      480
@@ -204,6 +205,7 @@ static void home_previews(void)
     };
     hm_view v;
     pw_canvas c = {g_px, W, H, STRIDE};
+    hm_gfx_cpu g;
 
     for (int i = 0; i < 4; i++) /* stand-in icons: a tinted gradient with a ring */
         for (int y = 0; y < HM_ICON_H; y++)
@@ -221,6 +223,7 @@ static void home_previews(void)
     hm_make_background(pic, HM_W, HM_H, bg);
     hm_make_gradient(grad);
 
+    hm_gfx_cpu_init(&g, &c);
     memset(&v, 0, sizeof(v));
     v.tab_names[HM_TAB_GAMES] = "Games";
     v.tab_names[HM_TAB_PLAYTIME] = "Play Time";
@@ -237,15 +240,15 @@ static void home_previews(void)
     v.hint_tabs = "Section";
     v.appear = 256;
     g_style = 0;
-    hm_draw(&c, &ui, &v);
+    hm_draw(&g.ops, &ui, &v);
     save("home-games");
     v.sel = 1;
     v.selpos = 128 + 64; /* gliding to the second game */
     v.bg = grad;
-    hm_draw(&c, &ui, &v);
+    hm_draw(&g.ops, &ui, &v);
     save("home-games-moving");
     v.selpos = 256;
-    hm_draw(&c, &ui, &v);
+    hm_draw(&g.ops, &ui, &v);
     save("home-games-no-art");
     v.tab = v.tab_pos = 0;
     v.tab = HM_TAB_PLAYTIME;
@@ -255,7 +258,7 @@ static void home_previews(void)
     v.row_sel = 1;
     v.row_pos = 256;
     v.hint_enter = NULL;
-    hm_draw(&c, &ui, &v);
+    hm_draw(&g.ops, &ui, &v);
     save("home-playtime");
     v.tab = HM_TAB_SYSTEM;
     v.tab_pos = 512;
@@ -263,13 +266,26 @@ static void home_previews(void)
     v.nrows = 6;
     v.row_sel = 5;
     v.row_pos = 5 * 256;
-    hm_draw(&c, &ui, &v);
+    hm_draw(&g.ops, &ui, &v);
     save("home-system");
     v.tab = HM_TAB_GAMES;
     v.count = 0;
     v.tab_pos = 0;
-    hm_draw(&c, &ui, &v);
+    hm_draw(&g.ops, &ui, &v);
     save("home-empty");
+    v.count = 5; /* HOME: the panel over the games */
+    v.tab = HM_TAB_GAMES;
+    v.panel = 256;
+    v.panel_title = "Pocketwatch";
+    v.panel_items[0] = "Close";
+    v.panel_items[1] = "Exit to the XMB";
+    v.panel_items[2] = "Sleep";
+    v.panel_items[3] = "Turn Off";
+    v.panel_count = 4;
+    v.panel_sel = v.panel_pos = 1;
+    v.panel_pos = 256;
+    hm_draw(&g.ops, &ui, &v);
+    save("home-panel");
 }
 
 int main(void)

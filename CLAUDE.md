@@ -37,7 +37,10 @@ The project's full workflow is imported here and applies to every session:
 - `home/` builds Pocketwatch Home (`home/EBOOT.PBP`, a homebrew application, ADR-025; deploy copies
   it to `PSP/GAME/PocketwatchHome/` and to `PSP/SAVEDATA/ARK_01234/PWHOME.PBP`). Its art:
   `python tools/make_home_art.py home/res` (ours, never Sony's). Previews: `home-*.png` from
-  `make -C tests preview`.
+  `make -C tests preview`. Home draws through `hm_gfx` (ADR-028): the GE on the PSP
+  (`home/src/gfx_gu.c`), the CPU renderer for previews (`gfx_cpu.c`) - every operation needs both,
+  drawing the same pixels. Frame rate: `seplugins/pocketwatch/home.log`. Home's strings are the
+  `PW_I18N_HOME` tier (after `PW_S_HOME_FIRST`); the XMB plugin builds without them.
 - Start screen (ADR-026, ADR-027): `config.txt` `start = home`: the XMB plugin decides in
   `module_start` (`boot.txt`) and writes ARK-4's launcher field (`PWHOME.PBP`) from its start-module
   handler for sceMediaSync, after the older handlers - a write in `module_start` is cleared by

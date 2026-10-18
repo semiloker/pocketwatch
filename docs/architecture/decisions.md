@@ -417,3 +417,31 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** the XMB plugin has 147 bytes left of its 64 KB budget; the handler does no file
   I/O (the rule of `vsh/src/main.c`), so what it did reaches the card only if the XMB starts.
 
+## ADR-028 — Pocketwatch Home draws with the GE; HOME opens Home's own panel
+
+- **Status:** Accepted (2026-10-18), after the owner found Home slow ("the menu lags a lot, make it
+  60 fps") and HOME leading to the XMB (run 2, [m7-boot-shell](../research/m7-boot-shell.md)).
+- **Context:** Home drew every frame with the CPU renderer the hub uses: the full-screen
+  background (a copy or a cross-fade), scaled icons, alpha shapes and text, into RAM, then
+  showed it. The hub's own frames cost 17-19 ms of drawing on the PSP (Modern, 2026-10-17,
+  [styles](../ui/styles.md)) - more than one 16.7 ms vblank - and Home's screen is larger work.
+  Unlike the in-game hub, Home owns the whole PSP, the GE included. In Home, HOME brought the
+  system's quit dialog, then (xmb-once) the XMB.
+- **Decision:** Home's screens draw through `hm_gfx` (`home/src/gfx.h`), a handful of operations
+  with two backends: on the PSP the GE (`gfx_gu.c`: two 8888 frames in VRAM, a display list a
+  frame, every image a texture, alpha blending and bilinear scaling in hardware); on the host
+  the CPU renderer (`gfx_cpu.c`, the previews). Text lines, rounded corners and drawn icons are
+  rasterised once by the CPU renderer into small alpha textures ("stamps", kept by what they
+  show, 96 of them), so they look the same as in the previews; a rounded rectangle is nine
+  sprites cut from its stamp (`sprites.c`, host-tested against the CPU renderer). The clock,
+  battery and card are read once a second, the free space every 10 s. Home writes its frame
+  rate to `seplugins/pocketwatch/home.log` every 30 s and before a game. HOME is Home's: the
+  system's HOME dialog is turned off (`sceImposeSetHomePopup(0)` through `kuKernelCall`) and
+  HOME, read in kernel mode, opens a Pocketwatch panel: Close, Exit to the XMB, Sleep, Turn Off.
+  Strings get a third tier (`PW_I18N_HOME`): the XMB plugin no longer carries Home's.
+- **Alternatives considered:** a faster CPU path (333 MHz, copying only what changes) - the hub
+  shows the ceiling; drawing only changed regions - every animation touches most of the screen;
+  the GE for the in-game hub too - the game owns the GE and its state there (not in this ADR).
+- **Consequences:** Home's look is defined twice (the GE backend must match the CPU one; the
+  sprite test guards the corners); the display list takes 512 KB of Home's RAM; VRAM holds the
+  two frames, textures stay in RAM. The in-game hub keeps the CPU renderer.

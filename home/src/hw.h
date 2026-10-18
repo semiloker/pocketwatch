@@ -2,15 +2,12 @@
 #ifndef HM_HW_H
 #define HM_HW_H
 
-#include "ui/draw.h"
+/* Pocketwatch Home's view of the PSP: the buttons, the clock, the battery, the card. The screen is
+   gfx_gu.h's. */
 
-/* Pocketwatch Home's view of the PSP: two frames in RAM shown in turn, the buttons, the clock,
-   the battery, the card. */
-
-int hm_hw_init(void);         /* display, controller, exit callback */
-pw_canvas *hm_hw_begin(void); /* the frame to draw next (480 x 272, stride 512) */
-void hm_hw_present(void);     /* show it at the next vblank, wait for it */
-unsigned int hm_hw_buttons(void);
+int hm_hw_init(void);             /* controller, HOME, exit callback, the GE */
+int hm_hw_home_ours(void);        /* HOME reaches Home (the system's quit dialog is off) */
+unsigned int hm_hw_buttons(void); /* HOME included when hm_hw_home_ours */
 unsigned int hm_hw_now_ms(void);
 int hm_hw_exit_requested(void); /* HOME -> Quit was chosen */
 
