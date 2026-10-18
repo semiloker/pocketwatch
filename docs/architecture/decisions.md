@@ -376,7 +376,8 @@ decision was taken; the evidence column links the research behind it.
 ## ADR-026 — The PSP can start in Pocketwatch Home, chosen by the XMB plugin through ARK-4's launcher field
 
 - **Status:** Accepted (2026-10-18), on the owner's request ("not an app I have to start: I boot
-  the PSP and it is already there"). Extends ADR-025.
+  the PSP and it is already there"). Extends ADR-025. When the field is written and how the
+  xmb-once marker is read: superseded by ADR-027.
 - **Context:** ARK-4 starts `<ARK folder><ARKConfig.launcher>` instead of the XMB when that field
   is set as vsh_module starts; VSH plugins run before that moment, after ARK-4 has set or cleared
   the field ([m7-boot-shell](../research/m7-boot-shell.md), with file and line references).
@@ -394,3 +395,25 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** the XMB's own functions (System Settings, media, network, USB, UMD) are one
   "Exit to the XMB" away; the plugin depends on ARK-4's `ARKConfig` layout (RISK-021); a third
   place Home is installed (`ARK_01234/PWHOME.PBP`, by the deploy script).
+
+## ADR-027 — The launcher field is written after ARK-4's processSettings; the XMB-once marker carries its time
+
+- **Status:** Accepted (2026-10-18), after device run 1 of the start screen
+  ([m7-boot-shell](../research/m7-boot-shell.md#results)). Supersedes ADR-026 in these two points.
+- **Context:** ARK-4 starts the VSH plugins just before sceMediaSync; sceMediaSync's own start then
+  runs `processSettings`, which clears `ARKConfig.launcher` when ARK-4's launcher setting is off. A
+  write from `module_start` is therefore undone. The xmb-once marker of the first build had no
+  time, so a marker left from an earlier visit to Home sent a later power-on to the XMB (run 1).
+- **Decision:** `module_start` only decides (file I/O, `boot.txt`); the write happens in the
+  start-module handler for `sceMediaSync`, after the older handlers (ARK-4's among them) returned,
+  with the config read again and checked again (no launcher, no recovery). Home writes the RTC
+  tick into `xmb-once`; the plugin removes the marker at every start and obeys it only if it is at
+  most 120 s old. `boot.txt` keeps the last decisions with the time; an XMB that starts although
+  Home was chosen is logged and does not count against Home (`boot-pending` removed).
+- **Alternatives considered:** writing from vsh_module's own start handler (too late:
+  `InitKernelStartModule` decides before vsh_module's prologue); writing again at every module
+  start until vsh_module (would also undo vshctrl's own clearing for a mounted UMD ISO);
+  distinguishing a cold boot from a reboot instead of a time (no documented way from user mode).
+- **Consequences:** the XMB plugin has 147 bytes left of its 64 KB budget; the handler does no file
+  I/O (the rule of `vsh/src/main.c`), so what it did reaches the card only if the XMB starts.
+

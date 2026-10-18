@@ -19,7 +19,7 @@ void hm_hw_clock(char *out, int cap);
 int hm_hw_battery(int *charging); /* percent or -1 */
 int hm_hw_cross_enter(void);      /* the system's Enter button is X */
 
-/* The marker files the XMB plugin reads at the next start (ADR-026). */
+/* The marker files the XMB plugin reads at the next start (ADR-026): the RTC tick now. */
 void hm_hw_touch(const char *path);
 void hm_hw_remove(const char *path);
 int hm_hw_language(void);         /* PSP_SYSTEMPARAM_LANGUAGE_* */

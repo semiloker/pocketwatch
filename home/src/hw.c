@@ -173,9 +173,13 @@ int hm_hw_read_file(const char *path, void *buf, unsigned int cap)
 void hm_hw_touch(const char *path)
 {
     SceUID fd = sceIoOpen(path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
+    u64 now = 0;
+    char text[24];
 
     if (fd >= 0) {
-        sceIoWrite(fd, "1", 1);
+        sceRtcGetCurrentTick(&now);
+        stbsp_snprintf(text, sizeof(text), "%llu", (unsigned long long)now);
+        sceIoWrite(fd, text, strlen(text));
         sceIoClose(fd);
     }
 }

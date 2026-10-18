@@ -33,7 +33,7 @@ static int terminated(const unsigned char *s, int n)
     return memchr(s, 0, (unsigned int)n) != 0;
 }
 
-int pw_boot_ark_check(const unsigned char *cfg)
+int pw_boot_ark_layout(const unsigned char *cfg)
 {
     unsigned int magic = (unsigned int)cfg[0] | (unsigned int)cfg[1] << 8 |
                          (unsigned int)cfg[2] << 16 | (unsigned int)cfg[3] << 24;
@@ -50,9 +50,28 @@ int pw_boot_ark_check(const unsigned char *cfg)
         return -3;
     if ((cfg[PW_ARK_MODE_OFF] & 0x0C) != 0x04) /* not a PSP (a PS Vita: no XMB of its own) */
         return -4;
+    return 0;
+}
+
+int pw_boot_ark_check(const unsigned char *cfg)
+{
+    int r = pw_boot_ark_layout(cfg);
+
+    if (r < 0)
+        return r;
     if (cfg[PW_ARK_LAUNCH_OFF] != 0 || cfg[PW_ARK_RECOV_OFF] != 0)
         return -5; /* ARK-4's own launcher mode or recovery: theirs to decide */
     return 0;
+}
+
+int pw_boot_marker_fresh(const char *text, unsigned long long now)
+{
+    unsigned long long t = 0;
+    int digits = 0;
+
+    for (; *text >= '0' && *text <= '9' && digits < 20; text++, digits++)
+        t = t * 10 + (unsigned long long)(*text - '0');
+    return digits > 0 && t <= now && now - t <= PW_BOOT_MARKER_US;
 }
 
 int pw_boot_ark_set(unsigned char *cfg, const char *name)

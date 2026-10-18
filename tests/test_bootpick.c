@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <stdio.h>
 #include <string.h>
 
 #include "core/bootpick.h"
@@ -51,11 +52,13 @@ PW_TEST(boot_ark_config_checked_before_it_is_written)
 
     ark_config(cfg);
     CHECK_EQ(pw_boot_ark_check(cfg), 0);
+    CHECK_EQ(pw_boot_ark_layout(cfg), 0);
     CHECK(strcmp(pw_boot_ark_folder(cfg), "ms0:/PSP/SAVEDATA/ARK_01234/") == 0);
     CHECK_EQ(pw_boot_ark_set(cfg, PW_BOOT_HOME_FILE), 0);
     CHECK(strcmp((char *)cfg + PW_ARK_LAUNCH_OFF, "PWHOME.PBP") == 0);
     CHECK_EQ(cfg[PW_ARK_MODE_OFF], 0x04); /* nothing next to the launcher moved */
     CHECK_EQ(pw_boot_ark_check(cfg), -5); /* a launcher set: never written over */
+    CHECK_EQ(pw_boot_ark_layout(cfg), 0); /* but the layout is still as expected */
     CHECK(pw_boot_ark_set(cfg, "A_NAME_OF_TWENTY.PBP") < 0);
 
     ark_config(cfg);
@@ -73,4 +76,19 @@ PW_TEST(boot_ark_config_checked_before_it_is_written)
     ark_config(cfg);
     cfg[PW_ARK_RECOV_OFF] = 1;
     CHECK_EQ(pw_boot_ark_check(cfg), -5);
+}
+
+PW_TEST(boot_xmb_once_marker_only_counts_right_after_home)
+{
+    const unsigned long long s = 1000000ull, now = 63900000000ull * s; /* an RTC tick */
+    char text[32];
+
+    snprintf(text, sizeof(text), "%llu", now - 8 * s); /* Home quit 8 s ago */
+    CHECK_EQ(pw_boot_marker_fresh(text, now), 1);
+    snprintf(text, sizeof(text), "%llu", now - 3600 * s); /* left from an hour ago */
+    CHECK_EQ(pw_boot_marker_fresh(text, now), 0);
+    snprintf(text, sizeof(text), "%llu", now + 5 * s); /* from the future: the clock moved */
+    CHECK_EQ(pw_boot_marker_fresh(text, now), 0);
+    CHECK_EQ(pw_boot_marker_fresh("1", now), 0); /* the first version's marker */
+    CHECK_EQ(pw_boot_marker_fresh("", now), 0);
 }

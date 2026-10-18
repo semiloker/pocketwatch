@@ -19,19 +19,25 @@ locally. The owner's PSP runs an ARK-4 whose `SETTINGS.TXT` has the line `always
 
 1. `sceImpose_Driver` starts → `checkControllerInput()` (START held: no plugins; SELECT held: no
    settings; `exitgame.c:283-294`) and `loadSettings()` (`SETTINGS.TXT`, `plugin.c:585`).
-2. `sceMediaSync` is loaded → ARK-4's own handler runs `processSettings()`
-   (`core/compat/psp/syspatch.c:166-190`): with `launcher, on` it writes `"VBOOT.PBP"` into
-   `ARKConfig.launcher`, otherwise it clears that field (unless it holds `"PROSHELL"`).
-3. `sceMediaSync` starts → ARK-4 loads xmbctrl and **the VSH plugins** (`LoadPlugins`), running
-   each plugin's `module_start` there and then.
+2. init asks to start `sceMediaSync` → before starting it, ARK-4 loads xmbctrl and **the VSH
+   plugins** (`LoadPlugins`, lines 277-286), running each plugin's `module_start` there and then.
+3. `sceMediaSync` itself starts → the module manager's prologue calls the start-module handlers
+   (ARK-4 `modulemanager.c:185-197`; uOFW `src/kd/modulemgr/modulemgr.c:1160-1169`: `_StartModule`
+   → `_PrologueModule`), ARK-4's own (`PSPOnModuleStart`) among them, which runs
+   `processSettings()` (`core/compat/psp/syspatch.c:166-190`): with `launcher, on` it writes
+   `"VBOOT.PBP"` into `ARKConfig.launcher`, **otherwise it clears that field** (unless it holds
+   `"PROSHELL"`).
 4. `vsh_module` (the XMB) starts → if `ARKConfig.recovery`, `ARKConfig.launcher[0]` or the
    launcher setting is set, ARK-4 makes vsh_module's entry a stub and calls
    `sctrlArkExitLauncher()` (lines 232-238), which starts `<ARK folder><launcher>` as a homebrew
    (`sctrlKernelLoadExecVSHWithApitype(0x141, ...)`, key `"game"`, `exitgame.c:65-131`). The XMB
    never runs. If that file is missing, it reboots into the VSH (`sctrlKernelExitVSH`).
 
-So **a VSH plugin runs after the launcher field is decided and before the XMB starts**, and the
-launcher field is all ARK-4 reads to decide. ARK-4's own xmbctrl already writes that field from
+So **a VSH plugin's `module_start` runs before the launcher field is decided** (step 2, a write
+there is cleared in step 3 - the first build made exactly that mistake, see Results), but **its
+start-module handler runs in step 3 right after ARK-4's** (handlers are chained, newest first,
+each calling the older one), and that is still before the XMB starts. The launcher field is all
+ARK-4 reads to decide. ARK-4's own xmbctrl already writes that field from
 user mode: it reads the config with `sctrlArkGetConfig` (SystemCtrlForUser, NID `0xB00B1E55`,
 `core/systemctrl/exports.exp:57`), sets `launcher = "PROSHELL"` and writes it back with
 `sctrlArkSetConfig` (SystemCtrlPrivate `0x6EAFC03D`, `exports.exp:248`) through `kuKernelCall`
@@ -66,19 +72,25 @@ real PSP into a modern home screen of its own (web search 2026-10-18; INFERRED f
 
 ## The design (B), as implemented
 
-`vsh/src/xboot.c` (`pwx_boot`, first thing in `module_start`), decision in portable
+`vsh/src/xboot.c`: `pwx_boot_decide` (first thing in `module_start`: config, markers, the
+decision, `boot.txt`), `pwx_boot_module` (from the start-module handler, after the older
+handlers, for `sceMediaSync`: the write - ADR-027); decision in portable
 `plugin/src/core/bootpick.c` (host tests `boot_*`):
 
 - `config.txt`: `start = xmb` (default) or `start = home`; XMB → Settings → Pocketwatch → Start
   screen writes it.
-- The XMB this time when: `seplugins/pocketwatch/xmb-once` exists (Home's Exit and HOME → Quit
-  write it; the plugin removes it), **L** is held, `boot-pending` is still there (the last start of
+- The XMB this time when: `seplugins/pocketwatch/xmb-once` holds an RTC tick at most 120 s old
+  (Home's Exit and HOME → Quit write it; the plugin removes it at every start, so it never
+  outlives the start it was meant for - ADR-027), **L** is held, `boot-pending` is still there (the last start of
   Home never showed its first screen: Home removes it after its first frame), `PWHOME.PBP` is not
   in ARK-4's folder, or ARK-4's config is not as expected (magic `0xB00B1E55`, an `ms0:/` or `ef0:/`
   folder, a PSP, no launcher or recovery set already - otherwise ARK-4's own mode wins).
-- Otherwise: write `boot-pending`, set `launcher = "PWHOME.PBP"`, write the config back the way
-  xmbctrl does. ARK-4 starts `ms0:/PSP/SAVEDATA/ARK_01234/PWHOME.PBP` (the deploy script copies
-  Home there too). `boot.txt` records each decision and its reason.
+- Otherwise: write `boot-pending`; then, once ARK-4's `processSettings` has run, read the config
+  again, check that no launcher or recovery is set, set `launcher = "PWHOME.PBP"` and write it back
+  the way xmbctrl does. ARK-4 starts `ms0:/PSP/SAVEDATA/ARK_01234/PWHOME.PBP` (the deploy script
+  copies Home there too). `boot.txt` keeps the last decisions with the time and the reason; if the
+  XMB starts anyway, the plugin adds "... but the XMB started", removes `boot-pending` (not Home's
+  fault) and `xmb.log` gives what was written and what the field held.
 - Home lists ISO/CSO images and now the EBOOTs of `PSP/GAME` (homebrew `MG`, PS1 `ME`), starting
   them as ARK-4's menu does (`extras/menus/arkMenu/src/eboot.cpp:246-305`: apitype 0x141 key
   `game`, 0x144 key `pops`).
@@ -108,13 +120,26 @@ launcher mode - the VSH's modules up to vsh_module, then one reboot into Home).
 
 ## Results
 
-*Pending (device test HM5-HM9).*
+**Run 1 — 2026-10-18, build `df27d0d`.** Raw files:
+[`logs/2026-10-18-boot-shell-run1.log`](logs/2026-10-18-boot-shell-run1.log). The owner set Start
+screen → Pocketwatch Home (`config.txt` 05:26:48 by the PSP's clock) and restarted: the XMB.
+`boot.txt` (05:28:00): `start: XMB (the XMB asked from Home), ARK-4 config check 0` - the layout
+check passed and `PWHOME.PBP` was there, but an `xmb-once` marker was found. Only Home writes it
+(Exit, HOME → Quit); between the setting (05:26:48) and that start Home had been run and left,
+or the marker was older - the first build had no way to tell. Two faults, both fixed by ADR-027:
+
+1. the marker had no time, so one left from an earlier visit to Home counted at a later
+   power-on;
+2. reading the boot order again for this run (step 3 above): the first build wrote the launcher
+   field in `module_start`, which ARK-4's `processSettings` clears a moment later - even without
+   the marker the XMB would have come. VERIFIED from source (uOFW and ARK-4, as cited); not yet
+   on the device.
 
 ## Conclusions
 
 - VERIFIED from source: route B uses only what ARK-4 itself uses, at the moment ARK-4 itself
   decides.
-- OPEN: boot time to Home's first screen; whether the decision lands before ARK-4's own
-  `processSettings` on the owner's ARK-4 build (if not, the PSP simply shows the XMB and
-  `boot.txt` says "Pocketwatch Home" - HM5 tells).
+- OPEN: boot time to Home's first screen; that the write from the start-module handler holds on
+  the owner's ARK-4 build (if not: "... but the XMB started" in `boot.txt`, the field's value in
+  `xmb.log` - HM5 tells).
 - Next: device test; then UMD and PSN games, USB in Home, route D as research.

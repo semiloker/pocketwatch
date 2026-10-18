@@ -1,0 +1,22 @@
+# Run 1 of the start screen (ADR-026, first build df27d0d), PSP-3000, ARK-4.
+# Owner: "turned on Settings -> Pocketwatch -> Start screen: Pocketwatch Home, restarted the PSP,
+# the default XMB started again". Files read over USB afterwards (PSP clock: 2011).
+
+## seplugins/pocketwatch/config.txt (written 2011-01-15 05:26:48)
+fast = on
+status = on
+style = modern
+start = home
+
+## seplugins/pocketwatch/boot.txt (created 05:25:32, last written 05:28:00)
+start: XMB (the XMB asked from Home), ARK-4 config check 0
+
+## seplugins/pocketwatch/xmb.log (05:28:04)
+Pocketwatch XMB bc30f33-dirty
+start: XMB (the XMB asked from Home), ARK-4 config check 0
+xmb: battery 100% present 1 charging 0 online 0 system 411 min; 1647/1790 mAh 4164 mV 20 C; syscon -224 mA 0 cycles
+xmb: vsh_module patched (add 0880BBF4 exec 0880C408 unload 0880A740 text 0880B1C0)
+xmb: Pocketwatch and Battery added after System Settings (action 2, arg 2)
+Play Time added after Saved Data Utility
+
+## No xmb-once or boot-pending file left on the card; PWHOME.PBP present in ARK_01234.

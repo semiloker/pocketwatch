@@ -23,7 +23,7 @@ CFLAGS  = -Os -G0 -Wall -Wextra -Werror -fno-pic -fno-builtin -fno-tree-loop-dis
           -DPW_VERSION=\"$(VERSION)\" -DPW_I18N_XMB
 ASFLAGS = $(CFLAGS)
 LDFLAGS = -nostdlib
-LIBS    = -lpspuser -lpsputility -lpsppower -lpspctrl -lpspmodinfo -lgcc
+LIBS    = -lpspuser -lpsputility -lpsppower -lpspctrl -lpsprtc -lpspmodinfo -lgcc
 
 VPATH = src ../plugin/src/core ../plugin/src/ui ../plugin/lib
 
