@@ -7,6 +7,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The PSP can start in Pocketwatch Home instead of the XMB: XMB → Settings → Pocketwatch → Start
+  screen. Hold L while switching on for the XMB; Home's Exit and HOME → Quit go to the XMB once.
+- Pocketwatch Home lists and starts homebrew and PS1 games from `PSP/GAME` too.
 - Pocketwatch Home (`PSP/GAME/PocketwatchHome`): a home screen of its own in the Modern style -
   every game on the card with its own icon and background art, its play time and save states,
   Play Time and System sections - that starts games the way ARK-4's menu does.

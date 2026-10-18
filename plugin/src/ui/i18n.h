@@ -135,6 +135,11 @@ enum {
     PW_S_HM_FREE,
     PW_S_HM_VERSION,
     PW_S_HM_INSTALLED,
+    PW_S_SET_START,
+    PW_S_START_XMB,
+    PW_S_START_HOME,
+    PW_S_HM_HOMEBREW,
+    PW_S_HM_PS1,
     PW_S_COUNT
 };
 

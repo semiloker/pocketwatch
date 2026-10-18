@@ -21,7 +21,7 @@ void *sce_paf_private_malloc(int size); /* src/stubs.S */
 void sce_paf_private_free(void *p);
 
 /* What a row is: one of the four settings, or a reading (one value). */
-enum { ROW_STYLE, ROW_FAST, ROW_STATUS, ROW_LANGUAGE, ROW_INFO };
+enum { ROW_START, ROW_STYLE, ROW_FAST, ROW_STATUS, ROW_LANGUAGE, ROW_INFO };
 
 typedef struct {
     int kind;
@@ -247,6 +247,7 @@ void pwx_page_open(int page)
     pw_config_load(PWX_DIR "config.txt");
     pwx_texts_load();
     if (page == PWX_PAGE_SETTINGS) {
+        add(ROW_START, pw_tr(PW_S_SET_START), 0);
         add(ROW_STYLE, pw_tr(PW_S_SET_STYLE), 0);
         add(ROW_FAST, pw_tr(PW_S_SET_FAST), 0);
         add(ROW_STATUS, pw_tr(PW_S_SET_STATUS), 0);
@@ -314,6 +315,8 @@ const char *pwx_row_option(int row, int i)
     switch (g_rows[row].kind) {
     case ROW_STYLE:
         return pw_tr(styles[i % 3]);
+    case ROW_START:
+        return pw_tr(i ? PW_S_START_HOME : PW_S_START_XMB);
     case ROW_LANGUAGE:
         return i <= 0 || i >= pw_lang_name_count ? pw_tr(PW_S_SYSTEM_LANGUAGE)
                                                  : pw_lang_names[i].name;
@@ -329,6 +332,8 @@ int pwx_row_get(int row)
     const pw_config *c = pw_config_get();
 
     switch (g_rows[row].kind) {
+    case ROW_START:
+        return c->start == 1;
     case ROW_STYLE:
         return c->style;
     case ROW_FAST:
@@ -363,7 +368,9 @@ void pwx_row_set(int row, int value)
         pwx_log("xmb: language %s", code ? code : "of the system");
         return;
     }
-    if (kind == ROW_STYLE)
+    if (kind == ROW_START)
+        c->start = value;
+    else if (kind == ROW_STYLE)
         c->style = value;
     else if (kind == ROW_FAST)
         c->fast = value;

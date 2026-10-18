@@ -149,3 +149,35 @@ PW_TEST(disc_refuses_what_is_not_a_game_image)
     memset(g_iso, 0, sizeof(g_iso));
     CHECK(hm_disc_open(&d, read_mem, fake_inflate, g_iso) < 0);
 }
+
+PW_TEST(disc_finds_the_parts_of_an_eboot_pbp)
+{
+    /* PARAM.SFO 40..340, ICON0 340..1340, ICON1, PIC0 empty, PIC1 1340..5340, SND0 empty,
+       DATA.PSP 5340..9000, DATA.PSAR empty to the end (9000) */
+    static const unsigned int offs[8] = {40, 340, 1340, 1340, 1340, 5340, 5340, 9000};
+    unsigned char hdr[HM_PBP_HEADER];
+    unsigned int off = 0, size = 0;
+
+    memset(hdr, 0, sizeof(hdr));
+    hdr[1] = 'P';
+    hdr[2] = 'B';
+    hdr[3] = 'P';
+    put32(hdr + 4, 0x10000);
+    for (int i = 0; i < 8; i++)
+        put32(hdr + 8 + 4 * i, offs[i]);
+    CHECK_EQ(hm_pbp_part(hdr, 9000, HM_PBP_SFO, &off, &size), 0);
+    CHECK_EQ(off, 40u);
+    CHECK_EQ(size, 300u);
+    CHECK_EQ(hm_pbp_part(hdr, 9000, HM_PBP_ICON0, &off, &size), 0);
+    CHECK_EQ(size, 1000u);
+    CHECK_EQ(hm_pbp_part(hdr, 9000, HM_PBP_PIC1, &off, &size), 0);
+    CHECK_EQ(off, 1340u);
+    CHECK_EQ(size, 4000u);
+    CHECK_EQ(hm_pbp_part(hdr, 9000, 7, &off, &size), 0);
+    CHECK_EQ(size, 0u);
+    CHECK(hm_pbp_part(hdr, 8000, HM_PBP_SFO, &off, &size) < 0); /* the table is past the end */
+    put32(hdr + 8 + 4 * 2, 200);                                /* out of order */
+    CHECK(hm_pbp_part(hdr, 9000, HM_PBP_SFO, &off, &size) < 0);
+    hdr[1] = 'X';
+    CHECK(hm_pbp_part(hdr, 9000, HM_PBP_SFO, &off, &size) < 0);
+}

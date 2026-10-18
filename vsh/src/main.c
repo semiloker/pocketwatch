@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "xbattery.h"
+#include "xboot.h"
 #include "xlog.h"
 #include "xmb.h"
 
@@ -62,6 +63,9 @@ int module_start(SceSize args, void *argp)
     (void)args;
     (void)argp;
     pwx_log("Pocketwatch XMB " PW_VERSION);
+    /* Before the XMB starts: maybe Pocketwatch Home instead. The rest is set up either way, so a
+       start that still ends in the XMB has the plugin's pages. */
+    pwx_boot();
     g_previous = sctrlHENSetStartModuleHandler(on_module_start);
     pwx_battery_start(); /* readings from the XMB's start: the Battery page has history */
     {

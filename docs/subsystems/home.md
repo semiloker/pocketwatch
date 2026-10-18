@@ -13,8 +13,10 @@
   Pocketwatch's renderer.
 - **Current state:** a homebrew application (`ms0:/PSP/GAME/PocketwatchHome/EBOOT.PBP`, our own
   ICON0 and PIC1) with three sections - Games, Play Time, System - in the Modern style.
-- **Target state:** Classic and Minimal styles too; started by ARK-4 instead of the XMB
-  (launcher mode) when the owner wants; a game's save states and Continue from a state in Home.
+- **Since ADR-026:** the PSP can start in Home instead of the XMB (XMB → Settings → Pocketwatch
+  → Start screen), and Home also lists the homebrew and PS1 games of `PSP/GAME`.
+- **Target state:** Classic and Minimal styles too; UMD and PSN games; USB in Home; a game's save
+  states and Continue from a state in Home.
 
 ## B. Requirements
 
@@ -26,7 +28,9 @@
 | `HOM-REQ-004` | Enter starts the game the way ARK-4's own menu does (Inferno, apitype 0x123, EBOOT.OLD for a patched image); a failed start returns to Home. | P1 | Implemented | HM2 |
 | `HOM-REQ-005` | Play Time: the total and every game with time, most first, with bars; System: battery, time left (the system's figure), free space, the number of games, the version, Exit to the XMB. L / R switch sections. | P1 | Implemented | previews `home-playtime.png`, `home-system.png`, HM3 |
 | `HOM-REQ-006` | The three styles (Classic, Modern, Minimal) as in the hub, from config.txt. | P2 | Planned (Modern only) | - |
-| `HOM-REQ-007` | Home as ARK-4's launcher (instead of the XMB). | P2 | Planned (RESEARCH REQUIRED: installing as `VBOOT.PBP` / ARK's `launcher` setting without losing ARK's own menu) | - |
+| `HOM-REQ-007` | The PSP can start in Home instead of the XMB: Settings → Pocketwatch → Start screen; ARK-4's menu and settings untouched; the XMB comes instead when L is held at power-on, when Home asked for it, or when Home's last start never reached its first screen ([m7-boot-shell](../research/m7-boot-shell.md), ADR-026). | P1 | Implemented 2026-10-18; device test HM5-HM9 pending | `boot_*` host tests, HM5-HM9 |
+| `HOM-REQ-008` | Home lists every `ms0:/PSP/GAME/<folder>/EBOOT.PBP` that is homebrew (CATEGORY `MG`) or a PS1 game (`ME`) with its own icon (kept in shape) and PIC1, after the PSP games, and starts it as ARK-4's menu does (apitype 0x141 / 0x144). | P1 | Implemented; reader VERIFIED on the owner's 9 EBOOTs on the PC; starting: HM7 pending | `disc_finds_the_parts_of_an_eboot_pbp`, HM7 |
+| `HOM-REQ-009` | Exit to the XMB and HOME → Quit in Home lead to the XMB even when Home is the start screen (marker `xmb-once`); after its first frame Home clears the start guard (`boot-pending`). | P1 | Implemented; HM6, HM8 pending | HM6, HM8 |
 | `HOM-NFR-001` | Motion by time (`ui/anim.h`), 60 Hz while nothing loads; texts in the user's language. | P1 | Implemented (device fps not measured) | HM1 |
 
 ## C. Architecture

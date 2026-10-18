@@ -5,16 +5,20 @@
 #include "home_view.h"
 
 /*
- * The games on the card (HOM-REQ-002): every .iso / .cso in ms0:/ISO and its folders, with the
- * title and disc ID from its PARAM.SFO, what Pocketwatch knows of it (play time, save states),
- * and - loaded by a thread, nearest to the chosen one first - its ICON0 and, once the choice
- * settles, its PIC1 as a background.
+ * The games on the card (HOM-REQ-001, -002, -008): every .iso / .cso in ms0:/ISO and its folders,
+ * and every EBOOT.PBP in ms0:/PSP/GAME/<folder>/ (homebrew, PS1 games), with the title and ID
+ * from its PARAM.SFO, what Pocketwatch knows of it (play time, save states), and - loaded by a
+ * thread, nearest to the chosen one first - its ICON0 and, once the choice settles, its PIC1 as
+ * a background. PSP games first, then PS1 games, then homebrew, each by title.
  */
+
+enum { HM_KIND_ISO, HM_KIND_PS1, HM_KIND_APP };
 
 #define HM_GAMES_MAX 96
 
 typedef struct {
-    char path[192];
+    int kind;       /* HM_KIND_* */
+    char path[192]; /* the image, or the EBOOT.PBP */
     char id[16];
     char title[64];
     char meta[96];

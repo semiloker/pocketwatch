@@ -7,4 +7,8 @@
    Returns only on failure (< 0). */
 int hm_launch(const char *image, int patched);
 
+/* Start an EBOOT.PBP as ARK-4's menu does (Eboot::executeHomebrew / executePOPS): homebrew with
+   apitype 0x141, a PS1 game with 0x144. Returns only on failure (< 0). */
+int hm_launch_eboot(const char *eboot, int ps1);
+
 #endif

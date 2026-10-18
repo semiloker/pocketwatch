@@ -6,7 +6,8 @@
 // with free the play-time table while a page is built.
 // KUBridge: ARK-4's kuKernelCall, which runs a kernel function (the battery's syscon getters) for a
 // user module; NID from ARK-4's libs/KUBridge/KUBridge.S.
-// SystemCtrlForUser: ARK-4's user API, NIDs from the names (SHA-1, as for SystemCtrlForKernel).
+// SystemCtrlForUser: ARK-4's user API, NIDs from the names (SHA-1, as for SystemCtrlForKernel);
+// sctrlArkGetConfig has ARK-4's fixed NID 0xB00B1E55 (core/systemctrl/exports.exp).
 
 	.set noreorder
 
@@ -23,6 +24,7 @@
 	IMPORT_FUNC  "SystemCtrlForUser",0x1C90BECB,sctrlHENSetStartModuleHandler
 	IMPORT_FUNC  "SystemCtrlForUser",0x17691875,sctrlFlushCache
 	IMPORT_FUNC  "SystemCtrlForUser",0x159AF5CC,sctrlHENFindFunction
+	IMPORT_FUNC  "SystemCtrlForUser",0xB00B1E55,sctrlArkGetConfig
 
 	IMPORT_START "KUBridge",0x40090000
 	IMPORT_FUNC  "KUBridge",0x9060F69D,kuKernelCall

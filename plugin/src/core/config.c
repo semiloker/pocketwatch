@@ -8,23 +8,35 @@
 
 #define FILE_MAX 1024
 
-static pw_config g_config = {1, 1, 0};
+static pw_config g_config = {1, 1, 0, 0};
 
 const char *const pw_config_style_names[3] = {"xmb", "modern", "minimal"};
+const char *const pw_config_start_names[2] = {"xmb", "home"};
 
 void pw_config_defaults(pw_config *c)
 {
     c->fast = 1;
     c->status = 1;
     c->style = 0;
+    c->start = 0;
+}
+
+static int name_index(const char *const *names, int count, const char *v, unsigned int n)
+{
+    for (int i = 0; i < count; i++)
+        if (strlen(names[i]) == n && strncmp(v, names[i], n) == 0)
+            return i;
+    return -1;
 }
 
 static int style(const char *v, unsigned int n)
 {
-    for (int i = 0; i < 3; i++)
-        if (strlen(pw_config_style_names[i]) == n && strncmp(v, pw_config_style_names[i], n) == 0)
-            return i;
-    return -1;
+    return name_index(pw_config_style_names, 3, v, n);
+}
+
+static int start(const char *v, unsigned int n)
+{
+    return name_index(pw_config_start_names, 2, v, n);
 }
 
 /* "on"/"off", "1"/"0", "yes"/"no", "true"/"false"; -1 for anything else. */
@@ -57,6 +69,7 @@ int pw_config_parse(pw_config *c, const char *text, unsigned int len)
         {"fast", (unsigned int)offsetof(pw_config, fast), boolean},
         {"status", (unsigned int)offsetof(pw_config, status), boolean},
         {"style", (unsigned int)offsetof(pw_config, style), style},
+        {"start", (unsigned int)offsetof(pw_config, start), start},
     };
     const char *p = text, *end = text + len;
     int taken = 0;
@@ -94,13 +107,16 @@ int pw_config_parse(pw_config *c, const char *text, unsigned int len)
 
 int pw_config_format(const pw_config *c, char *out, unsigned int cap)
 {
-    int n = stbsp_snprintf(out, (int)cap,
-                           "# Pocketwatch settings (the hub's Settings screen writes this file)\n"
-                           "fast = %s\n"
-                           "status = %s\n"
-                           "style = %s\n",
-                           c->fast ? "on" : "off", c->status ? "on" : "off",
-                           pw_config_style_names[c->style >= 0 && c->style < 3 ? c->style : 0]);
+    int n =
+        stbsp_snprintf(out, (int)cap,
+                       "# Pocketwatch settings (XMB -> Settings -> Pocketwatch writes this file)\n"
+                       "fast = %s\n"
+                       "status = %s\n"
+                       "style = %s\n"
+                       "start = %s\n",
+                       c->fast ? "on" : "off", c->status ? "on" : "off",
+                       pw_config_style_names[c->style >= 0 && c->style < 3 ? c->style : 0],
+                       pw_config_start_names[c->start == 1]);
 
     return n >= 0 && (unsigned int)n < cap ? n : -1;
 }

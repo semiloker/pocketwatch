@@ -25,7 +25,8 @@ Labels as in [AI_WORKFLOW](../AI_WORKFLOW.md#2-evidence-labels).
 | Feature of the brief | Status | Where / why |
 |---|---|---|
 | Three coherent styles | IMPLEMENTED (hub, every screen incl. the new pages) | ADR-019; the same data for all three, presentation only |
-| A full UI of our own | IMPLEMENTED, first version: Pocketwatch Home, a homebrew home screen in the Modern style (ADR-025, [home](../subsystems/home.md), [m7-full-ui](../research/m7-full-ui.md)) | three styles, launcher mode: planned |
+| A full UI of our own | IMPLEMENTED, first version: Pocketwatch Home, a homebrew home screen in the Modern style (ADR-025, [home](../subsystems/home.md), [m7-full-ui](../research/m7-full-ui.md)) | three styles: planned |
+| Boot straight into it | IMPLEMENTED: Start screen setting, ARK-4's launcher field set by the XMB plugin, start guard (ADR-026, [m7-boot-shell](../research/m7-boot-shell.md)); device test HM5-HM9 pending | |
 | Redesign of the XMB's own navigation and look | BLOCKED BY PLATFORM (as a plugin) | Sony's renderer and layout; a plugin can add items and pages (done) but not replace the shell. A replacement shell is a firmware-level project: [FW track](../firmware/independent-firmware-feasibility.md). The XMB's look is themable with CTF themes (cxmb, already on the owner's PSP): NOT APPLICABLE here |
 | Settings / customization (style, clock and battery, fast save, language) | IMPLEMENTED in the XMB: Settings → Pocketwatch (ADR-021, ADR-024) | accent colours, motion intensity, density: PROPOSED ([customization](../ui/customization.md)) |
 | Theme packages | PROPOSED | needs validation rules first (brief §6); no external code ever |

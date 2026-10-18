@@ -124,6 +124,11 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_HM_FREE] = {"hm_free", "Free space"},
     [PW_S_HM_VERSION] = {"hm_version", "Version"},
     [PW_S_HM_INSTALLED] = {"hm_installed", "Games on the card"},
+    [PW_S_SET_START] = {"set_start", "Start screen"},
+    [PW_S_START_XMB] = {"start_xmb", "XMB"},
+    [PW_S_START_HOME] = {"start_home", "Pocketwatch Home"},
+    [PW_S_HM_HOMEBREW] = {"hm_homebrew", "Homebrew"},
+    [PW_S_HM_PS1] = {"hm_ps1", "PlayStation"},
 #endif
 };
 

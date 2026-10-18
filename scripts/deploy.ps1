@@ -62,6 +62,13 @@ if (Test-Path $homeEboot) {
     New-Item -ItemType Directory -Force -Path $homeDest | Out-Null
     Copy-Item -Path $homeEboot -Destination $homeDest -Force
     Write-Host "Copied EBOOT.PBP -> $homeDest"
+    # The start screen (ADR-026): ARK-4 starts a launcher named relative to its own folder, so
+    # Home is also there as PWHOME.PBP. Turned on in XMB -> Settings -> Pocketwatch.
+    $arkDir = Join-Path $pspRoot 'PSP\SAVEDATA\ARK_01234'
+    if (Test-Path $arkDir) {
+        Copy-Item -Path $homeEboot -Destination (Join-Path $arkDir 'PWHOME.PBP') -Force
+        Write-Host "Copied EBOOT.PBP -> $arkDir\PWHOME.PBP"
+    }
 }
 
 # Translations: the plugins read lang\<code>.txt for the system language (English is built in).

@@ -5,6 +5,9 @@
 #include "launch.h"
 
 #define ISO_RUNLEVEL   0x123 /* an image on ms0 (arkMenu include/entry.h) */
+#define APP_RUNLEVEL   0x141 /* homebrew on ms0 */
+#define PS1_RUNLEVEL   0x144 /* a PS1 game (POPS) on ms0 */
+#define BOOT_UMD       0     /* sctrlSESetBootConfFileIndex: MODE_UMD, no image */
 #define BOOT_INFERNO   3     /* sctrlSESetBootConfFileIndex: MODE_INFERNO */
 #define DISC_TYPE_GAME 0x10  /* PSP_UMD_TYPE_GAME */
 #define EBOOT_BIN      "disc0:/PSP_GAME/SYSDIR/EBOOT.BIN"
@@ -41,4 +44,18 @@ int hm_launch(const char *image, int patched)
     sctrlSESetBootConfFileIndex(BOOT_INFERNO);
     sctrlSESetUmdFile(image);
     return sctrlKernelLoadExecVSHWithApitype(ISO_RUNLEVEL, image, &p);
+}
+
+int hm_launch_eboot(const char *eboot, int ps1)
+{
+    static vsh_param p;
+
+    memset(&p, 0, sizeof(p));
+    p.size = sizeof(p);
+    p.key = ps1 ? "pops" : "game";
+    p.argp = (void *)eboot;
+    p.args = strlen(eboot) + 1;
+    sctrlSESetUmdFile("");
+    sctrlSESetBootConfFileIndex(BOOT_UMD);
+    return sctrlKernelLoadExecVSHWithApitype(ps1 ? PS1_RUNLEVEL : APP_RUNLEVEL, eboot, &p);
 }

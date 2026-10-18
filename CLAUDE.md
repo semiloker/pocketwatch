@@ -35,8 +35,14 @@ The project's full workflow is imported here and applies to every session:
   patches must keep the chaining rule: find every site before the previous start-module handler
   (ARK-4's xmbctrl) runs, wrap what is there after it. A broken VSH plugin: hold START at boot.
 - `home/` builds Pocketwatch Home (`home/EBOOT.PBP`, a homebrew application, ADR-025; deploy copies
-  it to `PSP/GAME/PocketwatchHome/`). Its art: `python tools/make_home_art.py home/res` (ours, never
-  Sony's). Previews: `home-*.png` from `make -C tests preview`.
+  it to `PSP/GAME/PocketwatchHome/` and to `PSP/SAVEDATA/ARK_01234/PWHOME.PBP`). Its art:
+  `python tools/make_home_art.py home/res` (ours, never Sony's). Previews: `home-*.png` from
+  `make -C tests preview`.
+- Start screen (ADR-026): `config.txt` `start = home` makes the XMB plugin set ARK-4's launcher
+  field to `PWHOME.PBP` in its `module_start` (decision in `boot.txt`). Never write any other
+  `ARKConfig` field, and only after `pw_boot_ark_check`. The XMB instead: hold L at power-on, Home's
+  Exit / HOME -> Quit (`xmb-once`), a start of Home that never showed a frame (`boot-pending`);
+  hold START at power-on for no plugins at all.
 - Device test protocols for every feature: `docs/testing.md`.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save

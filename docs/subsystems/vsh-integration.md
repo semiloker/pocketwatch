@@ -26,6 +26,7 @@
 | `VSH-REQ-006` | The XMB has a "Pocketwatch" entry under Settings that opens the plugin's settings (style, fast save and load, clock and battery, language) as the XMB's own option list, saved to the same `config.txt` the game side reads (owner request 2026-10-17). | P1 | Implemented; on the device the item appears and both modules are patched (xmb.log 2026-10-17); changing values: X1 pending. Since ADR-024 the only place to change settings | testing guide X1 |
 | `VSH-REQ-007` | XMB → Settings → "Battery" (after Pocketwatch) lists the battery's readings and the time left as the XMB's own list ([battery](battery.md)). | P1 | Implemented 2026-10-17 (ADR-024), device test B1 pending | testing guide B1 |
 | `VSH-REQ-008` | XMB → Game → "Play Time" (after Saved Data Utility) lists the total and each game's play time, most played first ([playtime](playtime.md)). | P1 | Implemented 2026-10-17 (ADR-024), device test P1 pending | testing guide P1 |
+| `VSH-REQ-009` | Settings → Pocketwatch → "Start screen" (XMB / Pocketwatch Home). With Home chosen, the plugin's `module_start` sets ARK-4's launcher field to `PWHOME.PBP` before the XMB starts, after checking ARK-4's config; the decision and its reason go to `seplugins/pocketwatch/boot.txt` ([home](home.md) HOM-REQ-007, ADR-026). | P1 | Implemented 2026-10-18; HM5-HM9 pending | `boot_*` host tests, HM5-HM9 |
 
 ## C. Research (2026-10-17)
 

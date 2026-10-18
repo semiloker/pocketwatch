@@ -373,3 +373,24 @@ decision was taken; the evidence column links the research behind it.
   start from the XMB may be refused after a start from Home (another boot configuration,
   RISK-020); the XMB keeps its own media and network functions.
 
+## ADR-026 — The PSP can start in Pocketwatch Home, chosen by the XMB plugin through ARK-4's launcher field
+
+- **Status:** Accepted (2026-10-18), on the owner's request ("not an app I have to start: I boot
+  the PSP and it is already there"). Extends ADR-025.
+- **Context:** ARK-4 starts `<ARK folder><ARKConfig.launcher>` instead of the XMB when that field
+  is set as vsh_module starts; VSH plugins run before that moment, after ARK-4 has set or cleared
+  the field ([m7-boot-shell](../research/m7-boot-shell.md), with file and line references).
+- **Decision:** a setting, XMB → Settings → Pocketwatch → **Start screen** (`config.txt`
+  `start = xmb | home`, default XMB). With Home chosen, the XMB plugin's `module_start` writes
+  `launcher = "PWHOME.PBP"` into ARK-4's config (`sctrlArkGetConfig`, then `sctrlArkSetConfig`
+  through `kuKernelCall`, as ARK-4's xmbctrl does) - only after checking the config's layout and
+  that no launcher or recovery is set, only when `PWHOME.PBP` is in ARK-4's folder, and never when
+  L is held, Home asked for the XMB (`xmb-once`) or Home's last start did not reach its first
+  screen (`boot-pending`). Home lists and starts PSP/GAME homebrew and PS1 games too.
+- **Alternatives considered:** ARK-4's own `launcher, on` with Home as `VBOOT.PBP` (replaces
+  ARK-4's menu, lost on every ARK-4 update, no way to the XMB but editing `SETTINGS.TXT`, no
+  guard); starting Home from our own vsh_module hook (our reboot code at the most delicate point);
+  drawing over a running XMB (RESEARCH REQUIRED, memory). Rejected for these reasons.
+- **Consequences:** the XMB's own functions (System Settings, media, network, USB, UMD) are one
+  "Exit to the XMB" away; the plugin depends on ARK-4's `ARKConfig` layout (RISK-021); a third
+  place Home is installed (`ARK_01234/PWHOME.PBP`, by the deploy script).

@@ -36,4 +36,15 @@ int hm_disc_read(hm_disc *d, unsigned int offset, void *buf, unsigned int len);
 /* Find a file by its path ("PSP_GAME/PARAM.SFO", any case, no ";1"). 0 and offset/size, or < 0. */
 int hm_disc_find(hm_disc *d, const char *path, unsigned int *offset, unsigned int *size);
 
+/* An EBOOT.PBP (homebrew, PS1 games): its first HM_PBP_HEADER bytes name where each part is. */
+#define HM_PBP_HEADER 40
+#define HM_PBP_SFO    0 /* PARAM.SFO */
+#define HM_PBP_ICON0  1
+#define HM_PBP_PIC1   4
+
+/* The offset and size of part in a PBP of file_size bytes: 0, or < 0 when this is not a PBP or
+   its table does not fit the file. */
+int hm_pbp_part(const unsigned char *hdr, unsigned int file_size, int part, unsigned int *offset,
+                unsigned int *size);
+
 #endif

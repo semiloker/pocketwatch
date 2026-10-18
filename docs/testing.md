@@ -172,6 +172,11 @@ from XMB → Game → Memory Stick → Pocketwatch Home.
 | HM2 | On a game press X (Enter). | The screen fades out and the game starts; the plugin's hub works in it as usual (HOME). Quit Game returns to the XMB. |
 | HM3 | Play Time section; System section: wait a minute; Exit to the XMB. HOME in Home. | Play Time lists the games as the XMB's Play Time does, with bars; System shows the battery like the XMB, free space, the number of games; Exit and HOME (Quit) go back to the XMB. |
 | HM4 | Save a state in a game started from the XMB, Quit Game, start the same game from Home, Load State; then the other way round. | Either it loads, or "This state was saved with another setup" (then the two starts differ: RISK-020). Send the log. |
+| HM5 | XMB → Settings → Pocketwatch → Start screen → Pocketwatch Home. Switch the PSP off (hold POWER up) and on. Note the seconds from power-on to Home's first screen. | Home appears instead of the XMB. `seplugins/pocketwatch/boot.txt`: `start: Pocketwatch Home (...)`. If the XMB appears: send `boot.txt` and `xmb.log`. |
+| HM6 | In Home: System → Exit to the XMB. Then start any game from the XMB and quit it. | The XMB appears (once); after the game, Home again. Same for HOME → Quit in Home. |
+| HM7 | In Home start an ISO, a PS1 game (Final Fantasy Tactics, Metal Gear Solid) and a homebrew (PSP Filer); quit each. | Each starts; PS1 icons are square, not stretched; quitting returns to Home. |
+| HM8 | Switch on holding L. Then switch on holding START. | Holding L: the XMB with Pocketwatch's pages, `boot.txt` says `L held`. Holding START: the XMB without plugins (ARK-4); the next normal start is Home again. |
+| HM9 | Back to normal: Settings → Pocketwatch → Start screen → XMB, switch off and on. | The XMB, `boot.txt`: `start = xmb`. |
 
 ### Continue from a state at the game's start (M7, GAME side)
 

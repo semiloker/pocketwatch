@@ -3,8 +3,9 @@
  * Pocketwatch Home (docs/subsystems/home.md, ADR-025): a home screen of our own - the games on
  * the card with their art, play time and save states, the battery and the card - drawn by
  * Pocketwatch's renderer in the Modern style. A homebrew application: started from the XMB (Game
- * -> Memory Stick), or by ARK-4 instead of the XMB as its launcher. Games start the way ARK-4's
- * own menu starts them; HOME quits to the XMB.
+ * -> Memory Stick), or - XMB -> Settings -> Pocketwatch -> Start screen - by ARK-4 instead of the
+ * XMB (ADR-026). Games start the way ARK-4's own menu starts them; Exit to the XMB and HOME ->
+ * Quit leave a marker so that the next start shows the XMB, not Home again.
  */
 #include <malloc.h>
 #include <pspctrl.h>
@@ -32,6 +33,9 @@ PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(-2048);
 
 #define FONT_PATH "flash0:/font/ltn0.pgf"
+#define PW_DIR    "ms0:/seplugins/pocketwatch/"
+#define XMB_ONCE  PW_DIR "xmb-once"     /* read by the XMB plugin (vsh/src/xboot.c) */
+#define PENDING   PW_DIR "boot-pending" /* the XMB plugin's crash guard: Home did come up */
 #define FADE_MS   250
 #define MIX_MS    300 /* a new background fades in */
 #define ROWS_MAX  (HM_GAMES_MAX + 8)
@@ -101,7 +105,12 @@ static void build_tiles(void)
         int n = 0;
 
         g->meta[0] = 0;
-        if (g->id[0])
+        if (g->kind == HM_KIND_APP) {
+            stbsp_snprintf(g->meta, sizeof(g->meta), "%s", pw_tr(PW_S_HM_HOMEBREW));
+        } else if (g->kind == HM_KIND_PS1) {
+            stbsp_snprintf(g->meta, sizeof(g->meta), "%s%s%s", pw_tr(PW_S_HM_PS1),
+                           g->id[0] ? "   " : "", g->id);
+        } else if (g->id[0])
             n += stbsp_snprintf(g->meta + n, (int)sizeof(g->meta) - n, "%s", g->id);
         if (g->play_s >= 60) {
             duration(d, sizeof(d), g->play_s);
@@ -191,7 +200,7 @@ int main(void)
     pw_keys keys = {0, 0, 0};
     unsigned int t_prev, t_open, t_fade = 0, t_rows = 0;
     const unsigned int *shown = 0; /* the background drawn last */
-    int launching = -1, exit_row = -1, row_sel = 0;
+    int launching = -1, exit_row = -1, row_sel = 0, up = 0;
     char clock[24];
 
     if (hm_hw_init() < 0)
@@ -295,15 +304,23 @@ int main(void)
 
         hm_draw(hm_hw_begin(), &g_ui, &v);
         hm_hw_present();
+        if (!up) { /* the first screen is up: tell the XMB plugin's guard */
+            hm_hw_remove(PENDING);
+            up = 1;
+        }
 
         if (launching >= 0 && now - t_fade >= FADE_MS) {
             hm_game *g = hm_library_game(launching);
 
-            hm_launch(g->path, hm_library_has(g->path, "PSP_GAME/SYSDIR/EBOOT.OLD"));
+            if (g->kind == HM_KIND_ISO)
+                hm_launch(g->path, hm_library_has(g->path, "PSP_GAME/SYSDIR/EBOOT.OLD"));
+            else
+                hm_launch_eboot(g->path, g->kind == HM_KIND_PS1);
             launching = -1; /* it returned: the start failed; stay */
             t_open = now;
         }
     }
+    hm_hw_touch(XMB_ONCE); /* leaving Home means the XMB, even when Home is the start screen */
     sceKernelExitGame();
     return 0;
 }

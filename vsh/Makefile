@@ -9,9 +9,10 @@ TARGET = pocketwatch_xmb
 
 # The settings model and the texts are the game side's own portable code, built again here for
 # user mode (into build/, so the kernel build's objects next to the sources stay apart).
-OBJS = build/main.o build/xmb.o build/xsettings.o build/xlog.o build/xbattery.o \
+OBJS = build/main.o build/xmb.o build/xsettings.o build/xlog.o build/xbattery.o build/xboot.o \
        build/platform_vsh.o build/stubs.o build/config.o build/i18n.o build/langnames.o \
-       build/battmodel.o build/playtime.o build/crc32.o build/stb_sprintf.o exports.o
+       build/battmodel.o build/playtime.o build/bootpick.o build/crc32.o build/stb_sprintf.o \
+       exports.o
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -22,7 +23,7 @@ CFLAGS  = -Os -G0 -Wall -Wextra -Werror -fno-pic -fno-builtin -fno-tree-loop-dis
           -DPW_VERSION=\"$(VERSION)\" -DPW_I18N_XMB
 ASFLAGS = $(CFLAGS)
 LDFLAGS = -nostdlib
-LIBS    = -lpspuser -lpsputility -lpsppower -lpspmodinfo -lgcc
+LIBS    = -lpspuser -lpsputility -lpsppower -lpspctrl -lpspmodinfo -lgcc
 
 VPATH = src ../plugin/src/core ../plugin/src/ui ../plugin/lib
 

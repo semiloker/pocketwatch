@@ -27,6 +27,7 @@ risk; close it with the evidence.
 | [RISK-018](#risk-018--the-xmb-plugin-stops-the-xmb-from-starting) | The XMB plugin stops the XMB from starting | L | M | Open |
 | [RISK-019](#risk-019--the-translation-pool-is-nearly-full) | The translation pool is nearly full | M | L | Open |
 | [RISK-020](#risk-020--a-game-started-from-home-is-in-another-setup-than-from-the-xmb) | A game started from Home is in another setup than from the XMB | M | M | Open |
+| [RISK-021](#risk-021--starting-in-home-depends-on-ark-4s-config-layout-and-boot-order) | Starting in Home depends on ARK-4's config layout and boot order | L | H | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -198,3 +199,16 @@ risk; close it with the evidence.
 - **Mitigation:** testing guide HM4 (save after a start from the XMB, load after a start from
   Home, and back); if they differ, Home starts images the XMB's way (vshctrl's `umdLoadExec`).
 
+## RISK-021 — Starting in Home depends on ARK-4's config layout and boot order
+
+- **Description:** the XMB plugin writes ARK-4's `ARKConfig` (ADR-026). Another ARK-4 build with
+  another layout would get a wrong field written; a build that decides the launcher after the
+  plugins would ignore it; a Home that crashes at start would come back at every power-on.
+- **Likelihood L** (the layout is checked: magic, folder, device, empty launcher and recovery;
+  ARK-4's xmbctrl writes the same struct the same way) / **Impact H** (a PSP that does not reach
+  the XMB by itself).
+- **Mitigation:** `pw_boot_ark_check` before any write, only the launcher field changes; the start
+  guard (`boot-pending`) gives the XMB after one failed start; L at power-on gives the XMB, START
+  at power-on loads no plugins (ARK-4), R opens ARK-4's recovery; a cold boot rebuilds
+  `ARKConfig` from ARK-4's loader (INFERRED from `loader/`, the config is made at each cold boot).
+  Device test HM5-HM9.

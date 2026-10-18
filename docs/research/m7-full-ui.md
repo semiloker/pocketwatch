@@ -55,5 +55,6 @@ as the base (a CTF is built from them), which the project may not redistribute.
   Metal Gear Solid Peace Walker) - every TITLE, DISC_ID, ICON0 (144x80) and PIC1 (480x272).
   Device test HM1-HM4 pending.
 - The theme route stays open for the XMB's own look (a "Pocketwatch theme" builder), after Home.
-- Next: device test; then the Classic and Minimal styles of Home, Home as ARK's launcher, a
-  state list per game in Home, RCO icons from flash0 in Home.
+- Next: device test; then the Classic and Minimal styles of Home, a state list per game in
+  Home, RCO icons from flash0 in Home. Starting the PSP in Home: done the same day,
+  [m7-boot-shell](m7-boot-shell.md) (ADR-026).

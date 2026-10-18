@@ -167,3 +167,21 @@ int hm_disc_find(hm_disc *d, const char *path, unsigned int *offset, unsigned in
     *size = dir_len;
     return 0;
 }
+
+int hm_pbp_part(const unsigned char *hdr, unsigned int file_size, int part, unsigned int *offset,
+                unsigned int *size)
+{
+    unsigned int start, end;
+
+    if (hdr[0] != 0 || hdr[1] != 'P' || hdr[2] != 'B' || hdr[3] != 'P' || part < 0 || part > 7)
+        return -1;
+    for (int i = 0; i < 8; i++) /* the parts follow each other, inside the file */
+        if (le32(hdr + 8 + 4 * i) < HM_PBP_HEADER || le32(hdr + 8 + 4 * i) > file_size ||
+            (i && le32(hdr + 8 + 4 * i) < le32(hdr + 4 + 4 * i)))
+            return -2;
+    start = le32(hdr + 8 + 4 * part);
+    end = part < 7 ? le32(hdr + 12 + 4 * part) : file_size;
+    *offset = start;
+    *size = end - start;
+    return 0;
+}
