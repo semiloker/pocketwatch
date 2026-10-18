@@ -27,6 +27,9 @@ void hs_value(int i, char *out, int cap); /* the current value's text ("" for he
    firmware refused the change. */
 int hs_step(int i, int dir);
 
+/* Home's key sounds on (1) or off, as Settings has them (sounds.txt). */
+int hs_sounds(void);
+
 /* Home's wallpaper (512 x 272 pixels as Home draws them): read it (0, or < 0 without one), or
    keep a new one made from the picture at path. */
 int hs_wallpaper_load(unsigned int *out);

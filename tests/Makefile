@@ -27,7 +27,7 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
               $(SRC_DIR)/complications/registry.c $(SRC_DIR)/ui/backdrop.c \
               $(SRC_DIR)/ui/views_modern.c $(SRC_DIR)/ui/views_minimal.c $(SRC_DIR)/ui/volume.c $(SRC_DIR)/ui/langnames.c $(SRC_DIR)/core/battmodel.c $(SRC_DIR)/core/playtime.c $(SRC_DIR)/core/bootpick.c \
-              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c $(HOME_DIR)/music_name.c \
+              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c $(HOME_DIR)/music_name.c $(HOME_DIR)/sound_synth.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 

@@ -174,3 +174,4 @@ hs_slideshow = Diashow-Geschwindigkeit
 hs_slide_normal = Normal
 hs_slide_fast = Schnell
 hs_slide_slow = Langsam
+hs_sounds = Tastentöne

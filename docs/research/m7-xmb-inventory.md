@@ -82,7 +82,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 |---|---|---|
 | Clock, battery | the status pill | Implemented |
 | The month's colour, the wave | Home: the game's own art; the Classic style (HOM-REQ-006) brings the wave | Planned |
-| Background music, sounds | key sounds of our own | Planned (HOM-REQ-019) |
+| Background music, sounds | key sounds of our own (made in code, Settings → Key Sounds) | Implemented (HOM-REQ-019) |
 | HOME button (in a game: Quit Game) | the in-game hub (states) | Implemented (SHL) |
 | HOME in the XMB (power options) | Home's HOME panel: Close, USB, Exit to the XMB, Sleep, Turn Off | Implemented (HOM-REQ-010) |
 

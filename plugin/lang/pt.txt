@@ -174,3 +174,4 @@ hs_slideshow = Velocidade da apresentação
 hs_slide_normal = Normal
 hs_slide_fast = Rápida
 hs_slide_slow = Lenta
+hs_sounds = Sons das teclas

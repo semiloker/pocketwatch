@@ -7,6 +7,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: key sounds of its own (made in code; Settings → Key Sounds).
 - Pocketwatch Home: a game's Information (Triangle), a photo slideshow (Settings → Slideshow
   Speed) and a wallpaper from Photos (Square), shown behind every section but Games.
 - Pocketwatch Home: games sorted by name or the last played first; PSN games' EBOOTs; the

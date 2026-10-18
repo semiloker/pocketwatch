@@ -22,6 +22,7 @@
 #include "gfx_gu.h"
 #include "home_view.h"
 #include "hsettings.h"
+#include "sound.h"
 #include "hw.h"
 #include "launch.h"
 #include "library.h"
@@ -506,6 +507,8 @@ int main(void)
     hm_hw_firmware(g_firmware, sizeof(g_firmware));
     hm_hw_cfw(g_cfw, sizeof(g_cfw));
     hm_hw_mac(g_mac, sizeof(g_mac));
+    hm_sound_init();
+    hm_sound_enable(hs_sounds());
     g_gradient = memalign(64, 512 * HM_H * 4);
     make_default_background();
     hm_library_sort(pw_config_get()->sort); /* (no games yet: only the order to use) */
@@ -534,6 +537,11 @@ int main(void)
         int dt = (int)(now - t_prev), start_usb = 0, nickname = 0, saved_data = 0;
         hm_game *gsel = hm_library_count() ? hm_library_game(g_sel) : 0;
         hm_gfx *g;
+
+        /* what is chosen and open before the keys: the key sounds tell what a press did */
+        int was_tab = v.tab, was_sel = g_sel, was_ph = ph_sel, was_row = row_sel,
+            was_panel = v.panel_sel, was_sheet = sheet, was_viewer = viewer, was_usb = usb,
+            was_launch = launching, refused = 0;
 
         t_prev = now;
         /* input: USB, then the open panel, over everything */
@@ -679,6 +687,7 @@ int main(void)
                     int was = pw_config_get()->sort;
 
                     r = hs_step(row_sel, ev & PSP_CTRL_LEFT ? -1 : 1);
+                    refused = r < 0;
                     if (pw_config_get()->sort != was) { /* the games in their new order */
                         hm_library_sort(pw_config_get()->sort);
                         build_tiles();
@@ -706,6 +715,30 @@ int main(void)
                 else if ((ev & enter) && v.tab == HM_TAB_SYSTEM && row_sel == usb_row)
                     start_usb = 1;
             }
+        }
+        if (ev) { /* the key sounds (HOM-REQ-019) */
+            int snd = -1, here = !viewer && sheet == SHEET_NONE;
+
+            if (launching >= 0 && was_launch < 0)
+                snd = HM_SND_START;
+            else if (refused)
+                snd = HM_SND_ERROR;
+            else if ((sheet == SHEET_NONE && was_sheet != SHEET_NONE) || (!viewer && was_viewer) ||
+                     (!usb && was_usb) || (sheet == SHEET_GAME && was_sheet == SHEET_INFO))
+                snd = HM_SND_BACK;
+            else if ((sheet != SHEET_NONE && sheet != was_sheet) || (viewer && !was_viewer) ||
+                     start_usb || nickname || saved_data)
+                snd = HM_SND_OPEN;
+            else if (v.tab != was_tab)
+                snd = HM_SND_TAB;
+            else if (g_sel != was_sel || ph_sel != was_ph || row_sel != was_row ||
+                     v.panel_sel != was_panel ||
+                     (here && (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) &&
+                      (v.tab == HM_TAB_SETTINGS || v.tab == HM_TAB_MUSIC)))
+                snd = HM_SND_MOVE; /* (in Settings and Music: a value, a track) */
+            else if (here && (ev & (enter | PSP_CTRL_SQUARE)) && v.tab == HM_TAB_MUSIC)
+                snd = HM_SND_OPEN; /* play, pause, stop */
+            hm_sound_play(snd);
         }
         if (start_usb) { /* the loader and the music leave the card first */
             hm_music_stop();
@@ -846,6 +879,7 @@ int main(void)
 
             stats_write(&st, now, "before a game");
             hm_music_stop();
+            hm_sound_end();
             if (launch_slot > 0 && hm_states_continue(gm->id, launch_slot) < 0)
                 launch_slot = 0; /* continue.txt not written: the game starts plainly */
             if (gm->kind == HM_KIND_ISO)
@@ -856,13 +890,16 @@ int main(void)
                 hm_launch_eboot(gm->path, gm->kind == HM_KIND_PS1);
             if (launch_slot > 0) /* it returned: the start failed; no state for a later start */
                 hm_hw_remove(CONTINUE);
-            launching = -1;
+            launching = -1; /* the start failed: Home again */
             t_open = now;
+            hm_sound_init();
+            hm_sound_enable(hs_sounds());
         }
     }
     if (usb)
         hm_usb_stop();
     stats_write(&st, hm_hw_now_ms(), "leaving");
+    hm_sound_end();
     hm_hw_touch(XMB_ONCE); /* leaving Home means the XMB, even when Home is the start screen */
     sceKernelExitGame();
     return 0;

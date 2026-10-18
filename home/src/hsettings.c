@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/platform.h"
 #include "hsettings.h"
+#include "sound.h"
 #include "stb_sprintf.h"
 #include "ui/i18n.h"
 #include "ui/langnames.h"
@@ -399,6 +400,28 @@ static int set_avls(int o)
     return impose(1, IMPOSE_AVLS, o) < 0 || get_avls() != o ? -1 : 0;
 }
 
+/* Home's key sounds: sounds.txt "off" (a file of Home's own, RISK-022); none: on. */
+#define SOUNDS DIR "sounds.txt"
+static int g_sounds = -1;
+int hs_sounds(void)
+{
+    if (g_sounds < 0) {
+        char t[8];
+        int n = pw_file_read(SOUNDS, t, sizeof(t) - 1);
+
+        g_sounds = !(n >= 3 && memcmp(t, "off", 3) == 0);
+    }
+    return g_sounds;
+}
+static int set_sounds(int o)
+{
+    if (pw_file_write(SOUNDS, o ? "on\n" : "off\n", o ? 3u : 4u, 0) < 0)
+        return -1;
+    g_sounds = o;
+    hm_sound_enable(o);
+    return 0;
+}
+
 static const row k_rows[] = {
     {HS_HEADER, PW_S_HS_POCKETWATCH, 0, 0, 0, 0, 0},
     {HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
@@ -420,6 +443,7 @@ static const row k_rows[] = {
     {HS_HEADER, PW_S_HS_SCREEN_SOUND, 0, 0, 0, 0, 0},
     {HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
     {HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
+    {HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
 };
 #define ROWS ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
 

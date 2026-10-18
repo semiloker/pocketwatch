@@ -174,3 +174,4 @@ hs_slideshow = Vitesse du diaporama
 hs_slide_normal = Normale
 hs_slide_fast = Rapide
 hs_slide_slow = Lente
+hs_sounds = Sons des touches

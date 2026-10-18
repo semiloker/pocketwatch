@@ -176,3 +176,4 @@ hs_slideshow = Швидкість слайд-шоу
 hs_slide_normal = Звичайна
 hs_slide_fast = Швидка
 hs_slide_slow = Повільна
+hs_sounds = Звуки кнопок
