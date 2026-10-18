@@ -19,3 +19,4 @@ scePaf	0x3874A5F8	scePafGetText	assumed	XMB plugin (vsh/): ARK-4's xmbctrl impor
 scePaf	0x50DCB767	PAF_Resource_GetPageNodeByID	assumed	XMB plugin: as scePafGetText (xmbctrl stub.S)
 scePaf	0x64A31513	PAF_Resource_ResolveRefWString	assumed	XMB plugin: as scePafGetText (xmbctrl stub.S)
 scePaf	0x5E909060	sce_paf_private_malloc	assumed	XMB plugin: the 6.60 NID itself - ARK-4's table maps the old 0x48BB05D5 to it (tools/nids/ark4_660.tsv); xmbctrl imports it so
+scePaf	0xDB1612F1	sce_paf_private_free	assumed	XMB plugin: as sce_paf_private_malloc (xmbctrl stub.S imports it with this NID on 6.61)

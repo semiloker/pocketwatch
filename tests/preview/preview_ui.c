@@ -324,32 +324,6 @@ int main(void)
         pw_view_slots(&c, &ui, pw_tr(PW_S_SAVE_STATE), "Castlevania: The Dracula X Chronicles",
                       slots, 5, 256 + 128, 1, 200);
         save("slots-moving");
-
-        pw_hub_cat scat = {art(A_SET), PW_ICON_GEAR, pw_tr(PW_S_SETTINGS), NULL};
-        static const int style_names[PW_STYLE_COUNT] = {PW_S_STYLE_XMB, PW_S_STYLE_MODERN,
-                                                        PW_S_STYLE_MINIMAL};
-        pw_setting_row set[] = {
-            {pw_tr(PW_S_SET_STYLE), pw_tr(style_names[g_style]), -1},
-            {pw_tr(PW_S_SET_FAST), pw_tr(PW_S_ON), 1},
-            {pw_tr(PW_S_SET_STATUS), pw_tr(PW_S_OFF), 0},
-            {pw_tr(PW_S_SET_LANGUAGE), pw_tr(PW_S_SYSTEM_LANGUAGE), -1},
-        };
-        const char *langs[] = {pw_tr(PW_S_SYSTEM_LANGUAGE),
-                               "English",
-                               "Français",
-                               "Español",
-                               "Deutsch",
-                               "Italiano",
-                               "Nederlands",
-                               "Português",
-                               "Русский",
-                               "Українська"};
-        c = begin(13000);
-        pw_view_settings(&c, &ui, &scat, set, 4, 1, NULL, 0, -1, 256);
-        save("settings");
-        c = begin(14000);
-        pw_view_settings(&c, &ui, &scat, set, 4, 3, langs, 10, 8, 256);
-        save("settings-language");
     }
     return 0;
 }

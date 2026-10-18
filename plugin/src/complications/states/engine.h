@@ -31,7 +31,7 @@ enum {
 };
 
 #define PW_ENGINE_BUILD     "pocketwatch-state-2" /* bump when a state's meaning changes */
-#define PW_ENGINE_ENV_EXTRA 4
+#define PW_ENGINE_ENV_EXTRA 6 /* [0] assets [1] PRX CRC [2] SFO [3] play time [4] battery */
 
 /* Everything outside the kernel image that must be identical for a state to load in another
    boot (docs/subsystems/states-storage.md STS-REQ-006/007). */

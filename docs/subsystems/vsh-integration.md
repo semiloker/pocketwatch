@@ -23,7 +23,9 @@
 | `VSH-REQ-003` | The GAME-side plugin loads the requested state automatically once the game runs; a refusal falls back to a normal boot with a message. | P2 | Implemented (device test pending): `continue.txt` (below), the complications' start-up hook | testing guide V1, `registry_finds_a_pending_startup` |
 | `VSH-REQ-004` | XMB icons and texts come from the firmware's own resources ([rendering](../ui/rendering.md)). | P2 | Planned | owner review |
 | `VSH-REQ-005` | Nothing breaks ARK-4's own XMB additions (xmbctrl's "Custom Firmware Settings" and its plugin manager). | P2 | Planned | device test with ARK's menus |
-| `VSH-REQ-006` | The XMB has a "Pocketwatch" entry under Settings that opens the plugin's settings (style, fast save and load, clock and battery, language) as the XMB's own option list, saved to the same `config.txt` the game side reads (owner request 2026-10-17). | P2 | Implemented (builds, `make check`; device test X1 pending): the item after System Settings, its page is System Settings' with our rows (§C2) | testing guide X1 |
+| `VSH-REQ-006` | The XMB has a "Pocketwatch" entry under Settings that opens the plugin's settings (style, fast save and load, clock and battery, language) as the XMB's own option list, saved to the same `config.txt` the game side reads (owner request 2026-10-17). | P1 | Implemented; on the device the item appears and both modules are patched (xmb.log 2026-10-17); changing values: X1 pending. Since ADR-024 the only place to change settings | testing guide X1 |
+| `VSH-REQ-007` | XMB → Settings → "Battery" (after Pocketwatch) lists the battery's readings and the time left as the XMB's own list ([battery](battery.md)). | P1 | Implemented 2026-10-17 (ADR-024), device test B1 pending | testing guide B1 |
+| `VSH-REQ-008` | XMB → Game → "Play Time" (after Saved Data Utility) lists the total and each game's play time, most played first ([playtime](playtime.md)). | P1 | Implemented 2026-10-17 (ADR-024), device test P1 pending | testing guide P1 |
 
 ## C. Research (2026-10-17)
 

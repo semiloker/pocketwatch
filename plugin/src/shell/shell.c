@@ -29,6 +29,7 @@
 #define QUIT_WAIT_MS      5000        /* the game's own exit callback, then ARK's way */
 #define STARTUP_SETTLE_MS 1500        /* a start-up action waits this long after the takeover */
 #define STARTUP_MAX_MS    30000       /* and gives up when the screen could not open for so long */
+#define TICK_MS           1000        /* the complications' background tick */
 #define GAME_BUTTONS      0x0000FFFFu /* what the game can see; masked while the hub is open */
 #define ANY_BUTTON        (GAME_BUTTONS | PSP_CTRL_HOME | PSP_CTRL_NOTE)
 
@@ -109,6 +110,7 @@ static void quit_game(void)
 
     pw_log("shell: Quit Game");
     pw_engine_prepare_exit(); /* drops any state, checks the IPL seeds, flushes the log */
+    pw_registry_quit(pw_complications, pw_complication_count); /* their last card writes */
     if (sceKernelCheckExitCallback() != 0) {
         /* The system HOME screen's own way: the game's exit callback ends the game. */
         int ret = sceKernelInvokeExitCallback();
@@ -244,7 +246,7 @@ static void run_startup(unsigned int ready_ms)
 static int shell_thread(SceSize args, void *argp)
 {
     pw_tap tap = {0, 0, 0};
-    unsigned int start = now_ms(), last_check = 0, ready = 0, t_poll;
+    unsigned int start = now_ms(), last_check = 0, ready = 0, t_poll, last_tick = 0;
     int home_was_down = 0;
 
     (void)args;
@@ -255,6 +257,10 @@ static int shell_thread(SceSize args, void *argp)
         sceKernelDelayThread(POLL_US);
         b = buttons();
         t_poll = sceKernelGetSystemTimeLow();
+        if (now_ms() - last_tick >= TICK_MS && !pw_engine_busy()) {
+            last_tick = now_ms();
+            pw_registry_tick(pw_complications, pw_complication_count, last_tick);
+        }
         if (g_home == HOME_WAITING) {
             take_home(start, b);
             ready = now_ms();

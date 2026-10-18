@@ -66,6 +66,7 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_H_WLAN] = {"h_wlan", "Leave the game's network mode first."},
     [PW_S_H_PLUGIN] = {"h_plugin", "Turn off Custom Home and PSPStates in PLUGINS.TXT."},
     [PW_S_H_HIGHMEM] = {"h_highmem", "Turn off ARK's high memory option for this game."},
+#ifdef PW_I18N_XMB
     [PW_S_SETTINGS] = {"settings", "Settings"},
     [PW_S_SET_FAST] = {"set_fast", "Fast Save and Load"},
     [PW_S_SET_STATUS] = {"set_status", "Clock and Battery"},
@@ -78,6 +79,41 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_STYLE_XMB] = {"style_xmb", "Classic (XMB)"},
     [PW_S_STYLE_MODERN] = {"style_modern", "Modern"},
     [PW_S_STYLE_MINIMAL] = {"style_minimal", "Minimal"},
+    [PW_S_BATTERY] = {"battery", "Battery"},
+    [PW_S_BAT_CHARGE] = {"bat_charge", "Charge"},
+    [PW_S_BAT_STATUS] = {"bat_status", "Status"},
+    [PW_S_BAT_ON_BATTERY] = {"bat_on_battery", "On battery"},
+    [PW_S_BAT_CHARGING] = {"bat_charging", "Charging"},
+    [PW_S_BAT_ON_POWER] = {"bat_on_power", "On external power"},
+    [PW_S_BAT_NONE] = {"bat_none", "No battery"},
+    [PW_S_BAT_LEFT] = {"bat_left", "Time left"},
+    [PW_S_BAT_TO_FULL] = {"bat_to_full", "Time to full"},
+    [PW_S_BAT_ESTIMATING] = {"bat_estimating", "Estimating..."},
+    [PW_S_BAT_ABOUT] = {"bat_about", "about %s"},
+    [PW_S_BAT_SYSTEM] = {"bat_system", "%s (system)"},
+    [PW_S_BAT_VOLTAGE] = {"bat_voltage", "Voltage"},
+    [PW_S_BAT_CURRENT] = {"bat_current", "Current"},
+    [PW_S_BAT_TEMPERATURE] = {"bat_temperature", "Temperature"},
+    [PW_S_BAT_CAPACITY] = {"bat_capacity", "Capacity"},
+    [PW_S_BAT_CAPACITY_V] = {"bat_capacity_v", "%d of %d mAh"},
+    [PW_S_BAT_CYCLES] = {"bat_cycles", "Charge cycles"},
+    [PW_S_BAT_GAUGE] = {"bat_gauge", "Measured by the battery"},
+    [PW_S_BAT_NA] = {"bat_na", "Not available"},
+    [PW_S_DUR_HM] = {"dur_hm", "%d h %02d min"},
+    [PW_S_DUR_M] = {"dur_m", "%d min"},
+    [PW_S_PLAYTIME] = {"playtime", "Play Time"},
+    [PW_S_PT_SESSION] = {"pt_session", "This session"},
+    [PW_S_PT_TOTAL] = {"pt_total", "Total"},
+    [PW_S_PT_SESSIONS] = {"pt_sessions", "Sessions"},
+    [PW_S_PT_LONGEST] = {"pt_longest", "Longest session"},
+    [PW_S_PT_AVERAGE] = {"pt_average", "Average session"},
+    [PW_S_PT_LAST] = {"pt_last", "Last played"},
+    [PW_S_PT_SINCE] = {"pt_since", "Recorded since"},
+    [PW_S_PT_ALL_GAMES] = {"pt_all_games", "All games"},
+    [PW_S_PT_NOTE] = {"pt_note", "Counted only while Pocketwatch runs"},
+    [PW_S_PT_DESC] = {"pt_desc", "%s in total"},
+    [PW_S_PT_NONE] = {"pt_none", "Nothing recorded yet"},
+#endif
 };
 
 static const char *g_text[PW_S_COUNT]; /* NULL: English */
@@ -87,7 +123,7 @@ const char *pw_tr(int id)
 {
     if (id < 0 || id >= PW_S_COUNT)
         return "";
-    return g_text[id] ? g_text[id] : g_english[id].text;
+    return g_text[id] ? g_text[id] : g_english[id].text ? g_english[id].text : "";
 }
 
 const char *pw_i18n_key(int id)
@@ -175,7 +211,7 @@ int pw_i18n_load(char *text, unsigned int len, pw_i18n_covers covers, void *ctx)
         if (*p != '#' && eq != 0) {
             key = trim(p, eq);
             val = trim(eq + 1, line_end);
-            for (int i = 0; i < PW_S_COUNT; i++)
+            for (int i = 0; i < PW_I18N_HELD; i++)
                 if (strcmp(key, g_english[i].key) == 0) {
                     if (val[0] && pw_i18n_same_format(val, g_english[i].text)) {
                         unsigned int n = (unsigned int)strlen(val) + 1;

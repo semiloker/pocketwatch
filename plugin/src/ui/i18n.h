@@ -84,8 +84,52 @@ enum {
     PW_S_STYLE_XMB,
     PW_S_STYLE_MODERN,
     PW_S_STYLE_MINIMAL,
+    PW_S_BATTERY,
+    PW_S_BAT_CHARGE,
+    PW_S_BAT_STATUS,
+    PW_S_BAT_ON_BATTERY,
+    PW_S_BAT_CHARGING,
+    PW_S_BAT_ON_POWER,
+    PW_S_BAT_NONE,
+    PW_S_BAT_LEFT,
+    PW_S_BAT_TO_FULL,
+    PW_S_BAT_ESTIMATING,
+    PW_S_BAT_ABOUT,
+    PW_S_BAT_SYSTEM,
+    PW_S_BAT_VOLTAGE,
+    PW_S_BAT_CURRENT,
+    PW_S_BAT_TEMPERATURE,
+    PW_S_BAT_CAPACITY,
+    PW_S_BAT_CAPACITY_V,
+    PW_S_BAT_CYCLES,
+    PW_S_BAT_GAUGE,
+    PW_S_BAT_NA,
+    PW_S_DUR_HM,
+    PW_S_DUR_M,
+    PW_S_PLAYTIME,
+    PW_S_PT_SESSION,
+    PW_S_PT_TOTAL,
+    PW_S_PT_SESSIONS,
+    PW_S_PT_LONGEST,
+    PW_S_PT_AVERAGE,
+    PW_S_PT_LAST,
+    PW_S_PT_SINCE,
+    PW_S_PT_ALL_GAMES,
+    PW_S_PT_NOTE,
+    PW_S_PT_DESC,
+    PW_S_PT_NONE,
     PW_S_COUNT
 };
+
+/* Strings from PW_S_SETTINGS on are shown only by the XMB plugin (vsh/, built with PW_I18N_XMB):
+   the game build keeps neither their English nor their translations (kernel RAM and the 4 KB pool,
+   RISK-019); pw_tr gives "" for them there. */
+#define PW_S_XMB_FIRST PW_S_SETTINGS
+#ifdef PW_I18N_XMB
+#define PW_I18N_HELD PW_S_COUNT
+#else
+#define PW_I18N_HELD PW_S_XMB_FIRST
+#endif
 
 /* The string for id in the current language (never NULL). */
 const char *pw_tr(int id);

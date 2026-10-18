@@ -292,3 +292,64 @@ decision was taken; the evidence column links the research behind it.
   -EnableXmb`); a crash in the XMB would need the START-at-boot recovery; the same chained hooks
   are the base for the game's △ menu entry (ADR-020). Device behaviour is unverified until X1.
 
+## ADR-022 — Battery readings from the battery's own gauge, with labelled estimates
+
+- **Status:** Accepted (2026-10-17), branch `feature/psp-xmb-overhaul`, on the owner's brief
+  ("battery intelligence ... do not invent a raw sensor reading").
+- **Context:** the system shows a percentage and an estimate whose basis is unknown to the user.
+  The PSP's battery pack has its own gauge that syscon reads (voltage, current, temperature,
+  remaining and full capacity, cycle count: uOFW `include/syscon.h`); the kernel plugin can call
+  it.
+- **Decision:** the Battery page shows the system's figures and the gauge's readings side by side
+  under their own headings; values out of range are "Not available"; the time left is our estimate
+  (remaining mAh / average current of the run, or the percentage slope) marked "about", the
+  firmware's figure marked "(system)" until ours exists, "Estimating..." before either. The
+  history (64 readings, 15 s apart) lives in P9.
+- **Alternatives considered:** a voltage-to-percentage curve (needs per-pack calibration the
+  project does not have; the gauge already does it); the firmware's estimate alone (no basis
+  shown); reading every second (needless syscon traffic).
+- **Consequences:** units are INFERRED until device test B1; health in percent waits for the design
+  capacity (BAT-REQ-007).
+
+## ADR-023 — Play time from the shell's tick, kept in P9, written to two alternating files
+
+- **Status:** Accepted (2026-10-17), branch `feature/psp-xmb-overhaul`.
+- **Context:** play time must exclude the hub, saves, loads and sleeps, must survive a state load
+  (which rolls kernel RAM back to the save), reboots and a write cut short, and must not invent
+  history.
+- **Decision:** the shell's once-a-second tick (only while the hub is closed and the engine idle)
+  adds steps of at most 2.5 s to counters in a P9 block (not part of a state; its address is in the
+  fingerprint). The game's record at the boot's start plus this session is written every 5 minutes
+  of play, after each hub visit (at the next tick, never while the hub opens) and at Quit Game, to `playtime-a.txt` / `playtime-b.txt` in turn
+  (sequence number and CRC; the newer complete one wins). The table of all games exists only in
+  P11 while written or shown.
+- **Alternatives considered:** wall-clock differences (the owner's clock is set to 2011 and can
+  change; sleeps would count); counters in kernel RAM (a load would undo the time played since the
+  save); one file rewritten in place (a power loss mid-write would lose every game's history).
+- **Consequences:** up to 5 minutes are lost when the game ends without Quit Game (PLT-REQ-007);
+  homebrew and PS1 games are not counted (the plugin does not load there).
+
+## ADR-024 — Battery, Play Time and Settings live in the XMB, not in the game's hub
+
+- **Status:** Accepted (2026-10-17), the owner: "battery, play time, settings should be in the
+  XMB's main menu, not on the PS button". Supersedes the in-game placement of ADR-022/023's pages
+  and of CPL-REQ-006's screen.
+- **Context:** the XMB plugin (ADR-021) can add items to the XMB's columns and fill System
+  Settings' page with rows; it works on the owner's PSP (xmb.log 2026-10-17: vsh_module and
+  sysconf_plugin patched, item added). The first device reading of the battery also showed that
+  the syscon RCap is not mAh (74 at 83 % of 1790 mAh): the capacities come from scePower.
+- **Decision:** XMB → Settings → "Pocketwatch" (settings) and "Battery" after System Settings;
+  XMB → Game → "Play Time" after Saved Data Utility. Each opens System Settings' page with our rows:
+  settings as option lists; readings as rows with one value each (the XMB's own list shows the
+  value). In the XMB the battery is read from scePower (user mode) and the battery's current and
+  cycle count through ARK-4's kuKernelCall; a thread takes a reading every 15 s from the XMB's
+  start, so the page can estimate. The game keeps counting play time (P9 counters, the files) and
+  reading config.txt; its hub has Resume Game, Save State, Load State and Quit Game only. Strings
+  only the XMB shows are left out of the game build (`PW_I18N_XMB`).
+- **Alternatives considered:** keeping the pages in the hub as well (two places to maintain, and
+  ~16 KB of kernel RAM); drawing our own screens over the XMB (RESEARCH REQUIRED, the XMB's
+  native lists already fit read-only rows).
+- **Consequences:** settings take effect at the next game start; the Battery page shows readings
+  as of opening it (open it again to refresh); the in-game info pages and the hub's Settings screen
+  are gone (UI-REQ-017 withdrawn); the game build is back under its old budgets (175 KB loaded).
+

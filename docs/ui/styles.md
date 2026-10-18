@@ -5,7 +5,7 @@ modern | minimal`). **Classic (XMB)** is the default and the reference for the n
 ([UI spec](README.md)); the other two are Pocketwatch's own designs, added at the owner's request
 (2026-10-17, [ADR-019](../architecture/decisions.md#adr-019--optional-ui-styles-next-to-the-native-look)).
 
-Status: implemented, host previews reviewed; device review pending ([testing guide](../testing.md#settings), ST5).
+Status: implemented, host previews reviewed; device review pending ([testing guide](../testing.md#settings-in-the-xmb-since-adr-024), ST5).
 
 | | Classic (XMB) | Modern | Minimal |
 |---|---|---|---|

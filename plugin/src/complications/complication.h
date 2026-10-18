@@ -49,6 +49,12 @@ typedef struct {
        opens the screen and calls startup (once); it returns PW_CPL_*. NULL: never. */
     int (*startup_pending)(void);
     int (*startup)(const pw_cpl_env *env);
+    /* About once a second from the shell's thread while the game runs and the hub is closed
+       (never during a save or load): short work, no screen. now_ms: sceKernelGetSystemTimeLow /
+       1000. NULL: none. */
+    void (*tick)(unsigned int now_ms);
+    /* Quit Game, just before the game ends: the last moment to write the card. NULL: none. */
+    void (*on_quit)(void);
 } pw_complication;
 
 #endif

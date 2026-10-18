@@ -7,6 +7,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- XMB → Settings → Battery: the charge, the status, the time left (or to full), voltage,
+  current, temperature, capacity and charge cycles; estimates say what they rest on.
+- XMB → Game → Play Time: every game's play time, most played first. Only time with Pocketwatch
+  running in the game is counted, and none of the hub, saves, loads or sleeps.
+- The hub has Resume Game, Save State, Load State and Quit Game; its settings moved to
+  XMB → Settings → Pocketwatch.
 - Settings → Pocketwatch in the XMB: the plugin's settings (style, fast save and load, clock and
   battery, language) in the XMB's own option list, from a second, small XMB plugin
   (`pocketwatch_xmb.prx`) that works alongside ARK-4's own XMB additions.

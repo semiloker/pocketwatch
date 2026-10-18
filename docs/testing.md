@@ -57,15 +57,15 @@ damaged, restore it from the backup.
 | H16 | Open and close the hub five times in a game. | The hub appears as soon as HOME goes down. Log, each open: `shell: open: freeze .. ms, GE .. ms, screen .. ms, first frame .. ms after the press` - send these lines (the target is 300 ms or less). |
 | H14 | (debug build) Anywhere in the menu press SELECT. | `seplugins/pocketwatch/shot-000.png` (then 001, ...) is the exact picture on the screen. Send shots of anything that looks wrong, e.g. icons that look banded. |
 
-### Settings
+### Settings (in the XMB since ADR-024)
 
 | ID | Do | Expect |
 |---|---|---|
-| ST1 | Hub → Settings → Fast Save and Load → Off. Save to a slot twice. Quit, start the game again, open Settings. | Both saves sleep for real (dark ~5 s each); the log says `engine: fast mode (touch-and-go suspend, no sleep) OFF`; after the restart it is still Off (`config.txt`). Set it back to On. |
-| ST2 | Settings → Clock and Battery → Off, back to the hub. | No clock or battery in the corner; On brings them back. |
-| ST3 | Settings → Language → Deutsch. Back to the hub. Then Settings → Language → System Language. | German at once (hub, lists, dialogs); `seplugins/pocketwatch/language.txt` contains `de`; System Language removes the file and returns to the system's language. |
-| ST4 | Back / HOME inside Settings and inside the option list. | Back closes the list without a change; HOME closes too. |
-| ST5 | Settings → Style → Modern, then Minimal, then Classic (XMB). In each: the hub, Save State list, Load State list, a dialog (Quit Game → No), Settings itself. | The screen changes at once. Modern: the game blurred behind, round buttons at the bottom with a white disc moving between them, cards and pill buttons. Minimal: the game darkened, only text in a centred column. After Quit and restart the chosen style stays. Note anything cut off, overlapping or slow (how long the hub takes to appear in Modern). |
+| ST1 | XMB → Settings → Pocketwatch → Fast Save and Load → Off. Start the game, save to a slot twice. | Both saves sleep for real (dark ~5 s each); the log says `engine: fast mode (touch-and-go suspend, no sleep) OFF`. Set it back to On. |
+| ST2 | Pocketwatch → Clock and Battery → Off; start the game, open the hub. | No clock or battery in the corner; On brings them back (next game start). |
+| ST3 | Pocketwatch → Language → Deutsch; start the game. Then Language → System Language. | The hub in German; `seplugins/pocketwatch/language.txt` contains `de`; System Language removes the file. The XMB's Pocketwatch rows follow the choice at once. |
+| ST4 | In Pocketwatch, Back / Circle in a value list. | The list closes without a change. |
+| ST5 | Pocketwatch → Style → Modern, start the game: the hub, Save State list, Load State list, a dialog (Quit Game → No). Then Minimal, then Classic (XMB). | Modern: the game blurred behind, round buttons at the bottom with a white disc moving between them, cards and pill buttons. Minimal: the game darkened, only text in a centred column. Note anything cut off, overlapping or slow. |
 
 ### ARK's exit combos
 
@@ -143,6 +143,13 @@ output.
 | T5b | Deploy another build (`scripts\build.cmd -Release`, then `scripts\deploy.cmd`), start the game, load a slot saved with the debug build. | "...was saved with another setup."; log `engine: adopt: saved in another setup: build ... prx .../...`. Deploy the debug build again. |
 | T5c | Start a different game. | Its lists show none of the first game's slots. |
 
+### Battery and Play Time (branch feature/psp-xmb-overhaul)
+
+| ID | Do | Expect |
+|---|---|---|
+| B1 | Restart the PSP. At once XMB → Settings → Battery; back out. Wait 3 minutes in the XMB, open Battery again; plug the charger in, wait a minute, open it again. | Charge and Status as the XMB's own battery icon; Time left "... (system)" at first, "about ..." after two minutes or more; with the charger "Charging" and, after a minute, "Time to full". Voltage 3.6-4.2 V, Current in mA, Temperature 15-45 °C, Capacity "N of M mAh" (N grows while charging), Charge cycles a number - or "Not available". Send `xmb.log` (`xmb: battery ...`). |
+| P1 | Note the time. Play 20 minutes with: a hub visit of 2 minutes, a save, a load, a sleep of 1 minute (POWER switch). Quit Game. XMB → Game → Play Time. | Total and the game's row grew by about 20 minutes (not by the hub, the sleep or the load); other games below it, most played first. Game log lines `playtime: N s this session written (...)`. Files `seplugins/pocketwatch/playtime-a.txt` / `-b.txt`. |
+
 ### Pocketwatch in the XMB's Settings (VSH-REQ-006)
 
 Install with `scripts\deploy.cmd -EnableXmb` (adds `VSH, ms0:/seplugins/pocketwatch/pocketwatch_xmb.prx, on`
@@ -151,7 +158,7 @@ then loads no plugins), connect USB and remove that line.
 
 | ID | Do | Expect |
 |---|---|---|
-| X1 | Restart the PSP. XMB → Settings: find "Pocketwatch" right after System Settings; open it. Change Style to Modern, Fast Save and Load to Off, Language to another one; back out. Open System Settings, then ARK's Custom Firmware Settings. | "Pocketwatch" with System Settings' icon; its page lists Style / Fast Save and Load / Clock and Battery / Language with the XMB's own value popup. System Settings and ARK's pages look as before. In a game the hub has the chosen style; `seplugins/pocketwatch/config.txt` shows the values. Send `seplugins/pocketwatch/xmb.log` (lines `xmb: vsh_module patched ...`, `xmb: item added ...`, `xmb: sysconf_plugin patched`). |
+| X1 | Restart the PSP. XMB → Settings: "Pocketwatch" and "Battery" right after System Settings; XMB → Game: "Play Time" right after Saved Data Utility. Open Pocketwatch; change Style to Modern, Fast Save and Load to Off, Language to another one; back out. Open System Settings, then ARK's Custom Firmware Settings. | The three items with the icon of the one before them; Pocketwatch lists Style / Fast Save and Load / Clock and Battery / Language with the XMB's own value popup. System Settings and ARK's pages look as before. In a game the hub has the chosen style; `seplugins/pocketwatch/config.txt` shows the values. Send `seplugins/pocketwatch/xmb.log` (`xmb: vsh_module patched ...`, `xmb: Pocketwatch and Battery added ...`, `xmb: Play Time added ...`, `xmb: sysconf_plugin patched`). Partly seen 2026-10-17 (the first item and both patches). |
 | X1b | If X1 shows no item: send `xmb.log` (it says which site was missing). | - |
 
 ### Continue from a state at the game's start (M7, GAME side)

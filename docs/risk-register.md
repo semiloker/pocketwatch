@@ -25,6 +25,7 @@ risk; close it with the evidence.
 | [RISK-016](#risk-016--a-game-that-does-not-survive-the-saves-sleep) | A game that does not survive the save's sleep | M | H | Open |
 | [RISK-017](#risk-017--arks-exit-combo-fired-by-another-plugin-during-a-save) | ARK's exit combo fired by another plugin during a save | L | H | Open |
 | [RISK-018](#risk-018--the-xmb-plugin-stops-the-xmb-from-starting) | The XMB plugin stops the XMB from starting | L | M | Open |
+| [RISK-019](#risk-019--the-translation-pool-is-nearly-full) | The translation pool is nearly full | M | L | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -69,6 +70,11 @@ risk; close it with the evidence.
   P9/P11; translations as files (ADR-018). 2026-10-17: the debug profile got its own budget (176 KB / 192 KB,
   test runs only). With the UI styles (ADR-019) the PRX file budget became 192 KB (it costs no RAM);
   kernel RAM went down to 162 KB of 176 KB by moving the sky and SFO buffers to P9.
+  2026-10-17 (branch `feature/psp-xmb-overhaul`): Battery, Play Time and their pages first cost
+  ~16 KB in the game; they moved to the XMB plugin (ADR-024) together with the in-game Settings
+  screen, and the strings only the XMB shows left the game build: release 175 KB loaded, under the
+  old budgets again. The game keeps only the play-time counter (P9 block). The XMB plugin has its
+  own budget (56 KB file / 64 KB loaded).
 
 ## RISK-006 — Cross-boot load into a different environment
 
@@ -171,4 +177,13 @@ risk; close it with the evidence.
   data is touched).
 - **Mitigation:** the checks above; `xmb.log`; recovery by holding START at boot (ARK-4 loads no
   plugins) and removing the `VSH` line; installed only with `deploy -EnableXmb`.
+
+## RISK-019 — The translation pool is nearly full
+
+- **Description:** translations are copied into a 4 KB kernel-RAM pool (ADR-018). With the
+  Battery and Play Time strings Russian takes 3.7 KB and Ukrainian 3.6 KB; a file that does not
+  fit is refused whole and the hub falls back to English.
+- **Likelihood M** (every new feature adds strings) / **Impact L** (English, not a failure).
+- **Mitigation:** the host test loads every lang file through the same pool; next lever: raise the
+  pool (kernel RAM, RISK-005) or keep the texts of rarely seen pages in P9.
 

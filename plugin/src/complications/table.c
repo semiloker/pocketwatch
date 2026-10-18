@@ -5,7 +5,8 @@
  */
 #include "complications/registry.h"
 
-extern const pw_complication pw_cpl_resume, pw_cpl_states, pw_cpl_settings, pw_cpl_quit;
+extern const pw_complication pw_cpl_resume, pw_cpl_states, pw_cpl_playtime, pw_cpl_settings,
+    pw_cpl_quit;
 #ifdef PW_DEBUG
 extern const pw_complication pw_cpl_cardtest;
 #endif
@@ -13,7 +14,8 @@ extern const pw_complication pw_cpl_cardtest;
 const pw_complication *const pw_complications[] = {
     &pw_cpl_resume,   /* complications/system: Resume Game */
     &pw_cpl_states,   /* complications/states: Save State, Load State */
-    &pw_cpl_settings, /* complications/settings: Settings */
+    &pw_cpl_playtime, /* complications/playtime: counts play time (its page: XMB) */
+    &pw_cpl_settings, /* complications/settings: reads config.txt (the page: XMB) */
     &pw_cpl_quit,     /* complications/system: Quit Game */
 #ifdef PW_DEBUG
     &pw_cpl_cardtest, /* complications/states, debug builds: the T1 Memory Stick test */

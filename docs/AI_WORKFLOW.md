@@ -87,7 +87,8 @@ Do not replace or contradict an existing project rule without first understandin
 
 Areas: `SYS` core runtime, `STE` states engine, `STS` states storage, `SHL` in-game shell, `UI`
 interface, `GFX` rendering and native assets, `CPL` complication framework, `DBG` debug tooling,
-`BLD` build and verification, `VSH` XMB integration, `FW` firmware research.
+`BLD` build and verification, `VSH` XMB integration, `BAT` battery, `PLT` play time, `FW`
+firmware research.
 IDs are never reused or renumbered; a dropped requirement is marked *Withdrawn*.
 
 ## 6. Writing a subsystem specification

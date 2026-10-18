@@ -37,9 +37,9 @@ The project's full workflow is imported here and applies to every session:
 - Device test protocols for every feature: `docs/testing.md`.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
-  State / Load State / Settings / Quit Game; debug builds add Memory Stick Test = T1). Settings
-  (style, fast save and load, clock and battery, language) live in `seplugins/pocketwatch/config.txt` and
-  `language.txt`. Styles: Classic (XMB, default), Modern, Minimal (`docs/ui/styles.md`); every
+  State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Settings (style, fast
+  save and load, clock and battery, language) are changed in the XMB and live in
+  `seplugins/pocketwatch/config.txt` and `language.txt`. Styles: Classic (XMB, default), Modern, Minimal (`docs/ui/styles.md`); every
   `pw_view_*` must have all three (previews write `modern-` / `minimal-` PNGs too). Save/Load open a list of
   five slots per game (`ms0:/PSP/SAVEDATA/PW<DISCID><NN>/`, triangle deletes). Enter/Back follow the
   system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
@@ -92,6 +92,13 @@ The project's full workflow is imported here and applies to every session:
   version, the PRX file's CRC, model, P9/P8/ME layout, the assets and PARAM.SFO block addresses): never relax it
   without a device test (T5).
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).
+- Background work of a complication goes through its `tick` (once a second from the shell, hub
+  closed, engine idle) and `on_quit`; never its own thread. State that must survive a load
+  (counters) lives in a P9 block whose address goes into the fingerprint (`pw_engine_set_env_extra`,
+  [3] play time). Play time files: `seplugins/pocketwatch/playtime-a.txt` / `-b.txt`.
+- Settings, Battery and Play Time pages are in the XMB (ADR-024), not in the hub: XMB → Settings →
+  Pocketwatch / Battery, XMB → Game → Play Time (`vsh/src/xsettings.c` builds their rows). Strings
+  only the XMB shows come after `PW_S_XMB_FIRST` in `ui/i18n.h` (the game build drops them).
 - A hub feature is a complication: its folder under `complications/` with a `pw_complication`
   (`complications/complication.h`) and one line in `complications/table.c`; the hub (`ui/hub.c`)
   must not learn about any feature.

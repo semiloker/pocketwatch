@@ -22,6 +22,9 @@ void pw_registry_shutdown(const pw_complication *const *list, int n);
 void pw_registry_open(const pw_complication *const *list, int n);
 int pw_registry_changed(const pw_complication *const *list, int n); /* asks every one */
 
+void pw_registry_tick(const pw_complication *const *list, int n, unsigned int now_ms);
+void pw_registry_quit(const pw_complication *const *list, int n);
+
 /* The first complication with a start-up action pending, or NULL. */
 const pw_complication *pw_registry_startup(const pw_complication *const *list, int n);
 

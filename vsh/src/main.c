@@ -8,6 +8,7 @@
 #include <psploadcore.h>
 #include <string.h>
 
+#include "xbattery.h"
 #include "xlog.h"
 #include "xmb.h"
 
@@ -62,6 +63,7 @@ int module_start(SceSize args, void *argp)
     (void)argp;
     pwx_log("Pocketwatch XMB " PW_VERSION);
     g_previous = sctrlHENSetStartModuleHandler(on_module_start);
+    pwx_battery_start(); /* readings from the XMB's start: the Battery page has history */
     {
         SceUID th = sceKernelCreateThread("PocketwatchXmbLog", flush_later, 0x30, 0x1000, 0, 0);
 

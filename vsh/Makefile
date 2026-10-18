@@ -9,8 +9,9 @@ TARGET = pocketwatch_xmb
 
 # The settings model and the texts are the game side's own portable code, built again here for
 # user mode (into build/, so the kernel build's objects next to the sources stay apart).
-OBJS = build/main.o build/xmb.o build/xsettings.o build/xlog.o build/platform_vsh.o \
-       build/stubs.o build/config.o build/i18n.o build/langnames.o build/stb_sprintf.o exports.o
+OBJS = build/main.o build/xmb.o build/xsettings.o build/xlog.o build/xbattery.o \
+       build/platform_vsh.o build/stubs.o build/config.o build/i18n.o build/langnames.o \
+       build/battmodel.o build/playtime.o build/crc32.o build/stb_sprintf.o exports.o
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -18,10 +19,10 @@ INCDIR  = src ../plugin/src ../plugin/lib
 # No newlib: src/platform_vsh.c has the few C functions used, so the compiler must not turn its
 # loops back into calls to them.
 CFLAGS  = -Os -G0 -Wall -Wextra -Werror -fno-pic -fno-builtin -fno-tree-loop-distribute-patterns \
-          -DPW_VERSION=\"$(VERSION)\"
+          -DPW_VERSION=\"$(VERSION)\" -DPW_I18N_XMB
 ASFLAGS = $(CFLAGS)
 LDFLAGS = -nostdlib
-LIBS    = -lpspuser -lpsputility -lpspmodinfo -lgcc
+LIBS    = -lpspuser -lpsputility -lpsppower -lpspmodinfo -lgcc
 
 VPATH = src ../plugin/src/core ../plugin/src/ui ../plugin/lib
 
@@ -41,9 +42,11 @@ build/stb_sprintf.o: CFLAGS += -Wno-sign-compare
 
 -include $(wildcard build/*.d)
 
-# Budgets for `make check`: the XMB's user memory is shared with the other VSH plugins.
-MAX_PRX_SIZE = 49152
-MAX_MEM      = 49152
+# Budgets for `make check`: the XMB's user memory is shared with the other VSH plugins. 64 KB
+# since the Battery and Play Time pages (2026-10-17): the battery history (3 KB), the translation
+# (8 KB buffer + 4 KB pool) and the shared model code.
+MAX_PRX_SIZE = 57344
+MAX_MEM      = 65536
 
 check: $(FINAL_TARGET)
 	python3 ../tools/check_prx.py --elf $(TARGET).elf --prx $(TARGET).prx \

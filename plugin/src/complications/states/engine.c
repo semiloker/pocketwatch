@@ -1774,9 +1774,9 @@ int pw_engine_env_for_load(pw_engine_env *e)
 
 void pw_engine_env_log(const char *who, const pw_engine_env *saved, const pw_engine_env *now)
 {
-    static const char *const names[] = {"layout", "build",   "header",  "model",   "devkit",
-                                        "P9",     "P8 base", "P8 size", "ME base", "ME size",
-                                        "assets", "prx crc", "sfo",     "extra3"};
+    static const char *const names[] = {
+        "layout",  "build",   "header", "model",   "devkit", "P9",       "P8 base", "P8 size",
+        "ME base", "ME size", "assets", "prx crc", "sfo",    "playtime", "battery", "extra5"};
     const unsigned int *a = (const unsigned int *)saved, *b = (const unsigned int *)now;
     int n = (int)(sizeof(*saved) / sizeof(unsigned int)), any = 0;
 
