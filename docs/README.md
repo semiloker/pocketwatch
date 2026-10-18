@@ -39,6 +39,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | `VSH` | XMB integration | In progress (M7, ADR-020/021): the XMB plugin with the Settings entry and the GAME-side start-up load implemented (device tests X1, V1 pending); the game's △ menu entry planned | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |
 | `BAT` | Battery (readings, estimates, the Battery page) | Implemented in the hub (branch `feature/psp-xmb-overhaul`), device test B1 pending | [subsystems/battery.md](subsystems/battery.md) |
 | `PLT` | Play time per game | Implemented in the hub (same branch), device test P1 pending | [subsystems/playtime.md](subsystems/playtime.md) |
+| `HOM` | Pocketwatch Home (our own home screen, ADR-025) | First version (Modern) on branch `feature/psp-xmb-overhaul`, device test HM1-HM4 pending | [subsystems/home.md](subsystems/home.md) |
 | `FW` | Independent firmware feasibility | Research | [firmware/independent-firmware-feasibility.md](firmware/independent-firmware-feasibility.md) |
 
 Branch overview of the XMB overhaul (audit, what the platform allows, status): [psp-xmb-overhaul](psp-xmb-overhaul/README.md).
@@ -47,6 +48,8 @@ UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual refere
 [concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md).
 
 ## Research notes
+
+- [m7-full-ui](research/m7-full-ui.md): cxmb, themes, and the way to a full UI of our own (2026-10-18)
 
 | Note | Question | Status |
 |---|---|---|

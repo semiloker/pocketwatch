@@ -7,9 +7,10 @@
 CC      ?= gcc
 SRC_DIR  = ../plugin/src
 LIB_DIR  = ../plugin/lib
+HOME_DIR = ../home/src
 BUILD    = build
 
-CFLAGS  = -std=gnu11 -g -O1 -Wall -Wextra -Werror -I$(SRC_DIR) -I$(LIB_DIR) -I. \
+CFLAGS  = -std=gnu11 -g -O1 -Wall -Wextra -Werror -I$(SRC_DIR) -I$(LIB_DIR) -I$(HOME_DIR) -I. \
           -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
 LDFLAGS = -fsanitize=address,undefined
 # Rebuild objects when a header they include changes (a stale object once hid a new enum value).
@@ -26,11 +27,12 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
               $(SRC_DIR)/complications/registry.c $(SRC_DIR)/ui/backdrop.c \
               $(SRC_DIR)/ui/views_modern.c $(SRC_DIR)/ui/views_minimal.c $(SRC_DIR)/ui/volume.c $(SRC_DIR)/ui/langnames.c $(SRC_DIR)/core/battmodel.c $(SRC_DIR)/core/playtime.c \
+              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
 OBJS = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(TEST_SRCS) $(PLUGIN_SRCS)))
-vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications $(SRC_DIR)/complications/states $(SRC_DIR)/ui $(SRC_DIR)/gfx $(LIB_DIR)
+vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications $(SRC_DIR)/complications/states $(SRC_DIR)/ui $(SRC_DIR)/gfx $(LIB_DIR) $(HOME_DIR)
 
 all: run
 

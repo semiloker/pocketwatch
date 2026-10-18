@@ -113,6 +113,17 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_PT_NOTE] = {"pt_note", "Counted only while Pocketwatch runs"},
     [PW_S_PT_DESC] = {"pt_desc", "%s in total"},
     [PW_S_PT_NONE] = {"pt_none", "Nothing recorded yet"},
+    [PW_S_HM_GAMES] = {"hm_games", "Games"},
+    [PW_S_HM_SYSTEM] = {"hm_system", "System"},
+    [PW_S_HM_PLAY] = {"hm_play", "Play"},
+    [PW_S_HM_EXIT] = {"hm_exit", "Exit to the XMB"},
+    [PW_S_HM_NO_GAMES] = {"hm_no_games", "No games in ms0:/ISO"},
+    [PW_S_HM_STATES] = {"hm_states", "Save states: %d"},
+    [PW_S_HM_PLAYED] = {"hm_played", "Played %s"},
+    [PW_S_HM_SECTION] = {"hm_section", "Section"},
+    [PW_S_HM_FREE] = {"hm_free", "Free space"},
+    [PW_S_HM_VERSION] = {"hm_version", "Version"},
+    [PW_S_HM_INSTALLED] = {"hm_installed", "Games on the card"},
 #endif
 };
 

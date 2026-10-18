@@ -353,3 +353,23 @@ decision was taken; the evidence column links the research behind it.
   as of opening it (open it again to refresh); the in-game info pages and the hub's Settings screen
   are gone (UI-REQ-017 withdrawn); the game build is back under its old budgets (175 KB loaded).
 
+## ADR-025 — A full UI of our own is Pocketwatch Home, a homebrew home screen
+
+- **Status:** Accepted (2026-10-18), on the owner's request ("study cxmb, how to make our own full
+  UI, write a first modern one").
+- **Context:** cxmb (GPL-3.0) only redirects the XMB's flash0 files to a theme bundle: a theme
+  changes the XMB's pictures, colours and fonts, not its screens; it is built from Sony's RCOs.
+  The XMB's own engine cannot be replaced by a plugin. ARK-4 can start a homebrew menu instead of
+  the XMB (launcher mode), and its own menu shows how a user-mode program starts an ISO
+  ([m7-full-ui](../research/m7-full-ui.md)).
+- **Decision:** the full UI is **Pocketwatch Home** (`home/`): a homebrew application built from
+  Pocketwatch's portable renderer, fonts from flash0, its own ICON0/PIC1; first in the Modern style
+  (games with their own art, play time, save states, battery, card), starting games the way
+  ARK-4's menu does. It runs from Game → Memory Stick; launcher mode later (HOM-REQ-007).
+- **Alternatives considered:** a CTF theme (changes the look of the real XMB but adds nothing,
+  and needs Sony's files as its base); panels drawn over the XMB by the VSH plugin (the XMB stays
+  the frame; RESEARCH REQUIRED); patching more of `vsh_module` (fragile, per-firmware).
+- **Consequences:** a third binary (EBOOT.PBP) to build, test and ship; a state saved after a
+  start from the XMB may be refused after a start from Home (another boot configuration,
+  RISK-020); the XMB keeps its own media and network functions.
+

@@ -25,6 +25,7 @@ Labels as in [AI_WORKFLOW](../AI_WORKFLOW.md#2-evidence-labels).
 | Feature of the brief | Status | Where / why |
 |---|---|---|
 | Three coherent styles | IMPLEMENTED (hub, every screen incl. the new pages) | ADR-019; the same data for all three, presentation only |
+| A full UI of our own | IMPLEMENTED, first version: Pocketwatch Home, a homebrew home screen in the Modern style (ADR-025, [home](../subsystems/home.md), [m7-full-ui](../research/m7-full-ui.md)) | three styles, launcher mode: planned |
 | Redesign of the XMB's own navigation and look | BLOCKED BY PLATFORM (as a plugin) | Sony's renderer and layout; a plugin can add items and pages (done) but not replace the shell. A replacement shell is a firmware-level project: [FW track](../firmware/independent-firmware-feasibility.md). The XMB's look is themable with CTF themes (cxmb, already on the owner's PSP): NOT APPLICABLE here |
 | Settings / customization (style, clock and battery, fast save, language) | IMPLEMENTED in the XMB: Settings → Pocketwatch (ADR-021, ADR-024) | accent colours, motion intensity, density: PROPOSED ([customization](../ui/customization.md)) |
 | Theme packages | PROPOSED | needs validation rules first (brief §6); no external code ever |
@@ -32,7 +33,7 @@ Labels as in [AI_WORKFLOW](../AI_WORKFLOW.md#2-evidence-labels).
 | Battery dashboard and estimates | IMPLEMENTED in the XMB: Settings → Battery (ADR-022, ADR-024) | [battery](../subsystems/battery.md); syscon through ARK-4's kuKernelCall |
 | Per-game play time and statistics | IMPLEMENTED: counted in the game, listed in the XMB: Game → Play Time (ADR-023, ADR-024) | [playtime](../subsystems/playtime.md); homebrew and PS1 games: NOT APPLICABLE (the game plugin does not load there) |
 | Weekly / monthly summaries, session history | PROPOSED | needs a session log (PLT plan step 3) |
-| Home dashboard, library search, favourites | PROPOSED | need our renderer in the XMB (as above) |
+| Home dashboard, library search, favourites | PARTIALLY IMPLEMENTED in Pocketwatch Home (the library with art, play time, states); search, favourites: PROPOSED | |
 | System information page | PROPOSED | cheap in the hub (model, firmware, memory, card space) |
 | Power profiles | RESEARCH REQUIRED | ARK-4 already sets CPU clocks per game/XMB (its Custom Firmware Settings): duplicating it would be a control that fights ARK's |
 | Extension architecture | IMPLEMENTED (static) | complications; this branch added the background `tick` and the `on_quit` hooks (CPL-REQ-003). Dynamic third-party modules: not planned |

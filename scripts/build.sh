@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the Pocketwatch PRX files (plugin/ for games, vsh/ for the XMB) with the PSPDEV toolchain.
+# Build Pocketwatch (plugin/ for games, vsh/ for the XMB, home/ the Home application) with PSPDEV.
 #
 #   scripts/build.sh [make-target] [version] [debug: 1 = debug build (default), 0 = release]
 #
@@ -30,3 +30,12 @@ if [ -n "${2:-}" ]; then
     vargs+=("VERSION=$2")
 fi
 make -C "$ROOT/vsh" "${vargs[@]}"
+# Pocketwatch Home (home/): built with "all" and "check", cleaned with "clean".
+hargs=("${1:-all}")
+if [ "${hargs[0]}" = "check" ]; then
+    hargs=("all")
+fi
+if [ -n "${2:-}" ]; then
+    hargs+=("VERSION=$2")
+fi
+make -C "$ROOT/home" "${hargs[@]}"

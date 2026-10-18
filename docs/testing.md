@@ -161,6 +161,18 @@ then loads no plugins), connect USB and remove that line.
 | X1 | Restart the PSP. XMB → Settings: "Pocketwatch" and "Battery" right after System Settings; XMB → Game: "Play Time" right after Saved Data Utility. Open Pocketwatch; change Style to Modern, Fast Save and Load to Off, Language to another one; back out. Open System Settings, then ARK's Custom Firmware Settings. | The three items with the icon of the one before them; Pocketwatch lists Style / Fast Save and Load / Clock and Battery / Language with the XMB's own value popup. System Settings and ARK's pages look as before. In a game the hub has the chosen style; `seplugins/pocketwatch/config.txt` shows the values. Send `seplugins/pocketwatch/xmb.log` (`xmb: vsh_module patched ...`, `xmb: Pocketwatch and Battery added ...`, `xmb: Play Time added ...`, `xmb: sysconf_plugin patched`). Partly seen 2026-10-17 (the first item and both patches). |
 | X1b | If X1 shows no item: send `xmb.log` (it says which site was missing). | - |
 
+### Pocketwatch Home (HOM, ADR-025)
+
+Install: `scripts\deploy.cmd` copies `home\EBOOT.PBP` to `PSP/GAME/PocketwatchHome/`. Start it
+from XMB → Game → Memory Stick → Pocketwatch Home.
+
+| ID | Do | Expect |
+|---|---|---|
+| HM1 | Start Home. Move left and right through the games for a while; rest on one for a second; L / R through the sections. | Every ISO and CSO of `ms0:/ISO` with its own icon (icons appear one by one at first); resting on a game fades its own background art in; under the title the disc ID, play time and save states where there are some. Movement smooth. Note anything missing, wrong or slow (how long until the first screen). |
+| HM2 | On a game press X (Enter). | The screen fades out and the game starts; the plugin's hub works in it as usual (HOME). Quit Game returns to the XMB. |
+| HM3 | Play Time section; System section: wait a minute; Exit to the XMB. HOME in Home. | Play Time lists the games as the XMB's Play Time does, with bars; System shows the battery like the XMB, free space, the number of games; Exit and HOME (Quit) go back to the XMB. |
+| HM4 | Save a state in a game started from the XMB, Quit Game, start the same game from Home, Load State; then the other way round. | Either it loads, or "This state was saved with another setup" (then the two starts differ: RISK-020). Send the log. |
+
 ### Continue from a state at the game's start (M7, GAME side)
 
 The XMB entry does not exist yet; this tests the half that loads the state.

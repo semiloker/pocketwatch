@@ -11,7 +11,13 @@
  * finds and reads the file, this module checks and keeps it.
  */
 
-#define PW_I18N_POOL 4096 /* bytes of translated text (Russian takes 2.7 KB) */
+/* Bytes of translated text: the game keeps its own strings in kernel RAM (Russian ~2.4 KB); the
+   XMB plugin and Home (PW_I18N_XMB, user memory) take every string (Russian ~3.9 KB, RISK-019). */
+#ifdef PW_I18N_XMB
+#define PW_I18N_POOL 8192
+#else
+#define PW_I18N_POOL 4096
+#endif
 
 enum {
     PW_S_GAME,
@@ -118,6 +124,17 @@ enum {
     PW_S_PT_NOTE,
     PW_S_PT_DESC,
     PW_S_PT_NONE,
+    PW_S_HM_GAMES,
+    PW_S_HM_SYSTEM,
+    PW_S_HM_PLAY,
+    PW_S_HM_EXIT,
+    PW_S_HM_NO_GAMES,
+    PW_S_HM_STATES,
+    PW_S_HM_PLAYED,
+    PW_S_HM_SECTION,
+    PW_S_HM_FREE,
+    PW_S_HM_VERSION,
+    PW_S_HM_INSTALLED,
     PW_S_COUNT
 };
 

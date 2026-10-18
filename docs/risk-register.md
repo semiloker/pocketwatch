@@ -26,6 +26,7 @@ risk; close it with the evidence.
 | [RISK-017](#risk-017--arks-exit-combo-fired-by-another-plugin-during-a-save) | ARK's exit combo fired by another plugin during a save | L | H | Open |
 | [RISK-018](#risk-018--the-xmb-plugin-stops-the-xmb-from-starting) | The XMB plugin stops the XMB from starting | L | M | Open |
 | [RISK-019](#risk-019--the-translation-pool-is-nearly-full) | The translation pool is nearly full | M | L | Open |
+| [RISK-020](#risk-020--a-game-started-from-home-is-in-another-setup-than-from-the-xmb) | A game started from Home is in another setup than from the XMB | M | M | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -186,4 +187,14 @@ risk; close it with the evidence.
 - **Likelihood M** (every new feature adds strings) / **Impact L** (English, not a failure).
 - **Mitigation:** the host test loads every lang file through the same pool; next lever: raise the
   pool (kernel RAM, RISK-005) or keep the texts of rarely seen pages in P9.
+
+## RISK-020 — A game started from Home is in another setup than from the XMB
+
+- **Description:** Home starts an image the way ARK-4's menu does (Inferno, boot configuration
+  3); the XMB's own start may use another configuration. A state's fingerprint covers the memory
+  layout and the modules' blocks (`pw_engine_env`), so a state saved after one kind of start may
+  be refused after the other ("saved with another setup").
+- **Likelihood M** / **Impact M** (a refusal with a message, nothing lost).
+- **Mitigation:** testing guide HM4 (save after a start from the XMB, load after a start from
+  Home, and back); if they differ, Home starts images the XMB's way (vshctrl's `umdLoadExec`).
 

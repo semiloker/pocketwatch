@@ -55,7 +55,9 @@ jobs:
         run: |
           PKG="pocketwatch-$(cat plugin/.version)"
           mkdir -p "dist/$PKG/seplugins/pocketwatch"
-          cp plugin/pocketwatch.prx "dist/$PKG/seplugins/pocketwatch/"
+          cp plugin/pocketwatch.prx vsh/pocketwatch_xmb.prx "dist/$PKG/seplugins/pocketwatch/"
+          mkdir -p "dist/$PKG/PSP/GAME/PocketwatchHome"
+          cp home/EBOOT.PBP "dist/$PKG/PSP/GAME/PocketwatchHome/"
           mkdir -p "dist/$PKG/seplugins/pocketwatch/lang"
           cp plugin/lang/*.txt "dist/$PKG/seplugins/pocketwatch/lang/"
           cp README.md LICENSE "dist/$PKG/"

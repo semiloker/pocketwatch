@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Installs plugin\pocketwatch.prx (and vsh\pocketwatch_xmb.prx when it is built) to
-    <PSP>\seplugins\pocketwatch\.
+    <PSP>\seplugins\pocketwatch\, and home\EBOOT.PBP (Pocketwatch Home) to
+    <PSP>\PSP\GAME\PocketwatchHome\.
     With -Enable it also registers the game plugin in seplugins\PLUGINS.TXT (ARK-4 format);
     with -EnableXmb the XMB plugin (the Pocketwatch entry under Settings). If the XMB ever fails
     to start because of a plugin, hold START while the PSP boots: ARK-4 then loads no plugins.
@@ -52,6 +53,15 @@ Write-Host "Copied pocketwatch.prx -> $dest"
 if (Test-Path $xmbPrx) {
     Copy-Item -Path $xmbPrx -Destination $dest -Force
     Write-Host "Copied pocketwatch_xmb.prx -> $dest"
+}
+
+# Pocketwatch Home: a homebrew application, started from Game -> Memory Stick.
+$homeEboot = Join-Path $root 'home\EBOOT.PBP'
+if (Test-Path $homeEboot) {
+    $homeDest = Join-Path $pspRoot 'PSP\GAME\PocketwatchHome'
+    New-Item -ItemType Directory -Force -Path $homeDest | Out-Null
+    Copy-Item -Path $homeEboot -Destination $homeDest -Force
+    Write-Host "Copied EBOOT.PBP -> $homeDest"
 }
 
 # Translations: the plugins read lang\<code>.txt for the system language (English is built in).

@@ -7,6 +7,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home (`PSP/GAME/PocketwatchHome`): a home screen of its own in the Modern style -
+  every game on the card with its own icon and background art, its play time and save states,
+  Play Time and System sections - that starts games the way ARK-4's menu does.
 - XMB → Settings → Battery: the charge, the status, the time left (or to full), voltage,
   current, temperature, capacity and charge cycles; estimates say what they rest on.
 - XMB → Game → Play Time: every game's play time, most played first. Only time with Pocketwatch
