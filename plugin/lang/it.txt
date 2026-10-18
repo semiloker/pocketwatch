@@ -170,3 +170,7 @@ hm_slideshow = Presentazione
 hm_wallpaper = Sfondo
 hm_wp_default = Pocketwatch
 hm_wp_set = Imposta come sfondo
+hs_slideshow = Velocità presentazione
+hs_slide_normal = Normale
+hs_slide_fast = Veloce
+hs_slide_slow = Lenta

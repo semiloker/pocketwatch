@@ -358,7 +358,9 @@ static void usb_texts(hm_view *v, int state)
 enum { PANEL_CLOSE, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_OFF, PANEL_ITEMS };
 enum { SHEET_NONE, SHEET_HOME, SHEET_GAME, SHEET_INFO };
 
-#define SLIDESHOW_MS 5000
+/* A picture's time in the slideshow by Settings -> Slideshow Speed: normal, fast, slow
+   (INFERRED from the XMB's Photo Settings; its exact times are not documented). */
+static const unsigned int k_slide_ms[3] = {5000, 3000, 10000};
 
 static void panel_home(hm_view *v)
 {
@@ -712,7 +714,8 @@ int main(void)
             usb_state = hm_usb_start(now);
             t_usb = now;
         }
-        if (viewer && slideshow && now - t_slide >= SLIDESHOW_MS) { /* the next, round again */
+        if (viewer && slideshow && now - t_slide >= k_slide_ms[pw_config_get()->slide % 3]) {
+            /* the next, round again */
             t_slide = now;
             ph_sel = hm_library_photo_count() > 0 ? (ph_sel + 1) % hm_library_photo_count() : 0;
         }

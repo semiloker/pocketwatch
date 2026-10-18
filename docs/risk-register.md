@@ -223,4 +223,7 @@ risk; close it with the evidence.
 - **Mitigation:** Home's strings moved to their own tier (`PW_I18N_HOME`, ADR-028), the boot log
   keeps ~5 lines; next candidates: the battery history buffer, the English strings of rows
   only Home shows, or a measured raise of the budget (RESEARCH REQUIRED: how much user memory
-  the XMB leaves with ARK-4's plugins).
+  the XMB leaves with ARK-4's plugins). 2026-10-19: 65 173 bytes - Home's settings in
+  `config.txt` (`sort`, `slideshow`) are parsed by the shared `core/config.c`, so the XMB plugin
+  keeps them when its page writes the file; a Home-only setting should go into a file of Home's
+  own (like `wallpaper.txt`) rather than into `config.txt`.

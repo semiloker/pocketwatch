@@ -180,6 +180,22 @@ int hs_wallpaper_set(const char *path, const unsigned int *bg)
     return 0;
 }
 
+static int get_slide(void)
+{
+    return pw_config_get()->slide >= 0 && pw_config_get()->slide < 3 ? pw_config_get()->slide : 0;
+}
+static int set_slide(int o)
+{
+    pw_config_get()->slide = o;
+    return save_config();
+}
+static void text_slide(int o, char *out, int cap)
+{
+    static const int k[3] = {PW_S_HS_SLIDE_NORMAL, PW_S_HS_SLIDE_FAST, PW_S_HS_SLIDE_SLOW};
+
+    stbsp_snprintf(out, cap, "%s", pw_tr(k[o >= 0 && o < 3 ? o : 0]));
+}
+
 static int get_fast(void)
 {
     return pw_config_get()->fast != 0;
@@ -388,6 +404,7 @@ static const row k_rows[] = {
     {HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
     {HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
     {HS_CHOICE, PW_S_HM_WALLPAPER, 0, two, get_wallpaper, set_wallpaper, text_wallpaper},
+    {HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
     {HS_CHOICE, PW_S_SET_STYLE, 0, three, get_style, set_style, text_style},
     {HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
     {HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},

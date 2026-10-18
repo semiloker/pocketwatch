@@ -170,3 +170,7 @@ hm_slideshow = Слайд-шоу
 hm_wallpaper = Обои
 hm_wp_default = Pocketwatch
 hm_wp_set = Сделать обоями
+hs_slideshow = Скорость слайд-шоу
+hs_slide_normal = Обычная
+hs_slide_fast = Быстрая
+hs_slide_slow = Медленная

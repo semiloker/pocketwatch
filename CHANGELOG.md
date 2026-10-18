@@ -7,8 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Pocketwatch Home: a game's Information (Triangle), a photo slideshow and a wallpaper from
-  Photos (Square), shown behind every section but Games.
+- Pocketwatch Home: a game's Information (Triangle), a photo slideshow (Settings → Slideshow
+  Speed) and a wallpaper from Photos (Square), shown behind every section but Games.
 - Pocketwatch Home: games sorted by name or the last played first; PSN games' EBOOTs; the
   battery's voltage, temperature, capacity and charge cycles in System.
 - Pocketwatch Home: Music (the MP3s of MUSIC/, playing on while you browse, the next track

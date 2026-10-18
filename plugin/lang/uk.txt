@@ -172,3 +172,7 @@ hm_slideshow = Слайд-шоу
 hm_wallpaper = Шпалери
 hm_wp_default = Pocketwatch
 hm_wp_set = Зробити шпалерами
+hs_slideshow = Швидкість слайд-шоу
+hs_slide_normal = Звичайна
+hs_slide_fast = Швидка
+hs_slide_slow = Повільна

@@ -170,3 +170,7 @@ hm_slideshow = Diavoorstelling
 hm_wallpaper = Achtergrond
 hm_wp_default = Pocketwatch
 hm_wp_set = Als achtergrond
+hs_slideshow = Snelheid diavoorstelling
+hs_slide_normal = Normaal
+hs_slide_fast = Snel
+hs_slide_slow = Langzaam

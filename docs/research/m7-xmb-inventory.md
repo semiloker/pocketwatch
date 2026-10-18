@@ -31,7 +31,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 | USB Connection | USB mass storage | API (`sceUsb*`, drivers via `kuKernelLoadModule`) - with automatic reconnect | Implemented (HOM-REQ-011) |
 | System Update | firmware update | XMB - never from Home (CFW: an update removes ARK-4) | Dropped (safety) |
 | Video Settings | UMD Video / video playback options (language, subtitles, screen size) | needs a video player first | XMB (Planned with video, RESEARCH REQUIRED) |
-| Photo Settings | slideshow speed | OURS, with the photo viewer (a slideshow: Planned) | Planned |
+| Photo Settings | slideshow speed | OURS: Settings → Slideshow Speed (normal 5 s, fast 3 s, slow 10 s a picture - INFERRED, the XMB's times are not documented) | Implemented (HOM-REQ-016) |
 | System Settings → System Language | the UI language | API `sceUtilitySetSystemParamInt(LANGUAGE)` | Implemented (HOM-REQ-012) |
 | System Settings → Nickname | the PSP's name | SYS DIALOG (OSK) + API `SetSystemParamString(NICKNAME)` | Implemented (HOM-REQ-012) |
 | System Settings → System Information | MAC address, system software, nickname | API (`sceKernelDevkitVersion`, `sceWlanGetEtherAddr`, KUBridge model, ARK-4's version) | Implemented (HOM-REQ-013) |
@@ -45,7 +45,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 | Power Save Settings → Auto Sleep, WLAN Power Save | sleep timer; WLAN | WLAN: API `SetSystemParamInt(WLAN_POWERSAVE)`; Auto Sleep: registry (RESEARCH REQUIRED) | WLAN implemented; Auto Sleep XMB |
 | Sound Settings → AVLS | volume limit | API (impose `AVLS`) | Implemented (HOM-REQ-012) |
 | Sound Settings → Key Tones | click sounds | registry (RESEARCH REQUIRED) | XMB |
-| Theme Settings → Theme, Color, Wallpaper | the XMB's look | OURS: Home's own look (styles, accent colour, the game's art as background) | Planned (HOM-REQ-006) |
+| Theme Settings → Theme, Color, Wallpaper | the XMB's look | OURS: Home's own look (styles, accent colour, the game's art as background); a wallpaper from Photos | Wallpaper implemented (HOM-REQ-021); styles Planned (HOM-REQ-006) |
 | Security Settings | parental control, passwords | XMB (registry, password) | XMB |
 | Network Settings | access points, ad hoc channel | SYS DIALOG (netconf) connects; editing entries stays in the XMB; ad hoc channel: API | Planned (HOM-REQ-017) |
 | Remote Play / RSS Channel / Print Settings | PS3 pairing, feeds, PictBridge | services of a past era | XMB |
@@ -63,9 +63,9 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 
 | Element | What it does | In Home: how | Status |
 |---|---|---|---|
-| Memory Stick (games) | ISO/CSO (ARK-4), PSN, PS1, homebrew | OURS: ISO/CSO, homebrew, PS1 | Implemented (HOM-REQ-001, -008); PSN EBOOTs Planned |
+| Memory Stick (games) | ISO/CSO (ARK-4), PSN, PS1, homebrew | OURS: ISO/CSO, PSN EBOOTs (started as ARK-4's menu does), homebrew, PS1; by name or the last played first | Implemented (HOM-REQ-001, -008) |
 | Saved Data Utility | the saves, with details and delete | SYS DIALOG: `sceUtilitySavedata` in list-delete mode - the XMB's own screen | Implemented (HOM-REQ-014) |
-| (Triangle on a game) Information / Delete | the game's details | OURS: the game's save states with their pictures, "Continue from this state" (M7 V1) | Implemented (HOM-REQ-015) |
+| (Triangle on a game) Information / Delete | the game's details | OURS: Information (disc ID, version, system software, size, play time, file); the game's save states with their pictures, "Continue from this state" (M7 V1); deleting a game's file stays in the XMB / a file manager | Implemented (HOM-REQ-015, -020) |
 | Game Sharing / UMD | send a demo / play a disc | drive off (`noumd`); Game Sharing is a dead protocol | XMB |
 
 ### Network, PlayStation Network
