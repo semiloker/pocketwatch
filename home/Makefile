@@ -49,6 +49,19 @@ build/hm_image.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-p
                             -Wno-implicit-fallthrough -Wno-unused-but-set-variable
 build/stb_sprintf.o: CFLAGS += -Wno-sign-compare
 
+# `make check`: imports (user libraries and ARK-4's, ../tools/check_prx.py) and the budgets. Home is
+# a user program: its RAM is the 24 MB user partition, not kernel RAM; 2 MB loaded (the GE's
+# display list alone is 512 KB) keeps it lean beside its textures and the firmware's dialogs.
+MAX_PRX_SIZE = 524288
+MAX_MEM      = 2097152
+
+check: $(EXTRA_TARGETS)
+	python3 ../tools/check_prx.py --elf $(TARGET).elf --prx $(TARGET).prx \
+		--nid-table ../tools/nids/ark4_660.tsv --allowlist ../tools/nids/allowlist.tsv \
+		--max-prx-size $(MAX_PRX_SIZE) --max-mem $(MAX_MEM)
+
+.PHONY: check
+
 -include $(wildcard build/*.d)
 
 clean: clean-local

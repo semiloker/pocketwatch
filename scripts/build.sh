@@ -30,11 +30,8 @@ if [ -n "${2:-}" ]; then
     vargs+=("VERSION=$2")
 fi
 make -C "$ROOT/vsh" "${vargs[@]}"
-# Pocketwatch Home (home/): built with "all" and "check", cleaned with "clean".
+# Pocketwatch Home (home/): the same targets ("check": imports and its budgets).
 hargs=("${1:-all}")
-if [ "${hargs[0]}" = "check" ]; then
-    hargs=("all")
-fi
 if [ -n "${2:-}" ]; then
     hargs+=("VERSION=$2")
 fi
