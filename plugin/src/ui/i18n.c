@@ -7,7 +7,8 @@ typedef struct {
     const char *key, *text;
 } entry;
 
-static const entry g_english[PW_S_COUNT] = {
+static const entry g_english[PW_I18N_HELD] = {
+    /* this build's tiers only (i18n.h) */
     [PW_S_GAME] = {"game", "Game"},
     [PW_S_RESUME_GAME] = {"resume_game", "Resume Game"},
     [PW_S_SAVE_STATE] = {"save_state", "Save State"},
@@ -140,27 +141,51 @@ static const entry g_english[PW_S_COUNT] = {
     [PW_S_HM_USB_ON] = {"hm_usb_on", "Connected. The computer has the Memory Stick."},
     [PW_S_HM_USB_FAIL] = {"hm_usb_fail", "USB could not be started."},
     [PW_S_HM_USB_END] = {"hm_usb_end", "End"},
+    [PW_S_HS_POCKETWATCH] = {"hs_pocketwatch", "Pocketwatch"},
+    [PW_S_HS_NICKNAME] = {"hs_nickname", "Nickname"},
+    [PW_S_HS_SYS_LANGUAGE] = {"hs_sys_language", "System Language"},
+    [PW_S_HS_DATE_FORMAT] = {"hs_date_format", "Date Format"},
+    [PW_S_HS_TIME_FORMAT] = {"hs_time_format", "Time Format"},
+    [PW_S_HS_TIME_ZONE] = {"hs_time_zone", "Time Zone"},
+    [PW_S_HS_SUMMER_TIME] = {"hs_summer_time", "Summer Time"},
+    [PW_S_HS_WLAN_SAVE] = {"hs_wlan_save", "WLAN Power Save"},
+    [PW_S_HS_SCREEN_SOUND] = {"hs_screen_sound", "Screen and Sound"},
+    [PW_S_HS_BRIGHTNESS] = {"hs_brightness", "Backlight Brightness"},
+    [PW_S_HS_AVLS] = {"hs_avls", "AVLS"},
+    [PW_S_HS_24H] = {"hs_24h", "24-Hour Clock"},
+    [PW_S_HS_12H] = {"hs_12h", "12-Hour Clock"},
+    [PW_S_HS_LANG_JA] = {"hs_lang_ja", "Japanese"},
+    [PW_S_HS_LANG_KO] = {"hs_lang_ko", "Korean"},
+    [PW_S_HS_LANG_ZHT] = {"hs_lang_zht", "Chinese (Traditional)"},
+    [PW_S_HS_LANG_ZHS] = {"hs_lang_zhs", "Chinese (Simplified)"},
+    [PW_S_HM_MODEL] = {"hm_model", "Model"},
+    [PW_S_HM_FIRMWARE] = {"hm_firmware", "System Software"},
+    [PW_S_HM_CFW] = {"hm_cfw", "Custom Firmware"},
+    [PW_S_HM_MAC] = {"hm_mac", "MAC Address"},
+    [PW_S_HM_OPTIONS] = {"hm_options", "Options"},
+    [PW_S_HM_SAVED_DATA] = {"hm_saved_data", "Saved Data"},
+    [PW_S_HM_CONTINUE] = {"hm_continue", "Continue"},
 #endif
 };
 
-static const char *g_text[PW_S_COUNT]; /* NULL: English */
-static char g_pool[PW_I18N_POOL];      /* the translated texts (kernel RAM: part of a state) */
+static const char *g_text[PW_I18N_HELD]; /* NULL: English */
+static char g_pool[PW_I18N_POOL];        /* the translated texts (kernel RAM: part of a state) */
 
 const char *pw_tr(int id)
 {
-    if (id < 0 || id >= PW_S_COUNT)
+    if (id < 0 || id >= PW_I18N_HELD) /* another build's string */
         return "";
     return g_text[id] ? g_text[id] : g_english[id].text ? g_english[id].text : "";
 }
 
 const char *pw_i18n_key(int id)
 {
-    return id >= 0 && id < PW_S_COUNT ? g_english[id].key : 0;
+    return id >= 0 && id < PW_I18N_HELD ? g_english[id].key : 0;
 }
 
 const char *pw_i18n_english(int id)
 {
-    return id >= 0 && id < PW_S_COUNT ? g_english[id].text : 0;
+    return id >= 0 && id < PW_I18N_HELD ? g_english[id].text : 0;
 }
 
 const char *pw_i18n_code(int psp_language)
@@ -177,7 +202,7 @@ const char *pw_i18n_code(int psp_language)
 
 void pw_i18n_reset(void)
 {
-    for (int i = 0; i < PW_S_COUNT; i++)
+    for (int i = 0; i < PW_I18N_HELD; i++)
         g_text[i] = 0;
 }
 
@@ -267,7 +292,7 @@ int pw_i18n_load(char *text, unsigned int len, pw_i18n_covers covers, void *ctx)
         return -1;
     }
     if (covers)
-        for (int i = 0; i < PW_S_COUNT; i++)
+        for (int i = 0; i < PW_I18N_HELD; i++)
             if (g_text[i] && !covers(g_text[i], ctx)) {
                 pw_i18n_reset();
                 return -2;

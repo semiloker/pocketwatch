@@ -2,6 +2,8 @@
 #ifndef HM_HW_H
 #define HM_HW_H
 
+#include <psptypes.h>
+
 /* Pocketwatch Home's view of the PSP: the buttons, the clock, the battery, the card. The screen is
    gfx_gu.h's. */
 
@@ -11,8 +13,16 @@ unsigned int hm_hw_buttons(void); /* HOME included when hm_hw_home_ours */
 unsigned int hm_hw_now_ms(void);
 int hm_hw_exit_requested(void); /* HOME -> Quit was chosen */
 
-/* "10/18 14:05" in the system's date and time format. */
+/* "10/18 14:05" in the system's date and time format; the same for a file's time (with the year).
+ */
 void hm_hw_clock(char *out, int cap);
+void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap);
+
+/* System Information (HOM-REQ-013): "PSP-3000", "6.61", "ARK-4 4.20.69", "00:1F:...". */
+void hm_hw_model(char *out, int cap);
+void hm_hw_firmware(char *out, int cap);
+void hm_hw_cfw(char *out, int cap);
+void hm_hw_mac(char *out, int cap);
 int hm_hw_battery(int *charging); /* percent or -1 */
 int hm_hw_cross_enter(void);      /* the system's Enter button is X */
 

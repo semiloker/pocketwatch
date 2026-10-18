@@ -51,6 +51,7 @@ UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual refere
 
 - [m7-full-ui](research/m7-full-ui.md): cxmb, themes, and the way to a full UI of our own (2026-10-18)
 - [m7-boot-shell](research/m7-boot-shell.md): how ARK-4 boots the VSH, and starting the PSP in Pocketwatch Home (2026-10-18)
+- [m7-xmb-inventory](research/m7-xmb-inventory.md): every element of the XMB and its place in Pocketwatch Home (2026-10-19)
 
 | Note | Question | Status |
 |---|---|---|

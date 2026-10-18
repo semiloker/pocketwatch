@@ -16,6 +16,10 @@ void hm_gu_finish(void);   /* the list is complete: the GE draws it; the CPU may
 /* Wait for the GE, show the frame at the next vblank. Returns how long the wait for the GE was
    (microseconds; 0 when it had finished during the warm-up). */
 unsigned int hm_gu_end(void);
+/* hm_gu_end in two: the GE done; then the next vblank and the swap (a firmware dialog draws in
+   between). */
+void hm_gu_sync(void);
+void hm_gu_present(void);
 /* Stamps made this frame, kept, and their bytes (home.log). */
 void hm_gu_stats(unsigned int *made, unsigned int *count, unsigned int *bytes);
 

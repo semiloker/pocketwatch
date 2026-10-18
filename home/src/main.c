@@ -17,11 +17,15 @@
 
 #include "gfx/pgf.h"
 #include "gfx/text.h"
+#include "core/config.h"
+#include "dialogs.h"
 #include "gfx_gu.h"
 #include "home_view.h"
+#include "hsettings.h"
 #include "hw.h"
 #include "launch.h"
 #include "library.h"
+#include "states.h"
 #include "stb_sprintf.h"
 #include "texts.h"
 #include "usb.h"
@@ -32,10 +36,11 @@
 
 PSP_MODULE_INFO("PocketwatchHome", PSP_MODULE_USER, 0, 1);
 PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU);
-PSP_HEAP_SIZE_KB(-2048);
+PSP_HEAP_SIZE_KB(-4096); /* 4 MB left to the firmware's dialogs (keyboard, saved data) */
 
 #define FONT_PATH "flash0:/font/ltn0.pgf"
 #define PW_DIR    "ms0:/seplugins/pocketwatch/"
+#define CONTINUE  PW_DIR "continue.txt" /* read by the game plugin (M7 V1) */
 #define XMB_ONCE  PW_DIR "xmb-once"     /* read by the XMB plugin (vsh/src/xboot.c) */
 #define PENDING   PW_DIR "boot-pending" /* the XMB plugin's crash guard: Home did come up */
 #define HOME_LOG  PW_DIR "home.log"     /* the frame rate, every STATS_MS */
@@ -48,8 +53,9 @@ PSP_HEAP_SIZE_KB(-2048);
 static hm_ui g_ui;
 static pw_font g_fonts[3];
 static hm_tile g_tiles[HM_GAMES_MAX];
-static hm_row g_pt_rows[ROWS_MAX], g_sys_rows[16]; /* Play Time, System */
-static char g_pt_vals[ROWS_MAX][48], g_sys_vals[16][48];
+static hm_row g_pt_rows[ROWS_MAX], g_set_rows[32], g_sys_rows[20]; /* Play Time, Settings, System */
+static char g_pt_vals[ROWS_MAX][48], g_set_vals[32][48], g_sys_vals[20][48];
+static char g_model[24], g_firmware[16], g_cfw[32], g_mac[24]; /* read once */
 static unsigned int *g_gradient;
 
 /* ---- fonts: the system's own (flash0), else the built-in 8x8 ---- */
@@ -153,15 +159,16 @@ static int playtime_rows(hm_row *out, char (*vals)[48])
                 most = s;
         }
     duration(vals[rows], 48, total);
-    out[rows++] = (hm_row){pw_tr(PW_S_PT_TOTAL), n ? vals[0] : pw_tr(PW_S_PT_NONE), -1};
+    out[rows++] =
+        (hm_row){pw_tr(PW_S_PT_TOTAL), n ? vals[0] : pw_tr(PW_S_PT_NONE), -1, HM_ROW_INFO};
     for (int i = 0; i < n && rows < ROWS_MAX - 1; i++) {
         hm_game *g = hm_library_game(order[i]);
 
         duration(vals[rows], 48, g->play_s);
-        out[rows] = (hm_row){g->title, vals[rows], (int)(g->play_s * 256ull / most)};
+        out[rows] = (hm_row){g->title, vals[rows], (int)(g->play_s * 256ull / most), HM_ROW_INFO};
         rows++;
     }
-    out[rows++] = (hm_row){pw_tr(PW_S_PT_NOTE), 0, -1};
+    out[rows++] = (hm_row){pw_tr(PW_S_PT_NOTE), 0, -1, HM_ROW_INFO};
     return rows;
 }
 
@@ -173,32 +180,54 @@ static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_ro
     if (pct >= 0)
         stbsp_snprintf(vals[rows], 48, "%d%%   %s", pct,
                        pw_tr(charging ? PW_S_BAT_CHARGING : PW_S_BAT_ON_BATTERY));
-    out[rows] = (hm_row){pw_tr(PW_S_BATTERY), pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA), -1};
+    out[rows] =
+        (hm_row){pw_tr(PW_S_BATTERY), pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA), -1, HM_ROW_INFO};
     rows++;
     if (!charging && left > 0 && left < 24 * 60) {
         char d[32];
 
         duration(d, sizeof(d), (unsigned int)left * 60);
         stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_SYSTEM), d);
-        out[rows] = (hm_row){pw_tr(PW_S_BAT_LEFT), vals[rows], -1};
+        out[rows] = (hm_row){pw_tr(PW_S_BAT_LEFT), vals[rows], -1, HM_ROW_INFO};
         rows++;
     }
     if (hm_library_free_mb() >= 0)
         stbsp_snprintf(vals[rows], 48, "%d MB", hm_library_free_mb());
     else
         stbsp_snprintf(vals[rows], 48, "...");
-    out[rows] = (hm_row){pw_tr(PW_S_HM_FREE), vals[rows], -1};
+    out[rows] = (hm_row){pw_tr(PW_S_HM_FREE), vals[rows], -1, HM_ROW_INFO};
     rows++;
     stbsp_snprintf(vals[rows], 48, "%d", hm_library_count());
-    out[rows] = (hm_row){pw_tr(PW_S_HM_INSTALLED), vals[rows], -1};
+    out[rows] = (hm_row){pw_tr(PW_S_HM_INSTALLED), vals[rows], -1, HM_ROW_INFO};
     rows++;
-    out[rows] = (hm_row){pw_tr(PW_S_HM_VERSION), "Pocketwatch Home " PW_VERSION, -1};
+    hs_nickname(vals[rows], 48);
+    out[rows] = (hm_row){pw_tr(PW_S_HS_NICKNAME), vals[rows], -1, HM_ROW_INFO};
+    rows++;
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_MODEL), g_model, -1, HM_ROW_INFO};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_FIRMWARE), g_firmware, -1, HM_ROW_INFO};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_CFW), g_cfw, -1, HM_ROW_INFO};
+    if (g_mac[0])
+        out[rows++] = (hm_row){pw_tr(PW_S_HM_MAC), g_mac, -1, HM_ROW_INFO};
+    out[rows] = (hm_row){pw_tr(PW_S_HM_VERSION), "Pocketwatch Home " PW_VERSION, -1, HM_ROW_INFO};
     rows++;
     *usb_row = rows;
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_USB), 0, -1};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_USB), 0, -1, HM_ROW_ACTION};
     *exit_row = rows;
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_EXIT), 0, -1};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_EXIT), 0, -1, HM_ROW_ACTION};
     return rows;
+}
+
+/* Settings (HOM-REQ-012): hsettings.c's rows as the card shows them. */
+static int settings_rows(hm_row *out, char (*vals)[48])
+{
+    static const int kinds[3] = {HM_ROW_HEADER, HM_ROW_CHOICE, HM_ROW_ACTION};
+    int n = hs_count() < 32 ? hs_count() : 32;
+
+    for (int i = 0; i < n; i++) {
+        hs_value(i, vals[i], 48);
+        out[i] = (hm_row){hs_label(i), vals[i][0] ? vals[i] : 0, -1, kinds[hs_kind(i)]};
+    }
+    return n;
 }
 
 /* ---- the frame rate (HOM-NFR-001): home.log, so a slow screen shows in numbers ---- */
@@ -267,12 +296,15 @@ static void usb_texts(hm_view *v, int state)
     v->sheet_hint = pw_tr(PW_S_HM_USB_END);
 }
 
-/* ---- the HOME panel (HOM-REQ-010) ---- */
+/* ---- the HOME panel (HOM-REQ-010) and a game's options (HOM-REQ-014, -015) ---- */
 
 enum { PANEL_CLOSE, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_OFF, PANEL_ITEMS };
+enum { SHEET_NONE, SHEET_HOME, SHEET_GAME };
 
-static void panel_texts(hm_view *v)
+static void panel_home(hm_view *v)
 {
+    memset(v->panel_values, 0, sizeof(v->panel_values));
+    memset(v->panel_icons, 0, sizeof(v->panel_icons));
     v->panel_title = "Pocketwatch";
     v->panel_items[PANEL_CLOSE] = pw_tr(PW_S_HM_CLOSE);
     v->panel_items[PANEL_USB] = pw_tr(PW_S_HM_USB);
@@ -280,6 +312,52 @@ static void panel_texts(hm_view *v)
     v->panel_items[PANEL_SLEEP] = pw_tr(PW_S_HM_SLEEP);
     v->panel_items[PANEL_OFF] = pw_tr(PW_S_HM_POWER_OFF);
     v->panel_count = PANEL_ITEMS;
+    v->panel_hint = 0;
+}
+
+static hm_state g_states[HM_STATES_MAX];
+static int g_nstates;
+static char g_state_names[HM_STATES_MAX][40];
+
+/* A game's options: its save states with their pictures (newest first), then Saved Data. */
+static void panel_game(hm_view *v, const hm_game *g)
+{
+    hm_states_free(g_states, g_nstates);
+    g_nstates = hm_states_list(g->id, g_states);
+    memset(v->panel_values, 0, sizeof(v->panel_values));
+    memset(v->panel_icons, 0, sizeof(v->panel_icons));
+    v->panel_title = g->title;
+    for (int i = 0; i < g_nstates; i++) {
+        stbsp_snprintf(g_state_names[i], sizeof(g_state_names[i]), pw_tr(PW_S_SLOT_TITLE),
+                       g_states[i].slot);
+        v->panel_items[i] = g_state_names[i];
+        v->panel_values[i] = g_states[i].when;
+        v->panel_icons[i] = g_states[i].icon;
+    }
+    v->panel_items[g_nstates] = pw_tr(PW_S_HM_SAVED_DATA);
+    v->panel_count = g_nstates + 1;
+    v->panel_hint = 0;
+}
+
+/* Every text the screen holds, again after the language changed. */
+static void texts(hm_view *v, int sheet)
+{
+    v->tab_names[HM_TAB_GAMES] = pw_tr(PW_S_HM_GAMES);
+    v->tab_names[HM_TAB_PLAYTIME] = pw_tr(PW_S_PLAYTIME);
+    v->tab_names[HM_TAB_SETTINGS] = pw_tr(PW_S_SETTINGS);
+    v->tab_names[HM_TAB_SYSTEM] = pw_tr(PW_S_HM_SYSTEM);
+    v->play_label = pw_tr(PW_S_HM_PLAY);
+    v->empty = pw_tr(PW_S_HM_NO_GAMES);
+    v->hint_tabs = pw_tr(PW_S_HM_SECTION);
+    if (sheet == SHEET_HOME)
+        panel_home(v);
+}
+
+/* A firmware dialog over Home: Home's screen as it is, each vblank. */
+static void dialog_frame(void *ctx)
+{
+    hm_draw(hm_gu_begin(), &g_ui, (const hm_view *)ctx);
+    hm_gu_finish();
 }
 
 /* ---- the loop ---- */
@@ -291,8 +369,8 @@ int main(void)
     stats st;
     unsigned int t_prev, t_open, t_fade = 0, t_rows = 0, t_status = 0, t_usb = 0;
     const unsigned int *shown = 0; /* the background drawn last */
-    int launching = -1, exit_row = -1, usb_row = -1, row_sel = 0, up = 0, panel_open = 0, leave = 0,
-        usb = 0, usb_state = HM_USB_OFF;
+    int launching = -1, launch_slot = 0, exit_row = -1, usb_row = -1, row_sel = 0, up = 0,
+        sheet = SHEET_NONE, leave = 0, usb = 0, usb_state = HM_USB_OFF;
     unsigned int enter, back;
     char clock[24] = "";
 
@@ -304,6 +382,11 @@ int main(void)
     enter = g_ui.cross_enter ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
     back = g_ui.cross_enter ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
     hm_texts_load();
+    pw_config_load(PW_DIR "config.txt");
+    hm_hw_model(g_model, sizeof(g_model));
+    hm_hw_firmware(g_firmware, sizeof(g_firmware));
+    hm_hw_cfw(g_cfw, sizeof(g_cfw));
+    hm_hw_mac(g_mac, sizeof(g_mac));
     g_gradient = memalign(64, 512 * HM_H * 4);
     if (g_gradient) {
         hm_make_gradient(g_gradient);
@@ -314,20 +397,15 @@ int main(void)
     build_tiles();
     hm_library_start();
 
-    v.tab_names[HM_TAB_GAMES] = pw_tr(PW_S_HM_GAMES);
-    v.tab_names[HM_TAB_PLAYTIME] = pw_tr(PW_S_PLAYTIME);
-    v.tab_names[HM_TAB_SYSTEM] = pw_tr(PW_S_HM_SYSTEM);
     v.tiles = g_tiles;
     v.count = hm_library_count();
-    v.play_label = pw_tr(PW_S_HM_PLAY);
-    v.empty = pw_tr(PW_S_HM_NO_GAMES);
-    v.hint_tabs = pw_tr(PW_S_HM_SECTION);
     v.clock = clock;
     v.bg = g_gradient;
     v.bg_mix = 256;
     v.other_rows[0] = g_pt_rows;
-    v.other_rows[1] = g_sys_rows;
-    panel_texts(&v);
+    v.other_rows[1] = g_set_rows;
+    v.other_rows[2] = g_sys_rows;
+    texts(&v, sheet);
     shown = g_gradient;
     t_open = t_prev = hm_hw_now_ms();
     memset(&st, 0, sizeof(st));
@@ -337,11 +415,12 @@ int main(void)
         unsigned int now = hm_hw_now_ms(), t_cpu = sceKernelGetSystemTimeLow(), t_warm,
                      ev = pw_keys_update(&keys, hm_hw_buttons(), REPEAT, now * 1000);
         const unsigned int *want;
-        int dt = (int)(now - t_prev), start_usb = 0;
+        int dt = (int)(now - t_prev), start_usb = 0, nickname = 0, saved_data = 0;
+        hm_game *gsel = v.count ? hm_library_game(v.sel) : 0;
         hm_gfx *g;
 
         t_prev = now;
-        /* input: USB, then the HOME panel, over everything */
+        /* input: USB, then the open panel, over everything */
         if (usb) {
             if (ev & (back | PSP_CTRL_HOME)) { /* the card is ours again: read it afresh */
                 hm_usb_stop();
@@ -357,17 +436,19 @@ int main(void)
                 shown = 0; /* the background again for what is now chosen */
             }
         } else if (launching < 0 && (ev & PSP_CTRL_HOME)) {
-            panel_open = !panel_open;
+            sheet = sheet == SHEET_HOME ? SHEET_NONE : SHEET_HOME;
+            if (sheet == SHEET_HOME)
+                panel_home(&v);
             v.panel_sel = 0;
-        } else if (launching < 0 && panel_open) {
+        } else if (launching < 0 && sheet != SHEET_NONE) {
             if (ev & PSP_CTRL_UP)
                 v.panel_sel = v.panel_sel > 0 ? v.panel_sel - 1 : 0;
             else if (ev & PSP_CTRL_DOWN)
-                v.panel_sel = v.panel_sel < PANEL_ITEMS - 1 ? v.panel_sel + 1 : v.panel_sel;
-            else if (ev & back)
-                panel_open = 0;
-            else if (ev & enter) {
-                panel_open = 0;
+                v.panel_sel = v.panel_sel < v.panel_count - 1 ? v.panel_sel + 1 : v.panel_sel;
+            else if (ev & (back | (sheet == SHEET_GAME ? PSP_CTRL_TRIANGLE : 0)))
+                sheet = SHEET_NONE;
+            else if ((ev & enter) && sheet == SHEET_HOME) {
+                sheet = SHEET_NONE;
                 if (v.panel_sel == PANEL_USB)
                     start_usb = 1;
                 else if (v.panel_sel == PANEL_XMB)
@@ -376,15 +457,26 @@ int main(void)
                     scePowerRequestSuspend();
                 else if (v.panel_sel == PANEL_OFF)
                     scePowerRequestStandby();
+            } else if ((ev & enter) && sheet == SHEET_GAME) {
+                sheet = SHEET_NONE;
+                if (v.panel_sel < g_nstates) { /* continue from that state */
+                    launching = v.sel;
+                    launch_slot = g_states[v.panel_sel].slot;
+                    t_fade = now;
+                } else {
+                    saved_data = 1;
+                }
             }
+            v.panel_hint =
+                sheet == SHEET_GAME && v.panel_sel < g_nstates ? pw_tr(PW_S_HM_CONTINUE) : 0;
         } else if (launching < 0) {
             if (ev & PSP_CTRL_LTRIGGER)
                 v.tab = (v.tab + HM_TABS - 1) % HM_TABS;
             else if (ev & PSP_CTRL_RTRIGGER)
                 v.tab = (v.tab + 1) % HM_TABS;
             if (ev & (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER)) {
-                row_sel = 0;
-                v.row_pos = 0;
+                row_sel = v.tab == HM_TAB_SETTINGS ? hs_next(-1, 1) : 0;
+                v.row_pos = row_sel * 256;
             }
             if (v.tab == HM_TAB_GAMES && v.count > 0) {
                 if (ev & PSP_CTRL_LEFT)
@@ -393,9 +485,34 @@ int main(void)
                     v.sel = v.sel < v.count - 1 ? v.sel + 1 : v.sel;
                 else if (ev & enter) {
                     launching = v.sel;
+                    launch_slot = 0;
                     t_fade = now;
+                } else if ((ev & PSP_CTRL_TRIANGLE) && gsel && gsel->kind == HM_KIND_ISO) {
+                    panel_game(&v, gsel);
+                    sheet = SHEET_GAME;
+                    v.panel_sel = 0;
+                    v.panel_pos = 0;
+                    v.panel_hint = g_nstates ? pw_tr(PW_S_HM_CONTINUE) : 0;
                 }
-            } else if (v.tab != HM_TAB_GAMES) {
+            } else if (v.tab == HM_TAB_SETTINGS) {
+                int r;
+
+                if (ev & PSP_CTRL_UP)
+                    row_sel = hs_next(row_sel, -1);
+                else if (ev & PSP_CTRL_DOWN)
+                    row_sel = hs_next(row_sel, 1);
+                else if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) {
+                    r = hs_step(row_sel, ev & PSP_CTRL_LEFT ? -1 : 1);
+                    if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
+                        hm_texts_load();
+                        texts(&v, sheet);
+                        build_tiles();
+                    }
+                    t_rows = 0;
+                } else if ((ev & enter) && hs_action(row_sel) == HS_ACT_NICKNAME) {
+                    nickname = 1;
+                }
+            } else {
                 if (ev & PSP_CTRL_UP)
                     row_sel = row_sel > 0 ? row_sel - 1 : 0;
                 else if (ev & PSP_CTRL_DOWN)
@@ -418,19 +535,41 @@ int main(void)
         }
         if (usb)
             usb_texts(&v, usb_state);
+        /* the firmware's own dialogs, over Home's screen */
+        if (nickname) {
+            char was[64], typed[64];
+
+            hs_nickname(was, sizeof(was));
+            if (hm_dialog_osk(pw_tr(PW_S_HS_NICKNAME), was, typed, sizeof(typed), g_ui.cross_enter,
+                              hm_hw_language(), dialog_frame, &v) == 1)
+                hs_set_nickname(typed);
+            t_rows = 0;
+            t_prev = hm_hw_now_ms();
+            continue;
+        }
+        if (saved_data && gsel) {
+            hm_dialog_savedata(gsel->id, g_ui.cross_enter, hm_hw_language(), dialog_frame, &v);
+            t_prev = hm_hw_now_ms();
+            continue;
+        }
         /* what changes by the second: the clock, the battery, the cards' rows */
         if (t_status == 0 || now - t_status >= 1000) {
             t_status = now;
             hm_hw_clock(clock, sizeof(clock));
             v.battery = hm_hw_battery(&v.charging);
         }
-        if (t_rows == 0 || now - t_rows >= 1000) { /* both, so the other one can be prepared */
+        if (t_rows == 0 || now - t_rows >= 1000) { /* all, so the others can be prepared */
             t_rows = now;
             v.other_nrows[0] = playtime_rows(g_pt_rows, g_pt_vals);
-            v.other_nrows[1] = system_rows(g_sys_rows, g_sys_vals, &usb_row, &exit_row);
+            v.other_nrows[1] = settings_rows(g_set_rows, g_set_vals);
+            v.other_nrows[2] = system_rows(g_sys_rows, g_sys_vals, &usb_row, &exit_row);
         }
-        v.rows = v.tab == HM_TAB_PLAYTIME ? g_pt_rows : g_sys_rows;
-        v.nrows = v.tab == HM_TAB_PLAYTIME ? v.other_nrows[0] : v.other_nrows[1];
+        v.rows = v.tab == HM_TAB_PLAYTIME   ? g_pt_rows
+                 : v.tab == HM_TAB_SETTINGS ? g_set_rows
+                                            : g_sys_rows;
+        v.nrows = v.tab == HM_TAB_PLAYTIME   ? v.other_nrows[0]
+                  : v.tab == HM_TAB_SETTINGS ? v.other_nrows[1]
+                                             : v.other_nrows[2];
         if (row_sel >= v.nrows)
             row_sel = v.nrows > 0 ? v.nrows - 1 : 0;
         v.row_sel = row_sel;
@@ -438,7 +577,7 @@ int main(void)
         v.selpos = pw_ease(v.selpos, v.sel * 256, dt, PW_ANIM_TAU_MS, 6);
         v.tab_pos = pw_ease(v.tab_pos, v.tab * 256, dt, PW_ANIM_TAU_MS, 6);
         v.row_pos = pw_ease(v.row_pos, row_sel * 256, dt, PW_ANIM_TAU_MS, 6);
-        v.panel = pw_ease(v.panel, panel_open ? 256 : 0, dt, PW_ANIM_TAU_MS, 6);
+        v.panel = pw_ease(v.panel, sheet != SHEET_NONE ? 256 : 0, dt, PW_ANIM_TAU_MS, 6);
         v.panel_pos = pw_ease(v.panel_pos, v.panel_sel * 256, dt, PW_ANIM_TAU_MS, 6);
         v.sheet = pw_ease(v.sheet, usb ? 256 : 0, dt, PW_ANIM_TAU_MS, 6);
         hm_library_focus(v.sel);
@@ -456,6 +595,8 @@ int main(void)
         }
         v.bg_mix = v.bg_mix + dt * 256 / MIX_MS > 256 ? 256 : v.bg_mix + dt * 256 / MIX_MS;
         v.hint_enter = v.tab == HM_TAB_GAMES && v.count ? v.play_label : 0;
+        v.hint_options =
+            v.tab == HM_TAB_GAMES && gsel && gsel->kind == HM_KIND_ISO ? pw_tr(PW_S_HM_OPTIONS) : 0;
         v.t_ms = now;
         v.appear =
             launching >= 0 ? 256 - pw_ramp(now, t_fade, FADE_MS) : pw_ramp(now, t_open, FADE_MS);
@@ -480,11 +621,15 @@ int main(void)
             hm_game *gm = hm_library_game(launching);
 
             stats_write(&st, now, "before a game");
+            if (launch_slot > 0 && hm_states_continue(gm->id, launch_slot) < 0)
+                launch_slot = 0; /* continue.txt not written: the game starts plainly */
             if (gm->kind == HM_KIND_ISO)
                 hm_launch(gm->path, hm_library_has(gm->path, "PSP_GAME/SYSDIR/EBOOT.OLD"));
             else
                 hm_launch_eboot(gm->path, gm->kind == HM_KIND_PS1);
-            launching = -1; /* it returned: the start failed; stay */
+            if (launch_slot > 0) /* it returned: the start failed; no state for a later start */
+                hm_hw_remove(CONTINUE);
+            launching = -1;
             t_open = now;
         }
     }

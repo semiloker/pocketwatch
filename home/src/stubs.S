@@ -13,7 +13,10 @@
 	IMPORT_FUNC  "SystemCtrlForUser",0xBC939DC1,sctrlSESetBootConfFileIndex
 	IMPORT_FUNC  "SystemCtrlForUser",0x31C6160D,sctrlSESetDiscType
 	IMPORT_FUNC  "SystemCtrlForUser",0x159AF5CC,sctrlHENFindFunction
+	IMPORT_FUNC  "SystemCtrlForUser",0x1090A2E1,sctrlHENGetVersion
+	IMPORT_FUNC  "SystemCtrlForUser",0x5328B431,sctrlHENGetMinorVersion
 
 	IMPORT_START "KUBridge",0x40090000
 	IMPORT_FUNC  "KUBridge",0x9060F69D,kuKernelCall
 	IMPORT_FUNC  "KUBridge",0x4C25EA72,kuKernelLoadModule
+	IMPORT_FUNC  "KUBridge",0x24331850,kuKernelGetModel

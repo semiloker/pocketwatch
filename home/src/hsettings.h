@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#ifndef HM_HSETTINGS_H
+#define HM_HSETTINGS_H
+
+/*
+ * Home's Settings section (HOM-REQ-012, docs/research/m7-xmb-inventory.md): Pocketwatch's own
+ * settings (config.txt, language.txt - the same files the XMB's page writes), the system's
+ * settings the firmware lets an application read and write (sceUtility system parameters), and
+ * the screen and sound ones the HOME screen itself changes (impose, through KUBridge). Every
+ * write is read back: a setting the firmware refuses shows its real value again.
+ */
+
+enum { HS_HEADER, HS_CHOICE, HS_ACTION };
+enum { HS_ACT_NONE, HS_ACT_NICKNAME };
+
+/* Changed something every text depends on (the language): the caller reloads its strings. */
+#define HS_TEXTS_CHANGED 1
+
+int hs_count(void);
+int hs_kind(int i);
+int hs_action(int i);                     /* HS_ACTION rows */
+const char *hs_label(int i);              /* in the current language */
+void hs_value(int i, char *out, int cap); /* the current value's text ("" for headers) */
+
+/* Left or right on a choice row (dir -1 or 1). Returns HS_TEXTS_CHANGED, 0, or < 0 when the
+   firmware refused the change. */
+int hs_step(int i, int dir);
+
+/* The nickname (UTF-8) as the system has it, and a new one (HS_ACT_NICKNAME). */
+void hs_nickname(char *out, int cap);
+int hs_set_nickname(const char *utf8);
+
+/* The selectable row nearest to i in direction dir (headers are skipped); i itself if none. */
+int hs_next(int i, int dir);
+
+#endif

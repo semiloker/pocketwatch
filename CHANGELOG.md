@@ -7,6 +7,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: a Settings section (Pocketwatch's settings, nickname, system language, date
+  and time formats, time zone, summer time, WLAN power save, brightness, AVLS), System
+  Information (model, firmware, ARK-4, MAC), and Triangle on a game: its save states with
+  pictures - "continue from here" - and its Saved Data (the system's own list).
 - Pocketwatch Home keeps its backgrounds in video memory: the GE no longer spends most of a
   frame reading them (45-49 fps measured before); opening System no longer freezes it for seconds.
 - USB Connection in Pocketwatch Home (HOME panel or System): one press; it reconnects by itself

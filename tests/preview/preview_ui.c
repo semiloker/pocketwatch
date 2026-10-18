@@ -192,16 +192,16 @@ static void home_previews(void)
         {"Untitled image", NULL, NULL},
     };
     hm_row playtime[] = {
-        {"Total", "17 h 17 min", -1},
-        {"Castlevania: The Dracula X Chronicles", "12 h 30 min", 256},
-        {"Persona", "4 h 12 min", 86},
-        {"The 3rd Birthday", "35 min", 12},
-        {"Counted only while Pocketwatch runs", NULL, -1},
+        {"Total", "17 h 17 min", -1, 0},
+        {"Castlevania: The Dracula X Chronicles", "12 h 30 min", 256, 0},
+        {"Persona", "4 h 12 min", 86, 0},
+        {"The 3rd Birthday", "35 min", 12, 0},
+        {"Counted only while Pocketwatch runs", NULL, -1, 0},
     };
     hm_row system[] = {
-        {"Battery", "83%   On battery", -1},     {"Time left", "5 h 37 min (system)", -1},
-        {"Free space", "2310 MB", -1},           {"Games on the card", "22", -1},
-        {"Version", "Pocketwatch Home dev", -1}, {"Exit to the XMB", NULL, -1},
+        {"Battery", "83%   On battery", -1, 0},     {"Time left", "5 h 37 min (system)", -1, 0},
+        {"Free space", "2310 MB", -1, 0},           {"Games on the card", "22", -1, 0},
+        {"Version", "Pocketwatch Home dev", -1, 0}, {"Exit to the XMB", NULL, -1, 0},
     };
     hm_view v;
     pw_canvas c = {g_px, W, H, STRIDE};
@@ -227,6 +227,7 @@ static void home_previews(void)
     memset(&v, 0, sizeof(v));
     v.tab_names[HM_TAB_GAMES] = "Games";
     v.tab_names[HM_TAB_PLAYTIME] = "Play Time";
+    v.tab_names[HM_TAB_SETTINGS] = "Settings";
     v.tab_names[HM_TAB_SYSTEM] = "System";
     v.clock = "10/18 14:05";
     v.battery = 83;
@@ -261,13 +262,35 @@ static void home_previews(void)
     hm_draw(&g.ops, &ui, &v);
     save("home-playtime");
     v.tab = HM_TAB_SYSTEM;
-    v.tab_pos = 512;
+    v.tab_pos = 3 * 256;
     v.rows = system;
     v.nrows = 6;
     v.row_sel = 5;
     v.row_pos = 5 * 256;
     hm_draw(&g.ops, &ui, &v);
     save("home-system");
+    { /* Settings: groups, choices, an action */
+        hm_row set[] = {
+            {"Pocketwatch", 0, -1, HM_ROW_HEADER},
+            {"Start screen", "Pocketwatch Home", -1, HM_ROW_CHOICE},
+            {"Style", "Modern", -1, HM_ROW_CHOICE},
+            {"Fast Save and Load", "On", -1, HM_ROW_CHOICE},
+            {"Clock and Battery", "On", -1, HM_ROW_CHOICE},
+            {"Language", "System Language", -1, HM_ROW_CHOICE},
+            {"System", 0, -1, HM_ROW_HEADER},
+            {"Nickname", "Pocketwatch", -1, HM_ROW_ACTION},
+            {"Time Zone", "GMT+02:00", -1, HM_ROW_CHOICE},
+        };
+
+        v.tab = HM_TAB_SETTINGS;
+        v.tab_pos = 2 * 256;
+        v.rows = set;
+        v.nrows = 9;
+        v.row_sel = 1;
+        v.row_pos = 256;
+        hm_draw(&g.ops, &ui, &v);
+        save("home-settings");
+    }
     v.tab = HM_TAB_GAMES;
     v.count = 0;
     v.tab_pos = 0;
@@ -286,6 +309,26 @@ static void home_previews(void)
     v.panel_pos = 256;
     hm_draw(&g.ops, &ui, &v);
     save("home-panel");
+    /* Triangle on a game: its save states with their pictures, then Saved Data */
+    v.panel_title = "Castlevania: The Dracula X Chronicles";
+    v.panel_items[0] = "Save State 2";
+    v.panel_values[0] = "2026/10/18 14:05";
+    v.panel_icons[0] = icons[0];
+    v.panel_items[1] = "Save State 1";
+    v.panel_values[1] = "2026/10/17 21:40";
+    v.panel_icons[1] = icons[1];
+    v.panel_items[2] = "Saved Data";
+    v.panel_values[2] = 0;
+    v.panel_icons[2] = 0;
+    v.panel_count = 3;
+    v.panel_sel = 0;
+    v.panel_pos = 0;
+    v.panel_hint = "Continue";
+    hm_draw(&g.ops, &ui, &v);
+    save("home-game-options");
+    v.panel_hint = 0;
+    memset(v.panel_values, 0, sizeof(v.panel_values));
+    memset(v.panel_icons, 0, sizeof(v.panel_icons));
     v.panel = 0; /* USB, connecting */
     v.sheet = 256;
     v.sheet_busy = 1;

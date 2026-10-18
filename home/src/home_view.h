@@ -18,9 +18,13 @@
 #define HM_ICON_W 144
 #define HM_ICON_H 80
 
-enum { HM_TAB_GAMES, HM_TAB_PLAYTIME, HM_TAB_SYSTEM, HM_TABS };
+enum { HM_TAB_GAMES, HM_TAB_PLAYTIME, HM_TAB_SETTINGS, HM_TAB_SYSTEM, HM_TABS };
 
-#define HM_PANEL_MAX 6
+#define HM_PANEL_MAX 8
+
+/* A card row's kind: a reading, a choice (left / right change it), an action (Enter), the name
+   of a group of rows (not selectable). */
+enum { HM_ROW_INFO, HM_ROW_CHOICE, HM_ROW_ACTION, HM_ROW_HEADER };
 
 typedef struct {
     pw_font *title, *body, *big;
@@ -35,7 +39,8 @@ typedef struct {
 
 typedef struct {
     const char *label, *value;
-    int bar; /* 0-256: a bar under the row (Play Time), -1: none */
+    int bar;  /* 0-256: a bar under the row (Play Time), -1: none */
+    int kind; /* HM_ROW_* (0: a reading) */
 } hm_row;
 
 typedef struct {
@@ -57,6 +62,7 @@ typedef struct {
     int nrows, row_sel, row_pos;
 
     const char *hint_enter, *hint_tabs; /* the bottom hints ("Play", "Section") */
+    const char *hint_options;           /* Triangle: a game's options, or NULL */
     unsigned int t_ms;
     int appear; /* 0-256: the screen fading in, or out before a game starts */
 
@@ -64,15 +70,18 @@ typedef struct {
     int panel, panel_sel, panel_pos;
     const char *panel_title;
     const char *panel_items[HM_PANEL_MAX];
+    const char *panel_values[HM_PANEL_MAX];        /* right-aligned, or NULL */
+    const unsigned int *panel_icons[HM_PANEL_MAX]; /* HM_ICON_W x HM_ICON_H pictures, or NULL */
     int panel_count;
+    const char *panel_hint; /* bottom right, or NULL */
 
     /* A message card over everything while sheet > 0 (USB, HOM-REQ-011) */
     int sheet, sheet_busy; /* busy: three dots pulse (t_ms) */
     const char *sheet_title, *sheet_text, *sheet_hint;
 
     /* For hm_prefetch: the other cards' rows, drawn when their section opens */
-    const hm_row *other_rows[2];
-    int other_nrows[2];
+    const hm_row *other_rows[3];
+    int other_nrows[3];
 } hm_view;
 
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v);

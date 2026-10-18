@@ -35,6 +35,7 @@ static hm_gfx g_ops;
 static unsigned int g_warm_us;                         /* spent making stamps ahead this frame */
 static const unsigned int *volatile g_bg_of[BG_SLOTS]; /* the 8888 picture each VRAM slot holds */
 static unsigned int g_made; /* stamps made this frame (needed now or ahead) */
+static void *g_draw;        /* the VRAM frame drawn into next (relative) */
 
 /* ---- vertices (texture, colour, position: the GE's order) ---- */
 
@@ -542,6 +543,29 @@ int hm_gu_init(void)
     return 0;
 }
 
+/* Everything this backend relies on; again at every frame, since the firmware's dialogs (OSK,
+   savedata) draw with the same GE between our frames. */
+static void state(void)
+{
+    sceGuDrawBuffer(GU_PSM_8888, g_draw, BUF_W);
+    sceGuOffset(2048 - SCR_W / 2, 2048 - SCR_H / 2);
+    sceGuViewport(2048, 2048, SCR_W, SCR_H);
+    sceGuScissor(0, 0, SCR_W, SCR_H);
+    sceGuEnable(GU_SCISSOR_TEST);
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGuDisable(GU_CULL_FACE);
+    sceGuDisable(GU_ALPHA_TEST);
+    sceGuShadeModel(GU_FLAT);
+    sceGuEnable(GU_BLEND);
+    sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+    sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
+    sceGuTexWrap(GU_CLAMP, GU_CLAMP);
+    sceGuTexOffset(0, 0);
+    sceGuTexScale(1, 1);
+    sceGuClutMode(GU_PSM_8888, 0, 0xFF, 0);
+    sceGuClutLoad(256 / 8, g_clut);
+}
+
 hm_gfx *hm_gu_begin(void)
 {
     g_frame++;
@@ -549,8 +573,7 @@ hm_gfx *hm_gu_begin(void)
     g_warm_us = 0;
     g_made = 0;
     sceGuStart(GU_DIRECT, g_list);
-    sceGuClutMode(GU_PSM_8888, 0, 0xFF, 0);
-    sceGuClutLoad(256 / 8, g_clut);
+    state();
     return &g_ops;
 }
 
@@ -561,14 +584,23 @@ void hm_gu_finish(void)
 
 unsigned int hm_gu_end(void)
 {
-    unsigned int t0, t1;
+    unsigned int t0 = sceKernelGetSystemTimeLow(), t1;
 
-    t0 = sceKernelGetSystemTimeLow();
-    sceGuSync(0, 0);
+    hm_gu_sync();
     t1 = sceKernelGetSystemTimeLow();
-    sceDisplayWaitVblankStart();
-    sceGuSwapBuffers();
+    hm_gu_present();
     return t1 - t0;
+}
+
+void hm_gu_sync(void)
+{
+    sceGuSync(0, 0);
+}
+
+void hm_gu_present(void)
+{
+    sceDisplayWaitVblankStart();
+    g_draw = sceGuSwapBuffers();
 }
 
 void hm_gu_stats(unsigned int *made, unsigned int *count, unsigned int *bytes)

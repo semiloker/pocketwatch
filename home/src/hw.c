@@ -13,12 +13,17 @@
 #include "hw.h"
 #include "stb_sprintf.h"
 
+#include <pspwlan.h>
+
 /* ARK-4 (src/stubs.S): find a kernel function, and run it for this user program. */
 unsigned int sctrlHENFindFunction(const char *module, const char *library, unsigned int nid);
 struct hm_kcall {
     unsigned int arg[12], ret1, ret2;
 };
 int kuKernelCall(void *func, struct hm_kcall *args);
+int kuKernelGetModel(void);
+int sctrlHENGetVersion(void);
+int sctrlHENGetMinorVersion(void);
 
 /* Pre-6.x NIDs, translated by sctrlHENFindFunction with ARK-4's table (the game plugin imports
    the same: plugin/src/core/stubs/sceImpose_driver.S; ARK-4's exitgame.c the peek). */
@@ -107,27 +112,41 @@ int hm_hw_exit_requested(void)
     return g_exit;
 }
 
+static void format(const ScePspDateTime *t, int year, char *out, int cap)
+{
+    int datef = 0, timef = 0;
+    char tm[16], dt[16];
+
+    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT, &datef);
+    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT, &timef);
+    if (timef == PSP_SYSTEMPARAM_TIME_FORMAT_12HR)
+        stbsp_snprintf(tm, sizeof(tm), "%d:%02d %s", t->hour % 12 ? t->hour % 12 : 12, t->minute,
+                       t->hour < 12 ? "AM" : "PM");
+    else
+        stbsp_snprintf(tm, sizeof(tm), "%d:%02d", t->hour, t->minute);
+    if (datef == PSP_SYSTEMPARAM_DATE_FORMAT_DDMMYYYY)
+        stbsp_snprintf(dt, sizeof(dt), year ? "%d/%d/%d" : "%d/%d", t->day, t->month, t->year);
+    else if (datef == PSP_SYSTEMPARAM_DATE_FORMAT_YYYYMMDD && year)
+        stbsp_snprintf(dt, sizeof(dt), "%d/%d/%d", t->year, t->month, t->day);
+    else
+        stbsp_snprintf(dt, sizeof(dt), year ? "%d/%d/%d" : "%d/%d", t->month, t->day, t->year);
+    stbsp_snprintf(out, cap, "%s %s", dt, tm);
+}
+
 void hm_hw_clock(char *out, int cap)
 {
     ScePspDateTime t;
-    int datef = 0, timef = 0;
-    char tm[16];
 
     if (sceRtcGetCurrentClockLocalTime(&t) < 0) {
         stbsp_snprintf(out, cap, "--:--");
         return;
     }
-    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT, &datef);
-    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT, &timef);
-    if (timef == PSP_SYSTEMPARAM_TIME_FORMAT_12HR)
-        stbsp_snprintf(tm, sizeof(tm), "%d:%02d %s", t.hour % 12 ? t.hour % 12 : 12, t.minute,
-                       t.hour < 12 ? "AM" : "PM");
-    else
-        stbsp_snprintf(tm, sizeof(tm), "%d:%02d", t.hour, t.minute);
-    if (datef == PSP_SYSTEMPARAM_DATE_FORMAT_DDMMYYYY)
-        stbsp_snprintf(out, cap, "%d/%d %s", t.day, t.month, tm);
-    else
-        stbsp_snprintf(out, cap, "%d/%d %s", t.month, t.day, tm);
+    format(&t, 0, out, cap);
+}
+
+void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap)
+{
+    format(t, 1, out, cap);
 }
 
 int hm_hw_battery(int *charging)
@@ -197,4 +216,38 @@ void hm_hw_touch(const char *path)
 void hm_hw_remove(const char *path)
 {
     sceIoRemove(path);
+}
+
+void hm_hw_model(char *out, int cap)
+{
+    /* kuKernelGetModel: 0 PSP-1000, 1 PSP-2000, 2/3/6/8 PSP-3000 boards, 4 PSP Go, 10 E1000 */
+    static const char *const names[11] = {"PSP-1000", "PSP-2000", "PSP-3000",  "PSP-3000",
+                                          "PSP Go",   "PSP",      "PSP-3000",  "PSP-3000",
+                                          "PSP-3000", "PSP-3000", "PSP Street"};
+    int m = kuKernelGetModel();
+
+    stbsp_snprintf(out, cap, "%s", m >= 0 && m < 11 ? names[m] : "PSP");
+}
+
+void hm_hw_firmware(char *out, int cap)
+{
+    unsigned int v = (unsigned int)sceKernelDevkitVersion(); /* 0x06060110: 6.61 */
+
+    stbsp_snprintf(out, cap, "%u.%u%u", v >> 24, (v >> 16) & 0xFF, (v >> 8) & 0xFF);
+}
+
+void hm_hw_cfw(char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "ARK-4 4.%d.%d", sctrlHENGetVersion(), sctrlHENGetMinorVersion());
+}
+
+void hm_hw_mac(char *out, int cap)
+{
+    unsigned char m[8];
+
+    if (sceWlanGetEtherAddr(m) < 0) {
+        out[0] = 0;
+        return;
+    }
+    stbsp_snprintf(out, cap, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
 }

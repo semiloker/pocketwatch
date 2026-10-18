@@ -22,7 +22,7 @@
 #define META_Y    196
 #define PLAY_Y    210
 #define CARD_X    40
-#define CARD_Y    54
+#define CARD_Y    44 /* the card ends above the hints (7 rows) */
 #define CARD_W    400
 #define ROW_H     28
 #define SHOW      7
@@ -106,10 +106,19 @@ static void tabs(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a, int limit)
     from = clampi(v->tab_pos / 256, 0, HM_TABS - 1);
     to = clampi(from + 1, 0, HM_TABS - 1);
     f = v->tab_pos - from * 256;
+    /* Still too wide: the strip slides so the chosen one stays in view; names past the edges
+       are left out. */
+    if (x[HM_TABS] > limit) {
+        int want = lerp(x[from] + w[from], x[to] + w[to], f) + 8 - limit,
+            shift = want > 0 ? want : 0;
+
+        for (int i = 0; i <= HM_TABS; i++)
+            x[i] -= shift;
+    }
     rrect(g, lerp(x[from], x[to], f) - 6, 10, lerp(w[from], w[to], f) + 12, 24, 12, C_TEXT,
           a * 40 / 256);
     for (int i = 0; i < HM_TABS; i++)
-        if (v->tab_names[i])
+        if (v->tab_names[i] && x[i] >= 4 && x[i] + w[i] <= limit + 4)
             text(g, font, x[i], 28, v->tab_names[i], i == v->tab ? C_TEXT : C_SUB,
                  a * (i == v->tab ? 256 : 170) / 256);
 }
@@ -188,6 +197,18 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
         button_pill(g, ui, SEL_X, PLAY_Y, v->play_label, a);
 }
 
+/* A small arrow (dir 1 right, -1 left) centred at x, y: two strokes of a rounded line. */
+static void chevron(hm_gfx *g, int x, int y, int dir, int a)
+{
+    for (int k = 0; k < 4; k++) {
+        int dx = dir > 0 ? k - 2 : 2 - k;
+
+        g->fill(g, x + dx, y - 4 + k, 2, 1, C_SUB, a);
+        g->fill(g, x + dx, y + 4 - k, 2, 1, C_SUB, a);
+    }
+    g->fill(g, x + (dir > 0 ? 2 : -2), y, 2, 1, C_SUB, a);
+}
+
 static void card(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
 {
     int show = v->nrows < SHOW ? v->nrows : SHOW;
@@ -203,13 +224,29 @@ static void card(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
 
         if (y < CARD_Y - ROW_H / 2 || y > CARD_Y + (show - 1) * ROW_H + ROW_H / 2)
             continue;
+        if (r->kind == HM_ROW_HEADER) { /* a group's name, in the accent colour */
+            g->text(g, ui->body, CARD_X + 18, y + 20, r->label ? r->label : "", CARD_W - 36, C_ON,
+                    a);
+            g->fill(g, CARD_X + 18, y + ROW_H - 3, CARD_W - 36, 1, C_KNOB, a);
+            continue;
+        }
         if (i == v->row_sel)
             rrect(g, CARD_X + 6, y + 2, CARD_W - 12, ROW_H - 4, 9, C_TEXT, a * 34 / 256);
         g->text(g, ui->body, CARD_X + 18, y + 18, r->label ? r->label : "",
                 r->value ? CARD_W * 3 / 5 - 18 : CARD_W - 36,
                 i == v->row_sel ? C_TEXT : PW_RGB(222, 225, 232), a);
-        if (r->value)
+        if (r->value && r->kind == HM_ROW_CHOICE && i == v->row_sel) {
+            /* the value between the ways to change it */
+            int x1 = CARD_X + CARD_W - 18, tw = pw_text_width(ui->body, r->value);
+
+            text_right(g, ui->body, x1 - 14, y + 18, r->value, C_TEXT, a);
+            chevron(g, x1 - 6, y + 14, 1, a);
+            chevron(g, x1 - 22 - tw, y + 14, -1, a);
+        } else if (r->value) {
             text_right(g, ui->body, CARD_X + CARD_W - 18, y + 18, r->value, C_SUB, a);
+        } else if (r->kind == HM_ROW_ACTION) {
+            chevron(g, CARD_X + CARD_W - 22, y + 14, 1, a);
+        }
         if (r->bar >= 0) {
             int bw = CARD_W - 36;
 
@@ -234,25 +271,56 @@ static void hints(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
         x -= pw_text_width(ui->body, v->hint_enter);
         text(g, ui->body, x, 264, v->hint_enter, C_SUB, a);
         g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x - 9, 260, 12, C_SUB, a);
+        x -= 26;
+    }
+    if (v->hint_options) {
+        x -= pw_text_width(ui->body, v->hint_options);
+        text(g, ui->body, x, 264, v->hint_options, C_SUB, a);
+        g->button(g, PW_BTN_TRIANGLE, x - 9, 260, 12, C_SUB, a);
     }
 }
 
 /* The HOME panel: the screen dims, a card rises a little as it fades in. */
 static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
-    int p = clampi(v->panel, 0, 256), n = v->panel_count, h = 40 + n * ROW_H + 8,
-        y0 = (HM_H - h) / 2 + (256 - p) * 12 / 256, x0 = (HM_W - 260) / 2;
+    int pics = 0, wide = 0;
 
-    g->fill(g, 0, 0, HM_W, HM_H, PW_RGB(0, 0, 0), p * 150 / 256);
-    rrect(g, x0, y0, 260, h, 16, C_CARD, p * 240 / 256);
-    if (v->panel_title)
-        text(g, ui->title, x0 + 20, y0 + 26, v->panel_title, C_SUB, p);
-    g->rrect(g, x0 + 8, y0 + 38 + v->panel_pos * ROW_H / 256, 244, ROW_H - 4, 9, 0, C_TEXT,
-             p * 40 / 256);
-    for (int i = 0; i < n; i++)
-        if (v->panel_items[i])
-            text(g, ui->body, x0 + 20, y0 + 38 + i * ROW_H + 17, v->panel_items[i],
-                 i == v->panel_sel ? C_TEXT : PW_RGB(222, 225, 232), p);
+    for (int i = 0; i < v->panel_count; i++) {
+        pics |= v->panel_icons[i] != 0;
+        wide |= v->panel_values[i] != 0;
+    }
+    {
+        int p = clampi(v->panel, 0, 256), n = v->panel_count, rh = pics ? 44 : ROW_H,
+            w = pics || wide ? 400 : 260, hint = v->panel_hint ? 22 : 0, h = 40 + n * rh + 8 + hint,
+            y0 = (HM_H - h) / 2 + (256 - p) * 12 / 256, x0 = (HM_W - w) / 2,
+            tx = x0 + (pics ? 96 : 20);
+
+        g->fill(g, 0, 0, HM_W, HM_H, PW_RGB(0, 0, 0), p * 150 / 256);
+        rrect(g, x0, y0, w, h, 16, C_CARD, p * 240 / 256);
+        if (v->panel_title)
+            g->text(g, ui->title, x0 + 20, y0 + 26, v->panel_title, w - 40, C_SUB, p);
+        g->rrect(g, x0 + 8, y0 + 38 + v->panel_pos * rh / 256, w - 16, rh - 4, 9, 0, C_TEXT,
+                 p * 40 / 256);
+        for (int i = 0; i < n; i++) {
+            int y = y0 + 38 + i * rh, base = y + rh / 2 + 4;
+
+            if (v->panel_icons[i])
+                g->image(g, v->panel_icons[i], HM_ICON_W, HM_ICON_H, HM_ICON_W, x0 + 18, y + 4, 64,
+                         36, p);
+            if (v->panel_items[i])
+                g->text(g, ui->body, tx, base, v->panel_items[i], v->panel_values[i] ? 150 : w - 40,
+                        i == v->panel_sel ? C_TEXT : PW_RGB(222, 225, 232), p);
+            if (v->panel_values[i])
+                text_right(g, ui->body, x0 + w - 20, base, v->panel_values[i], C_SUB, p);
+        }
+        if (v->panel_hint) {
+            int tw = pw_text_width(ui->body, v->panel_hint);
+
+            text(g, ui->body, x0 + w - 20 - tw, y0 + h - 12, v->panel_hint, C_SUB, p);
+            g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x0 + w - 32 - tw,
+                      y0 + h - 16, 12, C_SUB, p);
+        }
+    }
 }
 
 /* A message card: the screen dims, the card holds a title, a line and the way out. */
@@ -301,7 +369,7 @@ void hm_prefetch(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                 return; /* out of time this frame */
         }
     /* the other sections' rows, as card() draws them */
-    for (int k = 0; k < 2; k++)
+    for (int k = 0; k < 3; k++)
         for (int i = 0; i < v->other_nrows[k] && v->other_rows[k]; i++) {
             const hm_row *r = &v->other_rows[k][i];
 

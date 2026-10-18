@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#ifndef HM_DIALOGS_H
+#define HM_DIALOGS_H
+
+/*
+ * The firmware's own dialogs inside Home (docs/research/m7-xmb-inventory.md): the on-screen
+ * keyboard (the nickname) and the Saved Data list of one game (the XMB's own screens, drawn by the
+ * firmware over Home's frame). While one is open, frame() draws Home's last screen each vblank;
+ * the dialog is drawn over it after the GE has finished.
+ */
+
+typedef void (*hm_frame_fn)(void *ctx); /* hm_gu_begin .. hm_gu_finish, no hm_gu_end */
+
+/* The keyboard: the text typed (UTF-8) into out; 1 when the user confirmed, 0 when cancelled,
+   < 0 on an error. title and initial are UTF-8. */
+int hm_dialog_osk(const char *title, const char *initial, char *out, int cap, int cross_enter,
+                  int language, hm_frame_fn frame, void *ctx);
+
+/* The game's saved data (folders that start with its disc ID), with the firmware's details and
+   delete. Returns 0 when the dialog ran. */
+int hm_dialog_savedata(const char *disc_id, int cross_enter, int language, hm_frame_fn frame,
+                       void *ctx);
+
+#endif

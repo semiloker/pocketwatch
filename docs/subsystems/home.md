@@ -15,8 +15,10 @@
   ICON0 and PIC1) with three sections - Games, Play Time, System - in the Modern style.
 - **Since ADR-026:** the PSP can start in Home instead of the XMB (XMB → Settings → Pocketwatch
   → Start screen), and Home also lists the homebrew and PS1 games of `PSP/GAME`.
-- **Target state:** Classic and Minimal styles too; UMD and PSN games; USB in Home; a game's save
-  states and Continue from a state in Home.
+- **Since 2026-10-19:** USB, Settings (Pocketwatch's and the system's), System Information, a
+  game's states (Continue) and its Saved Data in Home - every element of the XMB is accounted
+  for in [m7-xmb-inventory](../research/m7-xmb-inventory.md).
+- **Target state:** Classic and Minimal styles too; photos and music; PSN games.
 
 ## B. Requirements
 
@@ -32,6 +34,14 @@
 | `HOM-REQ-008` | Home lists every `ms0:/PSP/GAME/<folder>/EBOOT.PBP` that is homebrew (CATEGORY `MG`) or a PS1 game (`ME`) with its own icon (kept in shape) and PIC1, after the PSP games, and starts it as ARK-4's menu does (apitype 0x141 / 0x144). | P1 | Implemented; reader VERIFIED on the owner's 9 EBOOTs on the PC; starting: HM7 pending | `disc_finds_the_parts_of_an_eboot_pbp`, HM7 |
 | `HOM-REQ-009` | Exit to the XMB and HOME → Quit in Home lead to the XMB even when Home is the start screen (marker `xmb-once`); after its first frame Home clears the start guard (`boot-pending`). | P1 | Implemented; HM6, HM8 pending | HM6, HM8 |
 | `HOM-REQ-011` | USB Connection in Home (HOME panel and System): the storage drivers loaded once, the connection made at once and made again by itself when a cable is in but the computer has not taken the card after 3 s (no second press); the card is the computer's meanwhile (no file I/O by Home); afterwards the library is read again. | P1 | Implemented 2026-10-19; host test `usb_*`, checked in PPSSPP (its USB is simulated); HM12 pending | `usb_*`, HM12 |
+| `HOM-REQ-012` | Settings section: Pocketwatch's settings (start screen, in-game style, fast save and load, clock and battery, language - `config.txt` / `language.txt`, as the XMB page) and the system's: nickname (the firmware keyboard), system language, date and time format, time zone, summer time, WLAN power save (`sceUtilitySetSystemParam*`), backlight brightness and AVLS (impose through KUBridge). Left / right change a value; every write is read back. | P1 | Implemented 2026-10-19; checked in PPSSPP (values read, the keyboard opens); HM13 pending | preview `home-settings.png`, HM13 |
+| `HOM-REQ-013` | System section: battery, time left, free space, games, nickname, model, system software, ARK-4's version, MAC address, Pocketwatch's version, USB, Exit to the XMB. | P1 | Implemented 2026-10-19; HM13 pending | HM13 |
+| `HOM-REQ-014` | Triangle on a game image → Saved Data: the firmware's own saved-data list of that game (folders that start with its disc ID), with details and delete. | P1 | Implemented 2026-10-19; HM14 pending | HM14 |
+| `HOM-REQ-015` | Triangle on a game image: its save states (PW<disc ID><slot>) with their pictures and times, newest first; Enter continues the game from that state (continue.txt, M7 V1). | P1 | Implemented 2026-10-19; HM15 pending | preview `home-game-options.png`, HM15 |
+| `HOM-REQ-016` | Photos: the pictures of `PICTURE/` and `DCIM/` with thumbnails, full screen, a slideshow ([m7-xmb-inventory](../research/m7-xmb-inventory.md)). | P2 | Planned | - |
+| `HOM-REQ-017` | Network: the system's browser (HTML viewer) and connecting to an access point (netconf). | P3 | Planned | - |
+| `HOM-REQ-018` | Music: the MP3s of `MUSIC/`, playing on while Home is browsed (`sceMp3`). | P2 | Planned | - |
+| `HOM-REQ-019` | Sounds: Home's own key and move sounds. | P3 | Planned | - |
 | `HOM-REQ-010` | HOME in Home opens Home's own panel (Close, Exit to the XMB, Sleep, Turn Off), never the system's quit dialog; HOME or Back closes it. | P1 | Implemented 2026-10-18 (ADR-028); HM11 pending | preview `home-panel.png`, HM11 |
 | `HOM-NFR-001` | 60 frames a second on the PSP (drawn by the GE, ADR-028), no late frame when moving (stamps made ahead, ADR-029), motion by time (`ui/anim.h`); texts in the user's language; the frame rate and late frames in `home.log`. | P1 | Device, build `5811f00`: 45-49 fps, GE 11-13 ms a frame, one 2.7 s frame ([log](../research/logs/2026-10-19-home-fps-ge1.log)); fixed by ADR-029/030 (8-bit stamps, backgrounds in VRAM, free space off the loop); 60/60 in PPSSPP; HM10 again pending | `home.log`, HM10 |
 
