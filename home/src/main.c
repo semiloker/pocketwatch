@@ -356,7 +356,9 @@ static void usb_texts(hm_view *v, int state)
 /* ---- the HOME panel (HOM-REQ-010) and a game's options (HOM-REQ-014, -015) ---- */
 
 enum { PANEL_CLOSE, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_OFF, PANEL_ITEMS };
-enum { SHEET_NONE, SHEET_HOME, SHEET_GAME };
+enum { SHEET_NONE, SHEET_HOME, SHEET_GAME, SHEET_INFO };
+
+#define SLIDESHOW_MS 5000
 
 static void panel_home(hm_view *v)
 {
@@ -380,7 +382,7 @@ static char g_state_names[HM_STATES_MAX][40];
 static void panel_game(hm_view *v, const hm_game *g)
 {
     hm_states_free(g_states, g_nstates);
-    g_nstates = hm_states_list(g->id, g_states);
+    g_nstates = g->kind <= HM_KIND_PSN && g->id[0] ? hm_states_list(g->id, g_states) : 0;
     memset(v->panel_values, 0, sizeof(v->panel_values));
     memset(v->panel_icons, 0, sizeof(v->panel_icons));
     v->panel_title = g->title;
@@ -391,9 +393,61 @@ static void panel_game(hm_view *v, const hm_game *g)
         v->panel_values[i] = g_states[i].when;
         v->panel_icons[i] = g_states[i].icon;
     }
-    v->panel_items[g_nstates] = pw_tr(PW_S_HM_SAVED_DATA);
-    v->panel_count = g_nstates + 1;
+    v->panel_count = g_nstates;
+    if (g->kind <= HM_KIND_PSN && g->id[0]) /* PSP games keep their saves under their disc ID */
+        v->panel_items[v->panel_count++] = pw_tr(PW_S_HM_SAVED_DATA);
+    v->panel_items[v->panel_count++] = pw_tr(PW_S_HM_INFORMATION);
     v->panel_hint = 0;
+}
+
+/* A game's Information: what the XMB's Triangle -> Information shows, and its file. */
+static char g_info_vals[2][32];
+static void panel_info(hm_view *v, const hm_game *g)
+{
+    const char *slash = strrchr(g->path, '/');
+    int n = 0;
+
+    memset(v->panel_values, 0, sizeof(v->panel_values));
+    memset(v->panel_icons, 0, sizeof(v->panel_icons));
+    v->panel_title = g->title;
+    if (g->id[0]) {
+        v->panel_items[n] = pw_tr(PW_S_HM_DISC_ID);
+        v->panel_values[n++] = g->id;
+    }
+    if (g->version[0]) {
+        v->panel_items[n] = pw_tr(PW_S_HM_VERSION);
+        v->panel_values[n++] = g->version;
+    }
+    if (g->sysver[0]) {
+        v->panel_items[n] = pw_tr(PW_S_HM_FIRMWARE);
+        v->panel_values[n++] = g->sysver;
+    }
+    if (g->size_kb >= 1024)
+        stbsp_snprintf(g_info_vals[0], sizeof(g_info_vals[0]), "%u MB", (g->size_kb + 512) / 1024);
+    else
+        stbsp_snprintf(g_info_vals[0], sizeof(g_info_vals[0]), "%u KB", g->size_kb);
+    v->panel_items[n] = pw_tr(PW_S_HM_SIZE);
+    v->panel_values[n++] = g_info_vals[0];
+    if (g->play_s >= 60) {
+        duration(g_info_vals[1], sizeof(g_info_vals[1]), g->play_s);
+        v->panel_items[n] = pw_tr(PW_S_PLAYTIME);
+        v->panel_values[n++] = g_info_vals[1];
+    }
+    v->panel_items[n] = pw_tr(PW_S_HM_FILE);
+    v->panel_values[n++] = slash ? slash + 1 : g->path;
+    v->panel_count = n;
+    v->panel_hint = 0;
+}
+
+/* Home's background without a game's art: the wallpaper (hsettings.c), or the slate gradient. */
+static void make_default_background(void)
+{
+    if (!g_gradient)
+        return;
+    if (hs_wallpaper_load(g_gradient) < 0)
+        hm_make_gradient(g_gradient);
+    hm_gu_written(g_gradient, 512 * HM_H * 4);
+    hm_gu_upload_bg(2, g_gradient); /* slots 0-1: the loader's backgrounds */
 }
 
 /* Every text the screen holds, again after the language changed. */
@@ -432,7 +486,8 @@ int main(void)
         sheet = SHEET_NONE, leave = 0, usb = 0, usb_state = HM_USB_OFF;
     int g_sel = 0, g_selpos = 0, ph_sel = 0, ph_selpos = 0,
         viewer = 0; /* the two rows of pictures */
-    unsigned int t_caption = 0;
+    int slideshow = 0;
+    unsigned int t_caption = 0, t_slide = 0;
     unsigned int enter, back;
     char clock[24] = "";
 
@@ -450,11 +505,7 @@ int main(void)
     hm_hw_cfw(g_cfw, sizeof(g_cfw));
     hm_hw_mac(g_mac, sizeof(g_mac));
     g_gradient = memalign(64, 512 * HM_H * 4);
-    if (g_gradient) {
-        hm_make_gradient(g_gradient);
-        hm_gu_written(g_gradient, 512 * HM_H * 4);
-        hm_gu_upload_bg(2, g_gradient); /* slots 0-1: the loader's backgrounds */
-    }
+    make_default_background();
     hm_library_sort(pw_config_get()->sort); /* (no games yet: only the order to use) */
     hm_library_scan();
     build_tiles();
@@ -510,7 +561,11 @@ int main(void)
                 v.panel_sel = v.panel_sel > 0 ? v.panel_sel - 1 : 0;
             else if (ev & PSP_CTRL_DOWN)
                 v.panel_sel = v.panel_sel < v.panel_count - 1 ? v.panel_sel + 1 : v.panel_sel;
-            else if (ev & (back | (sheet == SHEET_GAME ? PSP_CTRL_TRIANGLE : 0)))
+            else if ((ev & back) && sheet == SHEET_INFO) { /* back to the game's options */
+                panel_game(&v, gsel);
+                sheet = SHEET_GAME;
+                v.panel_sel = v.panel_count - 1;
+            } else if (ev & (back | (sheet != SHEET_HOME ? PSP_CTRL_TRIANGLE : 0)))
                 sheet = SHEET_NONE;
             else if ((ev & enter) && sheet == SHEET_HOME) {
                 sheet = SHEET_NONE;
@@ -522,12 +577,16 @@ int main(void)
                     scePowerRequestSuspend();
                 else if (v.panel_sel == PANEL_OFF)
                     scePowerRequestStandby();
-            } else if ((ev & enter) && sheet == SHEET_GAME) {
+            } else if ((ev & enter) && sheet == SHEET_GAME && gsel) {
                 sheet = SHEET_NONE;
                 if (v.panel_sel < g_nstates) { /* continue from that state */
                     launching = g_sel;
                     launch_slot = g_states[v.panel_sel].slot;
                     t_fade = now;
+                } else if (v.panel_sel == v.panel_count - 1) { /* the last: Information */
+                    sheet = SHEET_INFO;
+                    panel_info(&v, gsel);
+                    v.panel_sel = 0;
                 } else {
                     saved_data = 1;
                 }
@@ -550,10 +609,20 @@ int main(void)
                     ph_sel--;
                 else if ((ev & PSP_CTRL_RIGHT) && ph_sel < n - 1)
                     ph_sel++;
-                else if (ev & (enter | back | PSP_CTRL_TRIANGLE))
-                    viewer = 0;
-                if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT))
+                else if (ev & PSP_CTRL_TRIANGLE) /* a slideshow from here, or not */
+                    slideshow = !slideshow;
+                else if ((ev & PSP_CTRL_SQUARE) && g_gradient) { /* this one behind Home */
+                    const char *path = hm_library_photo(ph_sel)->path;
+
+                    if (hm_library_wallpaper(path, g_gradient) == 0)
+                        hs_wallpaper_set(path, g_gradient);
+                    make_default_background(); /* (the old one when that failed) */
+                } else if (ev & (enter | back))
+                    viewer = slideshow = 0;
+                if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_TRIANGLE | PSP_CTRL_SQUARE)) {
                     t_caption = now;
+                    t_slide = now;
+                }
             } else if (v.tab == HM_TAB_PHOTOS && hm_library_photo_count() > 0) {
                 if (ev & PSP_CTRL_LEFT)
                     ph_sel = ph_sel > 0 ? ph_sel - 1 : 0;
@@ -572,7 +641,7 @@ int main(void)
                     launching = g_sel;
                     launch_slot = 0;
                     t_fade = now;
-                } else if ((ev & PSP_CTRL_TRIANGLE) && gsel && gsel->kind == HM_KIND_ISO) {
+                } else if ((ev & PSP_CTRL_TRIANGLE) && gsel) {
                     panel_game(&v, gsel);
                     sheet = SHEET_GAME;
                     v.panel_sel = 0;
@@ -614,6 +683,8 @@ int main(void)
                         g_sel = 0;
                         g_selpos = 0;
                     }
+                    if (r == HS_WALLPAPER_CHANGED)
+                        make_default_background();
                     if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
                         hm_texts_load();
                         texts(&v, sheet);
@@ -640,6 +711,10 @@ int main(void)
             usb = 1;
             usb_state = hm_usb_start(now);
             t_usb = now;
+        }
+        if (viewer && slideshow && now - t_slide >= SLIDESHOW_MS) { /* the next, round again */
+            t_slide = now;
+            ph_sel = hm_library_photo_count() > 0 ? (ph_sel + 1) % hm_library_photo_count() : 0;
         }
         if (usb && now - t_usb >= 250) {
             t_usb = now;
@@ -717,12 +792,17 @@ int main(void)
         }
         v.viewer = viewer && v.tab == HM_TAB_PHOTOS ? 256 : 0;
         v.viewer_caption = v.viewer ? g_ph_tiles[ph_sel].title : 0;
-        v.caption = 256 - pw_ramp(now, t_caption + 2000, 400);
+        v.viewer_slideshow = pw_tr(PW_S_HM_SLIDESHOW);
+        v.viewer_wallpaper = pw_tr(PW_S_HM_WP_SET);
+        /* the photo's name and the buttons: 2 s after a change, then they fade out */
+        v.caption = now - t_caption < 2000 ? 256 : 256 - pw_ramp(now, t_caption + 2000, 400);
         /* the chosen game's (or photo's) art, faded in once the loader has it */
         if (v.tab == HM_TAB_PHOTOS)
             want = v.count ? hm_library_photo_background(ph_sel, viewer) : 0;
-        else
+        else if (v.tab == HM_TAB_GAMES)
             want = hm_library_count() ? hm_library_background(g_sel) : 0;
+        else /* the other sections: the wallpaper, as in the XMB */
+            want = g_gradient;
         if (!want)
             want = viewer ? shown : g_gradient;
         if (want != shown && want) {
@@ -737,8 +817,7 @@ int main(void)
                 ? v.play_label
             : v.tab == HM_TAB_PHOTOS && v.count ? pw_tr(PW_S_HM_VIEW)
                                                 : 0;
-        v.hint_options =
-            v.tab == HM_TAB_GAMES && gsel && gsel->kind == HM_KIND_ISO ? pw_tr(PW_S_HM_OPTIONS) : 0;
+        v.hint_options = v.tab == HM_TAB_GAMES && gsel ? pw_tr(PW_S_HM_OPTIONS) : 0;
         v.t_ms = now;
         v.appear =
             launching >= 0 ? 256 - pw_ramp(now, t_fade, FADE_MS) : pw_ramp(now, t_open, FADE_MS);

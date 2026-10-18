@@ -84,8 +84,8 @@ typedef struct {
     const char *panel_hint; /* bottom right, or NULL */
 
     /* A photo whole (HOM-REQ-016): the background alone, a caption that fades (0-256) */
-    int viewer, caption; /* caption: 0-256 */
-    const char *viewer_caption;
+    int viewer, caption;                                              /* caption: 0-256 */
+    const char *viewer_caption, *viewer_slideshow, *viewer_wallpaper; /* Triangle, Square */
 
     /* A message card over everything while sheet > 0 (USB, HOM-REQ-011) */
     int sheet, sheet_busy; /* busy: three dots pulse (t_ms) */

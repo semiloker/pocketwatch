@@ -124,6 +124,62 @@ static void text_sort(int o, char *out, int cap)
     stbsp_snprintf(out, cap, "%s", pw_tr(o ? PW_S_HS_SORT_RECENT : PW_S_HS_SORT_NAME));
 }
 
+/* Home's wallpaper: wallpaper.bin holds it as Home draws it (512 x 272, made once when it was
+   chosen in Photos with Square), wallpaper.txt the picture's path for its name here. Without
+   them, Pocketwatch's own background. The name is kept here: the rows are built every second,
+   and the card is not read while USB has it. */
+#define WALLPAPER     DIR "wallpaper.txt"
+#define WALLPAPER_BIN DIR "wallpaper.bin"
+#define WALLPAPER_LEN (512u * 272u * 4u)
+static char g_wp_name[64];
+static int g_wp_known; /* 0: not read yet, 1: none, 2: g_wp_name */
+static int get_wallpaper(void)
+{
+    if (!g_wp_known) {
+        char path[200];
+        int n = pw_file_read(WALLPAPER, path, sizeof(path) - 1);
+        const char *slash;
+
+        g_wp_known = 1;
+        if (n > 0) {
+            path[n] = 0;
+            slash = strrchr(path, '/');
+            stbsp_snprintf(g_wp_name, sizeof(g_wp_name), "%s", slash ? slash + 1 : path);
+            g_wp_known = 2;
+        }
+    }
+    return g_wp_known == 2;
+}
+static int set_wallpaper(int o)
+{
+    if (o != 0) /* a picture is chosen in Photos */
+        return get_wallpaper() ? 0 : -1;
+    pw_file_remove(WALLPAPER_BIN);
+    pw_file_remove(WALLPAPER);
+    g_wp_known = 1;
+    return HS_WALLPAPER_CHANGED;
+}
+static void text_wallpaper(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s", o && get_wallpaper() ? g_wp_name : pw_tr(PW_S_HM_WP_DEFAULT));
+}
+
+int hs_wallpaper_load(unsigned int *out)
+{
+    return pw_file_read(WALLPAPER_BIN, out, WALLPAPER_LEN) == (int)WALLPAPER_LEN ? 0 : -1;
+}
+
+int hs_wallpaper_set(const char *path, const unsigned int *bg)
+{
+    if (pw_file_write(WALLPAPER_BIN, bg, WALLPAPER_LEN, 0) < 0 ||
+        pw_file_write(WALLPAPER, path, (unsigned int)strlen(path), 0) < 0) {
+        pw_file_remove(WALLPAPER_BIN);
+        return -1;
+    }
+    g_wp_known = 0;
+    return 0;
+}
+
 static int get_fast(void)
 {
     return pw_config_get()->fast != 0;
@@ -331,6 +387,7 @@ static const row k_rows[] = {
     {HS_HEADER, PW_S_HS_POCKETWATCH, 0, 0, 0, 0, 0},
     {HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
     {HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
+    {HS_CHOICE, PW_S_HM_WALLPAPER, 0, two, get_wallpaper, set_wallpaper, text_wallpaper},
     {HS_CHOICE, PW_S_SET_STYLE, 0, three, get_style, set_style, text_style},
     {HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
     {HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},

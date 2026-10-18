@@ -400,9 +400,27 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         if (v->viewer_caption && v->caption > 0) {
             int w = pw_text_width(ui->body, v->viewer_caption) + 28;
 
-            rrect(g, 12, HM_H - 36, w > HM_W - 24 ? HM_W - 24 : w, 24, 12, C_CARD,
-                  v->caption * 200 / 256);
-            g->text(g, ui->body, 26, HM_H - 20, v->viewer_caption, HM_W - 52, C_TEXT, v->caption);
+            w = w > HM_W / 2 - 12 ? HM_W / 2 - 12 : w;
+            rrect(g, 12, HM_H - 36, w, 24, 12, C_CARD, v->caption * 200 / 256);
+            g->text(g, ui->body, 26, HM_H - 20, v->viewer_caption, w - 28, C_TEXT, v->caption);
+        }
+        if (v->caption > 0 && (v->viewer_wallpaper || v->viewer_slideshow)) {
+            /* what the buttons do, bottom right, on a pill of their own */
+            int ww = v->viewer_wallpaper ? pw_text_width(ui->body, v->viewer_wallpaper) : 0,
+                sw = v->viewer_slideshow ? pw_text_width(ui->body, v->viewer_slideshow) : 0,
+                w = 22 + (sw ? 15 + sw : 0) + (ww ? 15 + ww : 0) + (sw && ww ? 12 : 0),
+                x = HM_W - 12 - w + 10; /* a group: the glyph (centred 6 in), its text 15 in */
+
+            rrect(g, HM_W - 12 - w, HM_H - 36, w, 24, 12, C_CARD, v->caption * 200 / 256);
+            if (sw) {
+                g->button(g, PW_BTN_TRIANGLE, x + 6, HM_H - 24, 12, C_TEXT, v->caption);
+                text(g, ui->body, x + 15, HM_H - 20, v->viewer_slideshow, C_TEXT, v->caption);
+                x += 15 + sw + 12;
+            }
+            if (ww) {
+                g->button(g, PW_BTN_SQUARE, x + 6, HM_H - 24, 12, C_TEXT, v->caption);
+                text(g, ui->body, x + 15, HM_H - 20, v->viewer_wallpaper, C_TEXT, v->caption);
+            }
         }
         return;
     }

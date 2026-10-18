@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: a game's Information (Triangle), a photo slideshow and a wallpaper from
+  Photos (Square), shown behind every section but Games.
 - Pocketwatch Home: games sorted by name or the last played first; PSN games' EBOOTs; the
   battery's voltage, temperature, capacity and charge cycles in System.
 - Pocketwatch Home: Music (the MP3s of MUSIC/, playing on while you browse, the next track
@@ -85,6 +87,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- Pocketwatch Home: a photo's name never showed in the viewer (its fade started at once).
 - A state saved before Quit Game or a power-off was always refused as "saved with another
   setup": the check ran before the engine had measured its memory, so it compared with zeros.
 - The menu ran at a very low frame rate: the background wave and the drawn shapes cost far less

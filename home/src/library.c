@@ -134,10 +134,18 @@ static void add(int kind, const char *path, const char *name)
     memset(g, 0, sizeof(*g));
     g->kind = kind;
     stbsp_snprintf(g->path, sizeof(g->path), "%s", path);
+    {
+        SceIoStat st;
+
+        if (sceIoGetstat(path, &st) >= 0)
+            g->size_kb = (unsigned int)((st.st_size + 1023) >> 10);
+    }
     if ((sfo = load(kind, path, PART_SFO, SFO_MAX, &len)) != 0) {
         sfo_string(sfo, len, "TITLE", g->title, sizeof(g->title));
         sfo_string(sfo, len, "DISC_ID", g->id, sizeof(g->id));
         sfo_string(sfo, len, "CATEGORY", category, sizeof(category));
+        sfo_string(sfo, len, "DISC_VERSION", g->version, sizeof(g->version));
+        sfo_string(sfo, len, "PSP_SYSTEM_VER", g->sysver, sizeof(g->sysver));
         free(sfo);
     }
     if (kind != HM_KIND_ISO) {
@@ -700,4 +708,19 @@ void hm_library_sort(int recent)
     qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
     g_bg_game[0] = g_bg_game[1] = -1;
     hm_library_pause(0);
+}
+
+int hm_library_wallpaper(const char *path, unsigned int *out)
+{
+    int w = 0, h = 0;
+    unsigned int *px;
+
+    hm_library_pause(1); /* one big picture at a time: the loader may hold another */
+    px = load_picture(path, &w, &h);
+    if (px) {
+        hm_make_background(px, w, h, out);
+        hm_image_free(px);
+    }
+    hm_library_pause(0);
+    return px ? 0 : -1;
 }

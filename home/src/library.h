@@ -23,7 +23,9 @@ typedef struct {
     char title[64];
     char meta[96];
     unsigned int play_s;
-    unsigned long long last; /* when it was last played (play-time file), 0: never */
+    unsigned long long last;    /* when it was last played (play-time file), 0: never */
+    char version[8], sysver[8]; /* PARAM.SFO DISC_VERSION, PSP_SYSTEM_VER (Information) */
+    unsigned int size_kb;
     int states;
     unsigned int *volatile icon; /* HM_ICON_W x HM_ICON_H, set by the loader */
     volatile int icon_tried;
@@ -66,6 +68,9 @@ hm_photo *hm_library_photo(int i);
 void hm_library_mode(int mode, int sel);
 /* The background the loader made for the chosen photo (blurred, or whole when viewing), or NULL. */
 const unsigned int *hm_library_photo_background(int sel, int whole);
+
+/* A picture file fitted as Home's background (blurred, darkened) into out (512 x HM_H). */
+int hm_library_wallpaper(const char *path, unsigned int *out);
 
 /* The card's free space in MB, counted by the loader (-1 until then); count it again. */
 int hm_library_free_mb(void);

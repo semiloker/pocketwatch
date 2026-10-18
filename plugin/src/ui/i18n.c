@@ -175,6 +175,14 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HS_SORT] = {"hs_sort", "Sort Games"},
     [PW_S_HS_SORT_NAME] = {"hs_sort_name", "By Name"},
     [PW_S_HS_SORT_RECENT] = {"hs_sort_recent", "Recently Played"},
+    [PW_S_HM_INFORMATION] = {"hm_information", "Information"},
+    [PW_S_HM_DISC_ID] = {"hm_disc_id", "Disc ID"},
+    [PW_S_HM_SIZE] = {"hm_size", "Size"},
+    [PW_S_HM_FILE] = {"hm_file", "File"},
+    [PW_S_HM_SLIDESHOW] = {"hm_slideshow", "Slideshow"},
+    [PW_S_HM_WALLPAPER] = {"hm_wallpaper", "Wallpaper"},
+    [PW_S_HM_WP_DEFAULT] = {"hm_wp_default", "Pocketwatch"},
+    [PW_S_HM_WP_SET] = {"hm_wp_set", "Set as wallpaper"},
 #endif
 };
 
