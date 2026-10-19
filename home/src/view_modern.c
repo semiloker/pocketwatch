@@ -19,11 +19,11 @@
 #define META_Y    196
 #define PLAY_Y    210
 
-#define LIST_X0  24 /* the lists */
-#define LIST_X1  456
-#define LIST_Y0  44
-#define LIST_Y1  248
-#define PITCH    30 /* a row; 38 with pictures (Play Time) */
+#define LIST_X0   24 /* the lists */
+#define LIST_X1   456
+#define LIST_Y0   44
+#define LIST_Y1   248
+#define PITCH     30 /* a row; 38 with pictures (Play Time) */
 #define PITCH_PIC 38
 
 #define PG_X     26 /* Photos: the grid */
@@ -33,8 +33,8 @@
 #define PG_GAP   9
 #define PG_PITCH 66
 
-#define MU_X 24 /* Music: what plays, on a card */
-#define MU_W 168
+#define MU_X   24 /* Music: what plays, on a card */
+#define MU_W   168
 #define MU_ART 120
 
 #define C_HEAD PW_RGB(110, 176, 255) /* a group's name */
@@ -255,7 +255,7 @@ static void label_room(const hm_ui *ui, const hm_row *r, box b, int playing, int
     if (playing)
         *lx += 14;
     *lw = r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? b.x1 - b.x0 - 28
-                                                            : b.x1 - 14 - keep - *lx;
+                                                             : b.x1 - 14 - keep - *lx;
     if (*lw < 40)
         *lw = 40;
 }
@@ -293,8 +293,9 @@ static void list(hm_gfx *g, const hm_ui *ui, const hm_row *rows, int n, int sel,
             continue;
         /* rows leaving the list fade out at its edges */
         ra = a * hm_clampi(y < b.y0 ? 256 - (b.y0 - y) * 256 / b.pitch : 256, 0, 256) / 256;
-        ra = ra * hm_clampi(y + b.pitch > b.y1 ? 256 - (y + b.pitch - b.y1) * 256 / b.pitch : 256,
-                            0, 256) /
+        ra = ra *
+             hm_clampi(y + b.pitch > b.y1 ? 256 - (y + b.pitch - b.y1) * 256 / b.pitch : 256, 0,
+                       256) /
              256;
         mid = y + b.pitch / 2;
         label_room(ui, r, b, playing >= 0 && i == playing, &lx, &lw);
@@ -376,14 +377,13 @@ static void music(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
     g->rrect(g, x, y, MU_W, LIST_Y1 - y, 16, 0, C_CARD, a * 200 / 256);
     ring = v->row_sel == 0 ? hm_near(v->row_pos) : 0;
     if (ring > 0)
-        g->rrect(g, x - 3, y - 3, MU_W + 6, LIST_Y1 - y + 6, 18, PW_FX(2), C_TEXT,
-                 a * ring / 256);
+        g->rrect(g, x - 3, y - 3, MU_W + 6, LIST_Y1 - y + 6, 18, PW_FX(2), C_TEXT, a * ring / 256);
     g->rrect(g, ax, ay, MU_ART, MU_ART, 14, 0, k_tint[h % 6], a);
     g->rrect(g, ax, ay, MU_ART, MU_ART / 2, 14, 0, C_TEXT, a * 18 / 256); /* light from above */
     g->icon(g, HM_ICON_MUSIC, ax + MU_ART / 2, ay + MU_ART / 2, 56, C_TEXT, a * 225 / 256);
     g->rrect(g, ax + MU_ART - 36, ay + MU_ART - 36, 28, 28, 14, 0, C_TEXT, a);
-    g->icon(g, v->mu_state == 1 ? HM_ICON_PAUSE : HM_ICON_PLAY, ax + MU_ART - 22 + (v->mu_state == 1 ? 0 : 1),
-            ay + MU_ART - 22, 12, C_INK, a);
+    g->icon(g, v->mu_state == 1 ? HM_ICON_PAUSE : HM_ICON_PLAY,
+            ax + MU_ART - 22 + (v->mu_state == 1 ? 0 : 1), ay + MU_ART - 22, 12, C_INK, a);
     if (title) /* the smaller font when the title is long */
         g->text(g, pw_text_width(ui->title, title) <= MU_W - 28 ? ui->title : ui->body, x + 14,
                 ay + MU_ART + 24, title, MU_W - 28, C_TEXT, a);
@@ -393,8 +393,8 @@ static void music(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
         int bw = MU_W - 28;
 
         g->rrect(g, x + 14, ay + MU_ART + 48, bw, 3, 1, 0, C_KNOB, a);
-        g->rrect(g, x + 14, ay + MU_ART + 48, bw * hm_clampi(v->mu_bar, 0, 256) / 256, 3, 1, 0, C_ON,
-                 a);
+        g->rrect(g, x + 14, ay + MU_ART + 48, bw * hm_clampi(v->mu_bar, 0, 256) / 256, 3, 1, 0,
+                 C_ON, a);
     }
     if (v->mu_time)
         g->text(g, ui->body, x + 14, ay + MU_ART + 64, v->mu_time, MU_W - 28, C_SUB, a);
@@ -426,8 +426,8 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         g->rrect(g, x0, y0, w, h, 16, 0, C_CARD, p * 240 / 256);
         if (v->panel_title)
             g->text(g, ui->title, x0 + 20, y0 + 26, v->panel_title, w - 40, C_SUB, p);
-        g->rrect(g, x0 + 8, y0 + 38 + v->panel_pos * rh / 256, w - 16, rh - 4, (rh - 4) / 2 < 12 ? (rh - 4) / 2 : 12,
-                 0, C_TEXT, p * 235 / 256);
+        g->rrect(g, x0 + 8, y0 + 38 + v->panel_pos * rh / 256, w - 16, rh - 4,
+                 (rh - 4) / 2 < 12 ? (rh - 4) / 2 : 12, 0, C_TEXT, p * 235 / 256);
         for (int i = 0; i < n; i++) {
             int y = y0 + 38 + i * rh, base = y + rh / 2 + 4,
                 on = hm_near(i * 256 - v->panel_pos) > 128;
@@ -436,11 +436,11 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                 g->image(g, v->panel_icons[i], HM_ICON_W, HM_ICON_H, HM_ICON_W, x0 + 18, y + 4, 64,
                          36, p);
             if (v->panel_items[i])
-                g->text(g, ui->title, tx, base, v->panel_items[i], v->panel_values[i] ? 150 : w - 44,
-                        on ? C_INK : C_DIM, p);
+                g->text(g, ui->title, tx, base, v->panel_items[i],
+                        v->panel_values[i] ? 150 : w - 44, on ? C_INK : C_DIM, p);
             if (v->panel_values[i])
-                hm_text_right(g, ui->body, x0 + w - 22, base, v->panel_values[i], on ? C_INK2 : C_SUB,
-                              p);
+                hm_text_right(g, ui->body, x0 + w - 22, base, v->panel_values[i],
+                              on ? C_INK2 : C_SUB, p);
         }
         if (v->panel_hint) {
             int tw = pw_text_width(ui->body, v->panel_hint);
@@ -547,7 +547,8 @@ void hm_prefetch_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
             int lx, lw;
 
             label_room(ui, r, b, k == HM_TAB_MUSIC && i == v->mu_cur, &lx, &lw);
-            if (!g->warm(g, r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? ui->body : ui->title,
+            if (!g->warm(g,
+                         r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? ui->body : ui->title,
                          r->label ? r->label : "", lw) ||
                 (r->value && !g->warm(g, ui->body, r->value, b.stack ? lw : 0)))
                 return;

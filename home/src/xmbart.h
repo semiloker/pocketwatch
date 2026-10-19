@@ -19,7 +19,8 @@ typedef unsigned char *(*hm_art_read)(const char *path, unsigned int *len);
    pixels are 16-byte aligned, rows of a multiple of 16 (the GE's textures). */
 int hm_art_load(hm_art *a, hm_art_read read, const char *icons_rco, const char *fg_rco);
 
-/* Sky index (0-11) of the file sky_bmp into sky (60 x 34, malloc'd); 0 or < 0. */
+/* Sky index (0-11) of the file sky_bmp into sky (60 x 34, malloc'd); 0, or -1 no file, -2 no
+   memory, -11..-13 not a sky the decoder takes (gfx/image.h pw_bmp_decode - 10). */
 int hm_art_sky(pw_image *sky, hm_art_read read, const char *sky_bmp, int index);
 
 #endif

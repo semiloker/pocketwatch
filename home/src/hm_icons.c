@@ -54,8 +54,8 @@ void hm_icon_draw(pw_canvas *c, int icon, int cx, int cy, int size, unsigned int
 
 int hm_icon_of_tab(int tab)
 {
-    static const int k[HM_TABS] = {HM_ICON_GAMES,  HM_ICON_MUSIC, HM_ICON_PHOTOS,
-                                   PW_ICON_WATCH,  PW_ICON_GEAR,  HM_ICON_SYSTEM};
+    static const int k[HM_TABS] = {HM_ICON_GAMES, HM_ICON_MUSIC, HM_ICON_PHOTOS,
+                                   PW_ICON_WATCH, PW_ICON_GEAR,  HM_ICON_SYSTEM};
 
     return tab >= 0 && tab < HM_TABS ? k[tab] : PW_ICON_WATCH;
 }

@@ -410,10 +410,11 @@ static void stats_write(stats *st, unsigned int now, const char *why)
 static void usb_texts(hm_view *v, int state, int again)
 {
     v->sheet_title = pw_tr(PW_S_HM_USB);
-    v->sheet_text = pw_tr(state == HM_USB_CONNECTED  ? PW_S_HM_USB_ON
-                          : state == HM_USB_NO_CABLE ? PW_S_HM_USB_CABLE
-                          : state == HM_USB_FAILED   ? PW_S_HM_USB_FAIL
-                                                     : PW_S_HM_USB_WAIT);
+    v->sheet_text =
+        pw_tr(state == HM_USB_CONNECTED  ? PW_S_HM_USB_ON
+              : state == HM_USB_NO_CABLE ? PW_S_HM_USB_CABLE
+              : state == HM_USB_FAILED   ? (hm_usb_busy() ? PW_S_HM_USB_BUSY : PW_S_HM_USB_FAIL)
+                                         : PW_S_HM_USB_WAIT);
     v->sheet_busy = state == HM_USB_CONNECTING;
     v->sheet_hint = pw_tr(PW_S_HM_USB_END);
     v->sheet_again = again ? pw_tr(PW_S_HM_USB_AGAIN) : 0;
@@ -607,22 +608,32 @@ static void after_setting(hm_view *v, int r, int was_sort, int sheet, int *sel, 
     }
 }
 
-/* The system's pictures (Classic, ADR-033): a whole flash0 file into the heap. */
+/* The system's pictures (Classic, ADR-033): a whole flash0 file into the heap; what each read
+   did goes to home.log (the PSP's first run read 5 of 11 pictures and no sky, 2026-10-19). */
+static char g_art_reads[240];
+
 static unsigned char *read_whole(const char *path, unsigned int *len)
 {
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
-    int size = fd >= 0 ? (int)sceIoLseek32(fd, 0, PSP_SEEK_END) : -1;
+    int size = fd >= 0 ? (int)sceIoLseek32(fd, 0, PSP_SEEK_END) : fd, got = 0;
     unsigned char *buf = size > 0 && size <= 512 * 1024 ? malloc((size_t)size) : 0;
+    const char *name = strrchr(path, '/');
+    int n = (int)strlen(g_art_reads);
 
     if (buf) {
         sceIoLseek32(fd, 0, PSP_SEEK_SET);
-        if (sceIoRead(fd, buf, (unsigned int)size) != size) {
+        if ((got = sceIoRead(fd, buf, (unsigned int)size)) != size) {
             free(buf);
             buf = 0;
         }
     }
     if (fd >= 0)
         sceIoClose(fd);
+    stbsp_snprintf(g_art_reads + n, (int)sizeof(g_art_reads) - n, " %s %X%s",
+                   name ? name + 1 : path, (unsigned int)size,
+                   buf       ? ""
+                   : got < 0 ? " read failed"
+                             : " not taken");
     *len = buf ? (unsigned int)size : 0;
     return buf;
 }
@@ -630,14 +641,15 @@ static unsigned char *read_whole(const char *path, unsigned int *len)
 static void load_art(void)
 {
     unsigned int t0 = sceKernelGetSystemTimeLow();
-    int colour, sky = hm_hw_sky_index(&colour), found;
-    char line[160];
+    int colour, sky = hm_hw_sky_index(&colour), found, sky_ret;
+    char line[400];
+    unsigned int mask = 0;
     const pw_image *all[HM_TABS + 5];
 
     found = hm_art_load(&g_art, read_whole, RES_PATH "topmenu_icon.rco",
                         RES_PATH "system_plugin_fg.rco");
-    if (hm_art_sky(&g_sky, read_whole, RES_PATH "01-12_03g.bmp", sky) < 0)
-        hm_art_sky(&g_sky, read_whole, RES_PATH "01-12.bmp", sky);
+    if ((sky_ret = hm_art_sky(&g_sky, read_whole, RES_PATH "01-12_03g.bmp", sky)) < 0)
+        sky_ret = hm_art_sky(&g_sky, read_whole, RES_PATH "01-12.bmp", sky);
     for (int i = 0; i < HM_TABS; i++)
         all[i] = &g_art.cat[i];
     for (int i = 0; i < 4; i++)
@@ -646,11 +658,13 @@ static void load_art(void)
     for (unsigned int i = 0; i < sizeof(all) / sizeof(all[0]); i++) /* the GE reads them */
         if (all[i]->px)
             hm_gu_written(all[i]->px, (unsigned int)(((all[i]->w + 15) & ~15) * all[i]->h * 4));
+    for (unsigned int i = 0; i < sizeof(all) / sizeof(all[0]); i++) /* which ones (bit i) */
+        mask |= all[i]->px ? 1u << i : 0;
     g_ui.art = &g_art;
     stbsp_snprintf(line, sizeof(line),
-                   "home art: %d system picture(s), sky %d (theme colour %d)%s, %u ms\n", found,
-                   sky, colour, g_sky.px ? "" : " not found",
-                   (sceKernelGetSystemTimeLow() - t0) / 1000);
+                   "home art: %d system picture(s) (%X), sky %d (theme colour %d)%s %d, %u ms;%s\n",
+                   found, mask, sky, colour, g_sky.px ? "" : " not found", sky_ret,
+                   (sceKernelGetSystemTimeLow() - t0) / 1000, g_art_reads);
     log_line(line);
 }
 

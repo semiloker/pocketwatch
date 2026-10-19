@@ -178,3 +178,4 @@ hs_slide_fast = Быстрая
 hs_slide_slow = Медленная
 hs_sounds = Звуки кнопок
 hm_browser = Интернет-браузер
+hm_usb_busy = USB-порт занят другим плагином (RemoteJoyLite?). Отключите его для игр и повторите.

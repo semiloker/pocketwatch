@@ -21,14 +21,14 @@
 #define CAT_LABEL_Y 101
 #define CAT_DEEP    69 /* the bar slides left this far for an option list */
 
-#define FOLDER_X 92 /* the game list: icons' centre */
-#define FOLDER_Y 136
-#define BELOW_Y  206 /* the first one after the chosen one */
-#define ABOVE_GY 23  /* the one before it: above the categories */
-#define SMALL_W  81
-#define SMALL_H  45
+#define FOLDER_X     92 /* the game list: icons' centre */
+#define FOLDER_Y     136
+#define BELOW_Y      206 /* the first one after the chosen one */
+#define ABOVE_GY     23  /* the one before it: above the categories */
+#define SMALL_W      81
+#define SMALL_H      45
 #define FOLDER_PITCH 53
-#define LABEL_X  176
+#define LABEL_X      176
 
 #define ICON_X     104 /* items with an icon (Music, Play Time) */
 #define TEXT_X     150
@@ -100,8 +100,10 @@ static void status(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
 
     if (v->battery >= 0 && b && b->h >= 4 && b->h % 4 == 0) {
         /* the XMB's own picture: four frames, full to empty; charging, it fills up in a loop */
-        int fh = b->h / 4,
-            frame = v->battery > 66 ? 0 : v->battery > 33 ? 1 : v->battery > 5 ? 2 : 3;
+        int fh = b->h / 4, frame = v->battery > 66   ? 0
+                                   : v->battery > 33 ? 1
+                                   : v->battery > 5  ? 2
+                                                     : 3;
 
         if (v->charging)
             frame = 3 - (int)((v->t_ms / 600) % 4);
@@ -269,8 +271,11 @@ static void options(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
 
         if (y < 30 || y > 252)
             continue;
-        ra = oa * hm_clampi(y < 56 ? (y - 30) * 256 / 26 : y > 226 ? (252 - y) * 256 / 26 : 256, 0,
-                            256) /
+        ra = oa *
+             hm_clampi(y < 56    ? (y - 30) * 256 / 26
+                       : y > 226 ? (252 - y) * 256 / 26
+                                 : 256,
+                       0, 256) /
              256;
         if (r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE) {
             stext(g, ui->body, OPT_TEXT + slide, y + 4, r->label, OPT_X1 - OPT_TEXT, C_TEXT,
@@ -448,11 +453,11 @@ void hm_prefetch_classic(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         for (int i = from < 0 ? 0 : from; rows && i < n && i <= to; i++) {
             const hm_row *r = &rows[i];
             pw_font *f = r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? ui->body : ui->title;
-            int w = is_options(k) ? (r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE
-                                         ? OPT_X1 - OPT_TEXT
-                                     : r->value ? 220
-                                                : OPT_X1 - OPT_TEXT)
-                                  : TEXT_MAX;
+            int w = is_options(k)
+                        ? (r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? OPT_X1 - OPT_TEXT
+                           : r->value                                         ? 220
+                                                                              : OPT_X1 - OPT_TEXT)
+                        : TEXT_MAX;
 
             if (!g->warm(g, f, r->label ? r->label : "", w) ||
                 (r->value && !g->warm(g, ui->body, r->value, is_options(k) ? 0 : TEXT_MAX)))

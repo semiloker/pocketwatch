@@ -95,6 +95,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- USB Connection in Pocketwatch Home still failed when RemoteJoyLite (or another plugin with a USB
+  device) was on for games: Home now takes the port from it for the connection and gives it back
+  afterwards, as the XMB does.
 - HOME in a game could freeze it for good (a game that reads its disc all the time, such as Need
   for Speed: Most Wanted): the game was stopped in the middle of a Memory Stick read and kept the
   card to itself. Pocketwatch now lets it finish the read first.

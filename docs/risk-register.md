@@ -29,6 +29,8 @@ risk; close it with the evidence.
 | [RISK-020](#risk-020--a-game-started-from-home-is-in-another-setup-than-from-the-xmb) | A game started from Home is in another setup than from the XMB | M | M | Open |
 | [RISK-021](#risk-021--starting-in-home-depends-on-ark-4s-config-layout-and-boot-order) | Starting in Home depends on ARK-4's config layout and boot order | L | H | Open |
 | [RISK-022](#risk-022--the-xmb-plugin-is-at-its-64-kb-budget) | The XMB plugin is at its 64 KB budget | H | M | Open |
+| [RISK-023](#risk-023--a-frozen-game-thread-holds-a-lock-other-than-the-cards) | A frozen game thread holds a lock other than the card's | L | H | Open |
+| [RISK-024](#risk-024--another-plugin-holds-a-device-home-does-not-know) | Another plugin holds a device Home does not know | L | M | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -240,3 +242,13 @@ risk; close it with the evidence.
   game is frozen) / **Impact H** (a hang, a cold boot).
 - **Mitigation:** nothing of ours loads modules or uses the Media Engine while the game is
   frozen; new work that does needs the same answer-or-retry check for its lock.
+
+## RISK-024 — Another plugin holds a device Home does not know
+
+- **Description:** Home's USB takes the port from RemoteJoyLite's device (PID `0x1C9`, ADR-034).
+  A plugin with another device (a camera, a gamepad bridge) keeps the port; the storage driver
+  stays "in progress" and USB Connection fails in Home while the XMB's may work.
+- **Likelihood L** (RemoteJoyLite, usbhostfs and PSPLink use `0x1C9`) / **Impact M** (no USB from
+  Home; the XMB's still works).
+- **Mitigation:** the failure names another plugin as the cause on the screen; `home.log` gives
+  the bus's state before (`before ...`). A PID seen there can be added to the deactivation.

@@ -1,0 +1,83 @@
+# Device round 4 (2026-10-19), build b5cab03, PSP-3000 ARK-4 6.61 (the PSP's clock says 2011).
+# Owner's report: USB from Home still does not connect (the XMB's does); Music has no cover, no way to seek; Photos without per-game albums; Settings/System one flat list; Triangle -> Saved Data shows the firmware's dialog.
+# PLUGINS.TXT: RemoteJoyLite on for VSH and GAME (Home is a homebrew, so GAME).
+
+## seplugins/pocketwatch/home.log
+home leaving: 1335 frames in 29664 ms (45 fps), CPU 4823 us + GE 12652 us a frame, longest frame 2736 ms
+home running: 1425 frames in 30009 ms (47 fps), CPU 4436 us + GE 11843 us a frame, longest frame 2719 ms
+home running: 1429 frames in 30014 ms (47 fps), CPU 4480 us + GE 10919 us a frame, longest frame 2719 ms
+home before a game: 511 frames in 10310 ms (49 fps), CPU 2668 us + GE 11254 us a frame, longest frame 117 ms
+home leaving: 192 frames in 3872 ms (49 fps), CPU 2892 us + GE 13273 us a frame, longest frame 115 ms
+home running: 964 frames in 30331 ms (31 fps), 44 late; a frame: CPU 15442 us, warm 971 us, GE wait 7118 us; longest 2819 ms; stamps 112 made, 112 kept (239 KB); heap 3193 of 3356 KB, outside 4096 KB
+home running: 948 frames in 30003 ms (31 fps), 35 late; a frame: CPU 12995 us, warm 1032 us, GE wait 8472 us; longest 2987 ms; stamps 23 made, 135 kept (283 KB); heap 3238 of 3368 KB, outside 4096 KB
+home running: 222 frames in 30002 ms (7 fps), 81 late; a frame: CPU 120599 us, warm 1117 us, GE wait 4130 us; longest 417 ms; stamps 23 made, 158 kept (362 KB); heap 4685 of 4936 KB, outside 4096 KB
+home running: 1109 frames in 30013 ms (36 fps), 60 late; a frame: CPU 11711 us, warm 1163 us, GE wait 419 us; longest 350 ms; stamps 32 made, 190 kept (420 KB); heap 3871 of 3876 KB, outside 4096 KB
+home running: 934 frames in 30150 ms (30 fps), 67 late; a frame: CPU 17344 us, warm 1338 us, GE wait 764 us; longest 634 ms; stamps 17 made, 207 kept (451 KB); heap 4413 of 5344 KB, outside 4096 KB
+home running: 167 frames in 30153 ms (5 fps), 82 late; a frame: CPU 169140 us, warm 1256 us, GE wait 1312 us; longest 467 ms; stamps 12 made, 219 kept (476 KB); heap 3928 of 3932 KB, outside 4080 KB
+home running: 743 frames in 30016 ms (24 fps), 74 late; a frame: CPU 25096 us, warm 1299 us, GE wait 5605 us; longest 401 ms; stamps 24 made, 243 kept (530 KB); heap 3937 of 4008 KB, outside 4080 KB
+home before a game: 600 frames in 25160 ms (23 fps), 40 late; a frame: CPU 26425 us, warm 998 us, GE wait 3658 us; longest 2736 ms; stamps 124 made, 124 kept (275 KB); heap 3365 of 3516 KB, outside 4096 KB
+home running: 997 frames in 30021 ms (33 fps), 30 late; a frame: CPU 14321 us, warm 873 us, GE wait 5220 us; longest 2586 ms; stamps 87 made, 87 kept (174 KB); heap 2813 of 3060 KB, outside 4096 KB
+home running: 937 frames in 30003 ms (31 fps), 31 late; a frame: CPU 16329 us, warm 928 us, GE wait 5396 us; longest 2586 ms; stamps 108 made, 108 kept (216 KB); heap 2507 of 3012 KB, outside 4096 KB
+home leaving: 661 frames in 19153 ms (34 fps), 20 late; a frame: CPU 13343 us, warm 934 us, GE wait 5461 us; longest 1218 ms; stamps 7 made, 115 kept (232 KB); heap 2872 of 3060 KB, outside 4096 KB
+home reads: first settings rows 209294 us, system rows 51 us; battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34850 us
+home running: 1780 frames in 30006 ms (59 fps), 2 late; a frame: CPU 976 us, warm 965 us, GE wait 3734 us; longest 337 ms; rows 209345 us; stamps 123 made, 123 kept (265 KB); heap 3400 of 3491 KB, outside 4096 KB
+home before a game: 1784 frames in 29870 ms (59 fps), 5 late; a frame: CPU 842 us, warm 1100 us, GE wait 3959 us; longest 50 ms; rows 603 us; stamps 76 made, 199 kept (540 KB); heap 4446 of 4487 KB, outside 4096 KB
+home reads: first settings rows 208868 us, system rows 53 us; battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34877 us
+home before a game: 941 frames in 16005 ms (58 fps), 2 late; a frame: CPU 1125 us, warm 1001 us, GE wait 5823 us; longest 334 ms; rows 208921 us; stamps 119 made, 119 kept (309 KB); heap 4183 of 5079 KB, outside 4096 KB
+home reads: first settings rows 208697 us, system rows 53 us; battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34880 us
+home running: 1780 frames in 30003 ms (59 fps), 2 late; a frame: CPU 957 us, warm 910 us, GE wait 5313 us; longest 335 ms; rows 208750 us; stamps 86 made, 86 kept (172 KB); heap 2811 of 3099 KB, outside 4096 KB
+home running: 1800 frames in 30010 ms (59 fps), 0 late; a frame: CPU 798 us, warm 889 us, GE wait 5184 us; longest 17 ms; rows 509 us; stamps 7 made, 93 kept (188 KB); heap 2828 of 3099 KB, outside 4096 KB
+home running: 1943 frames in 32553 ms (59 fps), 2 late; a frame: CPU 1486 us, warm 975 us, GE wait 5608 us; longest 167 ms; rows 518 us; stamps 24 made, 117 kept (238 KB); heap 2338 of 3099 KB, outside 4096 KB
+home leaving: 124 frames in 2064 ms (60 fps), 0 late; a frame: CPU 1068 us, warm 1009 us, GE wait 4654 us; longest 17 ms; rows 522 us; stamps 0 made, 117 kept (238 KB); heap 2878 of 3099 KB, outside 4096 KB
+home art: 5 system picture(s), sky 0 (theme colour 1) not found, 60 ms
+home reads: first settings rows 290356 us, system rows 51 us; battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 33884 us
+home running: 1734 frames in 30001 ms (57 fps), 52 late; a frame: CPU 1255 us, warm 930 us, GE wait 4170 us; longest 83 ms; rows 752 us; stamps 194 made, 194 kept (505 KB); heap 3812 of 3912 KB, outside 4096 KB
+home running: 1791 frames in 30006 ms (59 fps), 5 late; a frame: CPU 1463 us, warm 1946 us, GE wait 1803 us; longest 100 ms; rows 754 us; stamps 114 made, 256 kept (751 KB); heap 4375 of 4420 KB, outside 4096 KB
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home browser http://frogfind.com/: 0x8002013A, switch=0 free_kb=4096 modules_free_kb=3200 init=0x8002013A step=0
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home running: 2341 frames in 40894 ms (57 fps), 8 late; a frame: CPU 2439 us, warm 1067 us, GE wait 143 us; longest 917 ms; rows 757 us; stamps 146 made, 91 kept (221 KB); heap 2337 of 3976 KB, outside 4096 KB
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home running: 1904 frames in 31760 ms (59 fps), 1 late; a frame: CPU 1881 us, warm 912 us, GE wait 210 us; longest 34 ms; rows 677 us; stamps 2 made, 93 kept (226 KB); heap 2342 of 3976 KB, outside 4096 KB
+home running: 1797 frames in 30016 ms (59 fps), 1 late; a frame: CPU 1947 us, warm 1140 us, GE wait 279 us; longest 67 ms; rows 2708 us; stamps 90 made, 183 kept (419 KB); heap 3727 of 3976 KB, outside 4080 KB
+home running: 1789 frames in 30015 ms (59 fps), 7 late; a frame: CPU 2106 us, warm 1476 us, GE wait 2792 us; longest 66 ms; rows 988 us; stamps 67 made, 250 kept (614 KB); heap 4327 of 4368 KB, outside 4080 KB
+home running: 1799 frames in 30001 ms (59 fps), 1 late; a frame: CPU 2251 us, warm 1550 us, GE wait 25 us; longest 21 ms; rows 797 us; stamps 5 made, 255 kept (624 KB); heap 4338 of 4368 KB, outside 4080 KB
+home running: 1799 frames in 30000 ms (59 fps), 0 late; a frame: CPU 2291 us, warm 1537 us, GE wait 25 us; longest 20 ms; rows 861 us; stamps 5 made, 256 kept (626 KB); heap 4340 of 4368 KB, outside 4080 KB
+home running: 1785 frames in 30003 ms (59 fps), 15 late; a frame: CPU 1899 us, warm 1345 us, GE wait 4509 us; longest 34 ms; rows 792 us; stamps 4 made, 256 kept (626 KB); heap 4340 of 4368 KB, outside 4080 KB
+home running: 1799 frames in 30003 ms (59 fps), 1 late; a frame: CPU 1190 us, warm 1029 us, GE wait 11921 us; longest 23 ms; rows 726 us; stamps 1 made, 256 kept (626 KB); heap 4339 of 4368 KB, outside 4080 KB
+home running: 1799 frames in 30000 ms (59 fps), 0 late; a frame: CPU 1244 us, warm 1268 us, GE wait 6371 us; longest 20 ms; rows 731 us; stamps 5 made, 256 kept (627 KB); heap 4341 of 4368 KB, outside 4080 KB
+home running: 1800 frames in 30003 ms (59 fps), 0 late; a frame: CPU 1375 us, warm 1495 us, GE wait 25 us; longest 17 ms; rows 729 us; stamps 3 made, 256 kept (627 KB); heap 4340 of 4368 KB, outside 4080 KB
+home running: 1800 frames in 30000 ms (60 fps), 0 late; a frame: CPU 1379 us, warm 1502 us, GE wait 25 us; longest 17 ms; rows 731 us; stamps 4 made, 256 kept (626 KB); heap 4340 of 4368 KB, outside 4080 KB
+home running: 1800 frames in 30003 ms (59 fps), 0 late; a frame: CPU 1403 us, warm 1586 us, GE wait 25 us; longest 17 ms; rows 734 us; stamps 12 made, 256 kept (633 KB); heap 4346 of 4380 KB, outside 4080 KB
+home running: 1681 frames in 30003 ms (56 fps), 38 late; a frame: CPU 2706 us, warm 1676 us, GE wait 299 us; longest 84 ms; rows 752 us; stamps 16 made, 256 kept (626 KB); heap 4849 of 5300 KB, outside 4080 KB
+home running: 1408 frames in 79484 ms (17 fps), 19 late; a frame: CPU 1623 us, warm 1507 us, GE wait 6311 us; longest 52654 ms; rows 775 us; stamps 38 made, 256 kept (669 KB); heap 4562 of 4928 KB, outside 4080 KB
+home leaving: 186 frames in 3107 ms (59 fps), 1 late; a frame: CPU 1953 us, warm 1777 us, GE wait 5684 us; longest 21 ms; rows 747 us; stamps 11 made, 256 kept (668 KB); heap 4561 of 4928 KB, outside 4080 KB
+
+## seplugins/pocketwatch/xmb.log
+Pocketwatch XMB b5cab03
+2011-01-16 09:02:33 start: XMB (the XMB asked from Home), layout 0
+xmb: battery 93% present 1 charging 0 online 0 system 378 min; 1513/1790 mAh 4194 mV 20 C; syscon -224 mA 0 cycles
+xmb: vsh_module patched (add 0880B8F4 exec 0880C108 unload 0880A440 text 0880AEC0)
+xmb: Pocketwatch and Battery added after System Settings (action 2, arg 2)
+xmb: Play Time added after Saved Data Utility
+xmb: sysconf_plugin patched
+
+## seplugins/pocketwatch/boot.txt
+2011-01-15 17:19:19 start: XMB (the XMB asked from Home), layout 0
+2011-01-16 06:39:10 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 06:41:25 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 06:42:15 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 06:44:01 start: XMB (the XMB asked from Home), layout 0
+2011-01-16 08:53:14 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 09:02:33 start: XMB (the XMB asked from Home), layout 0
+
+## seplugins/pocketwatch/pocketwatch.log (assets and the last sessions)
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 12 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing (RCO compression 2)
+assets: 439 KB of 640 KB kept
+shell: sky 0 (theme colour 1, month 1)

@@ -27,3 +27,17 @@ int hm_usb_stuck(const hm_usb_link *l, int state, unsigned int now_ms)
 {
     return l->active && state == HM_USB_CONNECTING && now_ms - l->t_active >= HM_USB_SETTLE_MS;
 }
+
+int hm_usb_bus_runs(int ret)
+{
+    return ret == 0 || (unsigned int)ret == HM_USB_ERR_ALREADY;
+}
+
+int hm_usb_storage_answer(int ret, unsigned int waited_ms)
+{
+    if (ret == 0 || (unsigned int)ret == HM_USB_ERR_ALREADY)
+        return HM_USB_STORAGE_OK;
+    if ((unsigned int)ret == HM_USB_ERR_IN_PROGRESS && waited_ms < HM_USB_STORAGE_WAIT_MS)
+        return HM_USB_STORAGE_RETRY;
+    return HM_USB_STORAGE_FAIL;
+}

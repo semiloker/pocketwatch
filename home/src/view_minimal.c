@@ -10,10 +10,10 @@
 #include "stb_sprintf.h"
 #include "view_internal.h"
 
-#define COL_X   40
-#define COL_X1  440
-#define CUR_Y   128 /* the chosen line's baseline */
-#define PITCH   24
+#define COL_X    40
+#define COL_X1   440
+#define CUR_Y    128 /* the chosen line's baseline */
+#define PITCH    24
 #define NOTE_GAP 20 /* room under the chosen game for its note */
 
 static void top(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
@@ -78,8 +78,8 @@ static void names(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
 
         if (y < 44 || y > 246)
             continue;
-        g->text(g, ui->title, COL_X, y, v->tiles[i].title ? v->tiles[i].title : "",
-                COL_X1 - COL_X, i == v->sel ? C_TEXT : C_SUB, line_alpha(p, a));
+        g->text(g, ui->title, COL_X, y, v->tiles[i].title ? v->tiles[i].title : "", COL_X1 - COL_X,
+                i == v->sel ? C_TEXT : C_SUB, line_alpha(p, a));
     }
     sel = &v->tiles[hm_clampi(v->sel, 0, v->count - 1)];
     near = hm_near(v->sel * 256 - v->selpos);

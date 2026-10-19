@@ -51,3 +51,19 @@ PW_TEST(usb_waits_for_the_cable_while_active)
     CHECK_EQ(hm_usb_stuck(&l, st, 20100 + HM_USB_SETTLE_MS - 1), 0);
     CHECK_EQ(hm_usb_stuck(&l, st, 20100 + HM_USB_SETTLE_MS), 1);
 }
+
+/* RemoteJoyLite holds the port (home.log 2026-10-19): the bus "already started" runs; the storage
+   driver "in progress" is tried again until its device has let go, then given up. */
+PW_TEST(usb_shares_the_port_with_another_plugins_device)
+{
+    CHECK(hm_usb_bus_runs(0));
+    CHECK(hm_usb_bus_runs((int)0x80243001u));
+    CHECK(!hm_usb_bus_runs((int)0x80243005u)); /* no such driver */
+    CHECK_EQ(hm_usb_storage_answer(0, 0), HM_USB_STORAGE_OK);
+    CHECK_EQ(hm_usb_storage_answer((int)0x80243001u, 500), HM_USB_STORAGE_OK);
+    CHECK_EQ(hm_usb_storage_answer((int)0x80243006u, 0), HM_USB_STORAGE_RETRY);
+    CHECK_EQ(hm_usb_storage_answer((int)0x80243006u, HM_USB_STORAGE_WAIT_MS - 1),
+             HM_USB_STORAGE_RETRY);
+    CHECK_EQ(hm_usb_storage_answer((int)0x80243006u, HM_USB_STORAGE_WAIT_MS), HM_USB_STORAGE_FAIL);
+    CHECK_EQ(hm_usb_storage_answer((int)0x80243007u, 0), HM_USB_STORAGE_FAIL); /* no bus */
+}

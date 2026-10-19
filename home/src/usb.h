@@ -4,11 +4,18 @@
 
 /*
  * USB mass storage from Pocketwatch Home (HOM-REQ-011): no detour through the XMB. The system's
- * drivers are loaded and started once and the connection activated once, exactly as ARK-4's menu
- * does (extras/menus/arkMenu/src/usb.cpp). Home never deactivates it by itself: a computer slow
- * to take the card would lose it again (the automatic retry every 3 s of 2026-10-19 did that; the
- * owner's PSP never connected). Enter on the USB card connects again by hand. While it is on, the
- * card belongs to the computer: Home does no file I/O.
+ * drivers are loaded and started once and the connection activated once, as ARK-4's menu does
+ * (extras/menus/arkMenu/src/usb.cpp). Home never deactivates it by itself: a computer slow to
+ * take the card would lose it again (the automatic retry every 3 s of 2026-10-19 did that). Enter
+ * on the USB card connects again by hand. While it is on, the card belongs to the computer: Home
+ * does no file I/O.
+ *
+ * Another plugin may hold the port (ADR-034): RemoteJoyLite, loaded for games - and so for Home,
+ * a homebrew - starts the bus and activates its own device (PID 0x1C9). The bus then answers
+ * "already started" (taken as running, and left running at the end), and the storage driver
+ * "in progress" until that device is deactivated (home.log 2026-10-19: 0x80243001, 0x80243006).
+ * Home deactivates it, retries the storage driver for a while, and activates the other device
+ * again when it ends.
  */
 
 enum { HM_USB_OFF, HM_USB_NO_CABLE, HM_USB_CONNECTING, HM_USB_CONNECTED, HM_USB_FAILED };
@@ -22,6 +29,23 @@ int hm_usb_again(unsigned int now_ms); /* deactivate, activate: the owner asked 
 int hm_usb_may_retry(int state, unsigned int now_ms); /* hm_usb_stuck for the link now */
 void hm_usb_stop(void);
 int hm_usb_report(char *out, int cap); /* every step and the states seen since the start */
+
+/* 1 when USB failed because another plugin's device holds the port (the storage driver never
+   started: "in progress" for HM_USB_STORAGE_WAIT_MS). */
+int hm_usb_busy(void);
+
+/* The firmware's answers (usbacc and the PSP's usb.prx; uOFW src/kd/usbacc/usbacc.c, PSP homebrew
+   headers): */
+#define HM_USB_ERR_ALREADY     0x80243001u /* the driver is started already */
+#define HM_USB_ERR_IN_PROGRESS 0x80243006u /* another device is active on the bus */
+#define HM_USB_STORAGE_WAIT_MS 3000        /* how long the storage driver is retried */
+#define HM_USB_OTHER_PID       0x1C9       /* RemoteJoyLite's (and usbhostfs') device */
+
+/* 1 when the bus runs after sceUsbStart returned ret (started now, or by another plugin). */
+int hm_usb_bus_runs(int ret);
+enum { HM_USB_STORAGE_OK, HM_USB_STORAGE_RETRY, HM_USB_STORAGE_FAIL };
+/* What to do after the storage driver's sceUsbStart returned ret, waited_ms after the first try. */
+int hm_usb_storage_answer(int ret, unsigned int waited_ms);
 
 /* The decision of hm_usb_poll, portable (tests/test_usb.c). */
 typedef struct {

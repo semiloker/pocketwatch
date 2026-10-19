@@ -97,15 +97,16 @@ int hm_art_sky(pw_image *sky, hm_art_read read, const char *sky_bmp, int index)
     unsigned int len = 0;
     unsigned char *file = read(sky_bmp, &len);
     unsigned int *px = malloc(64 * 64 * 4);
-    int ok = file && px &&
-             (pw_bmp_decode(file, len, index, px, 64 * 64, sky) == 0 ||
-              pw_bmp_decode(file, len, 0, px, 64 * 64, sky) == 0);
+    int r = !file ? -1 : !px ? -2 : pw_bmp_decode(file, len, index, px, 64 * 64, sky);
 
+    if (r < 0 && file && px && pw_bmp_decode(file, len, 0, px, 64 * 64, sky) == 0)
+        r = 0;
+    else if (r < 0 && file && px)
+        r -= 10; /* the decoder's answer: -11..-13 */
     free(file);
-    if (!ok) {
+    if (r < 0) {
         free(px);
         sky->px = 0;
-        return -1;
     }
-    return 0;
+    return r;
 }

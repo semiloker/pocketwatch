@@ -23,6 +23,11 @@ static const char *const k_mods[] = {
 
 static int g_loaded, g_started;
 static int g_load_ret[MODS], g_bus_ret, g_stor_ret, g_act_ret;
+static int g_bus_ours;     /* the bus was started here (else another plugin's: left running) */
+static int g_stor_pending; /* the storage driver not started yet: retried by hm_usb_poll */
+static int g_stor_tries;
+static unsigned int g_other_bits; /* the bus's state before: another device active? */
+static int g_other_ret = 1;       /* its deactivation (1: none was active) */
 static unsigned int g_t_start;
 static struct {
     unsigned int bits, t;
@@ -46,6 +51,44 @@ static void load_drivers(void)
     g_loaded = 1;
 }
 
+/* Everything started here stopped again; another plugin's device back as it was. */
+static void stop_all(void)
+{
+    if (g_link.active)
+        sceUsbDeactivate(USB_PID);
+    g_link.active = 0;
+    if (!g_stor_pending) {
+        sceUsbStop(EF_DRIVER, 0, 0);
+        sceUsbStop(PSP_USBSTOR_DRIVERNAME, 0, 0); /* (RemoteJoyLite's hook reactivates it) */
+    }
+    if (g_bus_ours)
+        sceUsbStop(PSP_USBBUS_DRIVERNAME, 0, 0);
+    if (g_other_ret == 0) /* and if its own hook did not: an error, harmless */
+        sceUsbActivate(HM_USB_OTHER_PID);
+    g_stor_pending = 0;
+    g_started = 0;
+}
+
+/* The storage driver, again while another device's link winds down. */
+static int try_storage(unsigned int now_ms)
+{
+    int r;
+
+    g_stor_tries++;
+    g_stor_ret = sceUsbStart(PSP_USBSTOR_DRIVERNAME, 0, 0);
+    r = hm_usb_storage_answer(g_stor_ret, now_ms - g_t_start);
+    if (r == HM_USB_STORAGE_RETRY)
+        return HM_USB_CONNECTING;
+    g_stor_pending = 0;
+    if (r == HM_USB_STORAGE_FAIL) {
+        g_stor_pending = 1; /* (nothing of it to stop) */
+        stop_all();
+        return HM_USB_FAILED;
+    }
+    sceUsbStart(EF_DRIVER, 0, 0); /* as ARK-4's menu; not there on a PSP-3000 */
+    return HM_USB_CONNECTING;
+}
+
 int hm_usb_start(unsigned int now_ms)
 {
     load_drivers();
@@ -53,19 +96,25 @@ int hm_usb_start(unsigned int now_ms)
     g_nseen = 0;
     g_act_ret = 1; /* not yet */
     g_t_start = now_ms;
-    if (!g_started) {
-        g_bus_ret = sceUsbStart(PSP_USBBUS_DRIVERNAME, 0, 0);
-        g_stor_ret = sceUsbStart(PSP_USBSTOR_DRIVERNAME, 0, 0);
-        sceUsbStart(EF_DRIVER, 0, 0); /* as ARK-4's menu; not there on a PSP-3000 */
-        if (g_bus_ret < 0 || g_stor_ret < 0) {
-            sceUsbStop(EF_DRIVER, 0, 0);
-            sceUsbStop(PSP_USBSTOR_DRIVERNAME, 0, 0);
-            sceUsbStop(PSP_USBBUS_DRIVERNAME, 0, 0);
-            return HM_USB_FAILED;
-        }
-        g_started = 1;
-    }
-    return HM_USB_CONNECTING;
+    if (g_started)
+        return HM_USB_CONNECTING;
+    g_bus_ret = sceUsbStart(PSP_USBBUS_DRIVERNAME, 0, 0);
+    if (!hm_usb_bus_runs(g_bus_ret))
+        return HM_USB_FAILED;
+    g_bus_ours = g_bus_ret == 0;
+    g_other_ret = 1;
+    g_other_bits = (unsigned int)sceUsbGetState();
+    if (g_other_bits & PSP_USB_ACTIVATED) /* another plugin's device holds the port */
+        g_other_ret = sceUsbDeactivate(HM_USB_OTHER_PID);
+    g_started = 1;
+    g_stor_pending = 1;
+    g_stor_tries = 0;
+    return try_storage(now_ms);
+}
+
+int hm_usb_busy(void)
+{
+    return (unsigned int)g_stor_ret == HM_USB_ERR_IN_PROGRESS;
 }
 
 static void seen(unsigned int bits, unsigned int now_ms)
@@ -86,6 +135,12 @@ int hm_usb_poll(unsigned int now_ms)
 
     if (!g_started)
         return HM_USB_OFF;
+    if (g_stor_pending) {
+        int s = try_storage(now_ms);
+
+        if (g_stor_pending || s == HM_USB_FAILED)
+            return s;
+    }
     bits = (unsigned int)sceUsbGetState();
     seen(bits, now_ms);
     if (hm_usb_step(&g_link, bits, now_ms, &state) == HM_USB_ACTIVATE) {
@@ -106,8 +161,8 @@ int hm_usb_may_retry(int state, unsigned int now_ms)
 
 int hm_usb_again(unsigned int now_ms)
 {
-    if (!g_started)
-        return HM_USB_OFF;
+    if (!g_started || g_stor_pending)
+        return hm_usb_poll(now_ms);
     if (g_link.active)
         sceUsbDeactivate(USB_PID);
     sceKernelDelayThread(100 * 1000); /* the computer sees the PSP go */
@@ -118,15 +173,8 @@ int hm_usb_again(unsigned int now_ms)
 
 void hm_usb_stop(void)
 {
-    if (!g_started)
-        return;
-    if (g_link.active)
-        sceUsbDeactivate(USB_PID);
-    sceUsbStop(EF_DRIVER, 0, 0);
-    sceUsbStop(PSP_USBSTOR_DRIVERNAME, 0, 0);
-    sceUsbStop(PSP_USBBUS_DRIVERNAME, 0, 0);
-    g_link.active = 0;
-    g_started = 0;
+    if (g_started)
+        stop_all();
 }
 
 int hm_usb_report(char *out, int cap)
@@ -136,8 +184,11 @@ int hm_usb_report(char *out, int cap)
     for (int i = 0; i < MODS && n < cap; i++)
         n += snprintf(out + n, (size_t)(cap - n), " %s %X", k_mods[i], g_load_ret[i]);
     if (n < cap)
-        n += snprintf(out + n, (size_t)(cap - n), "; start bus %X, storage %X; activate %X;",
-                      g_bus_ret, g_stor_ret, g_act_ret);
+        n += snprintf(out + n, (size_t)(cap - n),
+                      "; start bus %X (%s), before %X (other device off %X), storage %X after %d "
+                      "tries; activate %X;",
+                      g_bus_ret, g_bus_ours ? "ours" : "another's", g_other_bits, g_other_ret,
+                      g_stor_ret, g_stor_tries, g_act_ret);
     for (int i = 0; i < g_nseen && n < cap; i++)
         n += snprintf(out + n, (size_t)(cap - n), " %X at %u ms", g_seen[i].bits, g_seen[i].t);
     if (n < cap)

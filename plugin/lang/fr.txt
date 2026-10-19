@@ -178,3 +178,4 @@ hs_slide_fast = Rapide
 hs_slide_slow = Lente
 hs_sounds = Sons des touches
 hm_browser = Navigateur Internet
+hm_usb_busy = Un autre plugin occupe le port USB (RemoteJoyLite ?). Désactivez-le pour les jeux, puis réessayez.

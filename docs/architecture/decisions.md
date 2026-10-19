@@ -607,3 +607,33 @@ decision was taken; the evidence column links the research behind it.
   more vertices a frame for the wave (60/60 in PPSSPP). In Classic, left / right no longer skip a
   music track (up / down choose one, Enter plays it), as in the XMB. Changing the style rebuilds
   the default background and the games' backgrounds (sharp PIC1 in Classic, blurred otherwise).
+
+## ADR-034 — Home's USB shares the port with another plugin's device
+
+- **Status:** Accepted (2026-10-19), from the owner's fourth device round
+  ([log](../research/logs/2026-10-19-home-round4.log), build `b5cab03`).
+- **Context:** VERIFIED from that log: six presses of USB Connection in Home, each
+  `start bus 80243001, storage 80243006`, no activation; the XMB's own USB Connection worked.
+  `0x80243001` is "already done" and `0x80243006` "driver in progress" (uOFW
+  `src/kd/usbacc/usbacc.c`; PSP homebrew headers, e.g. xerpi/psp-uvc-usb-video-class
+  `include/usb.h`; Yoti/psp_nandtool: "USBStor in use"). The owner's `PLUGINS.TXT` loads
+  RemoteJoyLite for VSH and for GAME - and Home, a homebrew, runs as GAME. RemoteJoyLite's
+  `UsbStart` (PSP-Archive/RemoteJoyLite `RemoteJoyLite_psp/usb.c`) starts the bus, its own
+  driver and activates its device (PID `0x1C9`); its hook on `sceUsbStart("USBStor_Driver")`
+  deactivates that device first (`hook_usb.c`, `UsbSuspend`) and `sceUsbStop` of the storage
+  driver activates it again. Home took the bus's "already done" for a failure and stopped
+  everything; the storage driver met the other device still active (INFERRED: its
+  deactivation had not finished, or the hook was not there).
+- **Decision:** the bus's "already done" means it runs: Home goes on and leaves that bus running
+  at the end. When the bus reports an active device before the storage driver starts, Home
+  deactivates PID `0x1C9` itself. The storage driver's "in progress" is tried again on every poll
+  (every 250 ms) for up to 3 s, then given up with a message that names another plugin
+  (RemoteJoyLite) as the likely holder. At the end Home stops only what it started and activates
+  the other device again (harmless if its own hook did). `home.log` gets the bus's owner, its
+  state before, the other device's deactivation and the storage driver's tries.
+- **Alternatives considered:** asking the owner to turn RemoteJoyLite off for games (it is
+  useful in games; the XMB copes, so Home must too); unloading the other plugin's module (not
+  ours to stop); deactivating every PID (only `0x1C9` is known; others stay a message).
+- **Consequences:** USB from Home works beside RemoteJoyLite, usbhostfs and PSPLink-style
+  devices (INFERRED until HM12 passes on the owner's PSP); a device with another PID still
+  fails, now with a message and a log line that names it.
