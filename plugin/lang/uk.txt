@@ -130,6 +130,7 @@ hm_usb_wait = Під'єднання до комп'ютера...
 hm_usb_on = Під'єднано. Memory Stick у комп'ютера.
 hm_usb_fail = Не вдалося увімкнути USB.
 hm_usb_end = Завершити
+hm_usb_again = Під'єднати знову
 hs_pocketwatch = Pocketwatch
 hs_nickname = Ім'я користувача
 hs_sys_language = Мова системи

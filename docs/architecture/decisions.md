@@ -533,3 +533,36 @@ decision was taken; the evidence column links the research behind it.
   start - nothing else changes them meanwhile (the XMB is not running). The battery's numbers can
   be a second old. The impose values (brightness, AVLS) are still read every second in the loop
   (the screen key changes the brightness): `rows` shows whether they cost anything.
+
+## ADR-032 — A frozen game must leave the card free: the card answers after every freeze
+
+- **Status:** Accepted (2026-10-19), from the owner's third device round
+  ([log](../research/logs/2026-10-19-home-hm10-run3.log), build `c3f3699`).
+- **Context:** VERIFIED from that log: in Need for Speed: Most Wanted (ULUS10036) HOME froze the
+  game for good - the picture stopped, no button did anything; the session's log ends at
+  `shell: HOME opens Pocketwatch` without the `shell: sky ...` line that the first opening of
+  every session writes (the next session of the same game opened the hub normally). INFERRED from
+  the code: `pw_freeze_game` suspends every game thread that is WAITING, taking WAITING for a safe
+  point. A thread inside a plain `sceIoRead` - or Inferno reading the ISO for it
+  (ARK-4 `core/inferno/isoread.c`: `sceIoRead` on the ISO in the caller's thread, under its
+  `EcsUmd9660DeviceFile` semaphore) - is WAITING for the transfer while it holds the FAT driver;
+  suspended there, it never lets go. The shell's next card access - that log line, written at
+  once because the log is not deferred - waits for ever, and the shell thread is the one that
+  reads HOME. A streaming game like this one reads all the time, so a press often lands in a
+  read. RISK-016's log (The 3rd Birthday: "two of the frozen threads were waiting on the game's
+  file streaming") may be the same case at the save's sleep (INFERRED, not verified).
+- **Decision:** after every freeze the card must answer: a kernel thread of ours stats
+  `ms0:/PSP`; when that takes longer than 50 ms, the freeze is undone, the game runs until the
+  stat answers (at most 500 ms) and is frozen again. After 2 s of that nothing is frozen
+  (`card_busy`): the shell writes `shell: HOME ignored: the game kept the Memory Stick busy` and
+  the next press tries again. Every freeze goes through it - the hub, the engine's saves and
+  loads, the debug tools. `shell: open:` gives the number of undone freezes.
+- **Alternatives considered:** deferring the log while the hub is open (the hub's state list and
+  saves still read and write the card: the same hang one step later); suspending only threads
+  that wait on objects of their own (games wait in the kernel all the time - the vblank, the
+  buttons, the audio - and the object's owner is not known reliably); reading the wait object's
+  name (driver-specific, nothing documented).
+- **Consequences:** a freeze can take up to 2 s longer in a game that streams; the stat reads the
+  card (no write: nothing changes for the save's rule "nothing may write between the freeze and
+  the resume"). Locks other than the card's (the module manager, the Media Engine) are not
+  covered: RISK-023.

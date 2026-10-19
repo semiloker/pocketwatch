@@ -159,6 +159,8 @@ risk; close it with the evidence.
   the next sessions normal).
 - **Mitigation:** the isolation protocol M13 in the [testing guide](testing.md#m13); a
   per-game refusal list once the cause is known; the compatibility matrix records it.
+  2026-10-19: a frozen thread inside a card read holds the FAT driver (ADR-032); the freeze now
+  waits until the card answers, which may also be this case (INFERRED): M13 again.
 
 ## RISK-017 — ARK's exit combo fired by another plugin during a save
 
@@ -227,3 +229,14 @@ risk; close it with the evidence.
   `config.txt` (`sort`, `slideshow`) are parsed by the shared `core/config.c`, so the XMB plugin
   keeps them when its page writes the file; a Home-only setting should go into a file of Home's
   own (like `wallpaper.txt`) rather than into `config.txt`.
+
+## RISK-023 — A frozen game thread holds a lock other than the card's
+
+- **Description:** ADR-032 makes sure no frozen game thread holds the FAT driver. A thread can
+  also be suspended inside other kernel calls that hold a lock while they wait: the module
+  manager (a game loading a module), the Media Engine (audio, video), the network. Whatever of
+  ours needs that lock while the game is frozen waits for ever.
+- **Likelihood L** (the hub and the engine use only the card, the display and the GE while the
+  game is frozen) / **Impact H** (a hang, a cold boot).
+- **Mitigation:** nothing of ours loads modules or uses the Media Engine while the game is
+  frozen; new work that does needs the same answer-or-retry check for its lock.

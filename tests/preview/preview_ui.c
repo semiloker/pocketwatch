@@ -337,6 +337,7 @@ static void home_previews(void)
     v.sheet_title = "USB Connection";
     v.sheet_text = "Connecting to the computer...";
     v.sheet_hint = "End";
+    v.sheet_again = "Connect Again";
     v.t_ms = 300;
     hm_draw(&g.ops, &ui, &v);
     save("home-usb");

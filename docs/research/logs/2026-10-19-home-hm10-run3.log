@@ -1,0 +1,88 @@
+# Owner's device round 3, 2026-10-19 evening (PSP-3000, ARK-4 6.61, build c3f3699).
+# Owner's report: Home smooth; HOME in a game froze it (Need for Speed: Most Wanted, the session
+# that ends after 'HOME opens Pocketwatch'); USB Connection in Home did nothing (the XMB's
+# worked); changing the style did nothing in Home; Music, Photos, Play Time and Settings look bad.
+
+## home.log (the lines of build c3f3699)
+home reads: first settings rows 209294 us, system rows 51 us; battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34850 us
+home running: 1780 frames in 30006 ms (59 fps), 2 late; a frame: CPU 976 us, warm 965 us, GE wait 3734 us; longest 337 ms; rows 209345 us; stamps 123 made, 123 kept (265 KB); heap 3400 of 3491 KB, outside 4096 KB
+home before a game: 1784 frames in 29870 ms (59 fps), 5 late; a frame: CPU 842 us, warm 1100 us, GE wait 3959 us; longest 50 ms; rows 603 us; stamps 76 made, 199 kept (540 KB); heap 4446 of 4487 KB, outside 4096 KB
+home reads: first settings rows 208868 us, system rows 53 us; battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34877 us
+home before a game: 941 frames in 16005 ms (58 fps), 2 late; a frame: CPU 1125 us, warm 1001 us, GE wait 5823 us; longest 334 ms; rows 208921 us; stamps 119 made, 119 kept (309 KB); heap 4183 of 5079 KB, outside 4096 KB
+home reads: first settings rows 208697 us, system rows 53 us; battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34880 us
+home running: 1780 frames in 30003 ms (59 fps), 2 late; a frame: CPU 957 us, warm 910 us, GE wait 5313 us; longest 335 ms; rows 208750 us; stamps 86 made, 86 kept (172 KB); heap 2811 of 3099 KB, outside 4096 KB
+home running: 1800 frames in 30010 ms (59 fps), 0 late; a frame: CPU 798 us, warm 889 us, GE wait 5184 us; longest 17 ms; rows 509 us; stamps 7 made, 93 kept (188 KB); heap 2828 of 3099 KB, outside 4096 KB
+home running: 1943 frames in 32553 ms (59 fps), 2 late; a frame: CPU 1486 us, warm 975 us, GE wait 5608 us; longest 167 ms; rows 518 us; stamps 24 made, 117 kept (238 KB); heap 2338 of 3099 KB, outside 4096 KB
+home leaving: 124 frames in 2064 ms (60 fps), 0 late; a frame: CPU 1068 us, warm 1009 us, GE wait 4654 us; longest 17 ms; rows 522 us; stamps 0 made, 117 kept (238 KB); heap 2878 of 3099 KB, outside 4096 KB
+
+## boot.txt
+2011-01-15 17:00:29 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 17:18:18 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 17:19:19 start: XMB (the XMB asked from Home), layout 0
+2011-01-16 06:39:10 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 06:41:25 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 06:42:15 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-16 06:44:01 start: XMB (the XMB asked from Home), layout 0
+
+## xmb.log
+Pocketwatch XMB c3f3699
+2011-01-16 06:44:01 start: XMB (the XMB asked from Home), layout 0
+xmb: battery 80% present 1 charging 0 online 0 system 324 min; 1299/1790 mAh 4098 mV 20 C; syscon -224 mA 0 cycles
+xmb: vsh_module patched (add 0880BBF4 exec 0880C408 unload 0880A740 text 0880B1C0)
+xmb: Pocketwatch and Battery added after System Settings (action 2, arg 2)
+xmb: Play Time added after Saved Data Utility
+xmb: sysconf_plugin patched
+
+## pocketwatch.log (the sessions of build c3f3699; the probe's partition lines left out)
+==== new session ====
+Pocketwatch c3f3699 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+ctrl: buttons through sceCtrlPeekBufferPositive2 at 880E7760
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 12 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing (RCO compression 2)
+assets: 439 KB of 640 KB kept
+i18n: language.txt asks for "en"
+i18n: English
+game: ULUS10036 "NEED FOR SPEED™ MOST WANTED 5-1-0" from ms0:/ISO/Need for Speed - Most Wanted 5-1-0 (USA).iso (904864 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULUS10036, PARAM.SFO hashed
+playtime: ULUS10036 new, 0 s so far in 0 session(s)
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
+
+==== new session ====
+==== new session ====
+Pocketwatch c3f3699 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
+selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
+engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
+probe: edram=2048 KB
+sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
+ctrl: buttons through sceCtrlPeekBufferPositive2 at 880E7760
+assets: flash0:/font/ltn0.pgf rev 2, 324 glyphs U+0020-U+2265, max 23x20 (67 KB)
+assets: flash0:/vsh/resource/01-12_03g.bmp (72 KB)
+assets: flash0:/vsh/resource/topmenu_icon.rco: 12 image(s) decoded, 0 missing (RCO compression 2)
+assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing (RCO compression 2)
+assets: 439 KB of 640 KB kept
+i18n: language.txt asks for "en"
+i18n: English
+game: ULUS10036 "NEED FOR SPEED™ MOST WANTED 5-1-0" from ms0:/ISO/Need for Speed - Most Wanted 5-1-0 (USA).iso (904864 KB)
+savedata_hash: chnnlsv loaded as 'sceChnnlsv'
+store: 5 slots for ULUS10036, PARAM.SFO hashed
+playtime: ULUS10036 new, 0 s so far in 0 session(s)
+engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
+shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
+shell: sky 0 (theme colour 1, month 1)
+hub: style 1, 7141 ms: 176 frames drawn in 333 vblank waits; a frame: backdrop 5036 us, content 7397 us, present 31 us, worst 34428 us; waiting 11245 us a loop
+cpu: hub, 7153 ms: PocketwatchShell 45% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0% main_thread 0% SceMSstorFlush 0%
+shell: open: freeze 0 ms, GE 1 ms, screen 278 ms, first frame 314 ms after the press
+shell: Quit Game
+engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+playtime: 9 s this session written (Quit Game)
+shell: quit: the game's exit callback was invoked (0x00000000)

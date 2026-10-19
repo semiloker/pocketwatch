@@ -89,6 +89,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- HOME in a game could freeze it for good (a game that reads its disc all the time, such as Need
+  for Speed: Most Wanted): the game was stopped in the middle of a Memory Stick read and kept the
+  card to itself. Pocketwatch now lets it finish the read first.
+- USB Connection in Pocketwatch Home did not connect: it switched the connection off and on again
+  every 3 s while the computer was still taking the card. It now connects once, as ARK-4's menu
+  does; Connect Again (Enter) is there if the computer does not see the PSP.
 - Pocketwatch Home stopped for about a third of a second every second on the PSP (30 fps or less,
   worse while changing settings): the battery and the system's settings are no longer read while
   it draws.

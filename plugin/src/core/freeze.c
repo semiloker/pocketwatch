@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <pspiofilemgr.h>
 #include <pspkernel.h>
 #include <pspthreadman.h>
 #include <pspthreadman_kernel.h>
@@ -13,6 +14,14 @@
 #define STATUS_DORMANT   0x10
 #define STATUS_DEAD      0x20
 #define POLL_US          1000
+#define CARD_PROBE_MS    50   /* a card nobody holds answers a stat at once */
+#define CARD_GIVE_UP_MS  2000 /* the game kept the card this long: no freeze */
+#define CARD_RELEASE_MS  500  /* the game runs at most this long to let the card go */
+
+/* A stat of the card on a thread of its own: it answers once nobody holds the FAT driver. One
+   probe at a time; one that has not answered yet is waited for, not replaced. */
+static SceUID g_probe = -1;
+static volatile int g_probe_out;
 
 static int thread_status(SceUID id, unsigned int *attr)
 {
@@ -41,7 +50,44 @@ static int suspend_if_waiting(SceUID id, int force)
     return ok;
 }
 
-int pw_freeze_game(pw_freeze_set *fs, unsigned int timeout_ms)
+static int probe_thread(SceSize args, void *argp)
+{
+    SceIoStat st;
+
+    (void)args;
+    (void)argp;
+    sceIoGetstat("ms0:/PSP", &st);
+    g_probe_out = 0;
+    return 0;
+}
+
+/* 1 when the probe answered within ms (a probe sent earlier counts). */
+static int card_answers(unsigned int ms)
+{
+    unsigned int t0 = sceKernelGetSystemTimeLow();
+
+    if (!g_probe_out) {
+        if (g_probe >= 0) { /* the last one has answered: it is returning */
+            SceUInt end = 10 * 1000;
+
+            sceKernelWaitThreadEnd(g_probe, &end);
+            sceKernelDeleteThread(g_probe);
+        }
+        g_probe = sceKernelCreateThread("PocketwatchCardProbe", probe_thread, 0x10, 0x1000, 0, 0);
+        if (g_probe < 0)
+            return 1; /* no way to tell: freeze as before */
+        g_probe_out = 1;
+        if (sceKernelStartThread(g_probe, 0, NULL) < 0) {
+            g_probe_out = 0;
+            return 1;
+        }
+    }
+    while (g_probe_out && sceKernelGetSystemTimeLow() - t0 < ms * 1000)
+        sceKernelDelayThread(POLL_US);
+    return !g_probe_out;
+}
+
+static int freeze_once(pw_freeze_set *fs, unsigned int timeout_ms)
 {
     static SceUID all[128];
     SceUID pending[PW_FREEZE_MAX];
@@ -50,7 +96,6 @@ int pw_freeze_game(pw_freeze_set *fs, unsigned int timeout_ms)
 
     fs->count = 0;
     fs->forced = 0;
-    fs->ms = 0;
     if (sceKernelGetThreadmanIdList(SCE_KERNEL_TMID_Thread, all, 128, &total) < 0)
         return -1;
     if (total > 128)
@@ -84,9 +129,39 @@ int pw_freeze_game(pw_freeze_set *fs, unsigned int timeout_ms)
         if (npending > 0)
             sceKernelDelayThread(POLL_US);
     }
-
-    fs->ms = (sceKernelGetSystemTimeLow() - t0) / 1000;
     return fs->count;
+}
+
+/*
+ * A thread WAITING inside a read of the card (a plain sceIoRead, Inferno reading the ISO) holds
+ * the FAT driver while it waits for the transfer. Suspended there, it keeps it: the next card
+ * access of ours - a log line, the state list, a save - would wait for ever, the game frozen and
+ * the menu never drawn (Need for Speed: Most Wanted, 2026-10-19). So after every freeze the card
+ * must answer; when it does not, the game runs again until it lets the card go, and is frozen
+ * anew.
+ */
+int pw_freeze_game(pw_freeze_set *fs, unsigned int timeout_ms)
+{
+    unsigned int t0 = sceKernelGetSystemTimeLow();
+    int n;
+
+    fs->card_tries = 0;
+    fs->card_busy = 0;
+    for (;;) {
+        n = freeze_once(fs, timeout_ms);
+        if (n <= 0 || card_answers(CARD_PROBE_MS))
+            break;
+        pw_thaw_game(fs);
+        fs->card_tries++;
+        if (sceKernelGetSystemTimeLow() - t0 >= CARD_GIVE_UP_MS * 1000) {
+            fs->card_busy = 1;
+            n = 0;
+            break;
+        }
+        card_answers(CARD_RELEASE_MS); /* the game finishes its read */
+    }
+    fs->ms = (sceKernelGetSystemTimeLow() - t0) / 1000;
+    return n;
 }
 
 void pw_thaw_game(pw_freeze_set *fs)
@@ -98,8 +173,9 @@ void pw_thaw_game(pw_freeze_set *fs)
 
 void pw_freeze_log(const pw_freeze_set *fs)
 {
-    pw_log("freeze: %d game thread(s) suspended in %u ms (%d forced past the timeout)", fs->count,
-           fs->ms, fs->forced);
+    pw_log("freeze: %d game thread(s) suspended in %u ms (%d forced past the timeout; the card "
+           "was held %d time(s)%s)",
+           fs->count, fs->ms, fs->forced, fs->card_tries, fs->card_busy ? ", gave up" : "");
     for (int i = 0; i < fs->count; i++) {
         SceKernelThreadInfo info;
 

@@ -128,6 +128,7 @@ hm_usb_wait = Connexion à l'ordinateur...
 hm_usb_on = Connecté. L'ordinateur a le Memory Stick.
 hm_usb_fail = Impossible de démarrer l'USB.
 hm_usb_end = Terminer
+hm_usb_again = Reconnecter
 hs_pocketwatch = Pocketwatch
 hs_nickname = Pseudonyme
 hs_sys_language = Langue du système

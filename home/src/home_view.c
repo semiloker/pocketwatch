@@ -345,11 +345,17 @@ static void sheet(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                      p * (90 + k * 166 / 256) / 256);
         }
     if (v->sheet_hint) {
-        int tw = pw_text_width(ui->body, v->sheet_hint);
+        int tw = pw_text_width(ui->body, v->sheet_hint), x = x0 + w - 20 - tw;
 
-        text(g, ui->body, x0 + w - 20 - tw, y0 + h - 14, v->sheet_hint, C_SUB, p);
-        g->button(g, ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, x0 + w - 32 - tw, y0 + h - 18,
-                  12, C_SUB, p);
+        text(g, ui->body, x, y0 + h - 14, v->sheet_hint, C_SUB, p);
+        g->button(g, ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, x - 12, y0 + h - 18, 12, C_SUB,
+                  p);
+        if (v->sheet_again) { /* Enter, to the left of the way out */
+            x -= 30 + pw_text_width(ui->body, v->sheet_again);
+            text(g, ui->body, x, y0 + h - 14, v->sheet_again, C_TEXT, p);
+            g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x - 12, y0 + h - 18, 12,
+                      C_TEXT, p);
+        }
     }
 }
 

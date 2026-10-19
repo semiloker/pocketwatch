@@ -28,7 +28,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 
 | Element (6.61) | What it does | In Home: how | Status |
 |---|---|---|---|
-| USB Connection | USB mass storage | API (`sceUsb*`, drivers via `kuKernelLoadModule`) - with automatic reconnect | Implemented (HOM-REQ-011) |
+| USB Connection | USB mass storage | API (`sceUsb*`, drivers via `kuKernelLoadModule`, as ARK-4's menu) - Connect Again by hand | Implemented (HOM-REQ-011) |
 | System Update | firmware update | XMB - never from Home (CFW: an update removes ARK-4) | Dropped (safety) |
 | Video Settings | UMD Video / video playback options (language, subtitles, screen size) | needs a video player first | XMB (Planned with video, RESEARCH REQUIRED) |
 | Photo Settings | slideshow speed | OURS: Settings → Slideshow Speed (normal 5 s, fast 3 s, slow 10 s a picture - INFERRED, the XMB's times are not documented) | Implemented (HOM-REQ-016) |

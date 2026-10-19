@@ -141,6 +141,7 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HM_USB_ON] = {"hm_usb_on", "Connected. The computer has the Memory Stick."},
     [PW_S_HM_USB_FAIL] = {"hm_usb_fail", "USB could not be started."},
     [PW_S_HM_USB_END] = {"hm_usb_end", "End"},
+    [PW_S_HM_USB_AGAIN] = {"hm_usb_again", "Connect Again"},
     [PW_S_HS_POCKETWATCH] = {"hs_pocketwatch", "Pocketwatch"},
     [PW_S_HS_NICKNAME] = {"hs_nickname", "Nickname"},
     [PW_S_HS_SYS_LANGUAGE] = {"hs_sys_language", "System Language"},

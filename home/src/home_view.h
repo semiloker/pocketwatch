@@ -90,6 +90,7 @@ typedef struct {
     /* A message card over everything while sheet > 0 (USB, HOM-REQ-011) */
     int sheet, sheet_busy; /* busy: three dots pulse (t_ms) */
     const char *sheet_title, *sheet_text, *sheet_hint;
+    const char *sheet_again; /* Enter: try again (USB), or NULL */
 
     /* For hm_prefetch: every section's rows (by tab), drawn when their section opens */
     const hm_row *other_rows[HM_TABS];

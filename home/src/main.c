@@ -380,7 +380,7 @@ static void stats_write(stats *st, unsigned int now, const char *why)
 
 /* ---- USB (HOM-REQ-011): the card belongs to the computer meanwhile ---- */
 
-static void usb_texts(hm_view *v, int state)
+static void usb_texts(hm_view *v, int state, int again)
 {
     v->sheet_title = pw_tr(PW_S_HM_USB);
     v->sheet_text = pw_tr(state == HM_USB_CONNECTED  ? PW_S_HM_USB_ON
@@ -389,6 +389,17 @@ static void usb_texts(hm_view *v, int state)
                                                      : PW_S_HM_USB_WAIT);
     v->sheet_busy = state == HM_USB_CONNECTING;
     v->sheet_hint = pw_tr(PW_S_HM_USB_END);
+    v->sheet_again = again ? pw_tr(PW_S_HM_USB_AGAIN) : 0;
+}
+
+static void usb_log(void)
+{
+    char line[400];
+    int n = hm_usb_report(line, (int)sizeof(line) - 1);
+
+    line[n] = '\n';
+    line[n + 1] = 0;
+    log_line(line);
 }
 
 /* ---- the HOME panel (HOM-REQ-010) and a game's options (HOM-REQ-014, -015) ---- */
@@ -614,8 +625,16 @@ int main(void)
         t_prev = now;
         /* input: USB, then the open panel, over everything */
         if (usb) {
-            if (ev & (back | PSP_CTRL_HOME)) { /* the card is ours again: read it afresh */
+            if ((ev & enter) && usb_state != HM_USB_CONNECTED) { /* connect again, by hand */
+                if (usb_state == HM_USB_FAILED) {
+                    hm_usb_stop();
+                    start_usb = 1;
+                } else {
+                    usb_state = hm_usb_again(now);
+                }
+            } else if (ev & (back | PSP_CTRL_HOME)) { /* the card is ours again: read it afresh */
                 hm_usb_stop();
+                usb_log(); /* what each step did, and the states the link went through */
                 usb = 0;
                 hm_library_rescan();
                 build_tiles();
@@ -815,6 +834,9 @@ int main(void)
             hm_library_pause(1);
             usb = 1;
             usb_state = hm_usb_start(now);
+            usb_log(); /* the drivers: before the connection, the card is still ours */
+            if (usb_state != HM_USB_FAILED)
+                usb_state = hm_usb_poll(now);
             t_usb = now;
         }
         if (viewer && slideshow && now - t_slide >= k_slide_ms[pw_config_get()->slide % 3]) {
@@ -827,7 +849,8 @@ int main(void)
             usb_state = hm_usb_poll(now);
         }
         if (usb)
-            usb_texts(&v, usb_state);
+            usb_texts(&v, usb_state,
+                      usb_state == HM_USB_FAILED || hm_usb_may_retry(usb_state, now));
         /* the firmware's own dialogs, over Home's screen */
         if (browser) {
             run_browser();
@@ -989,8 +1012,10 @@ int main(void)
             hm_sound_enable(hs_sounds());
         }
     }
-    if (usb)
+    if (usb) {
         hm_usb_stop();
+        usb_log();
+    }
     stats_write(&st, hm_hw_now_ms(), "leaving");
     hm_sound_end();
     hm_hw_touch(XMB_ONCE); /* leaving Home means the XMB, even when Home is the start screen */

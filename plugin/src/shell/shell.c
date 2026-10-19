@@ -144,6 +144,8 @@ static void open_screen(const pw_complication *startup, unsigned int t_press)
     t_frozen = sceKernelGetSystemTimeLow();
     if (frozen.count == 0) { /* no game running (or someone else froze it) */
         pw_thaw_game(&frozen);
+        if (frozen.card_busy)
+            pw_log("shell: HOME ignored: the game kept the Memory Stick busy for %u ms", frozen.ms);
         return;
     }
     g_open = 1;
@@ -172,10 +174,10 @@ static void open_screen(const pw_complication *startup, unsigned int t_press)
     result = startup ? pw_hub_startup(&frozen, startup) : pw_hub_run(&frozen);
 
     if (pw_fb_first_frame_us())
-        pw_log("shell: open: freeze %u ms, GE %u ms, screen %u ms, first frame %u ms after the "
-               "press",
-               (t_frozen - t_press) / 1000, (t_ge - t_frozen) / 1000, (t_screen - t_ge) / 1000,
-               (pw_fb_first_frame_us() - t_press) / 1000);
+        pw_log("shell: open: freeze %u ms (the card held %d time(s)), GE %u ms, screen %u ms, "
+               "first frame %u ms after the press",
+               (t_frozen - t_press) / 1000, frozen.card_tries, (t_ge - t_frozen) / 1000,
+               (t_screen - t_ge) / 1000, (pw_fb_first_frame_us() - t_press) / 1000);
     pw_fb_close();
     /* The game must not see the button that closed us: wait until everything is up. */
     for (unsigned int t0 = now_ms(); (buttons() & ANY_BUTTON) && now_ms() - t0 < RELEASE_WAIT_MS;)
