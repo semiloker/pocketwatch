@@ -188,6 +188,7 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HS_SLIDE_FAST] = {"hs_slide_fast", "Fast"},
     [PW_S_HS_SLIDE_SLOW] = {"hs_slide_slow", "Slow"},
     [PW_S_HS_SOUNDS] = {"hs_sounds", "Key Sounds"},
+    [PW_S_HM_BROWSER] = {"hm_browser", "Internet Browser"},
 #endif
 };
 

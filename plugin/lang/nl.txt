@@ -175,3 +175,4 @@ hs_slide_normal = Normaal
 hs_slide_fast = Snel
 hs_slide_slow = Langzaam
 hs_sounds = Toetsgeluiden
+hm_browser = Internetbrowser

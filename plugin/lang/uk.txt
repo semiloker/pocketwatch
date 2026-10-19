@@ -177,3 +177,4 @@ hs_slide_normal = Звичайна
 hs_slide_fast = Швидка
 hs_slide_slow = Повільна
 hs_sounds = Звуки кнопок
+hm_browser = Інтернет-браузер

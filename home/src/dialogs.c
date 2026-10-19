@@ -9,8 +9,10 @@
 #include "gfx_gu.h"
 
 /* The threads' priorities every PSPSDK utility sample uses. */
-static void base(pspUtilityDialogCommon *b, unsigned int size, int cross_enter, int language)
+void hm_dialog_base(void *common, unsigned int size, int cross_enter, int language)
 {
+    pspUtilityDialogCommon *b = common;
+
     memset(b, 0, size);
     b->size = size;
     b->language = language;
@@ -20,11 +22,6 @@ static void base(pspUtilityDialogCommon *b, unsigned int size, int cross_enter, 
     b->fontThread = 18;
     b->soundThread = 16;
 }
-
-/* One frame with the dialog over Home: our list, the GE done, then the dialog's own drawing. */
-typedef int (*status_fn)(void);
-typedef void (*update_fn)(void);
-typedef void (*shutdown_fn)(void);
 
 static void osk_update(void)
 {
@@ -43,8 +40,9 @@ static void sd_shutdown(void)
     sceUtilitySavedataShutdownStart();
 }
 
-static void run(status_fn status, update_fn update, shutdown_fn shutdown, hm_frame_fn frame,
-                void *ctx)
+/* One frame with the dialog over Home: our list, the GE done, then the dialog's own drawing. */
+void hm_dialog_run(hm_status_fn status, hm_update_fn update, hm_update_fn shutdown,
+                   hm_frame_fn frame, void *ctx)
 {
     for (;;) {
         int st = status();
@@ -56,8 +54,8 @@ static void run(status_fn status, update_fn update, shutdown_fn shutdown, hm_fra
         else if (st == PSP_UTILITY_DIALOG_QUIT)
             shutdown();
         hm_gu_present();
-        if (st == PSP_UTILITY_DIALOG_NONE || st == PSP_UTILITY_DIALOG_FINISHED)
-            break;
+        if (st < 0 || st == PSP_UTILITY_DIALOG_NONE || st == PSP_UTILITY_DIALOG_FINISHED)
+            break; /* (an error: no dialog to wait for) */
     }
 }
 
@@ -124,12 +122,12 @@ int hm_dialog_osk(const char *title, const char *initial, char *out, int cap, in
     data.outtextlength = 64;
     data.outtextlimit = 32; /* a nickname's length in the XMB */
     data.outtext = text;
-    base(&p.base, sizeof(p), cross_enter, language);
+    hm_dialog_base(&p.base, sizeof(p), cross_enter, language);
     p.datacount = 1;
     p.data = &data;
     if (sceUtilityOskInitStart(&p) < 0)
         return -1;
-    run(sceUtilityOskGetStatus, osk_update, osk_shutdown, frame, ctx);
+    hm_dialog_run(sceUtilityOskGetStatus, osk_update, osk_shutdown, frame, ctx);
     if (data.result != PSP_UTILITY_OSK_RESULT_CHANGED)
         return 0;
     to8(text, out, cap);
@@ -144,12 +142,12 @@ int hm_dialog_savedata(const char *disc_id, int cross_enter, int language, hm_fr
     static SceUtilitySavedataParam p;
 
     memset(&p, 0, sizeof(p));
-    base(&p.base, sizeof(p), cross_enter, language);
+    hm_dialog_base(&p.base, sizeof(p), cross_enter, language);
     p.mode = PSP_UTILITY_SAVEDATA_LISTDELETE;
     strncpy(p.gameName, disc_id, sizeof(p.gameName) - 1);
     p.saveNameList = names;
     if (sceUtilitySavedataInitStart(&p) < 0)
         return -1;
-    run(sceUtilitySavedataGetStatus, sd_update, sd_shutdown, frame, ctx);
+    hm_dialog_run(sceUtilitySavedataGetStatus, sd_update, sd_shutdown, frame, ctx);
     return 0;
 }

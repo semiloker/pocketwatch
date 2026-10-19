@@ -40,9 +40,9 @@ void hm_sound_init(void)
     g_quit = 0;
     g_want = -1;
     g_sema = sceKernelCreateSema("PocketwatchHomeSound", 0, 0, 1, 0);
-    g_thread = g_sema >= 0 ? sceKernelCreateThread("PocketwatchHomeSound", player, 0x16, 0x1000,
-                                                   0, 0)
-                           : -1;
+    g_thread = g_sema >= 0
+                   ? sceKernelCreateThread("PocketwatchHomeSound", player, 0x16, 0x1000, 0, 0)
+                   : -1;
     if (g_thread < 0 || sceKernelStartThread(g_thread, 0, 0) < 0) {
         hm_sound_end();
         return;

@@ -618,3 +618,15 @@ void hm_gu_written(const void *p, unsigned int bytes)
 {
     sceKernelDcacheWritebackRange(p, bytes);
 }
+
+void hm_gu_drop_stamps(void)
+{
+    for (int i = 0; i < STAMPS; i++) {
+        free(g_stamps[i].px);
+        g_stamps[i].px = 0;
+    }
+    g_stamp_bytes = 0;
+    free(g_scratch);
+    g_scratch = 0;
+    g_scratch_px = 0;
+}

@@ -22,6 +22,7 @@
 #include "gfx_gu.h"
 #include "home_view.h"
 #include "hsettings.h"
+#include "net.h"
 #include "sound.h"
 #include "hw.h"
 #include "launch.h"
@@ -38,7 +39,12 @@
 
 PSP_MODULE_INFO("PocketwatchHome", PSP_MODULE_USER, 0, 1);
 PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU);
-PSP_HEAP_SIZE_KB(-4096); /* 4 MB left to the firmware's dialogs (keyboard, saved data) */
+/* The heap: all the user memory free at the first malloc but 4 MB, which stay for the firmware
+   (dialogs, the MP3 decoder's and the network's modules, their threads). A negative heap size
+   alone keeps only libcglue's default 512 KB (glue.c _sbrk_r: MaxFreeMemSize - threshold):
+   PPSSPP showed 200 KB left and sceNetInit failing 0x80020190 with PSP_HEAP_SIZE_KB(-4096). */
+PSP_HEAP_SIZE_KB(-1);
+PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 
 #define FONT_PATH "flash0:/font/ltn0.pgf"
 #define PW_DIR    "ms0:/seplugins/pocketwatch/"
@@ -46,11 +52,14 @@ PSP_HEAP_SIZE_KB(-4096); /* 4 MB left to the firmware's dialogs (keyboard, saved
 #define XMB_ONCE  PW_DIR "xmb-once"     /* read by the XMB plugin (vsh/src/xboot.c) */
 #define PENDING   PW_DIR "boot-pending" /* the XMB plugin's crash guard: Home did come up */
 #define HOME_LOG  PW_DIR "home.log"     /* the frame rate, every STATS_MS */
-#define STATS_MS  30000
-#define FADE_MS   250
-#define MIX_MS    300 /* a new background fades in */
-#define ROWS_MAX  (HM_GAMES_MAX + 8)
-#define REPEAT    (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_UP | PSP_CTRL_DOWN)
+#define BROWSER   PW_DIR "browser.txt"  /* the browser's first page (a URL), if not the default */
+/* A search made for old browsers (plain HTTP; the PSP's browser has no modern TLS). PROPOSED. */
+#define BROWSER_HOME "http://frogfind.com/"
+#define STATS_MS     30000
+#define FADE_MS      250
+#define MIX_MS       300 /* a new background fades in */
+#define ROWS_MAX     (HM_GAMES_MAX + 8)
+#define REPEAT       (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_UP | PSP_CTRL_DOWN)
 
 static hm_ui g_ui;
 static pw_font g_fonts[3];
@@ -178,7 +187,9 @@ static int playtime_rows(hm_row *out, char (*vals)[48])
 }
 
 /* System: battery, time left, the card, the version, USB and the way back to the XMB. */
-static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_row)
+static int g_web_failed; /* the browser did not start last time (home.log says why) */
+
+static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_row, int *web_row)
 {
     int rows = 0, charging = 0, pct = hm_hw_battery(&charging), left = scePowerGetBatteryLifeTime();
 
@@ -239,6 +250,9 @@ static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_ro
         out[rows++] = (hm_row){pw_tr(PW_S_HM_MAC), g_mac, -1, HM_ROW_INFO};
     out[rows] = (hm_row){pw_tr(PW_S_HM_VERSION), "Pocketwatch Home " PW_VERSION, -1, HM_ROW_INFO};
     rows++;
+    *web_row = rows;
+    out[rows++] =
+        (hm_row){pw_tr(PW_S_HM_BROWSER), g_web_failed ? pw_tr(PW_S_BAT_NA) : 0, -1, HM_ROW_ACTION};
     *usb_row = rows;
     out[rows++] = (hm_row){pw_tr(PW_S_HM_USB), 0, -1, HM_ROW_ACTION};
     *exit_row = rows;
@@ -314,29 +328,38 @@ static void stats_frame(stats *st, unsigned int now, unsigned int cpu_us, unsign
     st->made += made;
 }
 
+static void log_line(const char *line)
+{
+    SceUID fd = sceIoOpen(HOME_LOG, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
+
+    if (fd >= 0) {
+        sceIoWrite(fd, line, strlen(line));
+        sceIoClose(fd);
+    }
+}
+
 static void stats_write(stats *st, unsigned int now, const char *why)
 {
-    char line[240];
+    char line[300];
     unsigned int ms = now - st->t0, n = st->frames ? st->frames : 1;
-    SceUID fd;
 
     if (st->frames < 2 || ms == 0)
         return;
     {
         unsigned int made, kept, bytes;
+        struct mallinfo mi = mallinfo(); /* Home's heap; and the memory left outside it */
 
         hm_gu_stats(&made, &kept, &bytes);
         stbsp_snprintf(line, sizeof(line),
                        "home %s: %u frames in %u ms (%u fps), %u late; a frame: CPU %u us, warm "
-                       "%u us, GE wait %u us; longest %u ms; stamps %u made, %u kept (%u KB)\n",
+                       "%u us, GE wait %u us; longest %u ms; stamps %u made, %u kept (%u KB); "
+                       "heap %u of %u KB, outside %u KB\n",
                        why, st->frames, ms, st->frames * 1000 / ms, st->late, st->cpu_us / n,
-                       st->warm_us / n, st->ge_us / n, st->worst_ms, st->made, kept, bytes >> 10);
+                       st->warm_us / n, st->ge_us / n, st->worst_ms, st->made, kept, bytes >> 10,
+                       (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10,
+                       (unsigned int)sceKernelMaxFreeMemSize() >> 10);
     }
-    fd = sceIoOpen(HOME_LOG, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
-    if (fd >= 0) {
-        sceIoWrite(fd, line, strlen(line));
-        sceIoClose(fd);
-    }
+    log_line(line);
     memset(st, 0, sizeof(*st));
     st->t0 = st->last = hm_hw_now_ms();
 }
@@ -470,6 +493,37 @@ static void texts(hm_view *v, int sheet)
 }
 
 /* A firmware dialog over Home: Home's screen as it is, each vblank. */
+/* Behind the browser: black (it covers the screen; Home's frame would make stamps again). */
+static void black_frame(void *ctx)
+{
+    hm_gfx *g = hm_gu_begin();
+
+    (void)ctx;
+    g->fill(g, 0, 0, HM_W, HM_H, 0xFF000000u, 256);
+    hm_gu_finish();
+}
+
+/* The browser (HOM-REQ-017): music, loader and stamps out of the way for its memory. */
+static void run_browser(void)
+{
+    char url[200], log[200], line[260];
+    int n = hm_hw_read_file(BROWSER, url, sizeof(url) - 1), r;
+
+    while (n > 0 && (url[n - 1] == '\n' || url[n - 1] == '\r' || url[n - 1] == ' '))
+        n--;
+    if (n <= 0)
+        n = stbsp_snprintf(url, sizeof(url), "%s", BROWSER_HOME);
+    url[n] = 0;
+    hm_music_stop();
+    hm_library_pause(1);
+    hm_gu_drop_stamps();
+    r = hm_net_browser(url, g_ui.cross_enter, hm_hw_language(), black_frame, 0, log, sizeof(log));
+    hm_library_pause(0);
+    g_web_failed = r < 0;
+    stbsp_snprintf(line, sizeof(line), "home browser %s: 0x%08X,%s\n", url, (unsigned int)r, log);
+    log_line(line);
+}
+
 static void dialog_frame(void *ctx)
 {
     hm_draw(hm_gu_begin(), &g_ui, (const hm_view *)ctx);
@@ -485,8 +539,8 @@ int main(void)
     stats st;
     unsigned int t_prev, t_open, t_fade = 0, t_rows = 0, t_status = 0, t_usb = 0;
     const unsigned int *shown = 0; /* the background drawn last */
-    int launching = -1, launch_slot = 0, exit_row = -1, usb_row = -1, row_sel = 0, up = 0,
-        sheet = SHEET_NONE, leave = 0, usb = 0, usb_state = HM_USB_OFF;
+    int launching = -1, launch_slot = 0, exit_row = -1, usb_row = -1, web_row = -1, row_sel = 0,
+        up = 0, sheet = SHEET_NONE, leave = 0, usb = 0, usb_state = HM_USB_OFF;
     int g_sel = 0, g_selpos = 0, ph_sel = 0, ph_selpos = 0,
         viewer = 0; /* the two rows of pictures */
     int slideshow = 0;
@@ -534,7 +588,7 @@ int main(void)
         unsigned int now = hm_hw_now_ms(), t_cpu = sceKernelGetSystemTimeLow(), t_warm,
                      ev = pw_keys_update(&keys, hm_hw_buttons(), REPEAT, now * 1000);
         const unsigned int *want;
-        int dt = (int)(now - t_prev), start_usb = 0, nickname = 0, saved_data = 0;
+        int dt = (int)(now - t_prev), start_usb = 0, nickname = 0, saved_data = 0, browser = 0;
         hm_game *gsel = hm_library_count() ? hm_library_game(g_sel) : 0;
         hm_gfx *g;
 
@@ -714,6 +768,8 @@ int main(void)
                     leave = 1;
                 else if ((ev & enter) && v.tab == HM_TAB_SYSTEM && row_sel == usb_row)
                     start_usb = 1;
+                else if ((ev & enter) && v.tab == HM_TAB_SYSTEM && row_sel == web_row)
+                    browser = 1;
             }
         }
         if (ev) { /* the key sounds (HOM-REQ-019) */
@@ -727,7 +783,7 @@ int main(void)
                      (!usb && was_usb) || (sheet == SHEET_GAME && was_sheet == SHEET_INFO))
                 snd = HM_SND_BACK;
             else if ((sheet != SHEET_NONE && sheet != was_sheet) || (viewer && !was_viewer) ||
-                     start_usb || nickname || saved_data)
+                     start_usb || nickname || saved_data || browser)
                 snd = HM_SND_OPEN;
             else if (v.tab != was_tab)
                 snd = HM_SND_TAB;
@@ -759,6 +815,12 @@ int main(void)
         if (usb)
             usb_texts(&v, usb_state);
         /* the firmware's own dialogs, over Home's screen */
+        if (browser) {
+            run_browser();
+            t_rows = 0;
+            t_prev = hm_hw_now_ms();
+            continue;
+        }
         if (nickname) {
             char was[64], typed[64];
 
@@ -786,7 +848,8 @@ int main(void)
             v.other_nrows[HM_TAB_MUSIC] = music_rows();
             v.other_nrows[HM_TAB_PLAYTIME] = playtime_rows(g_pt_rows, g_pt_vals);
             v.other_nrows[HM_TAB_SETTINGS] = settings_rows(g_set_rows, g_set_vals);
-            v.other_nrows[HM_TAB_SYSTEM] = system_rows(g_sys_rows, g_sys_vals, &usb_row, &exit_row);
+            v.other_nrows[HM_TAB_SYSTEM] =
+                system_rows(g_sys_rows, g_sys_vals, &usb_row, &exit_row, &web_row);
         }
         v.rows = v.other_rows[v.tab];
         v.nrows = v.other_nrows[v.tab];

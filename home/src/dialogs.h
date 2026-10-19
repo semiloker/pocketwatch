@@ -10,6 +10,14 @@
  */
 
 typedef void (*hm_frame_fn)(void *ctx); /* hm_gu_begin .. hm_gu_finish, no hm_gu_end */
+typedef int (*hm_status_fn)(void);      /* sceUtility...GetStatus */
+typedef void (*hm_update_fn)(void);     /* ...Update(1), ...ShutdownStart() */
+
+/* A dialog's common part (pspUtilityDialogCommon, size bytes of its parameters cleared). */
+void hm_dialog_base(void *common, unsigned int size, int cross_enter, int language);
+/* Frames until the dialog has gone: Home's frame, the GE done, the dialog's update, the swap. */
+void hm_dialog_run(hm_status_fn status, hm_update_fn update, hm_update_fn shutdown,
+                   hm_frame_fn frame, void *ctx);
 
 /* The keyboard: the text typed (UTF-8) into out; 1 when the user confirmed, 0 when cancelled,
    < 0 on an error. title and initial are UTF-8. */

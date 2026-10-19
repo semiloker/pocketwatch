@@ -197,6 +197,7 @@ enum {
     PW_S_HS_SLIDE_FAST,
     PW_S_HS_SLIDE_SLOW,
     PW_S_HS_SOUNDS,
+    PW_S_HM_BROWSER,
     PW_S_COUNT
 };
 

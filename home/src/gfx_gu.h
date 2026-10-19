@@ -23,6 +23,9 @@ void hm_gu_present(void);
 /* Stamps made this frame, kept, and their bytes (home.log). */
 void hm_gu_stats(unsigned int *made, unsigned int *count, unsigned int *bytes);
 
+/* Every stamp let go (the GE idle): memory for a big firmware dialog; they come back as drawn. */
+void hm_gu_drop_stamps(void);
+
 /* After the CPU wrote pixels the GE will read (the loader's icons and backgrounds). */
 void hm_gu_written(const void *p, unsigned int bytes);
 

@@ -47,7 +47,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 | Sound Settings → Key Tones | click sounds | registry (RESEARCH REQUIRED) | XMB |
 | Theme Settings → Theme, Color, Wallpaper | the XMB's look | OURS: Home's own look (styles, accent colour, the game's art as background); a wallpaper from Photos | Wallpaper implemented (HOM-REQ-021); styles Planned (HOM-REQ-006) |
 | Security Settings | parental control, passwords | XMB (registry, password) | XMB |
-| Network Settings | access points, ad hoc channel | SYS DIALOG (netconf) connects; editing entries stays in the XMB; ad hoc channel: API | Planned (HOM-REQ-017) |
+| Network Settings | access points, ad hoc channel | the browser connects with its own list of the saved connections; editing entries stays in the XMB | XMB (editing); connecting: HOM-REQ-017 |
 | Remote Play / RSS Channel / Print Settings | PS3 pairing, feeds, PictBridge | services of a past era | XMB |
 
 ### Photo, Music, Video
@@ -72,7 +72,7 @@ dialog drawn inside Home (savedata, OSK, netconf, HTML viewer: the same screens 
 
 | Element | What it does | In Home: how | Status |
 |---|---|---|---|
-| Internet Browser | web pages | SYS DIALOG: `sceUtilityHtmlViewer` (the system's browser) | Planned (HOM-REQ-017) |
+| Internet Browser | web pages | SYS DIALOG: `sceUtilityHtmlViewer` (the system's browser), System → Internet Browser | Implemented (HOM-REQ-017); device: HM19 |
 | Online Instruction Manuals, RSS Channel, Internet Radio, Remote Play | Sony's online services | servers shut down or PS3-bound | Dropped (no service) |
 | PlayStation Store, Account Management, Information Board | PSN | PSP's PSN services closed (2016) | Dropped (no service) |
 

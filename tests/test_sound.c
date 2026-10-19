@@ -20,7 +20,7 @@ PW_TEST(home_sounds_are_whole_chunks_quiet_and_end_in_silence)
             energy += (long long)v * v;
         }
         CHECK(energy > 0);
-        CHECK(peak < 32767 / 5); /* key sounds stay well under full scale */
+        CHECK(peak < 32767 / 5);                  /* key sounds stay well under full scale */
         CHECK(g_buf[0] > -300 && g_buf[0] < 300); /* they rise: no click at the start */
         CHECK(g_buf[n - 1] == 0);                 /* nor at the end */
     }
