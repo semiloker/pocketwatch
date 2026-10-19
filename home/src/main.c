@@ -861,6 +861,11 @@ static void after_setting(int r, int was_sort, int was_style)
     }
     if (r == HS_MUSIC_CHANGED)
         hm_music_mode(hm_cfg_get()->shuffle, hm_cfg_get()->repeat);
+    if (r == HS_KEYS_CHANGED) { /* the Enter button: Enter and Back swap at once */
+        g_ui.cross_enter = hm_hw_cross_enter();
+        g_enter = g_ui.cross_enter ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
+        g_back = g_ui.cross_enter ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
+    }
     if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
         hm_texts_load();
         texts(&g_v);

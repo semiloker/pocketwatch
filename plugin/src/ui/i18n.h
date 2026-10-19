@@ -322,6 +322,11 @@ enum {
     PW_S_HM_FAV_OFF,
     PW_S_HS_SORT_TYPE,
     PW_S_HS_BG_AURORA,
+    PW_S_HS_ENTER,
+    PW_S_HS_BTN_CIRCLE,
+    PW_S_HS_BTN_CROSS,
+    PW_S_HS_ADHOC,
+    PW_S_HS_AUTOMATIC,
     PW_S_COUNT
 };
 

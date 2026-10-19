@@ -597,6 +597,47 @@ static int set_summer(int o)
 {
     return sys_set(PSP_SYSTEMPARAM_ID_INT_DAYLIGHTSAVINGS, o);
 }
+/* The Enter button (system parameter 9: 1 Cross, 0 Circle, as hw.c reads it) */
+static int get_enter(void)
+{
+    return sys_get(PSP_SYSTEMPARAM_ID_INT_UNKNOWN);
+}
+static int set_enter(int o)
+{
+    return sys_set(PSP_SYSTEMPARAM_ID_INT_UNKNOWN, o) < 0 ? -1 : HS_KEYS_CHANGED;
+}
+static void text_enter(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s", pw_tr(o ? PW_S_HS_BTN_CROSS : PW_S_HS_BTN_CIRCLE));
+}
+
+/* The Ad Hoc channel: automatic, 1, 6, 11 */
+static const int k_adhoc[4] = {0, 1, 6, 11};
+static int adhoc_count(void)
+{
+    return 4;
+}
+static int get_adhoc(void)
+{
+    int v = sys_get(PSP_SYSTEMPARAM_ID_INT_ADHOC_CHANNEL);
+
+    for (int i = 0; i < 4; i++)
+        if (k_adhoc[i] == v)
+            return i;
+    return -1;
+}
+static int set_adhoc(int o)
+{
+    return sys_set(PSP_SYSTEMPARAM_ID_INT_ADHOC_CHANNEL, k_adhoc[o]);
+}
+static void text_adhoc(int o, char *out, int cap)
+{
+    if (o <= 0)
+        stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_HS_AUTOMATIC));
+    else
+        stbsp_snprintf(out, cap, "%d", k_adhoc[o & 3]);
+}
+
 static int get_wlan(void)
 {
     return sys_get(PSP_SYSTEMPARAM_ID_INT_WLAN_POWERSAVE);
@@ -688,7 +729,9 @@ static const row k_rows[] = {
     {HS_CAT_SYSTEM, HS_CHOICE, PW_S_HS_SYS_LANGUAGE, 0, sys_lang_count, get_sys_lang, set_sys_lang,
      text_sys_lang},
     {HS_CAT_SYSTEM, HS_ACTION, PW_S_HS_NICKNAME, HS_ACT_NICKNAME, 0, 0, 0, 0},
+    {HS_CAT_SYSTEM, HS_CHOICE, PW_S_HS_ENTER, 0, two, get_enter, set_enter, text_enter},
     {HS_CAT_NETWORK, HS_CHOICE, PW_S_HS_WLAN_SAVE, 0, two, get_wlan, set_wlan, on_off},
+    {HS_CAT_NETWORK, HS_CHOICE, PW_S_HS_ADHOC, 0, adhoc_count, get_adhoc, set_adhoc, text_adhoc},
 };
 #define ROWS ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
 

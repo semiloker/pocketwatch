@@ -312,6 +312,11 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HM_FAV_OFF] = {"hm_fav_off", "Removed from favourites"},
     [PW_S_HS_SORT_TYPE] = {"hs_sort_type", "By Kind"},
     [PW_S_HS_BG_AURORA] = {"hs_bg_aurora", "Aurora"},
+    [PW_S_HS_ENTER] = {"hs_enter", "Enter Button"},
+    [PW_S_HS_BTN_CIRCLE] = {"hs_btn_circle", "Circle"},
+    [PW_S_HS_BTN_CROSS] = {"hs_btn_cross", "Cross"},
+    [PW_S_HS_ADHOC] = {"hs_adhoc", "Ad Hoc Channel"},
+    [PW_S_HS_AUTOMATIC] = {"hs_automatic", "Automatic"},
 #endif
 };
 

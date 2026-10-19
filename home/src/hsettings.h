@@ -32,6 +32,7 @@ enum {
 #define HS_LOOK_CHANGED      2
 #define HS_WALLPAPER_CHANGED HS_LOOK_CHANGED
 #define HS_MUSIC_CHANGED     3
+#define HS_KEYS_CHANGED      4 /* the Enter button: Enter and Back swap */
 
 const char *hs_cat_label(int c);
 int hs_cat_glyph(int c);                      /* hm_icons.h HM_ICON_* (Modern, Minimal) */

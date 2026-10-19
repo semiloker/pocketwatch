@@ -9,6 +9,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - In a game, HOME -> Screenshot saves the game's picture (without the menu) to
   PICTURE/<game ID>/: Pocketwatch Home shows it in the game's album, the XMB in Photo.
+- Pocketwatch Home: the console's Enter button (Cross or Circle) and Ad Hoc channel in Settings.
 - Pocketwatch Home: HOLD turns the screen off while music plays (and the CPU slows down to save
   the battery), a sleep timer, the weekday in the clock, favourite games (Square: first, with a
   star) and the Aurora background - softly drifting lights in your accent's colours.
