@@ -18,7 +18,8 @@
 - **Since 2026-10-19:** USB, Settings (Pocketwatch's and the system's), System Information, a
   game's states (Continue) and its Saved Data in Home - every element of the XMB is accounted
   for in [m7-xmb-inventory](../research/m7-xmb-inventory.md).
-- **Target state:** Classic and Minimal styles too; photos and music; PSN games.
+- **Since ADR-033 (2026-10-19):** the three styles of the in-game menu - Classic is the XMB
+  itself, with the system's own pictures read from flash0.
 
 ## B. Requirements
 
@@ -29,7 +30,9 @@
 | `HOM-REQ-003` | Under the title: the disc ID, play time (PLT files) and the number of save states (`PW<disc ID><slot>` folders) - only what is known. | P1 | Implemented | HM1 |
 | `HOM-REQ-004` | Enter starts the game the way ARK-4's own menu does (Inferno, apitype 0x123, EBOOT.OLD for a patched image); a failed start returns to Home. | P1 | Implemented | HM2 |
 | `HOM-REQ-005` | Play Time: the total and every game with time, most first, with bars; System: battery, time left (the system's figure), free space, the number of games, the version, Exit to the XMB. L / R switch sections. | P1 | Implemented | previews `home-playtime.png`, `home-system.png`, HM3 |
-| `HOM-REQ-006` | The three styles (Classic, Modern, Minimal) as in the hub, from config.txt. | P2 | Planned (Modern only) | - |
+| `HOM-REQ-006` | The three styles (Classic, Modern, Minimal) as in the hub, from `config.txt` `style`; Settings → Style changes Home at once (ADR-033). | P1 | Implemented 2026-10-19 (owner: "nothing happens" when the style changed); previews `home-*.png`, `modern-home-*.png`, `minimal-home-*.png`; checked in PPSSPP (all three, 60/60, switched from Settings); HM20 pending | `home_draws_every_style_*`, previews, HM20 |
+| `HOM-REQ-022` | Classic is the XMB: the month's sky (or the theme colour's) with its wave, the system's category icons, button pictures and battery from flash0 (`topmenu_icon.rco`, `system_plugin_fg.rco`, `01-12_03g.bmp`; drawn ones when missing, `home art: ...` in `home.log`), the categories in a row with the open one's name, the game list (144 x 80 / 81 x 45, the PIC1 sharp behind), items with icons for Music and Play Time, the option list for Settings and System with a choice's options in a panel on the right; left / right the categories, up / down the items, Enter opens a choice, Back or left closes it. | P1 | Implemented 2026-10-19; checked in PPSSPP (its flash0 has no RCO: the drawn icons and the plain sky); HM20 pending | previews `home-*.png` (with an RCO), HM20 |
+| `HOM-REQ-023` | Modern's sections: icon pills, lists with a gliding white pill, switches for on/off, groups, a scroll bar; Play Time with the games' icons; Music as a card of what plays beside the tracks; Photos as a grid (up / down a row); System begins with USB Connection, Internet Browser and Exit to the XMB, then Battery, Memory Stick and System groups. | P1 | Implemented 2026-10-19; checked in PPSSPP; HM21 pending | previews `modern-home-*.png`, HM21 |
 | `HOM-REQ-007` | The PSP can start in Home instead of the XMB: Settings → Pocketwatch → Start screen; ARK-4's menu and settings untouched; the XMB comes instead when L is held at power-on, when Home asked for it, or when Home's last start never reached its first screen ([m7-boot-shell](../research/m7-boot-shell.md), ADR-026). | P1 | Implemented 2026-10-18; run 1 gave the XMB (ADR-027 fixes both causes); HM5-HM9 pending | `boot_*` host tests, HM5-HM9 |
 | `HOM-REQ-008` | Home lists every `ms0:/PSP/GAME/<folder>/EBOOT.PBP` that is homebrew (CATEGORY `MG`) or a PS1 game (`ME`) with its own icon (kept in shape) and PIC1, after the PSP games, and starts it as ARK-4's menu does (apitype 0x141 / 0x144). | P1 | Implemented; reader VERIFIED on the owner's 9 EBOOTs on the PC; starting: HM7 pending | `disc_finds_the_parts_of_an_eboot_pbp`, HM7 |
 | `HOM-REQ-009` | Exit to the XMB and HOME → Quit in Home lead to the XMB even when Home is the start screen (marker `xmb-once`); after its first frame Home clears the start guard (`boot-pending`). | P1 | Implemented; HM6, HM8 pending | HM6, HM8 |
@@ -62,9 +65,11 @@ deflate through the vendored `stb_image.h` (public domain / MIT, `home/lib/`). T
 
 ## D. User experience
 
-Modern ([styles](../ui/styles.md)): tabs at the top left with a gliding pill, the clock and
-battery pill at the top right; the chosen icon large with a focus ring, the next ones smaller to
-its right; the title, the meta line and a white Play pill below; hints at the bottom right.
+Three styles ([styles](../ui/styles.md#pocketwatch-home-adr-033), ADR-033). Modern: section
+pills at the top left, the clock and battery pill at the top right; Games: the chosen icon large
+with a focus ring, the next ones smaller to its right, the title, the meta line and a white Play
+pill below; hints at the bottom right. Classic: the XMB's categories and columns. Minimal: words
+over the darkened background.
 
 ## E. Reference material
 

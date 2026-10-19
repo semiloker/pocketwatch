@@ -534,6 +534,41 @@ int hs_set_nickname(const char *utf8)
     return strcmp(back, utf8) == 0 ? 0 : -1;
 }
 
+int hs_toggle(int i)
+{
+    const row *r = i >= 0 && i < ROWS ? &k_rows[i] : 0;
+    int v;
+
+    if (!r || r->kind != HS_CHOICE || r->text != on_off)
+        return 0;
+    v = r->get();
+    return v == 0 ? 1 : v == 1 ? 2 : 0;
+}
+
+int hs_options(int i)
+{
+    return i >= 0 && i < ROWS && k_rows[i].kind == HS_CHOICE ? k_rows[i].count() : 0;
+}
+
+void hs_option_text(int i, int o, char *out, int cap)
+{
+    out[0] = 0;
+    if (o >= 0 && o < hs_options(i))
+        k_rows[i].text(o, out, cap);
+}
+
+int hs_current(int i)
+{
+    return hs_options(i) > 0 ? k_rows[i].get() : -1;
+}
+
+int hs_choose(int i, int o)
+{
+    if (o < 0 || o >= hs_options(i))
+        return 0;
+    return o == k_rows[i].get() ? 0 : k_rows[i].set(o);
+}
+
 int hs_next(int i, int dir)
 {
     for (int j = i + dir; j >= 0 && j < ROWS; j += dir)

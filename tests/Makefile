@@ -27,7 +27,7 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
               $(SRC_DIR)/complications/registry.c $(SRC_DIR)/ui/backdrop.c \
               $(SRC_DIR)/ui/views_modern.c $(SRC_DIR)/ui/views_minimal.c $(SRC_DIR)/ui/volume.c $(SRC_DIR)/ui/langnames.c $(SRC_DIR)/core/battmodel.c $(SRC_DIR)/core/playtime.c $(SRC_DIR)/core/bootpick.c \
-              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c $(HOME_DIR)/music_name.c $(HOME_DIR)/sound_synth.c \
+              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/view_classic.c $(HOME_DIR)/view_modern.c $(HOME_DIR)/view_minimal.c $(HOME_DIR)/hm_icons.c $(HOME_DIR)/xmbart.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c $(HOME_DIR)/music_name.c $(HOME_DIR)/sound_synth.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
@@ -66,7 +66,7 @@ $(BUILD)/preview_ui.o: preview/preview_ui.c | $(BUILD)
 preview: $(PREVIEW_OBJS)
 	$(CC) $(LDFLAGS) -o $(BUILD)/preview_ui $^
 	mkdir -p $(BUILD)/preview
-	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
+	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_FG=$(FG) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
 
 # Frame cost by part (tests/bench/bench_ui.c), -O2 without sanitizers: only the proportions matter.
 BENCH_OPT ?= -O2

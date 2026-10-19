@@ -96,3 +96,19 @@ complications stay as they are.
   the log does not measure it yet).
 - Whether the owner wants Modern's buttons to show the XMB's own icons instead of the drawn ones
   (OPEN QUESTION).
+
+## Pocketwatch Home (ADR-033)
+
+Home follows the same `style` and changes at once when its Settings → Style changes
+(`home/src/view_classic.c`, `view_modern.c`, `view_minimal.c`; previews `home-*.png`,
+`modern-home-*.png`, `minimal-home-*.png`).
+
+| | Classic (XMB) | Modern | Minimal |
+|---|---|---|---|
+| Background | the month's sky (or the theme colour's) with the wave; a game's PIC1 sharp in Games | the chosen game's art blurred, else the slate gradient or the wallpaper | the same, darkened further |
+| Sections | the XMB's categories: the system's icons in a row, the open one at (109, 70) with its name | icon pills, the chosen one opens into a white pill with its name | words, the chosen one white with a line under it |
+| Games, Photos | the XMB's game list: the chosen icon 144 x 80, the others 81 x 45, the earlier ones above the categories; name, rule and line beside it | the row of icons over the art (Games); a grid (Photos) | one column of names, the chosen line in the middle |
+| Music, Play Time | items with an icon and a line (play time: the game's icon) | Music: a card of what plays beside the tracks; Play Time: rows with icons and bars | "name ... value" lines |
+| Settings, System | the XMB's option list (the categories slide away, the focus bar); a choice's options in the panel on the right | rows with a gliding white pill; on/off as switches; groups | "name ... value", the chosen one's arrows |
+| Keys | left / right: categories; up / down: items; Enter: a choice's options | L / R sections; left / right along the row and to change a value | as Modern, the lists up / down |
+| Sony assets | `topmenu_icon.rco`, `system_plugin_fg.rco`, `01-12_03g.bmp` from flash0 (never shipped) | none | none |

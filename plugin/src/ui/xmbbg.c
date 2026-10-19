@@ -98,8 +98,8 @@ PW_PIXEL unsigned int lighten(unsigned int p, unsigned int a)
  * 60 frames a second).
  */
 #define BODY_FROM (-16)
-#define BODY_TO   (90 * 16)
-#define RIBBON    (10 * 16)
+#define BODY_TO   (PW_XMBBG_BODY_D * 16)
+#define RIBBON    (PW_XMBBG_RIBBON_D * 16)
 
 static unsigned char g_body[BODY_TO - BODY_FROM], g_ribbon[RIBBON];
 static int g_tables;
@@ -110,15 +110,15 @@ static void make_tables(void)
         int a;
 
         if (d < 0)
-            a = (d + 16) * 70 / 16;
-        else if (d < 3 * 16)
-            a = 70 - d * 30 / (3 * 16);
+            a = (d + 16) * PW_XMBBG_EDGE_A / 16;
+        else if (d < PW_XMBBG_BAND_D * 16)
+            a = PW_XMBBG_EDGE_A - d * (PW_XMBBG_EDGE_A - PW_XMBBG_BAND_A) / (PW_XMBBG_BAND_D * 16);
         else
-            a = 40 * (90 * 16 - d) / (87 * 16);
+            a = PW_XMBBG_BAND_A * (BODY_TO - d) / (BODY_TO - PW_XMBBG_BAND_D * 16);
         g_body[d - BODY_FROM] = (unsigned char)(a > 0 ? a : 0);
     }
     for (int r = 0; r < RIBBON; r++)
-        g_ribbon[r] = (unsigned char)(22 * (RIBBON - r) / RIBBON);
+        g_ribbon[r] = (unsigned char)(PW_XMBBG_RIBBON_A * (RIBBON - r) / RIBBON);
     g_tables = 1;
 }
 
@@ -126,6 +126,16 @@ static void make_tables(void)
  * Two slow sines make a ribbon that leans down to the right like the XMB's: a soft crest line,
  * a translucent body fading downwards, and a faint second ribbon above it.
  */
+void pw_xmbbg_crests(unsigned int t_ms, int x, int *top, int *top2)
+{
+    unsigned int t = t_ms / 16; /* phase drift: ~1/256 turn every 16 ms */
+
+    *top = PW_XMBBG_WAVE_TOP * 16 + 66 * 16 + x * 16 * 38 / 480 +
+           (isin((unsigned int)(x * 256 / 560) + t / 3) * 14 * 16) / 4096 +
+           (isin((unsigned int)(x * 256 / 250) + 256 - t / 5) * 6 * 16) / 4096;
+    *top2 = *top - 30 * 16 + (isin((unsigned int)(x * 256 / 330) + t / 4 + 80) * 9 * 16) / 4096;
+}
+
 void pw_xmbbg_wave(pw_canvas *c, unsigned int t_ms)
 {
     pw_xmbbg_wave_rows(c, t_ms, 0, c->h);
@@ -134,7 +144,6 @@ void pw_xmbbg_wave(pw_canvas *c, unsigned int t_ms)
 void pw_xmbbg_wave_rows(pw_canvas *c, unsigned int t_ms, int y_from, int y_to)
 {
     static short top[PW_XMBBG_MAX_W], top2[PW_XMBBG_MAX_W]; /* 1/16 px: < 4352 */
-    unsigned int t = t_ms / 16; /* phase drift: ~1/256 turn every 16 ms */
     int bottom = c->h < PW_XMBBG_WAVE_BOTTOM ? c->h : PW_XMBBG_WAVE_BOTTOM, w = c->w,
         y_min = bottom;
 
@@ -143,11 +152,11 @@ void pw_xmbbg_wave_rows(pw_canvas *c, unsigned int t_ms, int y_from, int y_to)
     if (w > PW_XMBBG_MAX_W)
         w = PW_XMBBG_MAX_W;
     for (int x = 0; x < w; x++) { /* the crest of each column, in 1/16 px */
-        top[x] = (short)(PW_XMBBG_WAVE_TOP * 16 + 66 * 16 + x * 16 * 38 / 480 +
-                         (isin((unsigned int)(x * 256 / 560) + t / 3) * 14 * 16) / 4096 +
-                         (isin((unsigned int)(x * 256 / 250) + 256 - t / 5) * 6 * 16) / 4096);
-        top2[x] = (short)(top[x] - 30 * 16 +
-                          (isin((unsigned int)(x * 256 / 330) + t / 4 + 80) * 9 * 16) / 4096);
+        int t1, t2;
+
+        pw_xmbbg_crests(t_ms, x, &t1, &t2);
+        top[x] = (short)t1;
+        top2[x] = (short)t2;
         if (((top2[x] - RIBBON) >> 4) < y_min)
             y_min = (top2[x] - RIBBON) >> 4;
     }

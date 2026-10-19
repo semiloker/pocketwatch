@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <stdlib.h>
 #include <string.h>
 
 #include "gfx_cpu.h"
-#include "ui/icons.h"
+#include "hm_icons.h"
 #include "ui/shapes.h"
+#include "ui/xmbbg.h"
 
 static pw_canvas *canvas(hm_gfx *g)
 {
@@ -24,8 +26,21 @@ static void rrect(hm_gfx *g, int x, int y, int w, int h, int r, int line, unsign
 static void image(hm_gfx *g, const unsigned int *px, int w, int h, int stride, int x, int y, int dw,
                   int dh, int alpha)
 {
-    (void)stride; /* the CPU path takes packed images: every caller's stride is its width */
+    unsigned int *packed = 0;
+
+    if (stride != w && (packed = malloc((size_t)w * (size_t)h * 4)) != 0) { /* the system's art */
+        for (int r = 0; r < h; r++)
+            memcpy(packed + r * w, px + r * stride, (size_t)w * 4);
+        px = packed;
+    }
     pw_draw_image_scaled(canvas(g), px, w, h, x, y, dw, dh, alpha);
+    free(packed);
+}
+
+static void wave(hm_gfx *g, unsigned int t_ms, int alpha)
+{
+    if (alpha > 0) /* (the previews show it whole) */
+        pw_xmbbg_wave(canvas(g), t_ms);
 }
 
 static void backdrop(hm_gfx *g, const unsigned int *bg, const unsigned int *prev, int mix)
@@ -53,7 +68,7 @@ static void text(hm_gfx *g, pw_font *f, int x, int y, const char *s, int max_w, 
 
 static void icon(hm_gfx *g, int which, int cx, int cy, int size, unsigned int color, int alpha)
 {
-    pw_icon_draw(canvas(g), which, cx, cy, size, color, alpha);
+    hm_icon_draw(canvas(g), which, cx, cy, size, color, alpha);
 }
 
 static void button(hm_gfx *g, int which, int cx, int cy, int size, unsigned int color, int alpha)
@@ -76,6 +91,7 @@ void hm_gfx_cpu_init(hm_gfx_cpu *g, pw_canvas *c)
     g->ops.rrect = rrect;
     g->ops.image = image;
     g->ops.backdrop = backdrop;
+    g->ops.wave = wave;
     g->ops.text = text;
     g->ops.icon = icon;
     g->ops.button = button;

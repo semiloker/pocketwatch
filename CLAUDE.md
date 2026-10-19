@@ -39,7 +39,10 @@ The project's full workflow is imported here and applies to every session:
   `python tools/make_home_art.py home/res` (ours, never Sony's). Previews: `home-*.png` from
   `make -C tests preview`. Home draws through `hm_gfx` (ADR-028): the GE on the PSP
   (`home/src/gfx_gu.c`), the CPU renderer for previews (`gfx_cpu.c`) - every operation needs both,
-  drawing the same pixels. Frame rate: `seplugins/pocketwatch/home.log`. Nothing slow in its frame
+  drawing the same pixels. Home has the three styles too (ADR-033: `view_classic.c` - the XMB,
+  with the system's pictures from flash0 via `xmbart.c` - `view_modern.c`, `view_minimal.c`);
+  previews: `home-*.png`, `modern-home-*.png`, `minimal-home-*.png` (`RCO=` for the system's
+  icons). Frame rate: `seplugins/pocketwatch/home.log`. Nothing slow in its frame
   loop (ADR-031): the battery comes from `hw.c`'s thread, the system's parameters from
   `hm_hw_param` (kept). Home's strings are the
   `PW_I18N_HOME` tier (after `PW_S_HOME_FIRST`); the XMB plugin builds without them.

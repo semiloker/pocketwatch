@@ -129,6 +129,7 @@ hm_usb_on = Подключено. Memory Stick у компьютера.
 hm_usb_fail = Не удалось включить USB.
 hm_usb_end = Завершить
 hm_usb_again = Подключить снова
+hm_storage = Memory Stick
 hs_pocketwatch = Pocketwatch
 hs_nickname = Имя пользователя
 hs_sys_language = Язык системы

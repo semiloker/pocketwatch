@@ -6,11 +6,12 @@
 #include <string.h>
 
 #include "gfx_gu.h"
+#include "hm_icons.h"
 #include "sprites.h"
 #include "stb_sprintf.h"
 #include "ui/draw.h"
-#include "ui/icons.h"
 #include "ui/shapes.h"
+#include "ui/xmbbg.h"
 
 #define SCR_W 480
 #define SCR_H 272
@@ -27,6 +28,8 @@
 #define STAMP_RAM (3u << 20)  /* bytes of 8-bit stamps at most */
 #define KEY       112
 #define WARM_US   3000 /* stamps made ahead of need, per frame, while the GE draws */
+#define WAVE_STEP 8    /* px between the wave's columns of vertices */
+#define WAVE_COLS (SCR_W / WAVE_STEP + 1)
 
 static unsigned int __attribute__((aligned(64))) g_list[128 * 1024];
 static unsigned int __attribute__((aligned(16))) g_clut[256]; /* index i: white, alpha i */
@@ -364,6 +367,51 @@ static void backdrop(hm_gfx *g, const unsigned int *bg, const unsigned int *prev
         layer(bg, mix);
 }
 
+/*
+ * The XMB's wave as ui/xmbbg.c draws it on the CPU, in triangle strips: across the screen a
+ * column of vertices every 8 px, down each column a vertex wherever the ribbon's brightness bends
+ * (its profile is piecewise linear), the GE shading linearly between them. White over the sky
+ * with that alpha is the CPU's lighten.
+ */
+static void band(const float *top, float d0, int a0, float d1, int a1, int alpha)
+{
+    cvert *v = sceGuGetMemory(2 * WAVE_COLS * sizeof(cvert));
+    unsigned int c0 = ge_color(PW_RGB(255, 255, 255), a0 * alpha / 256),
+                 c1 = ge_color(PW_RGB(255, 255, 255), a1 * alpha / 256);
+
+    for (int i = 0; i < WAVE_COLS; i++) {
+        float x = (float)(i * WAVE_STEP);
+
+        v[2 * i] = (cvert){c0, x, top[i] + d0, 0};
+        v[2 * i + 1] = (cvert){c1, x, top[i] + d1, 0};
+    }
+    sceGuDrawArray(GU_TRIANGLE_STRIP, CFMT, 2 * WAVE_COLS, 0, v);
+}
+
+static void wave(hm_gfx *g, unsigned int t_ms, int alpha)
+{
+    float top[WAVE_COLS], top2[WAVE_COLS];
+
+    (void)g;
+    if (alpha <= 0)
+        return;
+    for (int i = 0; i < WAVE_COLS; i++) {
+        int t1, t2;
+
+        pw_xmbbg_crests(t_ms, i * WAVE_STEP, &t1, &t2);
+        top[i] = (float)t1 / 16.0f;
+        top2[i] = (float)t2 / 16.0f;
+    }
+    texturing(0);
+    sceGuShadeModel(GU_SMOOTH);
+    band(top, -1, 0, 0, PW_XMBBG_EDGE_A, alpha);
+    band(top, 0, PW_XMBBG_EDGE_A, PW_XMBBG_BAND_D, PW_XMBBG_BAND_A, alpha);
+    band(top, PW_XMBBG_BAND_D, PW_XMBBG_BAND_A, PW_XMBBG_BODY_D, 0, alpha);
+    band(top2, -PW_XMBBG_RIBBON_D, 0, 0, PW_XMBBG_RIBBON_A, alpha);
+    band(top2, 0, PW_XMBBG_RIBBON_A, PW_XMBBG_RIBBON_D, 0, alpha);
+    sceGuShadeModel(GU_FLAT);
+}
+
 /* 4 x 4 ordered dither, so the blurred art keeps its smooth gradients in 16 bits. */
 static const unsigned char k_bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
 
@@ -473,7 +521,7 @@ static void glyph(pw_canvas *c, const void *arg)
     if (a->kind)
         pw_button_draw(c, a->which, mid, mid, a->size, PW_RGB(255, 255, 255), 256);
     else
-        pw_icon_draw(c, a->which, mid, mid, a->size, PW_RGB(255, 255, 255), 256);
+        hm_icon_draw(c, a->which, mid, mid, a->size, PW_RGB(255, 255, 255), 256);
 }
 
 static void glyph_draw(int kind, int which, int cx, int cy, int size, unsigned int color, int alpha)
@@ -511,6 +559,7 @@ int hm_gu_init(void)
     g_ops.rrect = rrect;
     g_ops.image = image;
     g_ops.backdrop = backdrop;
+    g_ops.wave = wave;
     g_ops.text = text;
     g_ops.icon = icon;
     g_ops.button = button;

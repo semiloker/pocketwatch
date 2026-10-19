@@ -32,6 +32,7 @@
 #include "stb_sprintf.h"
 #include "texts.h"
 #include "usb.h"
+#include "xmbart.h"
 #include "ui/anim.h"
 #include "ui/i18n.h"
 #include "ui/icons.h"
@@ -47,6 +48,7 @@ PSP_HEAP_SIZE_KB(-1);
 PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 
 #define FONT_PATH "flash0:/font/ltn0.pgf"
+#define RES_PATH  "flash0:/vsh/resource/" /* the XMB's pictures (Classic, ADR-033) */
 #define PW_DIR    "ms0:/seplugins/pocketwatch/"
 #define CONTINUE  PW_DIR "continue.txt" /* read by the game plugin (M7 V1) */
 #define XMB_ONCE  PW_DIR "xmb-once"     /* read by the XMB plugin (vsh/src/xboot.c) */
@@ -71,6 +73,10 @@ static char g_model[24], g_firmware[16], g_cfw[32], g_mac[24]; /* read once */
 static hm_row g_mu_rows[HM_TRACKS_MAX + 1];                    /* Music: now playing, the tracks */
 static char g_mu_now[32];
 static unsigned int *g_gradient;
+static hm_art g_art;
+static pw_image g_sky;
+static int g_sky_shown; /* the default background is the XMB's sky (Classic, no wallpaper) */
+static char g_pop_text[HM_POPUP_MAX][32]; /* a choice's options (Classic) */
 
 /* ---- fonts: the system's own (flash0), else the built-in 8x8 ---- */
 
@@ -174,15 +180,16 @@ static int playtime_rows(hm_row *out, char (*vals)[48])
         }
     duration(vals[rows], 48, total);
     out[rows++] =
-        (hm_row){pw_tr(PW_S_PT_TOTAL), n ? vals[0] : pw_tr(PW_S_PT_NONE), -1, HM_ROW_INFO};
+        (hm_row){pw_tr(PW_S_PT_TOTAL), n ? vals[0] : pw_tr(PW_S_PT_NONE), -1, HM_ROW_INFO, 0, 0};
     for (int i = 0; i < n && rows < ROWS_MAX - 1; i++) {
         hm_game *g = hm_library_game(order[i]);
 
         duration(vals[rows], 48, g->play_s);
-        out[rows] = (hm_row){g->title, vals[rows], (int)(g->play_s * 256ull / most), HM_ROW_INFO};
+        out[rows] = (hm_row){g->title,    vals[rows], (int)(g->play_s * 256ull / most),
+                             HM_ROW_INFO, g->icon,    0};
         rows++;
     }
-    out[rows++] = (hm_row){pw_tr(PW_S_PT_NOTE), 0, -1, HM_ROW_INFO};
+    out[rows++] = (hm_row){pw_tr(PW_S_PT_NOTE), 0, -1, HM_ROW_NOTE, 0, 0};
     return rows;
 }
 
@@ -194,71 +201,80 @@ static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_ro
     int rows = 0;
     hm_battery b;
 
+    /* what one comes here to do: first (USB as the first of the XMB's Settings) */
+    *usb_row = rows;
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_USB), 0, -1, HM_ROW_ACTION, 0, 0};
+    *web_row = rows;
+    out[rows++] = (hm_row){
+        pw_tr(PW_S_HM_BROWSER), g_web_failed ? pw_tr(PW_S_BAT_NA) : 0, -1, HM_ROW_ACTION, 0, 0};
+    *exit_row = rows;
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_EXIT), 0, -1, HM_ROW_ACTION, 0, 0};
+    out[rows++] = (hm_row){pw_tr(PW_S_BATTERY), 0, -1, HM_ROW_HEADER, 0, 0};
     hm_hw_battery(&b); /* (read by hw.c's thread: these calls are slow) */
     if (b.pct >= 0)
         stbsp_snprintf(vals[rows], 48, "%d%%   %s", b.pct,
                        pw_tr(b.charging ? PW_S_BAT_CHARGING : PW_S_BAT_ON_BATTERY));
-    out[rows] = (hm_row){pw_tr(PW_S_BATTERY), b.pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA), -1,
-                         HM_ROW_INFO};
+    out[rows] = (hm_row){pw_tr(PW_S_BAT_CHARGE),
+                         b.pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA),
+                         -1,
+                         HM_ROW_INFO,
+                         0,
+                         0};
     rows++;
     if (b.mv > 0) {
         stbsp_snprintf(vals[rows], 48, "%d.%02d V", b.mv / 1000, b.mv % 1000 / 10);
-        out[rows++] = (hm_row){pw_tr(PW_S_BAT_VOLTAGE), vals[rows - 1], -1, HM_ROW_INFO};
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_VOLTAGE), vals[rows - 1], -1, HM_ROW_INFO, 0, 0};
     }
     if (b.temp > 0 && b.temp < 80) {
         stbsp_snprintf(vals[rows], 48,
                        "%d \xC2\xB0"
                        "C",
                        b.temp); /* U+00B0 */
-        out[rows++] = (hm_row){pw_tr(PW_S_BAT_TEMPERATURE), vals[rows - 1], -1, HM_ROW_INFO};
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_TEMPERATURE), vals[rows - 1], -1, HM_ROW_INFO, 0, 0};
     }
     if (b.rcap > 0 && b.full > 0) {
         stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_CAPACITY_V), b.rcap, b.full);
-        out[rows++] = (hm_row){pw_tr(PW_S_BAT_CAPACITY), vals[rows - 1], -1, HM_ROW_INFO};
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_CAPACITY), vals[rows - 1], -1, HM_ROW_INFO, 0, 0};
     }
     if (b.cycles >= 0) {
         stbsp_snprintf(vals[rows], 48, "%d", b.cycles);
-        out[rows++] = (hm_row){pw_tr(PW_S_BAT_CYCLES), vals[rows - 1], -1, HM_ROW_INFO};
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_CYCLES), vals[rows - 1], -1, HM_ROW_INFO, 0, 0};
     }
     if (!b.charging && b.left_min > 0 && b.left_min < 24 * 60) {
         char d[32];
 
         duration(d, sizeof(d), (unsigned int)b.left_min * 60);
         stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_SYSTEM), d);
-        out[rows] = (hm_row){pw_tr(PW_S_BAT_LEFT), vals[rows], -1, HM_ROW_INFO};
+        out[rows] = (hm_row){pw_tr(PW_S_BAT_LEFT), vals[rows], -1, HM_ROW_INFO, 0, 0};
         rows++;
     }
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_STORAGE), 0, -1, HM_ROW_HEADER, 0, 0};
     if (hm_library_free_mb() >= 0)
         stbsp_snprintf(vals[rows], 48, "%d MB", hm_library_free_mb());
     else
         stbsp_snprintf(vals[rows], 48, "...");
-    out[rows] = (hm_row){pw_tr(PW_S_HM_FREE), vals[rows], -1, HM_ROW_INFO};
+    out[rows] = (hm_row){pw_tr(PW_S_HM_FREE), vals[rows], -1, HM_ROW_INFO, 0, 0};
     rows++;
     stbsp_snprintf(vals[rows], 48, "%d", hm_library_count());
-    out[rows] = (hm_row){pw_tr(PW_S_HM_INSTALLED), vals[rows], -1, HM_ROW_INFO};
+    out[rows] = (hm_row){pw_tr(PW_S_HM_INSTALLED), vals[rows], -1, HM_ROW_INFO, 0, 0};
     rows++;
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_SYSTEM), 0, -1, HM_ROW_HEADER, 0, 0};
     hs_nickname(vals[rows], 48);
-    out[rows] = (hm_row){pw_tr(PW_S_HS_NICKNAME), vals[rows], -1, HM_ROW_INFO};
+    out[rows] = (hm_row){pw_tr(PW_S_HS_NICKNAME), vals[rows], -1, HM_ROW_INFO, 0, 0};
     rows++;
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_MODEL), g_model, -1, HM_ROW_INFO};
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_FIRMWARE), g_firmware, -1, HM_ROW_INFO};
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_CFW), g_cfw, -1, HM_ROW_INFO};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_MODEL), g_model, -1, HM_ROW_INFO, 0, 0};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_FIRMWARE), g_firmware, -1, HM_ROW_INFO, 0, 0};
+    out[rows++] = (hm_row){pw_tr(PW_S_HM_CFW), g_cfw, -1, HM_ROW_INFO, 0, 0};
     if (g_mac[0])
-        out[rows++] = (hm_row){pw_tr(PW_S_HM_MAC), g_mac, -1, HM_ROW_INFO};
-    out[rows] = (hm_row){pw_tr(PW_S_HM_VERSION), "Pocketwatch Home " PW_VERSION, -1, HM_ROW_INFO};
+        out[rows++] = (hm_row){pw_tr(PW_S_HM_MAC), g_mac, -1, HM_ROW_INFO, 0, 0};
+    out[rows] =
+        (hm_row){pw_tr(PW_S_HM_VERSION), "Pocketwatch Home " PW_VERSION, -1, HM_ROW_INFO, 0, 0};
     rows++;
-    *web_row = rows;
-    out[rows++] =
-        (hm_row){pw_tr(PW_S_HM_BROWSER), g_web_failed ? pw_tr(PW_S_BAT_NA) : 0, -1, HM_ROW_ACTION};
-    *usb_row = rows;
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_USB), 0, -1, HM_ROW_ACTION};
-    *exit_row = rows;
-    out[rows++] = (hm_row){pw_tr(PW_S_HM_EXIT), 0, -1, HM_ROW_ACTION};
     return rows;
 }
 
 /* Music (HOM-REQ-018): what plays (time, a bar), then every track - the one playing with a bar. */
-static int music_rows(void)
+static int music_rows(hm_view *v)
 {
     int cur = hm_music_current(), n = hm_music_count(), rows = 0, bar = -1;
     unsigned int played, length;
@@ -276,12 +292,22 @@ static int music_rows(void)
     g_mu_rows[rows++] = (hm_row){cur >= 0 ? hm_music_track(cur)->title
                                  : n      ? pw_tr(PW_S_HM_MU_IDLE)
                                           : pw_tr(PW_S_HM_MU_NONE),
-                                 cur >= 0 ? g_mu_now : 0, bar, HM_ROW_INFO};
+                                 cur >= 0 ? g_mu_now : 0,
+                                 bar,
+                                 HM_ROW_INFO,
+                                 0,
+                                 0};
+    v->mu_title = cur >= 0 ? hm_music_track(cur)->title : 0;
+    v->mu_artist = cur >= 0 && hm_music_track(cur)->artist[0] ? hm_music_track(cur)->artist : 0;
+    v->mu_time = cur >= 0 ? g_mu_now : 0;
+    v->mu_bar = bar;
+    v->mu_state = cur < 0 ? 0 : hm_music_paused() ? 2 : 1;
+    v->mu_cur = cur;
     for (int i = 0; i < n; i++) {
         const hm_track *t = hm_music_track(i);
 
-        g_mu_rows[rows++] =
-            (hm_row){t->title, t->artist[0] ? t->artist : 0, i == cur ? bar : -1, HM_ROW_ACTION};
+        g_mu_rows[rows++] = (hm_row){
+            t->title, t->artist[0] ? t->artist : 0, i == cur ? bar : -1, HM_ROW_ACTION, 0, 0};
     }
     return rows;
 }
@@ -294,7 +320,8 @@ static int settings_rows(hm_row *out, char (*vals)[48])
 
     for (int i = 0; i < n; i++) {
         hs_value(i, vals[i], 48);
-        out[i] = (hm_row){hs_label(i), vals[i][0] ? vals[i] : 0, -1, kinds[hs_kind(i)]};
+        out[i] =
+            (hm_row){hs_label(i), vals[i][0] ? vals[i] : 0, -1, kinds[hs_kind(i)], 0, hs_toggle(i)};
     }
     return n;
 }
@@ -495,8 +522,15 @@ static void make_default_background(void)
 {
     if (!g_gradient)
         return;
-    if (hs_wallpaper_load(g_gradient) < 0)
-        hm_make_gradient(g_gradient);
+    g_sky_shown = 0;
+    if (hs_wallpaper_load(g_gradient) < 0) {
+        if (pw_config_get()->style == HM_STYLE_CLASSIC) { /* the XMB's: its sky, the wave over it */
+            hm_make_sky(g_sky.px ? &g_sky : 0, g_gradient);
+            g_sky_shown = 1;
+        } else {
+            hm_make_gradient(g_gradient);
+        }
+    }
     hm_gu_written(g_gradient, 512 * HM_H * 4);
     hm_gu_upload_bg(2, g_gradient); /* slots 0-1: the loader's backgrounds */
 }
@@ -555,6 +589,87 @@ static void dialog_frame(void *ctx)
     hm_gu_finish();
 }
 
+/* A setting changed (left / right, or Classic's options): what depends on it. */
+static void after_setting(hm_view *v, int r, int was_sort, int sheet, int *sel, int *selpos)
+{
+    if (pw_config_get()->sort != was_sort) { /* the games in their new order */
+        hm_library_sort(pw_config_get()->sort);
+        build_tiles();
+        *sel = 0;
+        *selpos = 0;
+    }
+    if (r == HS_WALLPAPER_CHANGED)
+        make_default_background();
+    if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
+        hm_texts_load();
+        texts(v, sheet);
+        build_tiles();
+    }
+}
+
+/* The system's pictures (Classic, ADR-033): a whole flash0 file into the heap. */
+static unsigned char *read_whole(const char *path, unsigned int *len)
+{
+    SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
+    int size = fd >= 0 ? (int)sceIoLseek32(fd, 0, PSP_SEEK_END) : -1;
+    unsigned char *buf = size > 0 && size <= 512 * 1024 ? malloc((size_t)size) : 0;
+
+    if (buf) {
+        sceIoLseek32(fd, 0, PSP_SEEK_SET);
+        if (sceIoRead(fd, buf, (unsigned int)size) != size) {
+            free(buf);
+            buf = 0;
+        }
+    }
+    if (fd >= 0)
+        sceIoClose(fd);
+    *len = buf ? (unsigned int)size : 0;
+    return buf;
+}
+
+static void load_art(void)
+{
+    unsigned int t0 = sceKernelGetSystemTimeLow();
+    int colour, sky = hm_hw_sky_index(&colour), found;
+    char line[160];
+    const pw_image *all[HM_TABS + 5];
+
+    found = hm_art_load(&g_art, read_whole, RES_PATH "topmenu_icon.rco",
+                        RES_PATH "system_plugin_fg.rco");
+    if (hm_art_sky(&g_sky, read_whole, RES_PATH "01-12_03g.bmp", sky) < 0)
+        hm_art_sky(&g_sky, read_whole, RES_PATH "01-12.bmp", sky);
+    for (int i = 0; i < HM_TABS; i++)
+        all[i] = &g_art.cat[i];
+    for (int i = 0; i < 4; i++)
+        all[HM_TABS + i] = &g_art.btn[i];
+    all[HM_TABS + 4] = &g_art.battery;
+    for (unsigned int i = 0; i < sizeof(all) / sizeof(all[0]); i++) /* the GE reads them */
+        if (all[i]->px)
+            hm_gu_written(all[i]->px, (unsigned int)(((all[i]->w + 15) & ~15) * all[i]->h * 4));
+    g_ui.art = &g_art;
+    stbsp_snprintf(line, sizeof(line),
+                   "home art: %d system picture(s), sky %d (theme colour %d)%s, %u ms\n", found,
+                   sky, colour, g_sky.px ? "" : " not found",
+                   (sceKernelGetSystemTimeLow() - t0) / 1000);
+    log_line(line);
+}
+
+/* config.txt's style as Home draws it */
+static int style_now(void)
+{
+    int s = pw_config_get()->style;
+
+    return s >= 0 && s < HM_STYLES ? s : HM_STYLE_CLASSIC;
+}
+
+/* The first row of a section that can be chosen. */
+static int first_row(const hm_view *v, int tab)
+{
+    int i = hm_row_next(v->other_rows[tab], v->other_nrows[tab], -1, 1);
+
+    return i < 0 ? 0 : i;
+}
+
 /* ---- the loop ---- */
 
 int main(void)
@@ -568,7 +683,7 @@ int main(void)
         up = 0, sheet = SHEET_NONE, leave = 0, usb = 0, usb_state = HM_USB_OFF;
     int g_sel = 0, g_selpos = 0, ph_sel = 0, ph_selpos = 0,
         viewer = 0; /* the two rows of pictures */
-    int slideshow = 0;
+    int slideshow = 0, popup = 0;
     unsigned int t_caption = 0, t_slide = 0;
     unsigned int enter, back;
     char clock[24] = "";
@@ -588,6 +703,9 @@ int main(void)
     hm_hw_mac(g_mac, sizeof(g_mac));
     hm_sound_init();
     hm_sound_enable(hs_sounds());
+    load_art();
+    v.style = style_now();
+    hm_library_style(v.style == HM_STYLE_CLASSIC);
     g_gradient = memalign(64, 512 * HM_H * 4);
     make_default_background();
     hm_library_sort(pw_config_get()->sort); /* (no games yet: only the order to use) */
@@ -604,6 +722,18 @@ int main(void)
     v.other_rows[HM_TAB_SETTINGS] = g_set_rows;
     v.other_rows[HM_TAB_SYSTEM] = g_sys_rows;
     texts(&v, sheet);
+    { /* the first rows before the first frame: the settings read the card once (209 ms on the
+         PSP, home.log 2026-10-19 run 3) */
+        unsigned int t0 = sceKernelGetSystemTimeLow(), t1, t2;
+
+        v.other_nrows[HM_TAB_SETTINGS] = settings_rows(g_set_rows, g_set_vals);
+        t1 = sceKernelGetSystemTimeLow();
+        v.other_nrows[HM_TAB_SYSTEM] =
+            system_rows(g_sys_rows, g_sys_vals, &usb_row, &exit_row, &web_row);
+        t2 = sceKernelGetSystemTimeLow();
+        g_first_settings_us = t1 - t0;
+        g_first_system_us = t2 - t1 ? t2 - t1 : 1;
+    }
     shown = g_gradient;
     t_open = t_prev = hm_hw_now_ms();
     memset(&st, 0, sizeof(st));
@@ -690,14 +820,40 @@ int main(void)
             }
             v.panel_hint =
                 sheet == SHEET_GAME && v.panel_sel < g_nstates ? pw_tr(PW_S_HM_CONTINUE) : 0;
+        } else if (launching < 0 && popup) { /* Classic: a choice's options, the XMB's panel */
+            if (ev & PSP_CTRL_UP)
+                v.popup_sel = v.popup_sel > 0 ? v.popup_sel - 1 : 0;
+            else if (ev & PSP_CTRL_DOWN)
+                v.popup_sel = v.popup_sel < v.popup_count - 1 ? v.popup_sel + 1 : v.popup_sel;
+            else if (ev & enter) {
+                int was = pw_config_get()->sort, r = hs_choose(row_sel, v.popup_sel);
+
+                refused = r < 0;
+                after_setting(&v, r, was, sheet, &g_sel, &g_selpos);
+                popup = 0;
+                t_rows = 0;
+            } else if (ev & (back | PSP_CTRL_LEFT)) {
+                popup = 0;
+            }
         } else if (launching < 0) {
-            if (!viewer && (ev & PSP_CTRL_LTRIGGER))
+            /* the sections: L / R; in Classic also left / right, as the XMB's categories */
+            int classic = v.style == HM_STYLE_CLASSIC, modern = v.style == HM_STYLE_MODERN,
+                prev_tab = (PSP_CTRL_LTRIGGER | (classic ? PSP_CTRL_LEFT : 0)),
+                next_tab = (PSP_CTRL_RTRIGGER | (classic ? PSP_CTRL_RIGHT : 0)),
+                /* a list of pictures: down the column (Classic, Minimal) or along the row */
+                back_one = modern ? PSP_CTRL_LEFT : PSP_CTRL_UP | (classic ? 0 : PSP_CTRL_LEFT),
+                on_one = modern ? PSP_CTRL_RIGHT : PSP_CTRL_DOWN | (classic ? 0 : PSP_CTRL_RIGHT);
+            const hm_row *rows = v.other_rows[v.tab];
+            int nrows = v.other_nrows[v.tab];
+
+            if (!viewer && (ev & prev_tab))
                 v.tab = (v.tab + HM_TABS - 1) % HM_TABS;
-            else if (!viewer && (ev & PSP_CTRL_RTRIGGER))
+            else if (!viewer && (ev & next_tab))
                 v.tab = (v.tab + 1) % HM_TABS;
-            if (ev & (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER)) {
-                row_sel = v.tab == HM_TAB_SETTINGS ? hs_next(-1, 1) : 0;
+            if (!viewer && (ev & (prev_tab | next_tab))) {
+                row_sel = first_row(&v, v.tab);
                 v.row_pos = row_sel * 256;
+                ev &= ~(unsigned int)(PSP_CTRL_LEFT | PSP_CTRL_RIGHT); /* (used up) */
             }
             if (viewer) { /* a photo whole: left / right through them, any other button back */
                 int n = hm_library_photo_count();
@@ -721,18 +877,24 @@ int main(void)
                     t_slide = now;
                 }
             } else if (v.tab == HM_TAB_PHOTOS && hm_library_photo_count() > 0) {
-                if (ev & PSP_CTRL_LEFT)
+                int n = hm_library_photo_count();
+
+                if (ev & back_one)
                     ph_sel = ph_sel > 0 ? ph_sel - 1 : 0;
-                else if (ev & PSP_CTRL_RIGHT)
-                    ph_sel = ph_sel < hm_library_photo_count() - 1 ? ph_sel + 1 : ph_sel;
+                else if (ev & on_one)
+                    ph_sel = ph_sel < n - 1 ? ph_sel + 1 : ph_sel;
+                else if (modern && (ev & PSP_CTRL_UP)) /* Modern's grid: a row up, down */
+                    ph_sel = ph_sel >= HM_PHOTO_COLS ? ph_sel - HM_PHOTO_COLS : ph_sel;
+                else if (modern && (ev & PSP_CTRL_DOWN))
+                    ph_sel = ph_sel + HM_PHOTO_COLS < n ? ph_sel + HM_PHOTO_COLS : n - 1;
                 else if (ev & enter) {
                     viewer = 1;
                     t_caption = now;
                 }
             } else if (v.tab == HM_TAB_GAMES && hm_library_count() > 0) {
-                if (ev & PSP_CTRL_LEFT)
+                if (ev & back_one)
                     g_sel = g_sel > 0 ? g_sel - 1 : 0;
-                else if (ev & PSP_CTRL_RIGHT)
+                else if (ev & on_one)
                     g_sel = g_sel < hm_library_count() - 1 ? g_sel + 1 : g_sel;
                 else if (ev & enter) {
                     launching = g_sel;
@@ -747,9 +909,9 @@ int main(void)
                 }
             } else if (v.tab == HM_TAB_MUSIC) {
                 if (ev & PSP_CTRL_UP)
-                    row_sel = row_sel > 0 ? row_sel - 1 : 0;
+                    row_sel = hm_row_next(rows, nrows, row_sel, -1);
                 else if (ev & PSP_CTRL_DOWN)
-                    row_sel = row_sel < v.nrows - 1 ? row_sel + 1 : row_sel;
+                    row_sel = hm_row_next(rows, nrows, row_sel, 1);
                 else if (ev & PSP_CTRL_LEFT)
                     hm_music_skip(-1);
                 else if (ev & PSP_CTRL_RIGHT)
@@ -770,33 +932,35 @@ int main(void)
                     row_sel = hs_next(row_sel, -1);
                 else if (ev & PSP_CTRL_DOWN)
                     row_sel = hs_next(row_sel, 1);
-                else if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) {
+                else if (!classic && (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT))) {
                     int was = pw_config_get()->sort;
 
                     r = hs_step(row_sel, ev & PSP_CTRL_LEFT ? -1 : 1);
                     refused = r < 0;
-                    if (pw_config_get()->sort != was) { /* the games in their new order */
-                        hm_library_sort(pw_config_get()->sort);
-                        build_tiles();
-                        g_sel = 0;
-                        g_selpos = 0;
-                    }
-                    if (r == HS_WALLPAPER_CHANGED)
-                        make_default_background();
-                    if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
-                        hm_texts_load();
-                        texts(&v, sheet);
-                        build_tiles();
-                    }
+                    after_setting(&v, r, was, sheet, &g_sel, &g_selpos);
                     t_rows = 0;
                 } else if ((ev & enter) && hs_action(row_sel) == HS_ACT_NICKNAME) {
                     nickname = 1;
+                } else if ((ev & enter) && classic && hs_options(row_sel) > 0) {
+                    /* the XMB's way: Enter opens the options, the current one chosen */
+                    int n = hs_options(row_sel) < HM_POPUP_MAX ? hs_options(row_sel) : HM_POPUP_MAX;
+
+                    for (int o = 0; o < n; o++) {
+                        hs_option_text(row_sel, o, g_pop_text[o], sizeof(g_pop_text[o]));
+                        v.popup_items[o] = g_pop_text[o];
+                    }
+                    v.popup_count = n;
+                    v.popup_sel = hs_current(row_sel) >= 0 && hs_current(row_sel) < n
+                                      ? hs_current(row_sel)
+                                      : 0;
+                    v.popup_pos = v.popup_sel * 256;
+                    popup = 1;
                 }
             } else {
                 if (ev & PSP_CTRL_UP)
-                    row_sel = row_sel > 0 ? row_sel - 1 : 0;
+                    row_sel = hm_row_next(rows, nrows, row_sel, -1);
                 else if (ev & PSP_CTRL_DOWN)
-                    row_sel = row_sel < v.nrows - 1 ? row_sel + 1 : row_sel;
+                    row_sel = hm_row_next(rows, nrows, row_sel, 1);
                 else if ((ev & enter) && v.tab == HM_TAB_SYSTEM && row_sel == exit_row)
                     leave = 1;
                 else if ((ev & enter) && v.tab == HM_TAB_SYSTEM && row_sel == usb_row)
@@ -889,7 +1053,7 @@ int main(void)
         if (t_rows == 0 || now - t_rows >= 1000) {
             unsigned int t0 = sceKernelGetSystemTimeLow(), t1, t2;
 
-            v.other_nrows[HM_TAB_MUSIC] = music_rows();
+            v.other_nrows[HM_TAB_MUSIC] = music_rows(&v);
             v.other_nrows[HM_TAB_PLAYTIME] = playtime_rows(g_pt_rows, g_pt_vals);
             v.other_nrows[HM_TAB_SETTINGS] = settings_rows(g_set_rows, g_set_vals);
             t1 = sceKernelGetSystemTimeLow();
@@ -908,7 +1072,17 @@ int main(void)
         v.nrows = v.other_nrows[v.tab];
         if (row_sel >= v.nrows)
             row_sel = v.nrows > 0 ? v.nrows - 1 : 0;
+        if (v.nrows > 0 && v.rows &&
+            (v.rows[row_sel].kind == HM_ROW_HEADER || v.rows[row_sel].kind == HM_ROW_NOTE))
+            row_sel = first_row(&v, v.tab); /* the rows moved under the cursor */
         v.row_sel = row_sel;
+        if (style_now() != v.style) { /* Settings -> Style: Home's look at once */
+            v.style = style_now();
+            hm_library_style(v.style == HM_STYLE_CLASSIC);
+            make_default_background();
+            popup = 0;
+            shown = 0; /* every background again */
+        }
         /* motion, by time */
         g_selpos = pw_ease(g_selpos, g_sel * 256, dt, PW_ANIM_TAU_MS, 6);
         ph_selpos = pw_ease(ph_selpos, ph_sel * 256, dt, PW_ANIM_TAU_MS, 6);
@@ -917,6 +1091,8 @@ int main(void)
         v.panel = pw_ease(v.panel, sheet != SHEET_NONE ? 256 : 0, dt, PW_ANIM_TAU_MS, 6);
         v.panel_pos = pw_ease(v.panel_pos, v.panel_sel * 256, dt, PW_ANIM_TAU_MS, 6);
         v.sheet = pw_ease(v.sheet, usb ? 256 : 0, dt, PW_ANIM_TAU_MS, 6);
+        v.popup = pw_ease(v.popup, popup ? 256 : 0, dt, PW_ANIM_TAU_MS, 6);
+        v.popup_pos = pw_ease(v.popup_pos, v.popup_sel * 256, dt, PW_ANIM_TAU_MS, 6);
         hm_library_focus(g_sel);
         hm_library_mode(v.tab == HM_TAB_PHOTOS ? (viewer ? 2 : 1) : 0, ph_sel);
         for (int i = 0; i < hm_library_count(); i++)
@@ -949,11 +1125,11 @@ int main(void)
         /* the photo's name and the buttons: 2 s after a change, then they fade out */
         v.caption = now - t_caption < 2000 ? 256 : 256 - pw_ramp(now, t_caption + 2000, 400);
         /* the chosen game's (or photo's) art, faded in once the loader has it */
-        if (v.tab == HM_TAB_PHOTOS)
+        if (v.tab == HM_TAB_PHOTOS && (viewer || v.style != HM_STYLE_CLASSIC))
             want = v.count ? hm_library_photo_background(ph_sel, viewer) : 0;
         else if (v.tab == HM_TAB_GAMES)
             want = hm_library_count() ? hm_library_background(g_sel) : 0;
-        else /* the other sections: the wallpaper, as in the XMB */
+        else /* the other sections (and Classic's photos): the wallpaper, as in the XMB */
             want = g_gradient;
         if (!want)
             want = viewer ? shown : g_gradient;
@@ -964,12 +1140,20 @@ int main(void)
             shown = want;
         }
         v.bg_mix = v.bg_mix + dt * 256 / MIX_MS > 256 ? 256 : v.bg_mix + dt * 256 / MIX_MS;
+        /* the XMB's wave over its sky, fading with it */
+        v.wave = !g_sky_shown || v.style != HM_STYLE_CLASSIC ? 0
+                 : v.bg == g_gradient      ? (v.bg_prev == g_gradient ? 256 : v.bg_mix)
+                 : v.bg_prev == g_gradient ? 256 - v.bg_mix
+                                           : 0;
         v.hint_enter =
             (v.tab == HM_TAB_GAMES && v.count) || (v.tab == HM_TAB_MUSIC && hm_music_count())
                 ? v.play_label
             : v.tab == HM_TAB_PHOTOS && v.count ? pw_tr(PW_S_HM_VIEW)
                                                 : 0;
         v.hint_options = v.tab == HM_TAB_GAMES && gsel ? pw_tr(PW_S_HM_OPTIONS) : 0;
+        v.hint_back = popup ? pw_tr(PW_S_BACK) : 0;
+        if (popup)
+            v.hint_enter = pw_tr(PW_S_OK);
         v.t_ms = now;
         v.appear =
             launching >= 0 ? 256 - pw_ramp(now, t_fade, FADE_MS) : pw_ramp(now, t_open, FADE_MS);

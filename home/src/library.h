@@ -69,6 +69,10 @@ void hm_library_mode(int mode, int sel);
 /* The background the loader made for the chosen photo (blurred, or whole when viewing), or NULL. */
 const unsigned int *hm_library_photo_background(int sel, int whole);
 
+/* The games' backgrounds as the style wants them: sharp, as the XMB shows a PIC1 (Classic), or
+   blurred (1 / 0); those made already are made again. */
+void hm_library_style(int sharp);
+
 /* A picture file fitted as Home's background (blurred, darkened) into out (512 x HM_H). */
 int hm_library_wallpaper(const char *path, unsigned int *out);
 

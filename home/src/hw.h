@@ -34,6 +34,9 @@ int hm_hw_battery(hm_battery *b);
 /* What the first reading's calls cost ("percent 12 us, ..."), for home.log; 0 until then. */
 int hm_hw_battery_cost(char *out, int cap);
 int hm_hw_cross_enter(void); /* the system's Enter button is X */
+/* The XMB's sky to draw (0-11): its theme colour, else the month's; *colour what the registry
+   said (-1 not read). */
+int hm_hw_sky_index(int *colour);
 
 /* The system's parameters (PSP_SYSTEMPARAM_ID_INT_*): read once, then kept - nothing but Home's
    Settings changes them while Home runs, through hm_hw_set_param (written, read back). The value,

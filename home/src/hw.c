@@ -5,6 +5,7 @@
 #include <pspiofilemgr.h>
 #include <pspkernel.h>
 #include <psppower.h>
+#include <pspreg.h>
 #include <psprtc.h>
 #include <psputility_sysparam.h>
 #include <string.h>
@@ -267,6 +268,72 @@ void hm_hw_clock(char *out, int cap)
 void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap)
 {
     format(t, 1, out, cap);
+}
+
+/* The XMB's theme colour (registry /CONFIG/SYSTEM/XMB/THEME color_mode: 0 the month's sky, 1-12
+   one of the twelve), read through KUBridge as the game plugin reads it in the kernel
+   (plugin/src/core/sysinfo.c); sceReg_driver's pre-6.x NIDs, translated by ARK-4's table. */
+#define NID_REG_OPEN      0x92E41280
+#define NID_REG_CLOSE     0xFA8A5739
+#define NID_REG_OPEN_CAT  0x1D8A762E
+#define NID_REG_CLOSE_CAT 0x0CAE832B
+#define NID_REG_KEY_INFO  0xD4475AA8
+#define NID_REG_KEY_VALUE 0x28A8E98A
+
+static int reg_call(unsigned int nid, unsigned int a0, unsigned int a1, unsigned int a2,
+                    unsigned int a3, unsigned int a4)
+{
+    void *f = (void *)sctrlHENFindFunction("sceRegistry_Service", "sceReg_driver", nid);
+    struct hm_kcall a;
+
+    if (!f)
+        return -1;
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = a0;
+    a.arg[1] = a1;
+    a.arg[2] = a2;
+    a.arg[3] = a3;
+    a.arg[4] = a4;
+    return kuKernelCall(f, &a) < 0 ? -1 : (int)a.ret1;
+}
+
+static int theme_colour(void)
+{
+    struct RegParam param;
+    REGHANDLE reg = 0, cat = 0, key = 0;
+    unsigned int type = 0, value = 0;
+    SceSize size = 0;
+    int colour = -1;
+
+    memset(&param, 0, sizeof(param));
+    param.regtype = 1;
+    strcpy(param.name, "/system");
+    param.namelen = strlen(param.name);
+    param.unk2 = 1;
+    param.unk3 = 1;
+    if (reg_call(NID_REG_OPEN, (unsigned int)&param, 2, (unsigned int)&reg, 0, 0) < 0) /* 2: read */
+        return -1;
+    if (reg_call(NID_REG_OPEN_CAT, reg, (unsigned int)"/CONFIG/SYSTEM/XMB/THEME", 2,
+                 (unsigned int)&cat, 0) >= 0) {
+        if (reg_call(NID_REG_KEY_INFO, cat, (unsigned int)"color_mode", (unsigned int)&key,
+                     (unsigned int)&type, (unsigned int)&size) >= 0 &&
+            size == 4 && reg_call(NID_REG_KEY_VALUE, cat, key, (unsigned int)&value, 4, 0) >= 0)
+            colour = (int)value;
+        reg_call(NID_REG_CLOSE_CAT, cat, 0, 0, 0, 0);
+    }
+    reg_call(NID_REG_CLOSE, reg, 0, 0, 0, 0);
+    return colour;
+}
+
+int hm_hw_sky_index(int *colour)
+{
+    ScePspDateTime t;
+
+    *colour = theme_colour();
+    if (*colour >= 1 && *colour <= 12)
+        return *colour - 1;
+    return sceRtcGetCurrentClockLocalTime(&t) >= 0 && t.month >= 1 && t.month <= 12 ? t.month - 1
+                                                                                    : 0;
 }
 
 int hm_hw_cross_enter(void)

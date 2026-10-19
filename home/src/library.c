@@ -420,7 +420,8 @@ static void load_thumb(hm_photo *p)
     }
 }
 
-static int g_next; /* the buffer the next background goes to */
+static int g_next;           /* the buffer the next background goes to */
+static volatile int g_sharp; /* Classic: a game's PIC1 as the XMB shows it, not blurred */
 
 /* A photo's background: blurred behind the row, or whole for the viewer. */
 static void load_photo_background(int sel, int whole)
@@ -454,7 +455,10 @@ static void load_background(int sel)
     free(png);
     if (px && g_bg[slot]) {
         g_bg_game[slot] = -2; /* being written */
-        hm_make_background(px, w, h, g_bg[slot]);
+        if (g_sharp)
+            hm_make_pic1(px, w, h, g_bg[slot]);
+        else
+            hm_make_background(px, w, h, g_bg[slot]);
         hm_gu_written(g_bg[slot], 512 * HM_H * 4);
         hm_gu_upload_bg(slot, g_bg[slot]); /* the GE reads it from VRAM, 16-bit */
         g_bg_game[slot] = sel;
@@ -706,6 +710,16 @@ void hm_library_sort(int recent)
     g_recent = recent;
     hm_library_pause(1); /* the loader holds no game while they move */
     qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
+    g_bg_game[0] = g_bg_game[1] = -1;
+    hm_library_pause(0);
+}
+
+void hm_library_style(int sharp)
+{
+    if (sharp == g_sharp)
+        return;
+    hm_library_pause(1); /* (it tries the chosen game's background again after a pause) */
+    g_sharp = sharp;
     g_bg_game[0] = g_bg_game[1] = -1;
     hm_library_pause(0);
 }

@@ -566,3 +566,44 @@ decision was taken; the evidence column links the research behind it.
   card (no write: nothing changes for the save's rule "nothing may write between the freeze and
   the resume"). Locks other than the card's (the module manager, the Media Engine) are not
   covered: RISK-023.
+
+## ADR-033 — Home draws the three styles; Classic is the XMB, with the system's own pictures
+
+- **Status:** Accepted (2026-10-19), from the owner's third device round
+  ([log](../research/logs/2026-10-19-home-hm10-run3.log)): "when I change the style, nothing happens" in Home,
+  and Music, Photos, Play Time and Settings "look bad, not like they should".
+- **Context:** VERIFIED from the code: Home drew only Modern (HOM-REQ-006 "planned"); its
+  Settings row Style changed only the in-game menu's look. Every section but Games was the same
+  dark card of rows (the previews `home-*.png` of that build). The project's first priority is
+  the native look 1:1 (the plan; Classic is the default style, ADR-019).
+- **Decision:** Home follows `config.txt`'s `style` like the in-game menu, and changes at once
+  when Settings → Style changes. Three files draw the same `hm_view`: `view_classic.c`,
+  `view_modern.c`, `view_minimal.c` (`home_view.c` dispatches and keeps what they share).
+  - **Classic** is the XMB: the month's sky (the theme colour from the registry, as the game
+    plugin reads it, through KUBridge) and its wave, drawn by the GE as triangle strips from the
+    same crest and brightness profile as `ui/xmbbg.c`; the system's category icons
+    (`topmenu_icon.rco` AO, AM, AL, AJ, BX), button pictures and battery
+    (`system_plugin_fg.rco`) read from flash0 at start with the plugin's own RCO, RLZ, GIM and
+    BMP readers (never shipped, ADR-013; drawn ones when missing); the categories in a row at the
+    open one's (109, 70); games and photos as the XMB's game list (the chosen icon 144 x 80, the
+    others 81 x 45, the earlier ones above the categories, the PIC1 sharp behind it); music and
+    play time as items with an icon and a line; Settings and System as the XMB's option list
+    (the categories slide away, the focus bar), a choice's options in the XMB's panel on the
+    right. Left / right switch categories, up / down move, Enter opens a choice - the XMB's keys.
+    Metrics: `ui/views.c` (480 x 272 captures) and VitaXMB (docs/research/m4-native-look.md).
+  - **Modern**: the sections as icon pills (the chosen one opening into a white pill with its
+    name, gliding); lists whose chosen row is a white pill gliding under the text, values on the
+    right, on/off as switches, groups named in the accent colour, a scroll bar; Play Time with
+    the games' icons and bars; Music as a card of what plays (art, time, bar, play state) beside
+    the tracks; Photos as a grid (up / down a row).
+  - **Minimal**: words on the darkened background, one column whose chosen line rests in the
+    middle with a short rule under it.
+- **Alternatives considered:** a separate Home style setting (the owner changed the one there is
+  and expected Home to follow); drawing the XMB's wave on the CPU into a texture (the hub's
+  Classic cost 11-16 fps on the PSP that way, docs/ui/styles.md); shipping our own copies of the
+  icons (Sony's files are never redistributed, ADR-013).
+- **Consequences:** reading the two RCO files and the sky costs Home some milliseconds at start
+  (`home art: ... ms` in `home.log`); about 150 KB of heap for the pictures. The GE draws ~600
+  more vertices a frame for the wave (60/60 in PPSSPP). In Classic, left / right no longer skip a
+  music track (up / down choose one, Enter plays it), as in the XMB. Changing the style rebuilds
+  the default background and the games' backgrounds (sharp PIC1 in Classic, blurred otherwise).

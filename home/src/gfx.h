@@ -30,7 +30,10 @@ struct hm_gfx {
     /* Text at the baseline y; max_w > 0 cuts it with "..." to that width. */
     void (*text)(hm_gfx *g, pw_font *f, int x, int y, const char *s, int max_w, unsigned int color,
                  int alpha);
-    /* A drawn icon (ui/icons.h PW_ICON_*) or a button glyph (PW_BTN_*), centred. */
+    /* The XMB's wave (ui/xmbbg.c's ribbon) over what is drawn, at time t_ms, alpha 0-256. */
+    void (*wave)(hm_gfx *g, unsigned int t_ms, int alpha);
+    /* A drawn icon (hm_icons.h HM_ICON_*, ui/icons.h PW_ICON_*) or a button glyph (PW_BTN_*),
+       centred. */
     void (*icon)(hm_gfx *g, int icon, int cx, int cy, int size, unsigned int color, int alpha);
     void (*button)(hm_gfx *g, int button, int cx, int cy, int size, unsigned int color, int alpha);
     /* Prepare the text as text() would draw it, for a later frame: within a time budget; 1 when

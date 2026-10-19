@@ -129,6 +129,7 @@ hm_usb_on = Verbunden. Der Computer hat den Memory Stick.
 hm_usb_fail = USB konnte nicht gestartet werden.
 hm_usb_end = Beenden
 hm_usb_again = Erneut verbinden
+hm_storage = Memory Stick
 hs_pocketwatch = Pocketwatch
 hs_nickname = Spitzname
 hs_sys_language = Systemsprache

@@ -7,6 +7,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home in all three styles: Settings → Style now changes Home at once. Classic is
+  the XMB itself - its sky and wave in your theme colour, the system's own category icons, the
+  game list with the game's picture behind it, the option list with the options on the right,
+  left / right for the categories. Modern got section pills, a gliding white bar, switches, a
+  photo grid, a music card with what plays; Minimal is plain words.
+- Pocketwatch Home: System starts with USB Connection, Internet Browser and Exit to the XMB.
 - Pocketwatch Home: System → Internet Browser (the system's browser).
 - Pocketwatch Home: key sounds of its own (made in code; Settings → Key Sounds).
 - Pocketwatch Home: a game's Information (Triangle), a photo slideshow (Settings → Slideshow

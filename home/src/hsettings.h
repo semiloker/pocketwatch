@@ -39,6 +39,16 @@ int hs_wallpaper_set(const char *path, const unsigned int *bg);
 void hs_nickname(char *out, int cap);
 int hs_set_nickname(const char *utf8);
 
+/* An on/off row: 1 off, 2 on; 0 for any other row (Modern draws those as switches). */
+int hs_toggle(int i);
+
+/* A choice's options, for the XMB's option panel (Classic): how many, each one's text, the
+   current one (< 0 unknown), and choosing one (as hs_step returns). */
+int hs_options(int i);
+void hs_option_text(int i, int o, char *out, int cap);
+int hs_current(int i);
+int hs_choose(int i, int o);
+
 /* The selectable row nearest to i in direction dir (headers are skipped); i itself if none. */
 int hs_next(int i, int dir);
 
