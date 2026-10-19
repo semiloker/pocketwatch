@@ -50,8 +50,10 @@ void hm_library_pause(int on);
 /* After USB: the card may have changed - list it again (loader paused). Returns the count. */
 int hm_library_rescan(void);
 
-/* Photos (HOM-REQ-016): ms0:/PICTURE and ms0:/DCIM, two folder levels, newest first. */
-#define HM_PHOTOS_MAX 300
+/* Photos (HOM-REQ-016): ms0:/PICTURE, ms0:/DCIM and the screenshots of ms0:/PSP/SCREENSHOT,
+   two folder levels, in albums by folder (HOM-REQ-025), newest first. */
+#define HM_PHOTOS_MAX 400
+#define HM_ALBUMS_MAX 64
 
 typedef struct {
     char path[192];
@@ -59,13 +61,56 @@ typedef struct {
     char meta[48];                /* its folder (a game's ID for screenshots) and date */
     unsigned int *volatile thumb; /* HM_ICON_W x HM_ICON_H, kept in shape */
     volatile int tried;
+    int album;         /* its album (1..): 0 is All Photos */
+    volatile int w, h; /* its size, once the loader has decoded it (0 before) */
+    unsigned long long when;
 } hm_photo;
+
+/* An album: the pictures of one folder - a game's screenshots under the game's title. */
+typedef struct {
+    char folder[48]; /* the folder's name ("" for All Photos) */
+    char title[64];  /* the game's title when the folder is a disc ID, else the folder */
+    int count;
+    int cover; /* its newest picture */
+    int game;  /* the game (hm_library_game) whose screenshots these are, or -1 */
+} hm_album;
 
 int hm_library_photo_count(void);
 hm_photo *hm_library_photo(int i);
+int hm_library_album_count(void); /* All Photos (0) and the folders */
+hm_album *hm_library_album(int i);
+/* The pictures of album a, newest first, into out (at most cap): their indices. Returns how many.
+ */
+int hm_library_album_photos(int a, int *out, int cap);
+/* A picture gone (deleted): out of the lists. */
+void hm_library_photo_removed(int i);
+/* A new picture (an edited copy): into the lists. Returns its index or < 0. */
+int hm_library_photo_added(const char *path);
 
-/* What the loader works for: the games (0), the photos (1), a photo shown whole (2); and which. */
+/* What the loader works for: the games (0), the photos (1), a photo shown whole (2); and which.
+   For the photos, the pictures on screen in their order (thumbnails near pos first). */
 void hm_library_mode(int mode, int sel);
+void hm_library_photo_view(const int *list, int n, int pos);
+
+/* Pictures the loader makes when it has nothing nearer to do (a game's saved data): each job's
+   PNG into an icon-sized texture, nearest to focus first. */
+typedef struct {
+    char path[128];
+    unsigned int *volatile icon;
+    volatile int tried;
+} hm_pic_job;
+void hm_library_pics(hm_pic_job *jobs, int n, int focus);
+void hm_library_pics_focus(int focus);
+/* The cover of a track (HOM-REQ-027): its tag's picture (pic_len bytes at pic_off of the MP3),
+   else cover.jpg / folder.jpg beside it - a HM_COVER square and a blurred background, made by
+   the loader. NULL until made, or when there is none. */
+void hm_library_cover(const char *mp3, unsigned int pic_off, unsigned int pic_len);
+const unsigned int *hm_library_cover_pixels(void);
+const unsigned int *hm_library_cover_background(void);
+
+/* A file as the background (a save's PIC1): blurred, or sharp (Classic); NULL until made. */
+void hm_library_file_bg(const char *path);
+const unsigned int *hm_library_file_background(void);
 /* The background the loader made for the chosen photo (blurred, or whole when viewing), or NULL. */
 const unsigned int *hm_library_photo_background(int sel, int whole);
 

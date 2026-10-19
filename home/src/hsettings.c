@@ -5,6 +5,9 @@
 
 #include "core/config.h"
 #include "core/platform.h"
+#include "hcfg.h"
+#include "hm_icons.h"
+#include "home_view.h"
 #include "hsettings.h"
 #include "hw.h"
 #include "sound.h"
@@ -12,7 +15,8 @@
 #include "ui/i18n.h"
 #include "ui/langnames.h"
 
-#define DIR "ms0:/seplugins/pocketwatch/"
+#define DIR      "ms0:/seplugins/pocketwatch/"
+#define HOME_CFG DIR "home.txt"
 
 /* ARK-4 (src/stubs.S), as hw.c. */
 unsigned int sctrlHENFindFunction(const char *module, const char *library, unsigned int nid);
@@ -55,6 +59,7 @@ static int impose(int set, int param, int value)
 /* ---- the rows ---- */
 
 typedef struct {
+    int cat; /* HS_CAT_* */
     int kind, label, action;
     int (*count)(void);
     int (*get)(void);       /* the current option, -1 when unknown */
@@ -103,7 +108,7 @@ static int get_style(void)
 static int set_style(int o)
 {
     pw_config_get()->style = o;
-    return save_config();
+    return save_config() < 0 ? -1 : HS_LOOK_CHANGED;
 }
 static void text_style(int o, char *out, int cap)
 {
@@ -152,20 +157,6 @@ static int get_wallpaper(void)
     }
     return g_wp_known == 2;
 }
-static int set_wallpaper(int o)
-{
-    if (o != 0) /* a picture is chosen in Photos */
-        return get_wallpaper() ? 0 : -1;
-    pw_file_remove(WALLPAPER_BIN);
-    pw_file_remove(WALLPAPER);
-    g_wp_known = 1;
-    return HS_WALLPAPER_CHANGED;
-}
-static void text_wallpaper(int o, char *out, int cap)
-{
-    stbsp_snprintf(out, cap, "%s", o && get_wallpaper() ? g_wp_name : pw_tr(PW_S_HM_WP_DEFAULT));
-}
-
 int hs_wallpaper_load(unsigned int *out)
 {
     return pw_file_read(WALLPAPER_BIN, out, WALLPAPER_LEN) == (int)WALLPAPER_LEN ? 0 : -1;
@@ -179,7 +170,173 @@ int hs_wallpaper_set(const char *path, const unsigned int *bg)
         return -1;
     }
     g_wp_known = 0;
+    hm_cfg_get()->bg = HM_BG_WALLPAPER; /* what was chosen is shown */
+    hm_cfg_save(HOME_CFG);
     return 0;
+}
+
+/* ---- Home's own (home.txt, hcfg.h): Appearance and Music ---- */
+
+static unsigned int g_sky_colour[12]; /* the months' colours, for the swatches (hs_set_skies) */
+
+void hs_set_skies(const unsigned int colours[12])
+{
+    memcpy(g_sky_colour, colours, sizeof(g_sky_colour));
+}
+
+static int save_home(int r)
+{
+    return hm_cfg_save(HOME_CFG) < 0 ? -1 : r;
+}
+
+static int theme_count(void)
+{
+    return HM_THEMES;
+}
+static int get_theme(void)
+{
+    return hm_cfg_get()->theme;
+}
+static int set_theme(int o)
+{
+    hm_cfg_get()->theme = o;
+    return save_home(HS_LOOK_CHANGED);
+}
+static void text_theme(int o, char *out, int cap)
+{
+    static const int k[HM_THEMES] = {PW_S_HS_THEME_DARK, PW_S_HS_THEME_GLASS, PW_S_HS_THEME_OLED,
+                                     PW_S_HS_THEME_PAPER};
+
+    stbsp_snprintf(out, cap, "%s", pw_tr(k[o >= 0 && o < HM_THEMES ? o : 0]));
+}
+
+static int accent_count(void)
+{
+    return HM_ACCENTS;
+}
+static int get_accent(void)
+{
+    return hm_cfg_get()->accent;
+}
+static int set_accent(int o)
+{
+    hm_cfg_get()->accent = o;
+    return save_home(HS_LOOK_CHANGED);
+}
+static void text_accent(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_HS_ACC_BLUE + (o >= 0 && o < HM_ACCENTS ? o : 0)));
+}
+
+static int bg_count(void)
+{
+    return HM_BGS;
+}
+static int get_bg(void)
+{
+    return hm_cfg_get()->bg;
+}
+static int set_bg(int o)
+{
+    if (o == HM_BG_WALLPAPER && !get_wallpaper()) /* none chosen yet: Photos, Square */
+        return -1;
+    hm_cfg_get()->bg = o;
+    return save_home(HS_LOOK_CHANGED);
+}
+static void text_bg(int o, char *out, int cap)
+{
+    static const int k[HM_BGS] = {PW_S_HS_BG_AUTO, PW_S_HS_BG_SKY, PW_S_HS_BG_GRADIENT,
+                                  PW_S_HS_BG_PLAIN, PW_S_HM_WALLPAPER};
+
+    if (o == HM_BG_WALLPAPER && get_wallpaper())
+        stbsp_snprintf(out, cap, "%s", g_wp_name);
+    else
+        stbsp_snprintf(out, cap, "%s", pw_tr(k[o >= 0 && o < HM_BGS ? o : 0]));
+}
+
+static int sky_count(void)
+{
+    return 13;
+}
+static int get_sky(void)
+{
+    return hm_cfg_get()->sky;
+}
+static int set_sky(int o)
+{
+    hm_cfg_get()->sky = o;
+    return save_home(HS_LOOK_CHANGED);
+}
+static void text_sky(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s",
+                   o >= 1 && o <= 12 ? pw_tr(PW_S_MONTH_1 + o - 1) : pw_tr(PW_S_HS_SKY_SYSTEM));
+}
+
+static int get_wave(void)
+{
+    return hm_cfg_get()->wave;
+}
+static int set_wave(int o)
+{
+    hm_cfg_get()->wave = o;
+    return save_home(0);
+}
+static int get_percent(void)
+{
+    return hm_cfg_get()->percent;
+}
+static int set_percent(int o)
+{
+    hm_cfg_get()->percent = o;
+    return save_home(0);
+}
+
+static int motion_count(void)
+{
+    return HM_MOTIONS;
+}
+static int get_motion(void)
+{
+    return hm_cfg_get()->motion;
+}
+static int set_motion(int o)
+{
+    hm_cfg_get()->motion = o;
+    return save_home(0);
+}
+static void text_motion(int o, char *out, int cap)
+{
+    static const int k[HM_MOTIONS] = {PW_S_HS_SLIDE_NORMAL, PW_S_HS_MOTION_FAST,
+                                      PW_S_HS_MOTION_CALM};
+
+    stbsp_snprintf(out, cap, "%s", pw_tr(k[o >= 0 && o < HM_MOTIONS ? o : 0]));
+}
+
+static int get_repeat(void)
+{
+    return hm_cfg_get()->repeat;
+}
+static int set_repeat(int o)
+{
+    hm_cfg_get()->repeat = o;
+    return save_home(HS_MUSIC_CHANGED);
+}
+static void text_repeat(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s",
+                   pw_tr(o == HM_REPEAT_ALL   ? PW_S_HS_REPEAT_ALL
+                         : o == HM_REPEAT_ONE ? PW_S_HS_REPEAT_ONE
+                                              : PW_S_OFF));
+}
+static int get_shuffle(void)
+{
+    return hm_cfg_get()->shuffle;
+}
+static int set_shuffle(int o)
+{
+    hm_cfg_get()->shuffle = o;
+    return save_home(HS_MUSIC_CHANGED);
 }
 
 static int get_slide(void)
@@ -429,33 +586,100 @@ static int set_sounds(int o)
 }
 
 static const row k_rows[] = {
-    {HS_HEADER, PW_S_HS_POCKETWATCH, 0, 0, 0, 0, 0},
-    {HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
-    {HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
-    {HS_CHOICE, PW_S_HM_WALLPAPER, 0, two, get_wallpaper, set_wallpaper, text_wallpaper},
-    {HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
-    {HS_CHOICE, PW_S_SET_STYLE, 0, three, get_style, set_style, text_style},
-    {HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
-    {HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},
-    {HS_CHOICE, PW_S_SET_LANGUAGE, 0, lang_count, get_lang, set_lang, text_lang},
-    {HS_HEADER, PW_S_HM_SYSTEM, 0, 0, 0, 0, 0},
-    {HS_ACTION, PW_S_HS_NICKNAME, HS_ACT_NICKNAME, 0, 0, 0, 0},
-    {HS_CHOICE, PW_S_HS_SYS_LANGUAGE, 0, sys_lang_count, get_sys_lang, set_sys_lang, text_sys_lang},
-    {HS_CHOICE, PW_S_HS_DATE_FORMAT, 0, three, get_date, set_date, text_date},
-    {HS_CHOICE, PW_S_HS_TIME_FORMAT, 0, two, get_time, set_time, text_time},
-    {HS_CHOICE, PW_S_HS_TIME_ZONE, 0, zone_count, get_zone, set_zone, text_zone},
-    {HS_CHOICE, PW_S_HS_SUMMER_TIME, 0, two, get_summer, set_summer, on_off},
-    {HS_CHOICE, PW_S_HS_WLAN_SAVE, 0, two, get_wlan, set_wlan, on_off},
-    {HS_HEADER, PW_S_HS_SCREEN_SOUND, 0, 0, 0, 0, 0},
-    {HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
-    {HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
-    {HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_SET_STYLE, 0, three, get_style, set_style, text_style},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_THEME, 0, theme_count, get_theme, set_theme, text_theme},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_ACCENT, 0, accent_count, get_accent, set_accent, text_accent},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_BACKGROUND, 0, bg_count, get_bg, set_bg, text_bg},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_SKY, 0, sky_count, get_sky, set_sky, text_sky},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_WAVE, 0, two, get_wave, set_wave, on_off},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_PERCENT, 0, two, get_percent, set_percent, on_off},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_MOTION, 0, motion_count, get_motion, set_motion, text_motion},
+    {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
+    {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
+    {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
+    {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},
+    {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_REPEAT, 0, three, get_repeat, set_repeat, text_repeat},
+    {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SHUFFLE, 0, two, get_shuffle, set_shuffle, on_off},
+    {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
+    {HS_CAT_TIME, HS_CHOICE, PW_S_HS_DATE_FORMAT, 0, three, get_date, set_date, text_date},
+    {HS_CAT_TIME, HS_CHOICE, PW_S_HS_TIME_FORMAT, 0, two, get_time, set_time, text_time},
+    {HS_CAT_TIME, HS_CHOICE, PW_S_HS_TIME_ZONE, 0, zone_count, get_zone, set_zone, text_zone},
+    {HS_CAT_TIME, HS_CHOICE, PW_S_HS_SUMMER_TIME, 0, two, get_summer, set_summer, on_off},
+    {HS_CAT_SYSTEM, HS_CHOICE, PW_S_SET_LANGUAGE, 0, lang_count, get_lang, set_lang, text_lang},
+    {HS_CAT_SYSTEM, HS_CHOICE, PW_S_HS_SYS_LANGUAGE, 0, sys_lang_count, get_sys_lang, set_sys_lang,
+     text_sys_lang},
+    {HS_CAT_SYSTEM, HS_ACTION, PW_S_HS_NICKNAME, HS_ACT_NICKNAME, 0, 0, 0, 0},
+    {HS_CAT_NETWORK, HS_CHOICE, PW_S_HS_WLAN_SAVE, 0, two, get_wlan, set_wlan, on_off},
 };
 #define ROWS ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
 
 int hs_count(void)
 {
     return ROWS;
+}
+
+static const struct {
+    int label, glyph, art;
+} k_cats[HS_CATS] = {
+    {PW_S_HS_CAT_LOOK, HM_ICON_PALETTE, HM_ART_THEME + 1},
+    {PW_S_HS_POCKETWATCH, HM_ICON_GAMES, HM_ART_UMD + 1}, /* (PW_ICON_WATCH is 0: none) */
+    {PW_S_HS_CAT_MEDIA, HM_ICON_MUSIC, HM_ART_PHOTO + 1},
+    {PW_S_HS_CAT_SOUND, HM_ICON_SPEAKER, HM_ART_SOUND + 1},
+    {PW_S_HS_CAT_TIME, HM_ICON_CLOCK, HM_ART_CLOCK + 1},
+    {PW_S_HM_SYSTEM, HM_ICON_LANGUAGE, HM_ART_SYSTEM + 1},
+    {PW_S_HS_CAT_NETWORK, HM_ICON_GLOBE, HM_ART_NETWORK + 1},
+};
+
+const char *hs_cat_label(int c)
+{
+    return c >= 0 && c < HS_CATS ? pw_tr(k_cats[c].label) : "";
+}
+
+int hs_cat_glyph(int c)
+{
+    return c >= 0 && c < HS_CATS ? k_cats[c].glyph : 0;
+}
+
+int hs_cat_art(int c)
+{
+    return c >= 0 && c < HS_CATS ? k_cats[c].art : 0;
+}
+
+int hs_cat_rows(int c, int *idx, int max)
+{
+    int n = 0;
+
+    for (int i = 0; i < ROWS && n < max; i++)
+        if (k_rows[i].cat == c)
+            idx[n++] = i;
+    return n;
+}
+
+void hs_cat_value(int c, char *out, int cap)
+{
+    int idx[1];
+
+    out[0] = 0;
+    if (c == HS_CAT_LOOK && hs_cat_rows(c, idx, 1) == 1) /* the style: what this page is about */
+        hs_value(idx[0], out, cap);
+    else if (c == HS_CAT_SYSTEM) /* the language */
+        for (int i = 0; i < ROWS; i++)
+            if (k_rows[i].label == PW_S_SET_LANGUAGE)
+                hs_value(i, out, cap);
+}
+
+unsigned int hs_swatch(int i, int o)
+{
+    if (i < 0 || i >= ROWS || o < 0)
+        return 0;
+    if (k_rows[i].label == PW_S_HS_ACCENT)
+        return hm_cfg_accent(o);
+    if (k_rows[i].label == PW_S_HS_SKY && o >= 1 && o <= 12)
+        return g_sky_colour[o - 1];
+    return 0;
 }
 
 int hs_kind(int i)

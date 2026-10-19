@@ -31,6 +31,7 @@ risk; close it with the evidence.
 | [RISK-022](#risk-022--the-xmb-plugin-is-at-its-64-kb-budget) | The XMB plugin is at its 64 KB budget | H | M | Open |
 | [RISK-023](#risk-023--a-frozen-game-thread-holds-a-lock-other-than-the-cards) | A frozen game thread holds a lock other than the card's | L | H | Open |
 | [RISK-024](#risk-024--another-plugin-holds-a-device-home-does-not-know) | Another plugin holds a device Home does not know | L | M | Open |
+| [RISK-025](#risk-025--home-deletes-saved-data-itself) | Home deletes saved data itself | L | H | Open |
 
 ## RISK-001 — Memory Stick FAT corruption after a rollback
 
@@ -252,3 +253,12 @@ risk; close it with the evidence.
   Home; the XMB's still works).
 - **Mitigation:** the failure names another plugin as the cause on the screen; `home.log` gives
   the bus's state before (`before ...`). A PID seen there can be added to the deactivation.
+
+## RISK-025 — Home deletes saved data itself
+
+- **Description:** Home's own Saved Data page (ADR-036) removes a save's files and folder. A
+  wrong folder name or path would remove something else, and a deleted save cannot be had back.
+- **Likelihood L** / **Impact H** (a game's progress lost).
+- **Mitigation:** only folders listed from `PSP/SAVEDATA` that start with the game's disc ID;
+  names with `/` or a leading `.` refused; only the files directly in that folder; a question
+  (Delete / Cancel) every time; test HM23 on a copy of a save first.

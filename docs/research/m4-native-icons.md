@@ -131,6 +131,11 @@ flash0/fatms locks. Never in a suspend path. Reading flash0 does not violate the
   decoded"): AO Game category, BH/BP UMD (+glow), BJ/BR saved-data folder (+glow), EH/EP disc with
   arrows (+glow), BI/BQ Memory Stick (+glow), BX/DH wrench + PSP (+glow); `system_plugin_fg.rco`
   `tex_cross`, `tex_circle`, `tex_triangle`, `tex_square`.
+- 2026-10-20: the Settings item labels Home uses, each decoded alone from 6.60's file and looked
+  at (the contact sheet's later rows are offset, so it is not to be read for labels): BY wrench +
+  screen (Theme), BW + camera (Photo), BX + PSP (System), BZ + clock (Date and Time), CA + plug
+  (Power Save), CB + speaker (Sound), CD + globe (Network); BU USB, EU "WWW" (the browser; EI is
+  two PSPs, game sharing), BH disc, BI Memory Stick, BJ folder, BT update.
 - Month skies: `01-12_03g.bmp` (else `01-12.bmp`), stretched 8x bilinear (`ui/xmbbg.c`), with a
   procedural wave (the firmware's is a GE-rendered model). Whether the XMB also darkens the sky by
   time of day is OPEN (captures disagree); not implemented.

@@ -42,7 +42,10 @@ The project's full workflow is imported here and applies to every session:
   drawing the same pixels. Home has the three styles too (ADR-033: `view_classic.c` - the XMB,
   with the system's pictures from flash0 via `xmbart.c` - `view_modern.c`, `view_minimal.c`);
   previews: `home-*.png`, `modern-home-*.png`, `minimal-home-*.png` (`RCO=` for the system's
-  icons). Frame rate: `seplugins/pocketwatch/home.log`. Nothing slow in its frame
+  icons; Modern in each theme: `modern-home-theme-*.png`). Every section is a stack of pages
+  (ADR-035): `pages.c` builds them (rows, tiles, what Enter does), `main.c` keeps the stack and
+  the keys; Home's own settings (theme, accent, background, music modes) are `home.txt`
+  (`hcfg.c`), never `config.txt` (the XMB plugin's parser, RISK-022). Frame rate: `seplugins/pocketwatch/home.log`. Nothing slow in its frame
   loop (ADR-031): the battery comes from `hw.c`'s thread, the system's parameters from
   `hm_hw_param` (kept). Home's strings are the
   `PW_I18N_HOME` tier (after `PW_S_HOME_FIRST`); the XMB plugin builds without them.

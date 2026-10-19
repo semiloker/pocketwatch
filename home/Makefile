@@ -15,7 +15,8 @@ OBJS = build/main.o build/hw.o build/library.o build/launch.o build/texts.o buil
        build/music_name.o build/sound.o build/sound_synth.o build/net.o build/stubs.o \
        build/draw.o build/shapes.o build/icons.o build/font8x8.o build/input.o build/i18n.o \
        build/text.o build/pgf.o build/sfo.o build/playtime.o build/crc32.o build/stb_sprintf.o \
-       build/config.o build/langnames.o
+       build/config.o build/langnames.o build/hcfg.o build/pages.o build/savedata.o \
+       build/savedata_text.o build/photo_edit.o build/hm_imgwrite.o
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -51,6 +52,9 @@ build/%.o: %.S | build
 build/hm_image.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-parameter \
                             -Wno-implicit-fallthrough -Wno-unused-but-set-variable
 build/stb_sprintf.o: CFLAGS += -Wno-sign-compare
+build/hm_imgwrite.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-parameter \
+                               -Wno-implicit-fallthrough -Wno-unused-but-set-variable \
+                               -Wno-missing-field-initializers -Wno-type-limits
 
 # main.o again whenever the version string changes (System -> Version names the build).
 build/main.o: build/.version
@@ -60,7 +64,9 @@ build/.version: FORCE | build
 # `make check`: imports (user libraries and ARK-4's, ../tools/check_prx.py) and the budgets. Home is
 # a user program: its RAM is the 24 MB user partition, not kernel RAM; 2 MB loaded (the GE's
 # display list alone is 512 KB) keeps it lean beside its textures and the firmware's dialogs.
-MAX_PRX_SIZE = 524288
+# The file itself only costs load time (768 KB since the pages, the editor and its JPEG writer,
+# 2026-10-20: 521 KB).
+MAX_PRX_SIZE = 786432
 MAX_MEM      = 2097152
 
 check: $(EXTRA_TARGETS)

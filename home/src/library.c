@@ -33,10 +33,24 @@ static volatile int g_pause, g_idle;    /* USB: the loader keeps off the card */
 static SceUID g_thread = -1;            /* the loader, once started */
 static volatile unsigned int g_free_mb; /* 0: not counted yet */
 static hm_photo g_photos[HM_PHOTOS_MAX];
-static unsigned long long g_photo_when[HM_PHOTOS_MAX];
 static int g_photo_count;
+static hm_album g_albums[HM_ALBUMS_MAX];
+static int g_album_count;
 static volatile int g_mode, g_photo_focus; /* hm_library_mode */
-#define PHOTO_FILE_MAX (6 << 20)           /* bytes of one picture file at most */
+static int g_view[HM_PHOTOS_MAX];          /* hm_library_photo_view */
+static volatile int g_view_n, g_view_pos;
+static hm_pic_job *volatile g_jobs; /* hm_library_pics */
+static volatile int g_jobs_n, g_jobs_focus;
+static char g_file_bg[160]; /* hm_library_file_bg */
+static volatile int g_file_bg_seq, g_file_bg_done = -1;
+#define TAG_FILE  30000     /* g_bg_game: the file background (+ its request) */
+#define TAG_COVER 40000     /* g_bg_game: a cover's background (+ its request) */
+#define COVER_MAX (2 << 20) /* bytes of a tag's picture at most */
+static char g_cover_path[192];
+static unsigned int g_cover_off, g_cover_len;
+static volatile int g_cover_seq, g_cover_done = -1, g_cover_found;
+static unsigned int *g_cover_px; /* HM_COVER x HM_COVER, made once */
+#define PHOTO_FILE_MAX (6 << 20) /* bytes of one picture file at most */
 #define PHOTO_PIXELS   (2600000) /* pixels of one picture at most (decoded: 4 bytes each) */
 #define TAG_PHOTO      10000     /* g_bg_game: a photo's background (+ its index) */
 #define TAG_WHOLE      20000     /* g_bg_game: a photo shown whole (+ its index) */
@@ -304,6 +318,7 @@ static int by_kind_and_title(const void *a, const void *b)
 }
 
 static void scan_photos(void);
+static void make_albums(void);
 
 int hm_library_scan(void)
 {
@@ -314,6 +329,7 @@ int hm_library_scan(void)
     play_times();
     save_states();
     qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
+    make_albums(); /* (after the games: a folder named by a disc ID gets the game's title) */
     return g_count;
 }
 
@@ -429,6 +445,10 @@ static void load_photo_background(int sel, int whole)
     int slot = g_next, w = 0, h = 0;
     unsigned int *px = load_picture(g_photos[sel].path, &w, &h);
 
+    if (px) { /* (the editor needs it) */
+        g_photos[sel].w = w;
+        g_photos[sel].h = h;
+    }
     if (px && g_bg[slot]) {
         g_bg_game[slot] = -2; /* being written */
         if (whole)
@@ -468,6 +488,121 @@ static void load_background(int sel)
         hm_image_free(px);
 }
 
+/* Is picture i on screen, or near it (within d of the view's position)? */
+static int in_view(int i, int pos, int d)
+{
+    for (int k = pos - d; k <= pos + d; k++)
+        if (k >= 0 && k < g_view_n && g_view[k] == i)
+            return 1;
+    return 0;
+}
+
+/* One picture of the job list, the nearest to its focus: 1 when one was made. */
+static int pic_job(void)
+{
+    hm_pic_job *jobs = g_jobs;
+    int n = g_jobs_n, f = g_jobs_focus;
+
+    for (int d = 0; jobs && d < n; d++)
+        for (int s = -1; s <= 1; s += 2) {
+            int k = f + s * d, w = 0, h = 0;
+            unsigned int *px;
+
+            if (k < 0 || k >= n || jobs[k].tried)
+                continue;
+            px = load_picture(jobs[k].path, &w, &h);
+            if (g_jobs == jobs && px) /* (the list may have gone meanwhile) */
+                jobs[k].icon = make_icon(px, w, h);
+            if (px)
+                hm_image_free(px);
+            jobs[k].tried = 1;
+            return 1;
+        }
+    return 0;
+}
+
+/* The picture's bytes: the tag's, else a cover file beside the track. */
+static unsigned int *cover_picture(int *w, int *h)
+{
+    static const char *const names[] = {"cover.jpg", "folder.jpg",        "Folder.jpg",
+                                        "front.jpg", "AlbumArtSmall.jpg", "AlbumArt.jpg",
+                                        "cover.png"};
+    unsigned int *px = 0;
+
+    if (g_cover_len > 0 && g_cover_len <= COVER_MAX) {
+        SceUID fd = sceIoOpen(g_cover_path, PSP_O_RDONLY, 0);
+        unsigned char *buf = fd >= 0 ? malloc(g_cover_len) : 0;
+
+        if (buf && read_fd((void *)(long)fd, g_cover_off, buf, g_cover_len) == (int)g_cover_len &&
+            hm_image_info(buf, (int)g_cover_len, w, h) == 0 && (long long)*w * *h <= PHOTO_PIXELS)
+            px = hm_png_decode(buf, (int)g_cover_len, w, h);
+        free(buf);
+        if (fd >= 0)
+            sceIoClose(fd);
+    }
+    for (unsigned int i = 0; !px && i < sizeof(names) / sizeof(names[0]); i++) {
+        char path[200];
+        const char *slash = strrchr(g_cover_path, '/');
+
+        if (!slash)
+            break;
+        stbsp_snprintf(path, sizeof(path), "%.*s/%s", (int)(slash - g_cover_path), g_cover_path,
+                       names[i]);
+        px = load_picture(path, w, h);
+    }
+    return px;
+}
+
+/* A track's cover: the middle square of its picture, and the picture blurred behind it all. */
+static void load_cover(int seq)
+{
+    int slot = g_next, w = 0, h = 0;
+    unsigned int *px = cover_picture(&w, &h);
+
+    g_cover_found = 0;
+    if (px && g_bg[slot] && (g_cover_px || (g_cover_px = memalign(16, HM_COVER * HM_COVER * 4)))) {
+        int s = w < h ? w : h;
+        unsigned int *sq = malloc((size_t)s * (size_t)s * 4);
+
+        if (sq) {
+            for (int y = 0; y < s; y++)
+                memcpy(sq + y * s, px + (y + (h - s) / 2) * w + (w - s) / 2, (size_t)s * 4);
+            hm_image_fit(sq, s, s, g_cover_px, HM_COVER, HM_COVER);
+            free(sq);
+            hm_gu_written(g_cover_px, HM_COVER * HM_COVER * 4);
+            g_cover_found = 1;
+        }
+        g_bg_game[slot] = -2;
+        hm_make_background(px, w, h, g_bg[slot]);
+        hm_gu_written(g_bg[slot], 512 * HM_H * 4);
+        hm_gu_upload_bg(slot, g_bg[slot]);
+        g_bg_game[slot] = TAG_COVER + seq % 1000;
+        g_next = !slot;
+    }
+    if (px)
+        hm_image_free(px);
+}
+
+static void load_file_background(int seq)
+{
+    int slot = g_next, w = 0, h = 0;
+    unsigned int *px = load_picture(g_file_bg, &w, &h);
+
+    if (px && g_bg[slot]) {
+        g_bg_game[slot] = -2;
+        if (g_sharp)
+            hm_make_pic1(px, w, h, g_bg[slot]);
+        else
+            hm_make_background(px, w, h, g_bg[slot]);
+        hm_gu_written(g_bg[slot], 512 * HM_H * 4);
+        hm_gu_upload_bg(slot, g_bg[slot]);
+        g_bg_game[slot] = TAG_FILE + seq % 1000;
+        g_next = !slot;
+    }
+    if (px)
+        hm_image_free(px);
+}
+
 static int loader(SceSize args, void *argp)
 {
     int tried_bg = -1;
@@ -485,8 +620,23 @@ static int loader(SceSize args, void *argp)
         }
         g_idle = 0;
 
+        if (g_cover_seq != g_cover_done) { /* the cover of what plays */
+            int seq = g_cover_seq;
+
+            load_cover(seq);
+            g_cover_done = seq;
+            continue;
+        }
+        if (g_file_bg_seq != g_file_bg_done) { /* a save's PIC1 behind its list */
+            int seq = g_file_bg_seq;
+
+            load_file_background(seq);
+            g_file_bg_done = seq;
+            continue;
+        }
         if (g_mode != 0) { /* the photos: the chosen one's background, then the thumbnails */
-            int ps = g_photo_focus, tag = (g_mode == 2 ? TAG_WHOLE : TAG_PHOTO) + ps;
+            int ps = g_photo_focus, tag = (g_mode == 2 ? TAG_WHOLE : TAG_PHOTO) + ps, n = g_view_n,
+                vp = g_view_pos, near = -1;
 
             if (tag != tried_bg && ps >= 0 && ps < g_photo_count &&
                 (g_mode == 2 || (int)(hm_hw_now_ms() - g_focus_ms) >= SETTLE_MS)) {
@@ -494,21 +644,20 @@ static int loader(SceSize args, void *argp)
                 load_photo_background(ps, g_mode == 2);
                 continue;
             }
-            for (int i = 0; i < g_photo_count; i++)
-                if (!g_photos[i].tried) {
-                    int d = i > ps ? i - ps : ps - i;
+            for (int d = 0; d < 12 && near < 0; d++) /* the nearest on screen without its own */
+                for (int s = -1; s <= 1 && near < 0; s += 2) {
+                    int k = vp + s * d;
 
-                    if (d < dist) {
-                        dist = d;
-                        best = i;
-                    }
+                    if (k >= 0 && k < n && g_view[k] >= 0 && g_view[k] < g_photo_count &&
+                        !g_photos[g_view[k]].tried)
+                        near = g_view[k];
                 }
-            if (best >= 0 && dist < 8) {
-                load_thumb(&g_photos[best]);
+            if (near >= 0) {
+                load_thumb(&g_photos[near]);
                 continue;
             }
             for (int i = 0; i < g_photo_count; i++) /* far off screen: their memory back */
-                if (g_photos[i].thumb && (i > ps ? i - ps : ps - i) > 24) {
+                if (g_photos[i].thumb && !in_view(i, vp, 28)) {
                     unsigned int *t = g_photos[i].thumb;
 
                     g_photos[i].thumb = 0;
@@ -536,6 +685,8 @@ static int loader(SceSize args, void *argp)
             best = -1; /* (the games' icons wait while the photos are shown) */
         if (best >= 0 && dist < 12) {
             load_icon(&g_games[best]);
+        } else if (pic_job()) {
+            continue;
         } else if (g_free_want) { /* the card's free space: seconds on a large card (its FAT is
                                      read), so here and not in the frame loop */
             g_free_want = 0;
@@ -622,6 +773,21 @@ static unsigned long long when_of(const ScePspDateTime *t)
            (unsigned long long)t->minute * 60 + t->second;
 }
 
+/* The album of a folder (made when new); root: the top folder's own name. */
+static int album_of(const char *folder)
+{
+    for (int i = 1; i < g_album_count; i++)
+        if (strcmp(g_albums[i].folder, folder) == 0)
+            return i;
+    if (g_album_count >= HM_ALBUMS_MAX)
+        return 0;
+    memset(&g_albums[g_album_count], 0, sizeof(hm_album));
+    stbsp_snprintf(g_albums[g_album_count].folder, sizeof(g_albums[0].folder), "%s", folder);
+    return g_album_count++;
+}
+
+static const char *root = "PICTURE"; /* the album of a top folder's own pictures */
+
 static void scan_pictures(const char *dir, const char *folder, int depth)
 {
     SceUID dd = sceIoDopen(dir);
@@ -639,7 +805,7 @@ static void scan_pictures(const char *dir, const char *folder, int depth)
                 if (depth < 1)
                     scan_pictures(path, e.d_name, depth + 1);
             } else if (is_picture(e.d_name)) {
-                hm_photo *p = &g_photos[g_photo_count];
+                hm_photo *p = &g_photos[g_photo_count++];
                 const ScePspDateTime *t = &e.d_stat.sce_st_mtime;
 
                 memset(p, 0, sizeof(*p));
@@ -647,7 +813,8 @@ static void scan_pictures(const char *dir, const char *folder, int depth)
                 stbsp_snprintf(p->name, sizeof(p->name), "%s", e.d_name);
                 stbsp_snprintf(p->meta, sizeof(p->meta), "%s%s%d/%02d/%02d", folder ? folder : "",
                                folder ? "   " : "", t->year, t->month, t->day);
-                g_photo_when[g_photo_count++] = when_of(t);
+                p->when = when_of(t);
+                p->album = album_of(folder ? folder : root);
             }
         }
         memset(&e, 0, sizeof(e));
@@ -660,21 +827,188 @@ static void scan_photos(void)
     for (int i = 0; i < g_photo_count; i++)
         free(g_photos[i].thumb);
     g_photo_count = 0;
+    g_album_count = 1; /* 0: All Photos */
+    memset(&g_albums[0], 0, sizeof(hm_album));
+    root = "PICTURE";
     scan_pictures("ms0:/PICTURE", 0, 0);
+    root = "DCIM";
     scan_pictures("ms0:/DCIM", 0, 0);
-    for (int i = 1; i < g_photo_count; i++) { /* newest first */
+    root = "SCREENSHOT";
+    scan_pictures("ms0:/PSP/SCREENSHOT", 0, 0); /* prxshot and the like: a folder per game */
+    for (int i = 1; i < g_photo_count; i++) {   /* newest first */
         hm_photo p = g_photos[i];
-        unsigned long long w = g_photo_when[i];
         int k = i;
 
-        while (k > 0 && g_photo_when[k - 1] < w) {
+        while (k > 0 && g_photos[k - 1].when < p.when) {
             g_photos[k] = g_photos[k - 1];
-            g_photo_when[k] = g_photo_when[k - 1];
             k--;
         }
         g_photos[k] = p;
-        g_photo_when[k] = w;
     }
+}
+
+/* The albums' counts, covers and titles (a disc ID's folder: the game's title). */
+static void make_albums(void)
+{
+    for (int a = 0; a < g_album_count; a++) {
+        hm_album *al = &g_albums[a];
+
+        al->count = 0;
+        al->cover = -1;
+        al->game = -1;
+        stbsp_snprintf(al->title, sizeof(al->title), "%s", al->folder);
+        for (int i = 0; i < g_count && a > 0; i++)
+            if (g_games[i].id[0] && strcmp(g_games[i].id, al->folder) == 0) {
+                stbsp_snprintf(al->title, sizeof(al->title), "%s", g_games[i].title);
+                al->game = i;
+            }
+    }
+    for (int i = 0; i < g_photo_count; i++) {
+        hm_album *al = &g_albums[g_photos[i].album];
+
+        if (al->cover < 0)
+            al->cover = i; /* (newest first) */
+        al->count++;
+    }
+    g_albums[0].count = g_photo_count;
+    g_albums[0].cover = g_photo_count ? 0 : -1;
+}
+
+int hm_library_album_count(void)
+{
+    return g_album_count;
+}
+
+hm_album *hm_library_album(int i)
+{
+    return i >= 0 && i < g_album_count ? &g_albums[i] : 0;
+}
+
+int hm_library_album_photos(int a, int *out, int cap)
+{
+    int n = 0;
+
+    for (int i = 0; i < g_photo_count && n < cap; i++)
+        if (a == 0 || g_photos[i].album == a)
+            out[n++] = i;
+    return n;
+}
+
+void hm_library_photo_removed(int i)
+{
+    if (i < 0 || i >= g_photo_count)
+        return;
+    hm_library_pause(1);
+    free(g_photos[i].thumb);
+    memmove(&g_photos[i], &g_photos[i + 1], sizeof(hm_photo) * (size_t)(g_photo_count - i - 1));
+    g_photo_count--;
+    g_bg_game[0] = g_bg_game[1] = -1;
+    make_albums();
+    hm_library_pause(0);
+}
+
+int hm_library_photo_added(const char *path)
+{
+    SceIoStat st;
+    const char *slash = strrchr(path, '/');
+    char folder[48] = "";
+    int k;
+
+    if (g_photo_count >= HM_PHOTOS_MAX || sceIoGetstat(path, &st) < 0 || !slash)
+        return -1;
+    { /* its folder's name: the album */
+        const char *s = slash - 1;
+
+        while (s > path && *s != '/')
+            s--;
+        stbsp_snprintf(folder, sizeof(folder), "%.*s", (int)(slash - s - 1), s + 1);
+    }
+    hm_library_pause(1);
+    memmove(&g_photos[1], &g_photos[0], sizeof(hm_photo) * (size_t)g_photo_count); /* newest */
+    memset(&g_photos[0], 0, sizeof(hm_photo));
+    stbsp_snprintf(g_photos[0].path, sizeof(g_photos[0].path), "%s", path);
+    stbsp_snprintf(g_photos[0].name, sizeof(g_photos[0].name), "%s", slash + 1);
+    stbsp_snprintf(g_photos[0].meta, sizeof(g_photos[0].meta), "%s   %d/%02d/%02d", folder,
+                   st.sce_st_mtime.year, st.sce_st_mtime.month, st.sce_st_mtime.day);
+    g_photos[0].when = when_of(&st.sce_st_mtime);
+    g_photos[0].album = album_of(folder);
+    g_photo_count++;
+    g_bg_game[0] = g_bg_game[1] = -1;
+    make_albums();
+    k = 0;
+    hm_library_pause(0);
+    return k;
+}
+
+void hm_library_photo_view(const int *list, int n, int pos)
+{
+    if (n > HM_PHOTOS_MAX)
+        n = HM_PHOTOS_MAX;
+    if (n != g_view_n || memcmp(list, g_view, sizeof(int) * (size_t)n) != 0) {
+        g_view_n = 0; /* (the loader reads it as it changes: none while it does) */
+        memcpy(g_view, list, sizeof(int) * (size_t)n);
+        g_view_n = n;
+    }
+    g_view_pos = pos;
+}
+
+void hm_library_pics(hm_pic_job *jobs, int n, int focus)
+{
+    if (jobs != g_jobs) {
+        g_jobs_n = 0;
+        g_jobs = jobs;
+    }
+    g_jobs_n = jobs ? n : 0;
+    g_jobs_focus = focus;
+}
+
+void hm_library_pics_focus(int focus)
+{
+    g_jobs_focus = focus;
+}
+
+void hm_library_file_bg(const char *path)
+{
+    if (strcmp(path, g_file_bg) == 0)
+        return;
+    hm_library_pause(1);
+    stbsp_snprintf(g_file_bg, sizeof(g_file_bg), "%s", path);
+    g_file_bg_seq++;
+    hm_library_pause(0);
+}
+
+void hm_library_cover(const char *mp3, unsigned int pic_off, unsigned int pic_len)
+{
+    if (strcmp(mp3, g_cover_path) == 0 && pic_off == g_cover_off && pic_len == g_cover_len)
+        return;
+    hm_library_pause(1);
+    stbsp_snprintf(g_cover_path, sizeof(g_cover_path), "%s", mp3);
+    g_cover_off = pic_off;
+    g_cover_len = pic_len;
+    g_cover_found = 0;
+    g_cover_seq++;
+    hm_library_pause(0);
+}
+
+const unsigned int *hm_library_cover_pixels(void)
+{
+    return g_cover_done == g_cover_seq && g_cover_found ? g_cover_px : 0;
+}
+
+const unsigned int *hm_library_cover_background(void)
+{
+    for (int i = 0; i < 2; i++)
+        if (g_bg_game[i] == TAG_COVER + g_cover_seq % 1000 && g_cover_done == g_cover_seq)
+            return g_bg[i];
+    return 0;
+}
+
+const unsigned int *hm_library_file_background(void)
+{
+    for (int i = 0; i < 2; i++)
+        if (g_bg_game[i] == TAG_FILE + g_file_bg_seq % 1000 && g_file_bg_done == g_file_bg_seq)
+            return g_bg[i];
+    return 0;
 }
 
 int hm_library_photo_count(void)

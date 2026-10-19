@@ -7,6 +7,20 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: every section opens pages of its own that slide in and out. Settings is
+  now seven categories (Appearance, Pocketwatch, Music and Photos, Sound and Display, Date and
+  Time, System, Network), System has Battery, Memory Stick, About This PSP and Power pages; in
+  Classic they are the XMB's own Settings items with the system's icons.
+- Pocketwatch Home: themes (Dark, Glass, OLED Black, Paper), nine accent colours, a choice of
+  background (the XMB's sky in any month's colour, a gradient, plain, your wallpaper), the wave
+  on or off, the battery's percent, quicker or gentler animations.
+- Pocketwatch Home: a game's saved data in Home's own look - pictures, titles, details, size,
+  Delete (with a question); save states on their own page (continue, delete).
+- Pocketwatch Home: music shows the tags' titles, artists and albums and the album cover (also
+  blurred behind it); Now Playing; previous / next, hold to seek, repeat and shuffle.
+- Pocketwatch Home: photo albums by folder (a game's screenshots under the game's name,
+  PSP/SCREENSHOT too), delete a photo, and a photo editor (rotate, mirror, eight filters,
+  brightness, contrast, saturation, warmth, vignette) that saves a copy.
 - Pocketwatch Home in all three styles: Settings → Style now changes Home at once. Classic is
   the XMB itself - its sky and wave in your theme colour, the system's own category icons, the
   game list with the game's picture behind it, the option list with the options on the right,

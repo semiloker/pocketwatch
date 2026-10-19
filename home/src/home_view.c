@@ -7,6 +7,69 @@
 
 /* ---- what the styles share ---- */
 
+unsigned int hm_mix(unsigned int c0, unsigned int c1, int t)
+{
+    unsigned int out = 0xFF000000u;
+
+    for (int s = 0; s < 24; s += 8)
+        out |= (unsigned int)hm_lerp((int)(c0 >> s & 0xFF), (int)(c1 >> s & 0xFF), t) << s;
+    return out;
+}
+
+void hm_palette_of(const hm_ui *ui, hm_palette *p)
+{
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+
+    p->text = C_TEXT;
+    p->sub = C_SUB;
+    p->dim = C_DIM;
+    p->card = C_CARD;
+    p->knob = C_KNOB;
+    p->sel = C_TEXT;
+    p->ink = C_INK;
+    p->ink2 = C_INK2;
+    p->head = hm_mix(acc, C_TEXT, 110);
+    p->card_a = 200;
+    p->sel_a = 235;
+    p->shade = 0;
+    switch (ui->theme) {
+    case HM_THEME_GLASS: /* frosted: lighter cards, the chosen row in the accent */
+        p->card = PW_RGB(255, 255, 255);
+        p->card_a = 34;
+        p->sel = acc;
+        p->sel_a = 220;
+        p->ink = C_TEXT;
+        p->ink2 = PW_RGB(225, 232, 245);
+        p->knob = PW_RGB(120, 128, 150);
+        break;
+    case HM_THEME_OLED: /* black, thin and bright */
+        p->card = PW_RGB(0, 0, 0);
+        p->card_a = 230;
+        p->sel = acc;
+        p->sel_a = 256;
+        p->ink = C_TEXT;
+        p->ink2 = PW_RGB(230, 236, 248);
+        p->knob = PW_RGB(52, 54, 62);
+        p->shade = 120;
+        break;
+    case HM_THEME_PAPER: /* light: white cards, dark text */
+        p->text = PW_RGB(26, 28, 36);
+        p->sub = PW_RGB(96, 102, 118);
+        p->dim = PW_RGB(44, 48, 60);
+        p->card = PW_RGB(250, 250, 252);
+        p->card_a = 236;
+        p->sel = acc;
+        p->sel_a = 240;
+        p->ink = C_TEXT;
+        p->ink2 = PW_RGB(232, 238, 250);
+        p->knob = PW_RGB(196, 200, 210);
+        p->head = hm_mix(acc, PW_RGB(0, 0, 0), 60);
+        break;
+    default:
+        break;
+    }
+}
+
 void hm_text_right(hm_gfx *g, pw_font *f, int x1, int y, const char *s, unsigned int color,
                    int alpha)
 {
@@ -27,6 +90,43 @@ void hm_text_center(hm_gfx *g, pw_font *f, int cx, int y, const char *s, int max
     g->text(g, f, cx - w / 2, y, s, max_w, color, alpha);
 }
 
+void hm_text_wrap(hm_gfx *g, pw_font *f, int x, int y, int lh, int lines, const char *s, int max_w,
+                  int center, unsigned int color, int alpha)
+{
+    char line[160];
+
+    for (int k = 0; s && *s && k < lines; k++) {
+        int n, cut = 0;
+
+        if (k < lines - 1) /* the most words that fit */
+            for (int i = 0;; i++) {
+                if (s[i] == ' ' || !s[i]) {
+                    if (i >= (int)sizeof(line))
+                        break;
+                    memcpy(line, s, (size_t)i);
+                    line[i] = 0;
+                    if (pw_text_width(f, line) > max_w && cut > 0)
+                        break;
+                    cut = i;
+                    if (!s[i])
+                        break;
+                }
+            }
+        n = k < lines - 1 && cut > 0 ? cut : (int)strlen(s);
+        if (n >= (int)sizeof(line))
+            n = (int)sizeof(line) - 1;
+        memcpy(line, s, (size_t)n);
+        line[n] = 0;
+        if (center)
+            hm_text_center(g, f, x, y + k * lh, line, max_w, color, alpha);
+        else
+            g->text(g, f, x, y + k * lh, line, max_w, color, alpha);
+        s += n;
+        while (*s == ' ')
+            s++;
+    }
+}
+
 void hm_chevron(hm_gfx *g, int x, int y, int dir, unsigned int color, int alpha)
 {
     for (int k = 0; k < 4; k++) {
@@ -38,9 +138,9 @@ void hm_chevron(hm_gfx *g, int x, int y, int dir, unsigned int color, int alpha)
     g->fill(g, x + (dir > 0 ? 2 : -2), y, 2, 1, color, alpha);
 }
 
-void hm_switch(hm_gfx *g, int x, int y, int on, int alpha)
+void hm_switch(hm_gfx *g, int x, int y, int on, unsigned int accent, unsigned int knob, int alpha)
 {
-    g->rrect(g, x, y - 8, 30, 16, 8, 0, on ? C_ON : C_KNOB, alpha);
+    g->rrect(g, x, y - 8, 30, 16, 8, 0, on ? accent : knob, alpha);
     g->rrect(g, x + (on ? 16 : 2), y - 6, 12, 12, 6, 0, C_TEXT, alpha);
 }
 
@@ -54,10 +154,39 @@ void hm_tile_draw(hm_gfx *g, const unsigned int *icon, int x, int y, int w, int 
     }
 }
 
+void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size, int r, int alpha)
+{
+    if (cover) {
+        g->image(g, cover, HM_COVER, HM_COVER, HM_COVER, x, y, size, size, alpha);
+        return;
+    }
+    /* no cover: a dark square, lit from above, with a note */
+    g->rrect(g, x, y, size, size, r, 0, PW_RGB(36, 39, 52), alpha);
+    g->rrect(g, x, y, size, size / 2, r, 0, C_TEXT, alpha * 12 / 256);
+    g->icon(g, HM_ICON_MUSIC, x + size / 2, y + size / 2, size * 2 / 5, PW_RGB(120, 126, 146),
+            alpha);
+}
+
 void hm_art_draw(hm_gfx *g, const pw_image *img, int cx, int cy, int alpha)
 {
     g->image(g, img->px, img->w, img->h, (img->w + 15) & ~15, cx - img->w / 2, cy - img->h / 2,
              img->w, img->h, alpha);
+}
+
+void hm_art_fit(hm_gfx *g, const pw_image *img, int cx, int cy, int w, int h, int alpha)
+{
+    int dw = img->w, dh = img->h;
+
+    if (dw > w) {
+        dh = dh * w / dw;
+        dw = w;
+    }
+    if (dh > h) {
+        dw = dw * h / dh;
+        dh = h;
+    }
+    g->image(g, img->px, img->w, img->h, (img->w + 15) & ~15, cx - dw / 2, cy - dh / 2, dw, dh,
+             alpha);
 }
 
 void hm_button_pic(hm_gfx *g, const hm_ui *ui, int which, int cx, int cy, int size,
@@ -73,25 +202,23 @@ int hm_hints_right(hm_gfx *g, const hm_ui *ui, const hm_view *v, int x1, int y, 
                    int alpha)
 {
     int x = x1;
+    const char *label[4] = {v->hint_back, v->hint_square, v->hint_options, v->hint_enter};
+    int btn[4] = {ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, PW_BTN_SQUARE, PW_BTN_TRIANGLE,
+                  ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE};
 
-    if (v->hint_tabs) {
+    if (v->hint_tabs && v->depth == 0) {
         x -= pw_text_width(ui->body, v->hint_tabs);
         g->text(g, ui->body, x, y, v->hint_tabs, 0, color, alpha);
         x -= pw_text_width(ui->body, "L  R  ") + 4;
-        g->text(g, ui->body, x, y, "L  R", 0, C_TEXT, alpha);
+        g->text(g, ui->body, x, y, "L  R", 0, color, alpha);
         x -= 18;
     }
-    if (v->hint_enter) {
-        x -= pw_text_width(ui->body, v->hint_enter);
-        g->text(g, ui->body, x, y, v->hint_enter, 0, color, alpha);
-        g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x - 9, y - 4, 12, color,
-                  alpha);
-        x -= 26;
-    }
-    if (v->hint_options) {
-        x -= pw_text_width(ui->body, v->hint_options);
-        g->text(g, ui->body, x, y, v->hint_options, 0, color, alpha);
-        g->button(g, PW_BTN_TRIANGLE, x - 9, y - 4, 12, color, alpha);
+    for (int i = 0; i < 4; i++) {
+        if (!label[i])
+            continue;
+        x -= pw_text_width(ui->body, label[i]);
+        g->text(g, ui->body, x, y, label[i], 0, color, alpha);
+        g->button(g, btn[i], x - 9, y - 4, 12, color, alpha);
         x -= 26;
     }
     return x;
@@ -105,10 +232,123 @@ int hm_row_next(const hm_row *rows, int n, int i, int dir)
     return i;
 }
 
+unsigned int hm_glyph_tint(int glyph, unsigned int accent)
+{
+    switch (glyph) {
+    case HM_ICON_PALETTE:
+    case HM_ICON_LAYERS:
+        return PW_RGB(140, 82, 220);
+    case HM_ICON_GAMES:
+        return PW_RGB(46, 112, 230);
+    case HM_ICON_MUSIC:
+    case HM_ICON_PHOTOS:
+        return PW_RGB(232, 70, 110);
+    case HM_ICON_SPEAKER:
+        return PW_RGB(236, 76, 64);
+    case HM_ICON_CLOCK:
+        return PW_RGB(96, 104, 128);
+    case HM_ICON_GLOBE:
+    case HM_ICON_LANGUAGE:
+        return PW_RGB(40, 140, 220);
+    case HM_ICON_USB:
+        return PW_RGB(24, 160, 150);
+    case HM_ICON_BATTERY:
+        return PW_RGB(52, 176, 90);
+    case PW_ICON_CARD:
+    case HM_ICON_FOLDER:
+        return PW_RGB(236, 150, 40);
+    case HM_ICON_USER:
+        return PW_RGB(240, 120, 50);
+    case PW_ICON_QUIT:
+    case HM_ICON_TRASH:
+        return PW_RGB(226, 60, 60);
+    case HM_ICON_CHIP:
+        return PW_RGB(70, 90, 200);
+    case HM_ICON_EXIT:
+    case HM_ICON_SYSTEM:
+    case PW_ICON_GEAR:
+    case HM_ICON_SLEEP:
+        return PW_RGB(110, 116, 134);
+    default:
+        return accent;
+    }
+}
+
+/* ---- a page moving: every operation shifted and faded ---- */
+
+#define SH(g) ((hm_shift *)(g))
+
+static void sh_fill(hm_gfx *g, int x, int y, int w, int h, unsigned int color, int alpha)
+{
+    SH(g)->in->fill(SH(g)->in, x + SH(g)->dx, y, w, h, color, alpha * SH(g)->alpha / 256);
+}
+static void sh_rrect(hm_gfx *g, int x, int y, int w, int h, int r, int line, unsigned int color,
+                     int alpha)
+{
+    SH(g)->in->rrect(SH(g)->in, x + SH(g)->dx, y, w, h, r, line, color, alpha * SH(g)->alpha / 256);
+}
+static void sh_image(hm_gfx *g, const unsigned int *px, int w, int h, int stride, int x, int y,
+                     int dw, int dh, int alpha)
+{
+    SH(g)->in->image(SH(g)->in, px, w, h, stride, x + SH(g)->dx, y, dw, dh,
+                     alpha * SH(g)->alpha / 256);
+}
+static void sh_backdrop(hm_gfx *g, const unsigned int *bg, const unsigned int *prev, int mix)
+{
+    SH(g)->in->backdrop(SH(g)->in, bg, prev, mix);
+}
+static void sh_text(hm_gfx *g, pw_font *f, int x, int y, const char *s, int max_w,
+                    unsigned int color, int alpha)
+{
+    SH(g)->in->text(SH(g)->in, f, x + SH(g)->dx, y, s, max_w, color, alpha * SH(g)->alpha / 256);
+}
+static void sh_wave(hm_gfx *g, unsigned int t_ms, int alpha)
+{
+    SH(g)->in->wave(SH(g)->in, t_ms, alpha);
+}
+static void sh_icon(hm_gfx *g, int icon, int cx, int cy, int size, unsigned int color, int alpha)
+{
+    SH(g)->in->icon(SH(g)->in, icon, cx + SH(g)->dx, cy, size, color, alpha * SH(g)->alpha / 256);
+}
+static void sh_button(hm_gfx *g, int button, int cx, int cy, int size, unsigned int color,
+                      int alpha)
+{
+    SH(g)->in->button(SH(g)->in, button, cx + SH(g)->dx, cy, size, color,
+                      alpha * SH(g)->alpha / 256);
+}
+static int sh_warm(hm_gfx *g, pw_font *f, const char *s, int max_w)
+{
+    return SH(g)->in->warm(SH(g)->in, f, s, max_w);
+}
+
+hm_gfx *hm_shift_init(hm_shift *s, hm_gfx *in, int dx, int alpha)
+{
+    s->ops.fill = sh_fill;
+    s->ops.rrect = sh_rrect;
+    s->ops.image = sh_image;
+    s->ops.backdrop = sh_backdrop;
+    s->ops.text = sh_text;
+    s->ops.wave = sh_wave;
+    s->ops.icon = sh_icon;
+    s->ops.button = sh_button;
+    s->ops.warm = sh_warm;
+    s->in = in;
+    s->dx = dx;
+    s->alpha = hm_clampi(alpha, 0, 256);
+    return &s->ops;
+}
+
 /* ---- a photo whole (any style): the picture alone, its name and the buttons for a moment ---- */
 
 static void viewer(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
+    const char *label[3] = {v->viewer_edit, v->viewer_slideshow, v->viewer_wallpaper};
+    int btn[3] = {ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, PW_BTN_TRIANGLE, PW_BTN_SQUARE};
+
+    if (v->editor > 0) {
+        hm_draw_editor(g, ui, v);
+        return;
+    }
     if (v->viewer_caption && v->caption > 0) {
         int w = pw_text_width(ui->body, v->viewer_caption) + 28;
 
@@ -116,24 +356,66 @@ static void viewer(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         g->rrect(g, 12, HM_H - 36, w, 24, 12, 0, C_CARD, v->caption * 200 / 256);
         g->text(g, ui->body, 26, HM_H - 20, v->viewer_caption, w - 28, C_TEXT, v->caption);
     }
-    if (v->caption > 0 && (v->viewer_wallpaper || v->viewer_slideshow)) {
-        /* what the buttons do, bottom right, on a pill of their own */
-        int ww = v->viewer_wallpaper ? pw_text_width(ui->body, v->viewer_wallpaper) : 0,
-            sw = v->viewer_slideshow ? pw_text_width(ui->body, v->viewer_slideshow) : 0,
-            w = 22 + (sw ? 15 + sw : 0) + (ww ? 15 + ww : 0) + (sw && ww ? 12 : 0),
-            x = HM_W - 12 - w + 10; /* a group: the glyph (centred 6 in), its text 15 in */
+    if (v->caption > 0) { /* what the buttons do, bottom right, on a pill of their own */
+        int w = 10, x;
 
+        for (int i = 0; i < 3; i++)
+            if (label[i])
+                w += 15 + pw_text_width(ui->body, label[i]) + 12;
+        if (w <= 10)
+            return;
+        x = HM_W - 12 - w + 10;
         g->rrect(g, HM_W - 12 - w, HM_H - 36, w, 24, 12, 0, C_CARD, v->caption * 200 / 256);
-        if (sw) {
-            g->button(g, PW_BTN_TRIANGLE, x + 6, HM_H - 24, 12, C_TEXT, v->caption);
-            g->text(g, ui->body, x + 15, HM_H - 20, v->viewer_slideshow, 0, C_TEXT, v->caption);
-            x += 15 + sw + 12;
-        }
-        if (ww) {
-            g->button(g, PW_BTN_SQUARE, x + 6, HM_H - 24, 12, C_TEXT, v->caption);
-            g->text(g, ui->body, x + 15, HM_H - 20, v->viewer_wallpaper, 0, C_TEXT, v->caption);
+        for (int i = 0; i < 3; i++) {
+            if (!label[i])
+                continue;
+            g->button(g, btn[i], x + 6, HM_H - 24, 12, C_TEXT, v->caption);
+            g->text(g, ui->body, x + 15, HM_H - 20, label[i], 0, C_TEXT, v->caption);
+            x += 15 + pw_text_width(ui->body, label[i]) + 12;
         }
     }
+}
+
+/* The editor: the picture (the background), a bar of tools along the bottom, the chosen one
+   named above it with its value. */
+void hm_draw_editor(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    int p = hm_clampi(v->editor, 0, 256), n = v->ed_count, pitch = 40,
+        x0 = HM_W / 2 - (n * pitch) / 2, y = HM_H - 34 + (256 - p) * 30 / 256;
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+
+    g->rrect(g, x0 - 10, y - 20, n * pitch + 20, 40, 20, 0, C_CARD, p * 215 / 256);
+    g->rrect(g, x0 + v->ed_pos * pitch / 256 + 4, y - 16, pitch - 8, 32, 12, 0, acc, p);
+    for (int i = 0; i < n; i++)
+        g->icon(g, v->ed_glyphs ? v->ed_glyphs[i] : HM_ICON_SLIDERS, x0 + i * pitch + pitch / 2, y,
+                18, C_TEXT, p * (i == v->ed_sel ? 256 : 190) / 256);
+    if (v->ed_sel >= 0 && v->ed_sel < n && v->ed_tools[v->ed_sel]) {
+        const char *name = v->ed_tools[v->ed_sel];
+        int w = pw_text_width(ui->title, name) +
+                (v->ed_value ? pw_text_width(ui->body, v->ed_value) + 16 : 0) + 28;
+
+        g->rrect(g, HM_W / 2 - w / 2, y - 50, w, 24, 12, 0, C_CARD, p * 215 / 256);
+        g->text(g, ui->title, HM_W / 2 - w / 2 + 14, y - 33, name, 0, C_TEXT, p);
+        if (v->ed_value)
+            hm_text_right(g, ui->body, HM_W / 2 + w / 2 - 14, y - 34, v->ed_value,
+                          hm_mix(acc, C_TEXT, 120), p);
+    }
+    if (v->ed_hint)
+        hm_text_center(g, ui->body, HM_W / 2, 20, v->ed_hint, HM_W - 40, C_TEXT, p * 200 / 256);
+}
+
+void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int card,
+                   unsigned int text)
+{
+    int a = hm_clampi(v->toast, 0, 256), w;
+
+    if (a <= 0 || !v->toast_text)
+        return;
+    w = pw_text_width(ui->body, v->toast_text) + 32;
+    g->rrect(g, HM_W / 2 - w / 2, HM_H - 58 + (256 - a) * 8 / 256, w, 26, 13, 0, card,
+             a * 230 / 256);
+    hm_text_center(g, ui->body, HM_W / 2, HM_H - 41 + (256 - a) * 8 / 256, v->toast_text, 0, text,
+                   a);
 }
 
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
@@ -141,10 +423,8 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     int a = hm_clampi(v->appear, 0, 256);
 
     g->backdrop(g, v->bg, v->bg_prev && v->bg_mix < 256 ? v->bg_prev : 0, v->bg_mix);
-    if (v->viewer >= 256) {
+    if (v->viewer >= 256) /* the picture whole; the styles draw only what is over it */
         viewer(g, ui, v);
-        return;
-    }
     if (v->style == HM_STYLE_CLASSIC)
         hm_draw_classic(g, ui, v);
     else if (v->style == HM_STYLE_MINIMAL)
@@ -201,7 +481,7 @@ void hm_make_photo(const unsigned int *pic, int w, int h, unsigned int *out)
     pw_draw_image_scaled(&c, pic, w, h, (HM_W - fw) / 2, (HM_H - fh) / 2, fw, fh, 256);
 }
 
-void hm_make_gradient(unsigned int *out)
+void hm_make_gradient(unsigned int accent, unsigned int *out)
 {
     pw_canvas c = {out, HM_W, HM_H, 512};
 
@@ -212,7 +492,26 @@ void hm_make_gradient(unsigned int *out)
         pw_draw_fill(&c, 0, y, HM_W, 1,
                      PW_RGB(hm_lerp(26, 8, t), hm_lerp(29, 9, t), hm_lerp(42, 14, t)));
     }
-    pw_shape_disc(&c, PW_FX(360), PW_FX(-40), PW_FX(150), C_ON, 30);
+    pw_shape_disc(&c, PW_FX(360), PW_FX(-40), PW_FX(150), accent ? accent : C_ON, 30);
+    pw_shape_disc(&c, PW_FX(60), PW_FX(320), PW_FX(120), accent ? accent : C_ON, 14);
+}
+
+void hm_make_plain(unsigned int accent, int black, unsigned int *out)
+{
+    pw_canvas c = {out, HM_W, HM_H, 512};
+
+    if (black) {
+        pw_draw_fill(&c, 0, 0, HM_W, HM_H, C_BLACK);
+        return;
+    }
+    /* light: paper white, a breath of the accent at the top */
+    for (int y = 0; y < HM_H; y++) {
+        int t = y * 256 / HM_H;
+
+        pw_draw_fill(&c, 0, y, HM_W, 1,
+                     PW_RGB(hm_lerp(232, 214, t), hm_lerp(235, 218, t), hm_lerp(242, 228, t)));
+    }
+    pw_shape_disc(&c, PW_FX(380), PW_FX(-60), PW_FX(170), accent ? accent : C_ON, 40);
 }
 
 void hm_make_sky(const pw_image *sky, unsigned int *out)

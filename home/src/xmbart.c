@@ -16,6 +16,12 @@
    no XMB category: Home draws its watch. */
 static const char *const k_cat[HM_TABS] = {"AO", "AM", "AL", 0, "AJ", "BX"};
 static const char *const k_btn[4] = {"tex_cross", "tex_circle", "tex_triangle", "tex_square"};
+/* The XMB's Settings items and others (HM_ART_*): each label decoded alone from the 6.60 file
+   and looked at (2026-10-20, docs/research/m4-native-icons.md): wrench + screen BY, + camera BW,
+   + PSP BX, + clock BZ, + plug CA, + speaker CB, + globe CD; USB BU, "WWW" EU, disc BH, Memory
+   Stick BI, folder BJ, update BT. 6.61's file is to confirm on the PSP ("home art", home.log). */
+static const char *const k_item[HM_ART_ITEMS] = {"BY", "BW", "BX", "BZ", "CA", "CB", "CD",
+                                                 "BU", "EU", "BH", "BI", "BJ", "BT"};
 
 /* A decoded picture into aligned memory with rows of a multiple of 16 pixels. */
 static int keep(pw_image *out, const pw_image *img)
@@ -73,9 +79,12 @@ int hm_art_load(hm_art *a, hm_art_read read, const char *icons_rco, const char *
     c.state = malloc(PW_RLZ_STATE);
     c.pixels = malloc(PIXELS_MAX * 4);
     if (c.tables && c.gim && c.state && c.pixels) {
-        if (open_rco(&c, read, icons_rco))
+        if (open_rco(&c, read, icons_rco)) {
             for (int i = 0; i < HM_TABS; i++)
                 found += one(&c, k_cat[i], &a->cat[i]);
+            for (int i = 0; i < HM_ART_ITEMS; i++)
+                found += one(&c, k_item[i], &a->item[i]);
+        }
         free(c.file);
         c.file = 0;
         if (open_rco(&c, read, fg_rco)) {

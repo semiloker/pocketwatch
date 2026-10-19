@@ -112,3 +112,5 @@ Home follows the same `style` and changes at once when its Settings → Style ch
 | Settings, System | the XMB's option list (the categories slide away, the focus bar); a choice's options in the panel on the right | rows with a gliding white pill; on/off as switches; groups | "name ... value", the chosen one's arrows |
 | Keys | left / right: categories; up / down: items; Enter: a choice's options | L / R sections; left / right along the row and to change a value | as Modern, the lists up / down |
 | Sony assets | `topmenu_icon.rco`, `system_plugin_fg.rco`, `01-12_03g.bmp` from flash0 (never shipped) | none | none |
+| Pages (ADR-035) | the XMB's motions: the option list with the categories slid left; a game's Triangle panel on the right | a page slides in from the right with its name and an arrow back at the top; a game's page with its picture | a page's name small above its column, sliding |
+| Themes, accents | the XMB's white; the sky in any month's colour | Dark, Glass (frosted cards, the chosen row in the accent), OLED Black, Paper (light: white cards, dark text); nine accents | the same palettes, the accent under the chosen line |

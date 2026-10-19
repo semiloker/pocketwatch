@@ -637,3 +637,81 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** USB from Home works beside RemoteJoyLite, usbhostfs and PSPLink-style
   devices (INFERRED until HM12 passes on the owner's PSP); a device with another PID still
   fails, now with a message and a log line that names it.
+
+## ADR-035 — Home's sections are stacks of pages; Settings and System in categories
+
+- **Status:** Accepted (2026-10-20), from the owner's fourth device round
+  ([log](../research/logs/2026-10-19-home-round4.log)): Settings and System were "one line
+  without categories" - wanted: categories with menus to go into, swipes left and right between
+  them, the console's settings, colours, the battery's percent, a choice of background; and
+  "more customisation, a few unique themes".
+- **Context:** VERIFIED from the code (`b5cab03`): each section was one list of rows; a game's
+  options, Information and the HOME panel were overlays; no section could open a page of its
+  own. Home's look had only the style.
+- **Decision:**
+  - **Pages.** Every section is a stack of up to four pages (`hm_view.page[]`, `depth`;
+    `pages.c` builds them, `main.c` keeps the stack and the keys). `depth_pos` follows `depth`
+    by time; Modern and Minimal draw every page within one step of it, shifted by its distance
+    and faded (the leaving one faster), through a drawing wrapper (`hm_shift`) - the new page
+    slides in from the right, the old one out to the left, and back. A page keeps its cursor
+    while one above it is open. L / R change sections on any page (Modern, Minimal); Back closes
+    a page; in Classic left closes it, as in the XMB.
+  - **Classic** keeps the XMB's own motions: a category's settings are the option list (the
+    categories and the items slide left, the chosen item's icon stays); a game's Triangle page is
+    the XMB's option panel on the right; tiles (saved data, albums, photos) are the game list.
+    The Settings items wear the system's own Settings icons from `topmenu_icon.rco` (BY theme,
+    BW photo, BX system, BZ clock, CA power, CB sound, CD network, BU USB, EU browser, BH disc,
+    BI Memory Stick; each label decoded alone from 6.60's file and looked at, 2026-10-20).
+  - **Settings**: seven categories - Appearance (style, theme, accent colour, background, sky
+    colour, wave, battery percentage, animations), Pocketwatch (start screen, sorting, fast save
+    and load, the hub's clock), Music and Photos (repeat, shuffle, slideshow), Sound and Display
+    (key sounds, brightness, AVLS), Date and Time, System (Pocketwatch's and the system's
+    language, nickname), Network (WLAN power save). **System**: USB Connection, Internet Browser,
+    Battery, Memory Stick, About This PSP, Power (sleep, turn off), Exit to the XMB.
+  - **Home's own settings** live in `seplugins/pocketwatch/home.txt` (`hcfg.c`): accent (nine
+    colours), theme (Dark, Glass, OLED Black, Paper - Modern's and Minimal's surfaces through
+    `hm_palette`), background (as the style, the XMB's sky, the accent's gradient, plain, the
+    wallpaper), sky colour (the XMB's theme colour or any month's), wave, battery percent,
+    motion (normal, quick, gentle), repeat, shuffle. Not `config.txt`: its parser is the XMB
+    plugin's too, at its 64 KB budget (RISK-022).
+- **Alternatives considered:** one long list with group names (what the owner rejected); a
+  separate screen per category with its own loop (no shared motion, every key twice); putting
+  Home's settings into `config.txt` (the XMB plugin would carry their parsing).
+- **Consequences:** `main.c` and the views were rewritten around pages; new strings for Home
+  only (its translation pool grew to 16 KB); a theme can make the text dark (Paper), so every
+  Modern and Minimal colour now comes from the palette. Previews render every page in every style
+  and Modern in every theme (`home-*.png`).
+
+## ADR-036 — Home does its own saved data, music player and photo albums and editor
+
+- **Status:** Accepted (2026-10-20), from the same round: Triangle → Saved Data showed "the
+  default PSP menu", not Pocketwatch's, and that menu "looks bad"; Music had no cover ("something
+  instead of it") and no way to seek; Photos had no albums by game and nothing to edit with.
+- **Decision:**
+  - **Saved data** (`savedata.c`): the game's folders of `PSP/SAVEDATA` (not Pocketwatch's
+    `PW...`), each with its `PARAM.SFO` title and details, time and size; ICON0s made by the
+    loader thread as jobs nearest the cursor first, the chosen one's PIC1 behind the list. A
+    save's page names it all and deletes it (a question first; its files, then its folder).
+    Save states have a page of their own (continue from one, delete one).
+  - **Music**: a thread reads every track's ID3v2 tag after the list is made (v2.2-2.4; title,
+    artist, album; Latin-1, UTF-16, UTF-8 → UTF-8) with a few small reads per file, and where its
+    picture is (APIC); the loader decodes the playing track's picture (else `cover.jpg` /
+    `folder.jpg` beside it) into a 128 x 128 cover and a blurred background. Seeking re-opens
+    the decoder at the frame nearest the time (the file's average rate; a frame is taken only
+    when the next one follows it). Left / right: the previous / next track, held: seek 5 s
+    steps; back from more than 3 s played restarts the track. Repeat (off, all, one) and shuffle
+    (never the same track twice in a row; back follows the history). Now Playing is a page.
+  - **Photos**: albums by folder - All Photos, then each folder of `PICTURE/`, `DCIM/` and
+    `PSP/SCREENSHOT/` (prxshot's), a folder named by a disc ID titled with that game's name; a
+    photo deleted with a question. The editor (`photo_edit.c`): quarter turns, mirror, eight
+    filters, brightness, contrast, saturation, warmth, vignette, on a preview the size of the
+    screen; Save a Copy decodes the picture again (at most 1600 px on its longest side), applies
+    the same and writes `<name>_edit.jpg` beside it (`stb_image_write`, public domain / MIT,
+    quality 92).
+- **Alternatives considered:** the firmware's Saved Data dialog (what the owner rejected: not
+  Pocketwatch's look); `sceMp3ResetPlayPositionByFrame` for seeking (its behaviour with the
+  streamed input is not documented); a JPEG encoder of our own (stb's is small and proven).
+- **Consequences:** deleting saved data is now Home's: a bug there loses a game's saves (the
+  folder name is checked, only files of that folder are removed, a question comes first;
+  RISK-025). Reading tags opens every track once after the start (a few ms each, on a
+  low-priority thread, paused for USB). An edited copy needs memory for the picture twice.

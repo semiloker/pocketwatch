@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * Modern (docs/ui/styles.md): the sections as pills at the top left - an icon each, the chosen
- * one opening into a white pill with its name; Games as a row of icons over the chosen game's
- * blurred art; Photos as a grid; Music as a card of what plays beside the tracks; the other
- * sections as lists whose chosen row is a white pill gliding under the text.
+ * one opening into a pill with its name; Games as a row of icons over the chosen game's blurred
+ * art; lists whose chosen row is a pill gliding under the text, each category with its icon in
+ * a tinted square; pages that slide in from the right with their name at the top (ADR-035);
+ * albums and photos as grids; Music as a card of what plays (its cover, the time, the controls)
+ * beside the tracks, and what plays whole. The colours come from the theme (hm_palette).
  */
 #include <string.h>
 
+#include "stb_sprintf.h"
 #include "view_internal.h"
 
 #define ROW_TOP   56 /* Games: the icons' top edge */
@@ -27,57 +30,64 @@
 #define PITCH_PIC 38
 
 #define PG_X     26 /* Photos: the grid */
-#define PG_Y     62
 #define PG_W     100
 #define PG_H     56
 #define PG_GAP   9
 #define PG_PITCH 66
 
+#define AL_W     136 /* Albums: cards */
+#define AL_H     76
+#define AL_GAP   12
+#define AL_PITCH 118
+
 #define MU_X   24 /* Music: what plays, on a card */
 #define MU_W   168
-#define MU_ART 120
+#define MU_ART 96
 
-#define C_HEAD PW_RGB(110, 176, 255) /* a group's name */
+#define SLIDE 150 /* how far a page slides in or out (px) */
 
 typedef struct {
     int x0, x1, y0, y1, pitch;
     int stack; /* the value under the label (a narrow list: the tracks) */
 } box;
 
-static unsigned int mix(unsigned int c0, unsigned int c1, int t) /* t 0-256 */
-{
-    unsigned int out = 0xFF000000u;
-
-    for (int s = 0; s < 24; s += 8)
-        out |= (unsigned int)hm_lerp((int)(c0 >> s & 0xFF), (int)(c1 >> s & 0xFF), t) << s;
-    return out;
-}
-
 /* ---- the top: section pills, the clock and battery ---- */
 
-static int status(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
+static int status(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v, int a)
 {
-    int tw = v->clock && v->clock[0] ? pw_text_width(ui->body, v->clock) : 0;
-    int w = tw + (v->battery >= 0 ? 34 : 0) + 20, x = HM_W - 12 - w;
+    char pct[8] = "";
+    int tw = v->clock && v->clock[0] ? pw_text_width(ui->body, v->clock) : 0, pw = 0, w, x;
 
+    if (v->battery >= 0 && v->battery_pct) {
+        stbsp_snprintf(pct, sizeof(pct), "%d%%", hm_clampi(v->battery, 0, 100));
+        pw = pw_text_width(ui->body, pct) + 6;
+    }
+    w = tw + (v->battery >= 0 ? 34 + pw : 0) + 20;
+    x = HM_W - 12 - w;
     if (w <= 20)
         return HM_W;
-    g->rrect(g, x, 9, w, 24, 12, 0, C_CARD, a * 190 / 256);
+    g->rrect(g, x, 9, w, 24, 12, 0, p->card, a * hm_clampi(p->card_a + 20, 0, 256) / 256);
     if (tw)
-        g->text(g, ui->body, x + 10, 25, v->clock, 0, C_TEXT, a);
+        g->text(g, ui->body, x + 10, 25, v->clock, 0, p->text, a);
     if (v->battery >= 0) {
         int bx = x + w - 30, fill = 14 * hm_clampi(v->battery, 0, 100) / 100;
+        unsigned int c = v->charging        ? PW_RGB(110, 220, 120)
+                         : v->battery <= 15 ? PW_RGB(240, 90, 80)
+                                            : p->text;
 
-        g->rrect(g, bx, 16, 18, 10, 2, PW_FX(1) + 4, C_TEXT, a);
-        g->fill(g, bx + 18, 19, 2, 4, C_TEXT, a);
-        g->fill(g, bx + 2, 18, fill, 6, v->charging ? PW_RGB(120, 220, 120) : C_TEXT, a);
+        if (pw)
+            g->text(g, ui->body, bx - pw, 25, pct, 0, v->charging ? c : p->text, a);
+        g->rrect(g, bx, 16, 18, 10, 2, PW_FX(1) + 4, p->text, a);
+        g->fill(g, bx + 18, 19, 2, 4, p->text, a);
+        g->fill(g, bx + 2, 18, fill, 6, c, a);
     }
     return x;
 }
 
-/* Each section an icon; the chosen one (following tab_pos, so it glides) opens into a white
-   pill that carries its name. Too little room: the names in the smaller font. */
-static void pills(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a, int limit)
+/* Each section an icon; the chosen one (following tab_pos, so it glides) opens into a pill that
+   carries its name. Too little room: the names in the smaller font. */
+static void pills(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v, int a,
+                  int limit)
 {
     pw_font *f = ui->title;
     int widest = 0, x = 12;
@@ -93,16 +103,42 @@ static void pills(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a, int limit
             w = 28 + (nw + 10) * open / 256;
 
         if (open > 0)
-            g->rrect(g, x, 9, w, 24, 12, 0, C_TEXT, a * open / 256 * 235 / 256);
+            g->rrect(g, x, 9, w, 24, 12, 0, p->sel, a * open / 256 * p->sel_a / 256);
         else
-            g->rrect(g, x, 9, w, 24, 12, 0, C_CARD, a * 120 / 256);
-        g->icon(g, hm_icon_of_tab(i), x + 14, 21, 16, mix(C_TEXT, C_INK, open),
+            g->rrect(g, x, 9, w, 24, 12, 0, p->card, a * p->card_a * 3 / 5 / 256);
+        g->icon(g, hm_icon_of_tab(i), x + 14, 21, 16, hm_mix(p->text, p->ink, open),
                 a * (190 + 66 * open / 256) / 256);
         if (open > 64 && v->tab_names[i])
-            g->text(g, f, x + 27, f == ui->title ? 26 : 25, v->tab_names[i], 0, C_INK,
+            g->text(g, f, x + 27, f == ui->title ? 26 : 25, v->tab_names[i], 0, p->ink,
                     a * (open - 64) / 192);
         x += w + 4;
     }
+}
+
+/* A page's name at the top of its content (a page opened from another): an arrow back and the
+   name; a game's page shows its picture and line. Returns where the content starts. */
+static int header(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page *pg, int a)
+{
+    if (!pg->title)
+        return LIST_Y0;
+    if (pg->icon) {
+        hm_tile_draw(g, pg->icon, LIST_X0, 44, 96, 53, a);
+        g->text(g, ui->big, LIST_X0 + 110, 66, pg->title, LIST_X1 - LIST_X0 - 110, p->text, a);
+        if (pg->sub)
+            g->text(g, ui->body, LIST_X0 + 110, 86, pg->sub, LIST_X1 - LIST_X0 - 110, p->sub, a);
+        return 106;
+    }
+    hm_chevron(g, LIST_X0 + 6, 56, -1, p->sub, a);
+    g->text(g, ui->title, LIST_X0 + 16, 61, pg->title, LIST_X1 - LIST_X0 - 16, p->text, a);
+    if (pg->sub) { /* the name first: the line in what is left */
+        int room = LIST_X1 - LIST_X0 - 16 - pw_text_width(ui->title, pg->title) - 20,
+            sw = pw_text_width(ui->body, pg->sub);
+
+        if (room > 60)
+            g->text(g, ui->body, LIST_X1 - (sw < room ? sw : room), 61, pg->sub, room, p->sub, a);
+    }
+    g->fill(g, LIST_X0, 68, LIST_X1 - LIST_X0, 1, p->text, a * 36 / 256);
+    return 72;
 }
 
 /* ---- Games: the row of icons, the chosen game's title, its line and Play ---- */
@@ -130,26 +166,34 @@ static void slot(int t, int *x, int *w, int *h, int *alpha)
     }
 }
 
-static void button_pill(hm_gfx *g, const hm_ui *ui, int x, int y, const char *label, int a)
+static void button_pill(hm_gfx *g, const hm_ui *ui, const hm_palette *p, int x, int y,
+                        const char *label, int a)
 {
     int w = pw_text_width(ui->title, label) + 48;
 
-    g->rrect(g, x, y, w, 30, 15, 0, C_TEXT, a);
-    g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x + 18, y + 15, 16, C_INK, a);
-    g->text(g, ui->title, x + 32, y + 21, label, 0, C_INK, a);
+    g->rrect(g, x, y, w, 30, 15, 0, p->sel, a * p->sel_a / 256);
+    g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x + 18, y + 15, 16, p->ink, a);
+    g->text(g, ui->title, x + 32, y + 21, label, 0, p->ink, a);
 }
 
-static void games(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
+static void empty_text(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page *pg, int y,
+                       int a)
+{
+    if (pg->empty)
+        hm_text_center(g, ui->title, HM_W / 2, y, pg->empty, HM_W - 40, p->sub, a);
+}
+
+static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
+                  const hm_page *pg, int a)
 {
     const hm_tile *sel;
 
-    if (v->count <= 0) {
-        if (v->empty)
-            hm_text_center(g, ui->title, HM_W / 2, 140, v->empty, HM_W - 40, C_SUB, a);
+    if (pg->count <= 0) {
+        empty_text(g, ui, p, pg, 140, a);
         return;
     }
-    for (int i = 0; i < v->count; i++) {
-        int t = i * 256 - v->selpos, x, w, h, ta;
+    for (int i = 0; i < pg->count; i++) {
+        int t = i * 256 - pg->selpos, x, w, h, ta;
 
         if (t <= -256)
             continue;
@@ -157,60 +201,95 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
         if (x >= HM_W)
             break;
         ta = ta * a / 256;
-        hm_tile_draw(g, v->tiles[i].icon, x, ROW_TOP, w, h, ta * (t > 128 ? 200 : 256) / 256);
+        hm_tile_draw(g, pg->tiles[i].icon, x, ROW_TOP, w, h, ta * (t > 128 ? 200 : 256) / 256);
         if (t > -128 && t < 128) /* the focus ring, fading as the row moves */
-            g->rrect(g, x - 4, ROW_TOP - 4, w + 8, h + 8, 9, PW_FX(2), C_TEXT,
+            g->rrect(g, x - 4, ROW_TOP - 4, w + 8, h + 8, 9, PW_FX(2), p->text,
                      ta * (128 - (t < 0 ? -t : t)) / 128);
     }
-    sel = &v->tiles[hm_clampi(v->sel, 0, v->count - 1)];
-    g->text(g, ui->big, SEL_X, TITLE_Y, sel->title ? sel->title : "", HM_W - 2 * SEL_X, C_TEXT, a);
+    sel = &pg->tiles[hm_clampi(pg->sel, 0, pg->count - 1)];
+    g->text(g, ui->big, SEL_X, TITLE_Y, sel->title ? sel->title : "", HM_W - 2 * SEL_X, p->text, a);
     if (sel->meta)
-        g->text(g, ui->body, SEL_X, META_Y, sel->meta, HM_W - 2 * SEL_X, C_SUB, a);
+        g->text(g, ui->body, SEL_X, META_Y, sel->meta, HM_W - 2 * SEL_X, p->sub, a);
     if (v->play_label)
-        button_pill(g, ui, SEL_X, PLAY_Y, v->play_label, a);
+        button_pill(g, ui, p, SEL_X, PLAY_Y, v->play_label, a);
 }
 
-/* ---- Photos: a grid, the chosen one framed, its name above ---- */
+/* ---- grids: the photos of an album, the albums ---- */
 
-static int photo_first(const hm_view *v) /* the top row on screen (1/256 rows): the chosen row
-                                             second */
+/* The top row on screen (1/256 rows) for a grid of cols: the chosen row stays second. */
+static int grid_first(const hm_page *pg, int cols, int show)
 {
-    int rows = (v->count + HM_PHOTO_COLS - 1) / HM_PHOTO_COLS;
+    int rows = (pg->count + cols - 1) / cols;
 
-    return hm_clampi(v->selpos / HM_PHOTO_COLS - 256, 0, rows > 3 ? (rows - 3) * 256 : 0);
+    return hm_clampi(pg->selpos / cols - 256, 0, rows > show ? (rows - show) * 256 : 0);
 }
 
-static void photos(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
+/* Rows of a grid fade out at the content's edges. */
+static int edge_alpha(int y, int h, int top, int bottom, int a)
 {
-    int sel = hm_clampi(v->sel, 0, v->count - 1), first;
+    a = a * hm_clampi(y < top ? 256 - (top - y) * 256 / 24 : 256, 0, 256) / 256;
+    return a * hm_clampi(y + h > bottom ? 256 - (y + h - bottom) * 256 / 24 : 256, 0, 256) / 256;
+}
+
+static void photos(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page *pg, int a)
+{
+    int sel = hm_clampi(pg->sel, 0, pg->count - 1), y0 = header(g, ui, p, pg, a), first,
+        top = y0 + (pg->title ? 6 : 18);
     const hm_tile *t;
 
-    if (v->count <= 0) {
-        if (v->empty)
-            hm_text_center(g, ui->title, HM_W / 2, 140, v->empty, HM_W - 40, C_SUB, a);
+    if (pg->count <= 0) {
+        empty_text(g, ui, p, pg, 140, a);
         return;
     }
-    t = &v->tiles[sel];
-    first = photo_first(v);
-    {
+    t = &pg->tiles[sel];
+    first = grid_first(pg, HM_PHOTO_COLS, 3);
+    if (!pg->title) { /* the section's own grid: the chosen one's name above it */
         int mw = t->meta ? pw_text_width(ui->body, t->meta) : 0;
 
-        g->text(g, ui->title, PG_X, 52, t->title ? t->title : "", LIST_X1 - PG_X - mw - 16, C_TEXT,
+        g->text(g, ui->title, PG_X, 52, t->title ? t->title : "", LIST_X1 - PG_X - mw - 16, p->text,
                 a);
-        hm_text_right(g, ui->body, LIST_X1, 52, t->meta, C_SUB, a);
+        hm_text_right(g, ui->body, LIST_X1, 52, t->meta, p->sub, a);
     }
-    for (int i = 0; i < v->count; i++) {
+    for (int i = 0; i < pg->count; i++) {
         int r = i / HM_PHOTO_COLS, col = i % HM_PHOTO_COLS,
-            y = PG_Y + (r * 256 - first) * PG_PITCH / 256, x = col * (PG_W + PG_GAP) + PG_X, ta;
+            y = top + (r * 256 - first) * PG_PITCH / 256, x = col * (PG_W + PG_GAP) + PG_X, ta;
 
-        if (y + PG_H <= 40 || y >= 254)
+        if (y + PG_H <= y0 - 4 || y >= 254)
             continue;
-        /* rows leaving the grid fade out under the name, above the hints */
-        ta = a * hm_clampi(y < PG_Y ? 256 - (PG_Y - y) * 256 / 24 : 256, 0, 256) / 256;
-        ta = ta * hm_clampi(y + PG_H > 250 ? 256 - (y + PG_H - 250) * 256 / 24 : 256, 0, 256) / 256;
-        hm_tile_draw(g, v->tiles[i].icon, x, y, PG_W, PG_H, ta * (i == sel ? 256 : 200) / 256);
+        ta = edge_alpha(y, PG_H, top, 250, a);
+        hm_tile_draw(g, pg->tiles[i].icon, x, y, PG_W, PG_H, ta * (i == sel ? 256 : 200) / 256);
         if (i == sel)
-            g->rrect(g, x - 3, y - 3, PG_W + 6, PG_H + 6, 8, PW_FX(2), C_TEXT, ta);
+            g->rrect(g, x - 3, y - 3, PG_W + 6, PG_H + 6, 8, PW_FX(2), p->text, ta);
+    }
+}
+
+static void albums(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page *pg, int a)
+{
+    int sel = hm_clampi(pg->sel, 0, pg->count - 1), y0 = header(g, ui, p, pg, a), top = y0 + 10,
+        first = grid_first(pg, HM_ALBUM_COLS, 2);
+
+    if (pg->count <= 0) {
+        empty_text(g, ui, p, pg, 140, a);
+        return;
+    }
+    for (int i = 0; i < pg->count; i++) {
+        int r = i / HM_ALBUM_COLS, col = i % HM_ALBUM_COLS,
+            y = top + (r * 256 - first) * AL_PITCH / 256, x = LIST_X0 + col * (AL_W + AL_GAP), ta;
+        const hm_tile *t = &pg->tiles[i];
+
+        if (y + AL_H + 34 <= y0 || y >= 252)
+            continue;
+        ta = edge_alpha(y, AL_H + 34, top, 252, a);
+        /* a stack: two cards behind the cover */
+        g->rrect(g, x + 8, y - 6, AL_W - 16, 8, 4, 0, p->card, ta * 120 / 256);
+        g->rrect(g, x + 4, y - 3, AL_W - 8, 8, 5, 0, p->card, ta * 170 / 256);
+        hm_tile_draw(g, t->icon, x, y, AL_W, AL_H, ta * (i == sel ? 256 : 215) / 256);
+        if (i == sel)
+            g->rrect(g, x - 3, y - 3, AL_W + 6, AL_H + 6, 9, PW_FX(2), p->text, ta);
+        g->text(g, ui->title, x + 2, y + AL_H + 16, t->title ? t->title : "", AL_W - 4,
+                i == sel ? p->text : p->dim, ta);
+        if (t->meta)
+            g->text(g, ui->body, x + 2, y + AL_H + 30, t->meta, AL_W - 4, p->sub, ta);
     }
 }
 
@@ -224,17 +303,20 @@ static int has_pictures(const hm_row *rows, int n)
     return 0;
 }
 
-static box box_of(int tab, const hm_row *rows, int n)
+static box box_of(const hm_page *pg, int y0)
 {
-    box b = {LIST_X0, LIST_X1, LIST_Y0, LIST_Y1, PITCH, 0};
+    box b = {LIST_X0, LIST_X1, y0, LIST_Y1, PITCH, 0};
 
-    if (tab == HM_TAB_MUSIC) { /* beside the card of what plays: the artist under the title */
+    if (pg->layout == HM_PAGE_MUSIC) { /* beside the card of what plays: the artist under it */
         b.x0 = MU_X + MU_W + 12;
         b.y1 = LIST_Y1 - 6; /* (its last row fades out above the hints) */
         b.pitch = PITCH_PIC;
         b.stack = 1;
+    } else if (pg->layout == HM_PAGE_SAVES) {
+        b.pitch = 46;
+        b.stack = 1;
     }
-    if (has_pictures(rows, n))
+    if (has_pictures(pg->rows, pg->nrows) && b.pitch < PITCH_PIC)
         b.pitch = PITCH_PIC;
     return b;
 }
@@ -246,12 +328,17 @@ static void label_room(const hm_ui *ui, const hm_row *r, box b, int playing, int
 {
     int keep = r->toggle ? 30 + 12
                : r->value && !b.stack
-                   ? pw_text_width(ui->body, r->value) + (r->kind == HM_ROW_CHOICE ? 30 : 0) + 14
-                   : 16;
+                   ? pw_text_width(ui->body, r->value) +
+                         (r->kind == HM_ROW_CHOICE || r->kind == HM_ROW_LINK ? 30 : 0) +
+                         (r->swatch ? 16 : 0) + 14
+               : r->kind == HM_ROW_LINK ? 30
+                                        : 16;
 
     *lx = b.x0 + 14;
     if (r->icon)
         *lx += (b.pitch - 10) * 9 / 5 + 10;
+    else if (r->glyph)
+        *lx += 30;
     if (playing)
         *lx += 14;
     *lw = r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? b.x1 - b.x0 - 28
@@ -271,23 +358,30 @@ static void bars(hm_gfx *g, int x, int y, unsigned int t_ms, int moving, unsigne
     }
 }
 
-static void list(hm_gfx *g, const hm_ui *ui, const hm_row *rows, int n, int sel, int pos, box b,
-                 int a, unsigned int t_ms, int playing, int moving)
+/* A colour shown before a value (an accent, a sky's colour). */
+static void swatch(hm_gfx *g, int x1, int mid, unsigned int c, int a)
+{
+    g->rrect(g, x1 - 10, mid - 5, 10, 10, 5, 0, c, a);
+}
+
+static void list(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_row *rows, int n,
+                 int sel, int pos, box b, int a, unsigned int t_ms, int playing, int moving)
 {
     int show = (b.y1 - b.y0) / b.pitch,
         first = hm_clampi(pos - (show / 2) * 256, 0, n > show ? (n - show) * 256 : 0);
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
 
     if (sel >= 0 && sel < n && rows[sel].kind != HM_ROW_HEADER && rows[sel].kind != HM_ROW_NOTE) {
-        int py = b.y0 + (pos - first) * b.pitch / 256;
+        int py = b.y0 + (pos - first) * b.pitch / 256, r = (b.pitch - 4) / 2;
 
-        g->rrect(g, b.x0, py + 2, b.x1 - b.x0, b.pitch - 4, (b.pitch - 4) / 2, 0, C_TEXT,
-                 a * 235 / 256);
+        g->rrect(g, b.x0, py + 2, b.x1 - b.x0, b.pitch - 4, r < 14 ? r : 14, 0, p->sel,
+                 a * p->sel_a / 256);
     }
     for (int i = 0; i < n; i++) {
         const hm_row *r = &rows[i];
         int y = b.y0 + (i * 256 - first) * b.pitch / 256, base = y + b.pitch / 2 + 5, mid,
             on = i == sel && hm_near(i * 256 - pos) > 128, lx, lw, ra;
-        unsigned int ct = on ? C_INK : C_DIM, cv = on ? C_INK2 : C_SUB;
+        unsigned int ct = on ? p->ink : p->dim, cv = on ? p->ink2 : p->sub;
 
         if (y <= b.y0 - b.pitch || y >= b.y1)
             continue;
@@ -300,117 +394,245 @@ static void list(hm_gfx *g, const hm_ui *ui, const hm_row *rows, int n, int sel,
         mid = y + b.pitch / 2;
         label_room(ui, r, b, playing >= 0 && i == playing, &lx, &lw);
         if (r->kind == HM_ROW_HEADER) {
-            g->text(g, ui->body, lx, y + b.pitch - 8, r->label ? r->label : "", lw, C_HEAD, ra);
+            g->text(g, ui->body, lx, y + b.pitch - 8, r->label ? r->label : "", lw, p->head, ra);
             continue;
         }
         if (r->kind == HM_ROW_NOTE) {
-            g->text(g, ui->body, lx, base, r->label ? r->label : "", lw, C_SUB, ra * 200 / 256);
+            g->text(g, ui->body, lx, base, r->label ? r->label : "", lw, p->sub, ra * 200 / 256);
             continue;
         }
         if (r->icon) {
             int ih = b.pitch - 10, iw = ih * 9 / 5;
 
             hm_tile_draw(g, r->icon, b.x0 + 10, y + 5, iw, ih, ra);
+        } else if (r->glyph) { /* the category's icon in its square */
+            g->rrect(g, b.x0 + 10, mid - 11, 22, 22, 6, 0, hm_glyph_tint(r->glyph, acc), ra);
+            g->icon(g, r->glyph, b.x0 + 21, mid, 14, C_TEXT, ra);
         }
         if (i == playing)
-            bars(g, lx - 14, b.stack ? y + 17 : base, t_ms, moving, on ? C_ON : C_HEAD, ra);
+            bars(g, lx - 14, b.stack ? y + 17 : base, t_ms, moving, on ? acc : p->head, ra);
         if (b.stack) { /* the label, the value under it */
-            g->text(g, ui->title, lx, y + 17, r->label ? r->label : "", lw,
-                    i == playing && !on ? C_HEAD : ct, ra);
+            int ty = b.pitch >= 44 ? y + 19 : y + 17;
+
+            g->text(g, ui->title, lx, ty, r->label ? r->label : "", lw,
+                    i == playing && !on ? p->head : ct, ra);
             if (r->value)
-                g->text(g, ui->body, lx, y + 31, r->value, lw, cv, ra);
+                g->text(g, ui->body, lx, ty + 14, r->value, lw, cv, ra);
             if (r->bar >= 0) {
                 int bw = b.x1 - 14 - lx;
 
-                g->fill(g, lx, y + b.pitch - 5, bw, 2, on ? PW_RGB(200, 204, 214) : C_KNOB, ra);
-                g->fill(g, lx, y + b.pitch - 5, bw * hm_clampi(r->bar, 0, 256) / 256, 2, C_ON, ra);
+                g->fill(g, lx, y + b.pitch - 5, bw, 2, on ? hm_mix(p->sel, p->ink, 60) : p->knob,
+                        ra);
+                g->fill(g, lx, y + b.pitch - 5, bw * hm_clampi(r->bar, 0, 256) / 256, 2, acc, ra);
             }
             continue;
         }
         g->text(g, ui->title, lx, base, r->label ? r->label : "", lw,
-                i == playing && !on ? C_HEAD : ct, ra);
+                i == playing && !on ? p->head : ct, ra);
         if (r->toggle) {
-            hm_switch(g, b.x1 - 14 - 30, mid, r->toggle == 2, ra);
+            hm_switch(g, b.x1 - 14 - 30, mid, r->toggle == 2, on && p->sel == acc ? C_TEXT : acc,
+                      p->knob, ra);
         } else if (r->value && r->kind == HM_ROW_CHOICE && on) {
             /* the value between the ways to change it */
             int x1 = b.x1 - 16, tw = pw_text_width(ui->body, r->value);
 
             hm_text_right(g, ui->body, x1 - 14, base - 1, r->value, cv, ra);
-            hm_chevron(g, x1 - 6, mid, 1, C_INK, ra);
-            hm_chevron(g, x1 - 22 - tw, mid, -1, C_INK, ra);
+            if (r->swatch)
+                swatch(g, x1 - 14 - tw - 6, mid, r->swatch, ra);
+            hm_chevron(g, x1 - 6, mid, 1, p->ink, ra);
+            hm_chevron(g, x1 - 22 - tw - (r->swatch ? 16 : 0), mid, -1, p->ink, ra);
+        } else if (r->kind == HM_ROW_LINK) {
+            int x1 = b.x1 - 30;
+
+            hm_chevron(g, b.x1 - 18, mid, 1, on ? p->ink : p->sub, ra);
+            if (r->value) {
+                hm_text_right(g, ui->body, x1, base - 1, r->value, cv, ra);
+                if (r->swatch)
+                    swatch(g, x1 - pw_text_width(ui->body, r->value) - 6, mid, r->swatch, ra);
+            }
         } else if (r->value) {
             hm_text_right(g, ui->body, b.x1 - 14, base - 1, r->value, cv, ra);
+            if (r->swatch)
+                swatch(g, b.x1 - 14 - pw_text_width(ui->body, r->value) - 6, mid, r->swatch, ra);
         } else if (r->kind == HM_ROW_ACTION) {
-            hm_chevron(g, b.x1 - 18, mid, 1, on ? C_INK : C_SUB, ra);
+            hm_chevron(g, b.x1 - 18, mid, 1, on ? p->ink : p->sub, ra);
         }
         if (r->bar >= 0) { /* under the label: how much of the most (Play Time), of the track */
             int bw = b.x1 - 14 - lx;
 
-            g->fill(g, lx, y + b.pitch - 8, bw, 2, on ? PW_RGB(200, 204, 214) : C_KNOB, ra);
-            g->fill(g, lx, y + b.pitch - 8, bw * hm_clampi(r->bar, 0, 256) / 256, 2, C_ON, ra);
+            g->fill(g, lx, y + b.pitch - 8, bw, 2, on ? hm_mix(p->sel, p->ink, 60) : p->knob, ra);
+            g->fill(g, lx, y + b.pitch - 8, bw * hm_clampi(r->bar, 0, 256) / 256, 2, acc, ra);
         }
     }
     if (n > show) { /* where in the list: a thin bar at the right */
         int h = b.y1 - b.y0, th = hm_clampi(h * show / n, 12, h),
             ty = b.y0 + (h - th) * first / ((n - show) * 256);
 
-        g->rrect(g, b.x1 + 8, b.y0, 3, h, 1, 0, C_TEXT, a * 40 / 256);
-        g->rrect(g, b.x1 + 8, ty, 3, th, 1, 0, C_TEXT, a * 170 / 256);
+        g->rrect(g, b.x1 + 8, b.y0, 3, h, 1, 0, p->text, a * 40 / 256);
+        g->rrect(g, b.x1 + 8, ty, 3, th, 1, 0, p->text, a * 170 / 256);
     }
+}
+
+/* Saved data, save states: each one's picture, title and line as a row. */
+static void saves(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page *pg, int a)
+{
+    static hm_row rows[64];
+    int y0 = header(g, ui, p, pg, a), n = pg->count < 64 ? pg->count : 64;
+    box b;
+
+    if (n <= 0) {
+        empty_text(g, ui, p, pg, 150, a);
+        return;
+    }
+    for (int i = 0; i < n; i++) {
+        memset(&rows[i], 0, sizeof(rows[i]));
+        rows[i].label = pg->tiles[i].title;
+        rows[i].value = pg->tiles[i].meta;
+        rows[i].icon = pg->tiles[i].icon;
+        rows[i].bar = -1;
+        rows[i].kind = HM_ROW_ACTION;
+        if (!rows[i].icon)
+            rows[i].glyph = HM_ICON_FOLDER;
+    }
+    b = box_of(pg, y0 + 2);
+    list(g, ui, p, rows, n, pg->sel, pg->selpos, b, a, 0, -1, 0);
 }
 
 /* ---- Music: what plays on a card at the left, the tracks at the right ---- */
 
-static void music(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
+static void controls(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v, int cx,
+                     int y, int big, int a)
 {
-    static const unsigned int k_tint[6] = {PW_RGB(64, 92, 200),  PW_RGB(150, 60, 140),
-                                           PW_RGB(36, 132, 122), PW_RGB(196, 104, 48),
-                                           PW_RGB(92, 70, 180),  PW_RGB(48, 118, 186)};
-    /* (no tracks at all: the card stays empty, the message where the tracks would be) */
-    const char *title = v->mu_title ? v->mu_title : v->nrows > 1 ? v->rows[0].label : 0;
-    unsigned int h = 2166136261u;
-    int x = MU_X, y = LIST_Y0, ax = x + (MU_W - MU_ART) / 2, ay = y + 12, ring;
-    box b = box_of(HM_TAB_MUSIC, v->rows + 1, v->nrows - 1);
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+    int r = big ? 22 : 13, gap = big ? 58 : 38, s = big ? 18 : 12;
 
-    for (const char *s = title ? title : ""; *s; s++) /* the art's colour, by the title */
-        h = (h ^ (unsigned char)*s) * 16777619u;
-    g->rrect(g, x, y, MU_W, LIST_Y1 - y, 16, 0, C_CARD, a * 200 / 256);
-    ring = v->row_sel == 0 ? hm_near(v->row_pos) : 0;
-    if (ring > 0)
-        g->rrect(g, x - 3, y - 3, MU_W + 6, LIST_Y1 - y + 6, 18, PW_FX(2), C_TEXT, a * ring / 256);
-    g->rrect(g, ax, ay, MU_ART, MU_ART, 14, 0, k_tint[h % 6], a);
-    g->rrect(g, ax, ay, MU_ART, MU_ART / 2, 14, 0, C_TEXT, a * 18 / 256); /* light from above */
-    g->icon(g, HM_ICON_MUSIC, ax + MU_ART / 2, ay + MU_ART / 2, 56, C_TEXT, a * 225 / 256);
-    g->rrect(g, ax + MU_ART - 36, ay + MU_ART - 36, 28, 28, 14, 0, C_TEXT, a);
-    g->icon(g, v->mu_state == 1 ? HM_ICON_PAUSE : HM_ICON_PLAY,
-            ax + MU_ART - 22 + (v->mu_state == 1 ? 0 : 1), ay + MU_ART - 22, 12, C_INK, a);
-    if (title) /* the smaller font when the title is long */
-        g->text(g, pw_text_width(ui->title, title) <= MU_W - 28 ? ui->title : ui->body, x + 14,
-                ay + MU_ART + 24, title, MU_W - 28, C_TEXT, a);
-    if (v->mu_artist && v->mu_artist[0])
-        g->text(g, ui->body, x + 14, ay + MU_ART + 40, v->mu_artist, MU_W - 28, C_SUB, a);
+    g->icon(g, HM_ICON_PREV, cx - gap, y, s, p->text, a * (v->mu_seek < 0 ? 256 : 210) / 256);
+    g->rrect(g, cx - r, y - r, 2 * r, 2 * r, r, 0, acc, a);
+    g->icon(g, v->mu_state == 1 ? HM_ICON_PAUSE : HM_ICON_PLAY, cx + (v->mu_state == 1 ? 0 : 1), y,
+            big ? 20 : 12, C_TEXT, a);
+    g->icon(g, HM_ICON_NEXT, cx + gap, y, s, p->text, a * (v->mu_seek > 0 ? 256 : 210) / 256);
+    if (big) { /* shuffle and repeat at the ends, lit when on */
+        g->icon(g, HM_ICON_SHUFFLE, cx - 2 * gap + 6, y, 16, v->mu_shuffle ? acc : p->sub, a);
+        g->icon(g, v->mu_repeat == 2 ? HM_ICON_REPEAT1 : HM_ICON_REPEAT, cx + 2 * gap - 6, y, 16,
+                v->mu_repeat ? acc : p->sub, a);
+    }
+}
+
+static void progress(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v, int x,
+                     int y, int w, int a)
+{
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+    int k = w * hm_clampi(v->mu_bar < 0 ? 0 : v->mu_bar, 0, 256) / 256;
+
+    g->rrect(g, x, y, w, 4, 2, 0, p->knob, a);
     if (v->mu_bar >= 0) {
-        int bw = MU_W - 28;
-
-        g->rrect(g, x + 14, ay + MU_ART + 48, bw, 3, 1, 0, C_KNOB, a);
-        g->rrect(g, x + 14, ay + MU_ART + 48, bw * hm_clampi(v->mu_bar, 0, 256) / 256, 3, 1, 0,
-                 C_ON, a);
+        g->rrect(g, x, y, k < 4 ? 4 : k, 4, 2, 0, acc, a);
+        g->rrect(g, x + k - 5, y - 3, 10, 10, 5, 0, C_TEXT, a);
     }
     if (v->mu_time)
-        g->text(g, ui->body, x + 14, ay + MU_ART + 64, v->mu_time, MU_W - 28, C_SUB, a);
-    if (v->nrows > 1)
-        list(g, ui, v->rows + 1, v->nrows - 1, v->row_sel - 1, v->row_pos - 256, b, a, v->t_ms,
-             v->mu_cur, v->mu_state == 1);
-    else if (v->nrows == 1)
-        hm_text_center(g, ui->title, (b.x0 + b.x1) / 2, (LIST_Y0 + LIST_Y1) / 2, v->rows[0].label,
-                       b.x1 - b.x0 - 20, C_SUB, a);
+        g->text(g, ui->body, x, y + 18, v->mu_time, 0, p->sub, a);
+    hm_text_right(g, ui->body, x + w, y + 18, v->mu_length, p->sub, a);
+}
+
+static void music(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
+                  const hm_page *pg, int a)
+{
+    const char *title = v->mu_title ? v->mu_title : pg->nrows > 1 ? pg->rows[0].label : 0;
+    int x = MU_X, y = LIST_Y0, ax = x + (MU_W - MU_ART) / 2, ay = y + 10, ring, ty;
+    box b = box_of(pg, LIST_Y0);
+
+    g->rrect(g, x, y, MU_W, LIST_Y1 - y, 16, 0, p->card, a * p->card_a / 256);
+    ring = pg->row_sel == 0 ? hm_near(pg->row_pos) : 0;
+    if (ring > 0)
+        g->rrect(g, x - 3, y - 3, MU_W + 6, LIST_Y1 - y + 6, 18, PW_FX(2), p->text, a * ring / 256);
+    hm_cover_draw(g, v->mu_cover, ax, ay, MU_ART, 12, a);
+    ty = ay + MU_ART + 18;
+    if (title) /* the smaller font when the title is long */
+        g->text(g, pw_text_width(ui->title, title) <= MU_W - 24 ? ui->title : ui->body, x + 12, ty,
+                title, MU_W - 24, p->text, a);
+    if (v->mu_artist && v->mu_artist[0])
+        g->text(g, ui->body, x + 12, ty + 14, v->mu_artist, MU_W - 24, p->sub, a);
+    if (v->mu_title) {
+        progress(g, ui, p, v, x + 12, ty + 23, MU_W - 24, a);
+        controls(g, ui, p, v, x + MU_W / 2, ty + 58, 0, a);
+    }
+    if (pg->nrows > 1)
+        list(g, ui, p, pg->rows + 1, pg->nrows - 1, pg->row_sel - 1, pg->row_pos - 256, b, a,
+             v->t_ms, v->mu_cur, v->mu_state == 1);
+    else if (pg->nrows == 1)
+        hm_text_center(g, ui->title, (b.x0 + b.x1) / 2, (LIST_Y0 + LIST_Y1) / 2, pg->rows[0].label,
+                       b.x1 - b.x0 - 20, p->sub, a);
+}
+
+/* What plays, whole: the cover at the left, the words, the time and the controls at the right
+   (the cover blurred behind it all). */
+static void now(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
+                const hm_page *pg, int a)
+{
+    int cx = 30, cy = 56, size = 152, x = 204, w = LIST_X1 - x;
+
+    g->rrect(g, cx + 4, cy + 6, size, size, 14, 0, C_BLACK, a * 90 / 256); /* its shadow */
+    hm_cover_draw(g, v->mu_cover, cx, cy, size, 14, a);
+    if (!v->mu_title) {
+        g->text(g, ui->title, x, 120, pg->empty ? pg->empty : "", w, p->sub, a);
+        return;
+    }
+    g->text(g, pw_text_width(ui->big, v->mu_title) <= w ? ui->big : ui->title, x, 84, v->mu_title,
+            w, p->text, a);
+    if (v->mu_artist)
+        g->text(g, ui->title, x, 106, v->mu_artist, w, p->dim, a);
+    if (v->mu_album)
+        g->text(g, ui->body, x, 124, v->mu_album, w, p->sub, a);
+    progress(g, ui, p, v, x, 152, w, a);
+    controls(g, ui, p, v, x + w / 2, 206, 1, a);
+}
+
+/* ---- one page, wherever it is ---- */
+
+static void page(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
+                 const hm_page *pg, int a)
+{
+    switch (pg->layout) {
+    case HM_PAGE_GAMES:
+        games(g, ui, p, v, pg, a);
+        break;
+    case HM_PAGE_PHOTOS:
+        photos(g, ui, p, pg, a);
+        break;
+    case HM_PAGE_ALBUMS:
+        albums(g, ui, p, pg, a);
+        break;
+    case HM_PAGE_SAVES:
+        saves(g, ui, p, pg, a);
+        break;
+    case HM_PAGE_MUSIC:
+        music(g, ui, p, v, pg, a);
+        break;
+    case HM_PAGE_NOW:
+        now(g, ui, p, v, pg, a);
+        break;
+    default: {
+        int y0 = header(g, ui, p, pg, a);
+
+        if (pg->nrows <= 0)
+            empty_text(g, ui, p, pg, 140, a);
+        else
+            list(g, ui, p, pg->rows, pg->nrows, pg->row_sel, pg->row_pos, box_of(pg, y0), a,
+                 v->t_ms, -1, 0);
+        break;
+    }
+    }
 }
 
 /* ---- over everything: the HOME panel, a message card ---- */
 
-static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+static void panel(hm_gfx *g, const hm_ui *ui, const hm_palette *pal, const hm_view *v)
 {
     int pics = 0, wide = 0;
+    /* a see-through theme's cards would vanish over the list: the dark card there */
+    int solid = pal->card_a >= 128;
+    unsigned int card = solid ? pal->card : C_CARD, off = solid ? pal->dim : C_DIM,
+                 sub = solid ? pal->sub : C_SUB;
 
     for (int i = 0; i < v->panel_count; i++) {
         pics |= v->panel_icons[i] != 0;
@@ -423,11 +645,11 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
             tx = x0 + (pics ? 96 : 22);
 
         g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, p * 150 / 256);
-        g->rrect(g, x0, y0, w, h, 16, 0, C_CARD, p * 240 / 256);
+        g->rrect(g, x0, y0, w, h, 16, 0, card, p * 240 / 256);
         if (v->panel_title)
-            g->text(g, ui->title, x0 + 20, y0 + 26, v->panel_title, w - 40, C_SUB, p);
+            g->text(g, ui->title, x0 + 20, y0 + 26, v->panel_title, w - 40, sub, p);
         g->rrect(g, x0 + 8, y0 + 38 + v->panel_pos * rh / 256, w - 16, rh - 4,
-                 (rh - 4) / 2 < 12 ? (rh - 4) / 2 : 12, 0, C_TEXT, p * 235 / 256);
+                 (rh - 4) / 2 < 12 ? (rh - 4) / 2 : 12, 0, pal->sel, p * pal->sel_a / 256);
         for (int i = 0; i < n; i++) {
             int y = y0 + 38 + i * rh, base = y + rh / 2 + 4,
                 on = hm_near(i * 256 - v->panel_pos) > 128;
@@ -437,52 +659,55 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                          36, p);
             if (v->panel_items[i])
                 g->text(g, ui->title, tx, base, v->panel_items[i],
-                        v->panel_values[i] ? 150 : w - 44, on ? C_INK : C_DIM, p);
+                        v->panel_values[i] ? 150 : w - 44, on ? pal->ink : off, p);
             if (v->panel_values[i])
                 hm_text_right(g, ui->body, x0 + w - 22, base, v->panel_values[i],
-                              on ? C_INK2 : C_SUB, p);
+                              on ? pal->ink2 : sub, p);
         }
         if (v->panel_hint) {
             int tw = pw_text_width(ui->body, v->panel_hint);
 
-            g->text(g, ui->body, x0 + w - 20 - tw, y0 + h - 12, v->panel_hint, 0, C_SUB, p);
+            g->text(g, ui->body, x0 + w - 20 - tw, y0 + h - 12, v->panel_hint, 0, sub, p);
             g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x0 + w - 32 - tw,
-                      y0 + h - 16, 12, C_SUB, p);
+                      y0 + h - 16, 12, sub, p);
         }
     }
 }
 
-static void sheet(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+static void sheet(hm_gfx *g, const hm_ui *ui, const hm_palette *pal, const hm_view *v)
 {
-    int p = hm_clampi(v->sheet, 0, 256), w = 400, h = 112, x0 = (HM_W - w) / 2,
-        y0 = (HM_H - h) / 2 + (256 - p) * 12 / 256;
+    int p = hm_clampi(v->sheet, 0, 256), w = 400, h = 116, x0 = (HM_W - w) / 2,
+        y0 = (HM_H - h) / 2 + (256 - p) * 12 / 256, solid = pal->card_a >= 128;
+    unsigned int acc = ui->accent ? ui->accent : C_ON, card = solid ? pal->card : C_CARD,
+                 text = solid ? pal->text : C_TEXT, sub = solid ? pal->sub : C_SUB,
+                 tint = v->sheet_glyph ? hm_glyph_tint(v->sheet_glyph, acc) : acc;
 
     g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, p * 170 / 256);
-    g->rrect(g, x0, y0, w, h, 16, 0, C_CARD, p * 245 / 256);
-    g->icon(g, PW_ICON_CARD, x0 + 30, y0 + 30, 14, C_TEXT, p);
+    g->rrect(g, x0, y0, w, h, 16, 0, card, p * 245 / 256);
+    g->rrect(g, x0 + 16, y0 + 16, 28, 28, 8, 0, tint, p);
+    g->icon(g, v->sheet_glyph ? v->sheet_glyph : PW_ICON_CARD, x0 + 30, y0 + 30, 16, C_TEXT, p);
     if (v->sheet_title)
-        g->text(g, ui->title, x0 + 52, y0 + 36, v->sheet_title, 0, C_TEXT, p);
-    if (v->sheet_text)
-        g->text(g, ui->body, x0 + 20, y0 + 68, v->sheet_text, w - 40, C_SUB, p);
+        g->text(g, ui->title, x0 + 54, y0 + 36, v->sheet_title, w - 74, text, p);
+    hm_text_wrap(g, ui->body, x0 + 20, y0 + 64, 14, 2, v->sheet_text, w - 40, 0, sub, p);
     if (v->sheet_busy)
         for (int i = 0; i < 3; i++) { /* three dots, a wave through them */
             int t = (int)((v->t_ms / 4 + (unsigned int)(i * 60)) % 256),
                 k = t < 128 ? t * 2 : (255 - t) * 2;
 
-            g->rrect(g, x0 + w - 56 + i * 12, y0 + 28, 6, 6, 3, 0, C_ON,
+            g->rrect(g, x0 + w - 56 + i * 12, y0 + 28, 6, 6, 3, 0, acc,
                      p * (90 + k * 166 / 256) / 256);
         }
     if (v->sheet_hint) {
         int tw = pw_text_width(ui->body, v->sheet_hint), x = x0 + w - 20 - tw;
 
-        g->text(g, ui->body, x, y0 + h - 14, v->sheet_hint, 0, C_SUB, p);
-        g->button(g, ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, x - 12, y0 + h - 18, 12, C_SUB,
+        g->text(g, ui->body, x, y0 + h - 14, v->sheet_hint, 0, sub, p);
+        g->button(g, ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, x - 12, y0 + h - 18, 12, sub,
                   p);
         if (v->sheet_again) { /* Enter, to the left of the way out */
             x -= 30 + pw_text_width(ui->body, v->sheet_again);
-            g->text(g, ui->body, x, y0 + h - 14, v->sheet_again, 0, C_TEXT, p);
+            g->text(g, ui->body, x, y0 + h - 14, v->sheet_again, 0, text, p);
             g->button(g, ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, x - 12, y0 + h - 18, 12,
-                      C_TEXT, p);
+                      text, p);
         }
     }
 }
@@ -492,35 +717,48 @@ static void sheet(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 void hm_draw_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = hm_clampi(v->appear, 0, 256);
+    hm_palette p;
 
-    pills(g, ui, v, a, status(g, ui, v, a) - 12);
-    if (v->tab == HM_TAB_GAMES)
-        games(g, ui, v, a);
-    else if (v->tab == HM_TAB_PHOTOS)
-        photos(g, ui, v, a);
-    else if (v->tab == HM_TAB_MUSIC)
-        music(g, ui, v, a);
-    else
-        list(g, ui, v->rows, v->nrows, v->row_sel, v->row_pos, box_of(v->tab, v->rows, v->nrows), a,
-             v->t_ms, -1, 0);
-    hm_hints_right(g, ui, v, HM_W - 14, 264, C_SUB, a);
+    hm_palette_of(ui, &p);
+    if (v->viewer < 256) {
+        if (p.shade || v->dim)
+            g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, hm_clampi(p.shade + v->dim, 0, 256));
+        pills(g, ui, &p, v, a, status(g, ui, &p, v, a) - 12);
+        /* the pages: the one shown, and while the stack moves the one before or after it */
+        for (int d = 0; d < HM_DEPTH; d++) {
+            int t = hm_page_t(v, d);
+            hm_shift s;
+
+            if (t <= -256 || t >= 256)
+                continue;
+            /* the leaving page fades faster than it moves: no muddle of the two */
+            page(t ? hm_shift_init(&s, g, t * SLIDE / 256,
+                                   (256 - (t < 0 ? -t : t)) * (256 - (t < 0 ? -t : t)) / 256)
+                   : g,
+                 ui, &p, v, &v->page[d], a);
+        }
+        hm_hints_right(g, ui, v, HM_W - 14, 264, p.sub, a);
+    }
     if (v->panel > 0)
-        panel(g, ui, v);
+        panel(g, ui, &p, v);
     if (v->sheet > 0)
-        sheet(g, ui, v);
+        sheet(g, ui, &p, v);
+    hm_draw_toast(g, ui, v, p.card_a >= 128 ? p.card : C_CARD, p.card_a >= 128 ? p.text : C_TEXT);
 }
 
 void hm_prefetch_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
+    const hm_page *top = hm_top(v);
+
     /* the games next to the chosen one, nearest first, as games() draws them */
-    for (int d = 1; d <= 3 && v->tab != HM_TAB_PHOTOS; d++)
+    for (int d = 1; d <= 3 && top->layout == HM_PAGE_GAMES; d++)
         for (int s = -1; s <= 1; s += 2) {
-            int i = v->sel + s * d;
+            int i = top->sel + s * d;
             const hm_tile *t;
 
-            if (i < 0 || i >= v->count)
+            if (i < 0 || i >= top->count)
                 continue;
-            t = &v->tiles[i];
+            t = &top->tiles[i];
             if (!g->warm(g, ui->big, t->title ? t->title : "", HM_W - 2 * SEL_X) ||
                 (t->meta && !g->warm(g, ui->body, t->meta, HM_W - 2 * SEL_X)))
                 return; /* out of time this frame */
@@ -528,25 +766,31 @@ void hm_prefetch_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     /* the sections' rows, as list() draws them: around the cursor in this one, the first ones of
        the others (a long list - the music - is not made all at once) */
     for (int k = 0; k < HM_TABS; k++) {
-        const hm_row *rows = v->other_rows[k];
-        int n = v->other_nrows[k], from = k == v->tab ? v->row_sel - 8 : 0,
-            to = k == v->tab ? v->row_sel + 8 : 8;
+        int here = k == v->tab && top->rows;
+        const hm_row *rows = here ? top->rows : v->other_rows[k];
+        int n = here ? top->nrows : v->other_nrows[k], cur = here ? top->row_sel : 0,
+            from = cur - 8, to = cur + 8;
+        hm_page pg;
         box b;
 
         if (!rows)
             continue;
-        if (k == HM_TAB_MUSIC) { /* its list starts at the second row */
+        memset(&pg, 0, sizeof(pg));
+        pg.layout = here ? top->layout : k == HM_TAB_MUSIC ? HM_PAGE_MUSIC : HM_PAGE_ROWS;
+        if (pg.layout == HM_PAGE_MUSIC) { /* its list starts at the second row */
             rows++;
             n--;
             from--;
             to--;
         }
-        b = box_of(k, rows, n);
+        pg.rows = rows;
+        pg.nrows = n;
+        b = box_of(&pg, here && top->title ? 72 : LIST_Y0);
         for (int i = from < 0 ? 0 : from; i < n && i <= to; i++) {
             const hm_row *r = &rows[i];
             int lx, lw;
 
-            label_room(ui, r, b, k == HM_TAB_MUSIC && i == v->mu_cur, &lx, &lw);
+            label_room(ui, r, b, pg.layout == HM_PAGE_MUSIC && i == v->mu_cur, &lx, &lw);
             if (!g->warm(g,
                          r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE ? ui->body : ui->title,
                          r->label ? r->label : "", lw) ||

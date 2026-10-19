@@ -24,6 +24,7 @@
 #include "ui/views.h"
 #include "ui/xmbbg.h"
 #include "gfx_cpu.h"
+#include "hm_icons.h"
 #include "home_view.h"
 #include "xmbart.h"
 
@@ -176,18 +177,55 @@ static void load_language(const char *code)
         fprintf(stderr, "%s: no usable translation\n", path);
 }
 
-/* Pocketwatch Home (home/): every screen in the three styles, with synthetic games. The system's
-   icons when PW_PREVIEW_RCO / PW_PREVIEW_FG name topmenu_icon.rco / system_plugin_fg.rco. */
+/* Pocketwatch Home (home/): every page in the three styles (and Modern in each theme), with
+   synthetic games. The system's icons when PW_PREVIEW_RCO / PW_PREVIEW_FG name
+   topmenu_icon.rco / system_plugin_fg.rco. */
+static hm_row hrow(const char *label, const char *value, int kind)
+{
+    hm_row r;
+
+    memset(&r, 0, sizeof(r));
+    r.label = label;
+    r.value = value;
+    r.kind = kind;
+    r.bar = -1;
+    return r;
+}
+
+static hm_ui g_hui;
+static hm_gfx_cpu g_hg;
+
+static void hshot(hm_view *v, const char *name)
+{
+    hm_draw(&g_hg.ops, &g_hui, v);
+    save(name);
+}
+
+/* One page over the section's first (depth 1), settled. */
+static void over(hm_view *v, const hm_page *root, const hm_page *p)
+{
+    v->page[0] = *root;
+    v->page[1] = *p;
+    v->depth = 1;
+    v->depth_pos = 256;
+}
+
 static void home_previews(const pw_image *sky_img)
 {
     static unsigned int icons[4][HM_ICON_W * HM_ICON_H], pic[HM_W * HM_H], bg[512 * HM_H],
-        pic1[512 * HM_H], grad[512 * HM_H], sky[512 * HM_H];
+        pic1[512 * HM_H], grad[512 * HM_H], sky[512 * HM_H], photo[512 * HM_H],
+        cover[HM_COVER * HM_COVER], coverbg[512 * HM_H], plain[512 * HM_H];
     static const unsigned int tint[4] = {PW_RGB(170, 40, 40), PW_RGB(40, 110, 190),
                                          PW_RGB(60, 150, 80), PW_RGB(150, 110, 40)};
     static hm_art art;
+    static const int ed_glyph[9] = {HM_ICON_ROTATE,  HM_ICON_FLIP,     HM_ICON_FILTER,
+                                    HM_ICON_SUN,     HM_ICON_CONTRAST, HM_ICON_DROP,
+                                    HM_ICON_PALETTE, HM_ICON_VIGNETTE, HM_ICON_CHECK};
+    static const char *const ed_names[9] = {"Rotate",     "Mirror",   "Filter",
+                                            "Brightness", "Contrast", "Saturation",
+                                            "Warmth",     "Vignette", "Save a Copy"};
     const char *rco = getenv("PW_PREVIEW_RCO"), *fg = getenv("PW_PREVIEW_FG");
-    hm_ui ui = {&g_title, &g_body, &g_big, 1, 0};
-    hm_tile tiles[5] = {
+    hm_tile games[5] = {
         {"Castlevania: The Dracula X Chronicles", "ULUS10277   Played 12 h 30 min   Save states: 3",
          icons[0]},
         {"Persona", "ULUS10432   Played 4 h 12 min", icons[1]},
@@ -195,50 +233,19 @@ static void home_previews(const pw_image *sky_img)
         {"Silent Hill: Shattered Memories", "ULUS10450", icons[3]},
         {"Untitled image", NULL, NULL},
     };
-    hm_tile photo_tiles[9];
-    hm_row playtime[] = {
-        {"Total", "17 h 17 min", -1, 0, 0, 0},
-        {"Castlevania: The Dracula X Chronicles", "12 h 30 min", 256, 0, icons[0], 0},
-        {"Persona", "4 h 12 min", 86, 0, icons[1], 0},
-        {"The 3rd Birthday", "35 min", 12, 0, icons[2], 0},
-        {"Counted only while Pocketwatch runs", NULL, -1, HM_ROW_NOTE, 0, 0},
-    };
-    hm_row system[] = {
-        {"Battery", 0, -1, HM_ROW_HEADER, 0, 0},
-        {"Charge", "83%   On battery", -1, 0, 0, 0},
-        {"Time left", "5 h 37 min (system)", -1, 0, 0, 0},
-        {"Voltage", "4.10 V", -1, 0, 0, 0},
-        {"Memory Stick", 0, -1, HM_ROW_HEADER, 0, 0},
-        {"Free space", "2310 MB", -1, 0, 0, 0},
-        {"Games on the card", "22", -1, 0, 0, 0},
-        {"Version", "Pocketwatch Home dev", -1, 0, 0, 0},
-        {"USB Connection", NULL, -1, HM_ROW_ACTION, 0, 0},
-        {"Exit to the XMB", NULL, -1, HM_ROW_ACTION, 0, 0},
-    };
-    hm_row set[] = {
-        {"Pocketwatch", 0, -1, HM_ROW_HEADER, 0, 0},
-        {"Start screen", "Pocketwatch Home", -1, HM_ROW_CHOICE, 0, 0},
-        {"Style", "Classic", -1, HM_ROW_CHOICE, 0, 0},
-        {"Fast Save and Load", "On", -1, HM_ROW_CHOICE, 0, 2},
-        {"Clock and Battery", "Off", -1, HM_ROW_CHOICE, 0, 1},
-        {"Language", "System Language", -1, HM_ROW_CHOICE, 0, 0},
-        {"System", 0, -1, HM_ROW_HEADER, 0, 0},
-        {"Nickname", "Pocketwatch", -1, HM_ROW_ACTION, 0, 0},
-        {"Time Zone", "GMT+02:00", -1, HM_ROW_CHOICE, 0, 0},
-    };
-    hm_row music[] = {
-        {"Midnight Drive", "1:24 / 3:51", 94, 0, 0, 0},
-        {"Neon Rain", "Synthwave Trio", -1, HM_ROW_ACTION, 0, 0},
-        {"Midnight Drive", "Lumen", 94, HM_ROW_ACTION, 0, 0},
-        {"Paper Planes", "Kite Club", -1, HM_ROW_ACTION, 0, 0},
-        {"Low Tide", "Harbour", -1, HM_ROW_ACTION, 0, 0},
-        {"Static Hearts", "Lumen", -1, HM_ROW_ACTION, 0, 0},
-        {"Glass City", "Neon Rain", -1, HM_ROW_ACTION, 0, 0},
-    };
-    static const char *const zones[] = {"GMT", "GMT+01:00", "GMT+02:00", "GMT+03:00", "GMT+04:00"};
+    hm_tile photos[9], albums[4] = {{"All Photos", "23 photos", icons[1]},
+                                    {"Castlevania: The Dracula X Chronicles", "9 photos", icons[0]},
+                                    {"Screenshots", "11 photos", icons[2]},
+                                    {"pspIdent", "3 photos", 0}};
+    hm_tile saves[4] = {{"Chapter 3: The Clock Tower", "2026/10/18 14:05   1.2 MB", icons[0]},
+                        {"Richter - Stage 2", "2026/10/12 21:40   1.2 MB", icons[2]},
+                        {"System Data", "2026/09/30 08:12   48 KB", 0},
+                        {"Bonus", "2026/09/01 10:00   12 KB", icons[3]}};
+    hm_row playtime[5], sysr[7], setr[7], look[8], game[4], battery[5], save1[6];
+    hm_row music[7];
+    hm_page p, root;
     hm_view v;
     pw_canvas c = {g_px, W, H, STRIDE};
-    hm_gfx_cpu g;
 
     if (rco && rco[0])
         printf("home: %d system picture(s)\n", hm_art_load(&art, slurp, rco, fg ? fg : ""));
@@ -253,20 +260,124 @@ static void home_previews(const pw_image *sky_img)
                                        : PW_RGB((t & 0xFF) * k / 256, ((t >> 8) & 0xFF) * k / 256,
                                                 ((t >> 16) & 0xFF) * k / 256);
             }
+    for (int y = 0; y < HM_COVER; y++) /* a stand-in cover: a sunset and a disc */
+        for (int x = 0; x < HM_COVER; x++) {
+            int d = (x - 64) * (x - 64) + (y - 76) * (y - 76);
+
+            cover[y * HM_COVER + x] =
+                d < 900 ? PW_RGB(250, 196, 90) : PW_RGB(200 - y / 2, 60 + y / 3, 120 + x / 4);
+        }
     for (int i = 0; i < 9; i++)
-        photo_tiles[i] = (hm_tile){i == 0 ? "Sunset at the pier.jpg" : "Photo",
-                                   "PICTURE   2026/10/18", icons[i % 4]};
+        photos[i] = (hm_tile){i == 0 ? "Sunset at the pier.jpg" : "Photo", "PICTURE   2026/10/18",
+                              icons[i % 4]};
     for (int y = 0; y < HM_H; y++) /* the synthetic game frame as the first game's PIC1 */
         memcpy(pic + y * HM_W, g_game + y * STRIDE, HM_W * 4);
     hm_make_background(pic, HM_W, HM_H, bg);
     hm_make_pic1(pic, HM_W, HM_H, pic1);
-    hm_make_gradient(grad);
+    hm_make_gradient(PW_RGB(0, 114, 206), grad);
     hm_make_sky(sky_img, sky);
-    ui.art = rco && rco[0] ? &art : 0;
+    hm_make_photo(pic, HM_W, HM_H, photo);
+    hm_make_background(cover, HM_COVER, HM_COVER, coverbg);
+    hm_make_plain(PW_RGB(0, 114, 206), 0, plain);
 
-    hm_gfx_cpu_init(&g, &c);
+    playtime[0] = hrow("Total", "17 h 17 min", HM_ROW_INFO);
+    playtime[1] = hrow("Castlevania: The Dracula X Chronicles", "12 h 30 min", HM_ROW_INFO);
+    playtime[1].bar = 256;
+    playtime[1].icon = icons[0];
+    playtime[2] = hrow("Persona", "4 h 12 min", HM_ROW_INFO);
+    playtime[2].bar = 86;
+    playtime[2].icon = icons[1];
+    playtime[3] = hrow("The 3rd Birthday", "35 min", HM_ROW_INFO);
+    playtime[3].bar = 12;
+    playtime[3].icon = icons[2];
+    playtime[4] = hrow("Counted only while Pocketwatch runs", NULL, HM_ROW_NOTE);
+    {
+        static const char *const names[7] = {"USB Connection", "Internet Browser", "Battery",
+                                             "Memory Stick",   "About This PSP",   "Power",
+                                             "Exit to the XMB"};
+        static const char *const vals[7] = {0, 0, "83%", "2310 MB free", "PSP-3000", 0, 0};
+        static const int kinds[7] = {HM_ROW_ACTION, HM_ROW_ACTION, HM_ROW_LINK,  HM_ROW_LINK,
+                                     HM_ROW_LINK,   HM_ROW_LINK,   HM_ROW_ACTION};
+        static const int glyphs[7] = {HM_ICON_USB,    HM_ICON_GLOBE, HM_ICON_BATTERY, PW_ICON_CARD,
+                                      HM_ICON_SYSTEM, PW_ICON_QUIT,  HM_ICON_EXIT};
+        static const int arts[7] = {HM_ART_USB + 1,    HM_ART_WWW + 1,   0, HM_ART_MS + 1,
+                                    HM_ART_SYSTEM + 1, HM_ART_POWER + 1, 0};
+
+        for (int i = 0; i < 7; i++) {
+            sysr[i] = hrow(names[i], vals[i], kinds[i]);
+            sysr[i].glyph = glyphs[i];
+            sysr[i].art = arts[i];
+        }
+    }
+    {
+        static const char *const names[7] = {
+            "Appearance",    "Pocketwatch", "Music and Photos", "Sound and Display",
+            "Date and Time", "System",      "Network"};
+        static const char *const vals[7] = {"Modern", 0, 0, 0, 0, "English", 0};
+        static const int glyphs[7] = {HM_ICON_PALETTE, HM_ICON_GAMES, HM_ICON_MUSIC,
+                                      HM_ICON_SPEAKER, HM_ICON_CLOCK, HM_ICON_LANGUAGE,
+                                      HM_ICON_GLOBE};
+        static const int arts[7] = {HM_ART_THEME + 1,  HM_ART_UMD + 1,   HM_ART_PHOTO + 1,
+                                    HM_ART_SOUND + 1,  HM_ART_CLOCK + 1, HM_ART_SYSTEM + 1,
+                                    HM_ART_NETWORK + 1};
+
+        for (int i = 0; i < 7; i++) {
+            setr[i] = hrow(names[i], vals[i], HM_ROW_LINK);
+            setr[i].glyph = glyphs[i];
+            setr[i].art = arts[i];
+        }
+    }
+    look[0] = hrow("Style", "Modern", HM_ROW_CHOICE);
+    look[1] = hrow("Theme", "Glass", HM_ROW_CHOICE);
+    look[2] = hrow("Accent Colour", "Violet", HM_ROW_CHOICE);
+    look[2].swatch = PW_RGB(128, 84, 230);
+    look[3] = hrow("Background", "XMB Sky", HM_ROW_CHOICE);
+    look[4] = hrow("Sky Colour", "October", HM_ROW_CHOICE);
+    look[4].swatch = PW_RGB(180, 140, 60);
+    look[5] = hrow("Wave", "On", HM_ROW_CHOICE);
+    look[5].toggle = 2;
+    look[6] = hrow("Battery Percentage", "On", HM_ROW_CHOICE);
+    look[6].toggle = 2;
+    look[7] = hrow("Animations", "Normal", HM_ROW_CHOICE);
+    game[0] = hrow("Play", 0, HM_ROW_ACTION);
+    game[0].glyph = HM_ICON_PLAY;
+    game[1] = hrow("Save States", "3", HM_ROW_LINK);
+    game[1].glyph = PW_ICON_SAVE;
+    game[2] = hrow("Saved Data", 0, HM_ROW_LINK);
+    game[2].glyph = HM_ICON_FOLDER;
+    game[3] = hrow("Information", 0, HM_ROW_LINK);
+    game[3].glyph = HM_ICON_SYSTEM;
+    battery[0] = hrow("Charge", "83%   On battery", HM_ROW_INFO);
+    battery[0].bar = 212;
+    battery[1] = hrow("Time left", "5 h 37 min (system)", HM_ROW_INFO);
+    battery[2] = hrow("Voltage", "4.10 V", HM_ROW_INFO);
+    battery[3] = hrow("Temperature", "28 C", HM_ROW_INFO);
+    battery[4] = hrow("Charge cycles", "112", HM_ROW_INFO);
+    save1[0] = hrow("Game", "Castlevania: The Dracula X Chronicles", HM_ROW_INFO);
+    save1[1] = hrow("Details", "Chapter 3: The Clock Tower", HM_ROW_INFO);
+    save1[2] = hrow("Saved", "2026/10/18 14:05", HM_ROW_INFO);
+    save1[3] = hrow("Size", "1.2 MB", HM_ROW_INFO);
+    save1[4] = hrow("Folder", "ULUS10277000", HM_ROW_INFO);
+    save1[5] = hrow("Delete", 0, HM_ROW_ACTION);
+    save1[5].glyph = HM_ICON_TRASH;
+    music[0] = hrow("Midnight Drive", "1:24", HM_ROW_INFO);
+    music[0].bar = 94;
+    {
+        static const char *const t[6][2] = {
+            {"Neon Rain", "Synthwave Trio"}, {"Midnight Drive", "Lumen"},
+            {"Paper Planes", "Kite Club"},   {"Low Tide", "Harbour"},
+            {"Static Hearts", "Lumen"},      {"Glass City", "Neon Rain"}};
+
+        for (int i = 0; i < 6; i++)
+            music[i + 1] = hrow(t[i][0], t[i][1], HM_ROW_ACTION);
+        music[2].bar = 94;
+    }
+
+    g_hui = (hm_ui){&g_title,     &g_body, &g_big, 1, rco && rco[0] ? &art : 0, PW_RGB(0, 114, 206),
+                    HM_THEME_DARK};
+    hm_gfx_cpu_init(&g_hg, &c);
     for (g_style = 0; g_style < HM_STYLES; g_style++) {
-        int classic = g_style == HM_STYLE_CLASSIC;
+        int cl = g_style == HM_STYLE_CLASSIC;
 
         memset(&v, 0, sizeof(v));
         v.style = g_style;
@@ -278,112 +389,274 @@ static void home_previews(const pw_image *sky_img)
         v.tab_names[HM_TAB_SYSTEM] = "System";
         v.clock = "10/18 14:05";
         v.battery = 83;
-        v.tiles = tiles;
-        v.count = 5;
-        v.bg = classic ? pic1 : bg;
+        v.battery_pct = 1;
+        v.bg = cl ? pic1 : bg;
         v.bg_mix = 256;
         v.play_label = "Play";
-        v.empty = "No games in ms0:/ISO";
         v.hint_enter = "Play";
         v.hint_options = "Options";
-        v.hint_tabs = classic ? 0 : "Section";
+        v.hint_tabs = cl ? 0 : "Section";
         v.appear = 256;
         v.mu_cur = -1;
         v.t_ms = 1200;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-games");
-        v.sel = 1;
-        v.selpos = 128 + 64; /* gliding to the second game */
-        v.bg = classic ? sky : grad;
-        v.wave = classic ? 256 : 0;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-games-moving");
-        v.selpos = 256;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-games-no-art");
 
+        /* Games */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_GAMES;
+        root.tiles = games;
+        root.count = 5;
+        root.empty = "No games in ms0:/ISO";
+        v.page[0] = root;
+        hshot(&v, "home-games");
+        v.page[0].sel = 1;
+        v.page[0].selpos = 128 + 64; /* gliding to the second game */
+        v.bg = cl ? sky : grad;
+        v.wave = cl ? 256 : 0;
+        hshot(&v, "home-games-moving");
+        v.page[0] = root;
+        v.page[0].count = 0;
+        hshot(&v, "home-empty");
+        v.bg = cl ? pic1 : bg;
+        v.wave = 0;
+        /* Triangle: the game's page */
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_ROWS;
+        p.over = 1;
+        p.title = games[0].title;
+        p.sub = games[0].meta;
+        p.icon = icons[0];
+        p.rows = game;
+        p.nrows = 4;
+        p.row_sel = 1;
+        p.row_pos = 256;
+        over(&v, &root, &p);
+        v.hint_enter = "Open";
         v.hint_options = 0;
+        v.hint_back = "Back";
+        hshot(&v, "home-game-page");
+        v.depth_pos = 128; /* sliding in */
+        hshot(&v, "home-game-page-sliding");
+        /* its saved data, one save */
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_SAVES;
+        p.title = "Saved Data";
+        p.sub = games[0].title;
+        p.tiles = saves;
+        p.count = 4;
+        p.sel = 0;
+        over(&v, &root, &p);
+        v.hint_square = "Delete";
+        hshot(&v, "home-saved-data");
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_ROWS;
+        p.title = saves[0].title;
+        p.sub = games[0].title;
+        p.icon = icons[0];
+        p.rows = save1;
+        p.nrows = 6;
+        p.row_sel = 5;
+        p.row_pos = 5 * 256;
+        over(&v, &root, &p);
+        v.hint_square = 0;
+        v.hint_enter = "Delete";
+        hshot(&v, "home-save");
+        v.sheet = 256; /* Delete: the question */
+        v.sheet_title = "Delete";
+        v.sheet_text = "Delete this saved data? This cannot be undone.";
+        v.sheet_hint = "Cancel";
+        v.sheet_again = "Delete";
+        v.sheet_glyph = HM_ICON_TRASH;
+        hshot(&v, "home-delete");
+        v.sheet = 0;
+        v.depth = v.depth_pos = 0;
+        v.hint_back = 0;
+
+        /* Music */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_MUSIC;
+        root.rows = music;
+        root.nrows = 7;
+        root.row_sel = 2;
+        root.row_pos = 2 * 256;
+        v.page[0] = root;
         v.tab = HM_TAB_MUSIC;
         v.tab_pos = HM_TAB_MUSIC * 256;
-        v.rows = music;
-        v.nrows = 7;
-        v.row_sel = 2;
-        v.row_pos = 2 * 256;
         v.mu_title = "Midnight Drive";
         v.mu_artist = "Lumen";
-        v.mu_time = "1:24 / 3:51";
+        v.mu_album = "Night Roads";
+        v.mu_time = "1:24";
+        v.mu_length = "3:51";
         v.mu_bar = 94;
         v.mu_state = 1;
         v.mu_cur = 1;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-music");
+        v.mu_cover = cover;
+        v.mu_repeat = 1;
+        v.bg = cl ? sky : coverbg;
+        v.wave = cl ? 256 : 0;
+        v.hint_enter = "Play";
+        v.hint_options = "Now Playing";
+        v.hint_square = "Stop";
+        hshot(&v, "home-music");
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_NOW;
+        p.title = "Now Playing";
+        over(&v, &root, &p);
+        v.hint_enter = "Pause";
+        v.hint_square = "Shuffle";
+        v.hint_options = "Repeat";
+        v.hint_back = "Back";
+        v.mu_shuffle = 1;
+        hshot(&v, "home-now-playing");
+        v.mu_cover = 0; /* without a cover */
+        v.mu_seek = 1;
+        hshot(&v, "home-now-no-cover");
+        v.mu_seek = 0;
+        v.depth = v.depth_pos = 0;
+        v.hint_back = v.hint_square = v.hint_options = 0;
 
+        /* Photos: the albums, one album, a photo, the editor */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_ALBUMS;
+        root.tiles = albums;
+        root.count = 4;
+        root.sel = 1;
+        root.selpos = 256;
+        v.page[0] = root;
         v.tab = HM_TAB_PHOTOS;
         v.tab_pos = HM_TAB_PHOTOS * 256;
-        v.tiles = photo_tiles;
-        v.count = 9;
-        v.sel = 5;
-        v.selpos = 5 * 256;
-        v.bg = classic ? sky : bg;
+        v.bg = cl ? sky : bg;
+        v.hint_enter = "Open";
+        hshot(&v, "home-albums");
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_PHOTOS;
+        p.title = albums[1].title;
+        p.tiles = photos;
+        p.count = 9;
+        p.sel = 5;
+        p.selpos = 5 * 256;
+        over(&v, &root, &p);
         v.hint_enter = "View";
-        hm_draw(&g.ops, &ui, &v);
-        save("home-photos");
-        v.tiles = tiles;
-        v.count = 5;
-        v.sel = v.selpos = 0;
+        v.hint_square = "Delete";
+        v.hint_back = "Back";
+        hshot(&v, "home-album");
+        v.bg = photo;
+        v.viewer = 256;
+        v.caption = 256;
+        v.viewer_caption = "Sunset at the pier.jpg";
+        v.viewer_edit = "Edit";
+        v.viewer_slideshow = "Slideshow";
+        v.viewer_wallpaper = "Set as wallpaper";
+        hshot(&v, "home-viewer");
+        v.editor = 256;
+        v.ed_count = 9;
+        for (int i = 0; i < 9; i++)
+            v.ed_tools[i] = ed_names[i];
+        v.ed_glyphs = ed_glyph;
+        v.ed_sel = v.ed_pos = 3;
+        v.ed_pos = 3 * 256;
+        v.ed_value = "+2";
+        v.ed_hint = "Left / Right: tool   Up / Down: change";
+        hshot(&v, "home-editor");
+        v.editor = v.viewer = 0;
+        v.toast = 256;
+        v.toast_text = "Saved as a new photo";
+        v.bg = cl ? sky : bg;
+        hshot(&v, "home-album-saved");
+        v.toast = 0;
+        v.depth = v.depth_pos = 0;
+        v.hint_back = v.hint_square = 0;
 
+        /* Play Time */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_ROWS;
+        root.rows = playtime;
+        root.nrows = 5;
+        root.row_sel = 1;
+        root.row_pos = 256;
+        v.page[0] = root;
         v.tab = HM_TAB_PLAYTIME;
         v.tab_pos = HM_TAB_PLAYTIME * 256;
-        v.bg = classic ? sky : grad;
-        v.rows = playtime;
-        v.nrows = 5;
-        v.row_sel = 1;
-        v.row_pos = 256;
-        v.hint_enter = NULL;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-playtime");
+        v.bg = cl ? sky : grad;
+        v.hint_enter = "Open";
+        hshot(&v, "home-playtime");
 
+        /* Settings: the categories, Appearance, a choice's options */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_ROWS;
+        root.rows = setr;
+        root.nrows = 7;
+        v.page[0] = root;
         v.tab = HM_TAB_SETTINGS;
         v.tab_pos = HM_TAB_SETTINGS * 256;
-        v.rows = set;
-        v.nrows = 9;
-        v.row_sel = 2;
-        v.row_pos = 2 * 256;
-        v.hint_enter = classic ? "Change" : NULL;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-settings");
-        if (classic) { /* Enter on a choice: its options on the right */
-            v.row_sel = v.row_pos = 0;
-            v.row_sel = 8;
-            v.row_pos = 8 * 256;
+        hshot(&v, "home-settings");
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_ROWS;
+        p.title = "Appearance";
+        p.rows = look;
+        p.nrows = 8;
+        p.row_sel = 2;
+        p.row_pos = 2 * 256;
+        over(&v, &root, &p);
+        v.hint_enter = cl ? "Change" : 0;
+        v.hint_back = "Back";
+        hshot(&v, "home-settings-look");
+        v.depth_pos = 140;
+        hshot(&v, "home-settings-sliding");
+        v.depth_pos = 256;
+        if (cl) { /* Enter on a choice: its options on the right */
+            static const char *const accents[5] = {"Blue", "Violet", "Pink", "Red", "Orange"};
+            static const unsigned int sw[5] = {PW_RGB(0, 114, 206), PW_RGB(128, 84, 230),
+                                               PW_RGB(232, 72, 140), PW_RGB(226, 58, 58),
+                                               PW_RGB(240, 130, 30)};
+
             v.popup = 256;
             v.popup_count = 5;
-            for (int i = 0; i < 5; i++)
-                v.popup_items[i] = zones[i];
-            v.popup_sel = 2;
-            v.popup_pos = 2 * 256;
-            hm_draw(&g.ops, &ui, &v);
-            save("home-settings-options");
+            for (int i = 0; i < 5; i++) {
+                v.popup_items[i] = accents[i];
+                v.popup_swatch[i] = sw[i];
+            }
+            v.popup_sel = 1;
+            v.popup_pos = 256;
+            v.hint_enter = "OK";
+            hshot(&v, "home-settings-options");
             v.popup = 0;
         }
+        v.depth = v.depth_pos = 0;
+        v.hint_back = 0;
 
+        /* System, Battery */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_ROWS;
+        root.rows = sysr;
+        root.nrows = 7;
+        root.row_sel = 2;
+        root.row_pos = 2 * 256;
+        v.page[0] = root;
         v.tab = HM_TAB_SYSTEM;
         v.tab_pos = HM_TAB_SYSTEM * 256;
-        v.rows = system;
-        v.nrows = 10;
-        v.row_sel = 2;
-        v.row_pos = 2 * 256;
-        v.hint_enter = NULL;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-system");
+        v.hint_enter = "Open";
+        hshot(&v, "home-system");
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_ROWS;
+        p.title = "Battery";
+        p.rows = battery;
+        p.nrows = 5;
+        over(&v, &root, &p);
+        v.hint_enter = 0;
+        v.hint_back = "Back";
+        hshot(&v, "home-battery");
+        v.depth = v.depth_pos = 0;
+        v.hint_back = 0;
 
+        /* HOME: the panel over the games; USB connecting */
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_GAMES;
+        root.tiles = games;
+        root.count = 5;
+        v.page[0] = root;
         v.tab = HM_TAB_GAMES;
         v.tab_pos = 0;
-        v.count = 0;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-empty");
-        v.count = 5; /* HOME: the panel over the games */
-        v.bg = classic ? pic1 : bg;
+        v.bg = cl ? pic1 : bg;
         v.wave = 0;
         v.panel = 256;
         v.panel_title = "Pocketwatch";
@@ -395,40 +668,68 @@ static void home_previews(const pw_image *sky_img)
         v.panel_count = 5;
         v.panel_sel = 2;
         v.panel_pos = 2 * 256;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-panel");
-        /* Triangle on a game: its save states with their pictures, then Saved Data */
-        v.panel_title = "Castlevania: The Dracula X Chronicles";
-        v.panel_items[0] = "Save State 2";
-        v.panel_values[0] = "2026/10/18 14:05";
-        v.panel_icons[0] = icons[0];
-        v.panel_items[1] = "Save State 1";
-        v.panel_values[1] = "2026/10/17 21:40";
-        v.panel_icons[1] = icons[1];
-        v.panel_items[2] = "Saved Data";
-        v.panel_values[2] = 0;
-        v.panel_icons[2] = 0;
-        v.panel_items[3] = "Information";
-        v.panel_count = 4;
-        v.panel_sel = 0;
-        v.panel_pos = 0;
-        v.panel_hint = "Continue";
-        hm_draw(&g.ops, &ui, &v);
-        save("home-game-options");
-        v.panel_hint = 0;
-        memset(v.panel_values, 0, sizeof(v.panel_values));
-        memset(v.panel_icons, 0, sizeof(v.panel_icons));
-        v.panel = 0; /* USB, connecting */
+        hshot(&v, "home-panel");
+        v.panel = 0;
         v.sheet = 256;
         v.sheet_busy = 1;
         v.sheet_title = "USB Connection";
         v.sheet_text = "Connecting to the computer...";
         v.sheet_hint = "End";
         v.sheet_again = "Connect Again";
+        v.sheet_glyph = HM_ICON_USB;
         v.t_ms = 300;
-        hm_draw(&g.ops, &ui, &v);
-        save("home-usb");
+        hshot(&v, "home-usb");
+        v.sheet = 0;
     }
+    /* Modern in each theme and accent: the settings' Appearance and the game page */
+    g_style = HM_STYLE_MODERN;
+    for (int theme = 0; theme < HM_THEMES; theme++) {
+        static const char *const names[HM_THEMES] = {"dark", "glass", "oled", "paper"};
+        static const unsigned int acc[HM_THEMES] = {PW_RGB(0, 114, 206), PW_RGB(128, 84, 230),
+                                                    PW_RGB(40, 168, 90), PW_RGB(232, 72, 140)};
+        char name[64];
+
+        g_hui.theme = theme;
+        g_hui.accent = acc[theme];
+        memset(&v, 0, sizeof(v));
+        v.style = HM_STYLE_MODERN;
+        v.tab_names[HM_TAB_GAMES] = "Games";
+        v.tab_names[HM_TAB_MUSIC] = "Music";
+        v.tab_names[HM_TAB_PHOTOS] = "Photos";
+        v.tab_names[HM_TAB_PLAYTIME] = "Play Time";
+        v.tab_names[HM_TAB_SETTINGS] = "Settings";
+        v.tab_names[HM_TAB_SYSTEM] = "System";
+        v.clock = "10/18 14:05";
+        v.battery = 83;
+        v.battery_pct = 1;
+        v.bg = theme == HM_THEME_PAPER ? plain : theme == HM_THEME_GLASS ? bg : grad;
+        v.bg_mix = 256;
+        v.appear = 256;
+        v.tab = HM_TAB_SETTINGS;
+        v.tab_pos = HM_TAB_SETTINGS * 256;
+        v.hint_back = "Back";
+        memset(&root, 0, sizeof(root));
+        root.layout = HM_PAGE_ROWS;
+        root.rows = setr;
+        root.nrows = 7;
+        memset(&p, 0, sizeof(p));
+        p.layout = HM_PAGE_ROWS;
+        p.title = "Appearance";
+        p.rows = look;
+        p.nrows = 8;
+        p.row_sel = 2;
+        p.row_pos = 2 * 256;
+        over(&v, &root, &p);
+        snprintf(name, sizeof(name), "home-theme-%s", names[theme]);
+        hshot(&v, name);
+        v.page[0] = root;
+        v.depth = v.depth_pos = 0;
+        v.hint_back = 0;
+        v.hint_enter = "Open";
+        snprintf(name, sizeof(name), "home-theme-%s-settings", names[theme]);
+        hshot(&v, name);
+    }
+    g_hui.theme = HM_THEME_DARK;
     g_style = 0;
 }
 

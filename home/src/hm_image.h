@@ -14,6 +14,11 @@ void hm_image_free(void *pixels);
 /* Raw deflate (no zlib header), as in CSO blocks: bytes produced, or < 0. */
 int hm_inflate_raw(void *out, int out_len, const void *in, int in_len);
 
+/* JPEG of w x h PW_RGB pixels (rows of w), at quality 1-100, handed to write in pieces: 0 or
+   < 0 (home/src/hm_imgwrite.c). */
+typedef void (*hm_write_fn)(void *ctx, void *data, int size);
+int hm_jpeg_encode(const unsigned int *px, int w, int h, int quality, hm_write_fn write, void *ctx);
+
 /* Area-average resize of src (sw x sh) into dst (dw x dh), each with its width as stride. */
 void hm_image_fit(const unsigned int *src, int sw, int sh, unsigned int *dst, int dw, int dh);
 

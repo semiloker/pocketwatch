@@ -13,9 +13,36 @@
 enum { HS_HEADER, HS_CHOICE, HS_ACTION };
 enum { HS_ACT_NONE, HS_ACT_NICKNAME };
 
-/* Changed something every text depends on (the language): the caller reloads its strings. */
+/* The categories, each a page of its own (ADR-035), in the order of Home's Settings: the XMB's
+   Settings items stand for them in Classic. */
+enum {
+    HS_CAT_LOOK,        /* style, theme, accent, background, sky, wave, battery percent, motion */
+    HS_CAT_POCKETWATCH, /* start screen, sorting, fast save and load, the hub's clock */
+    HS_CAT_MEDIA,       /* repeat, shuffle, slideshow */
+    HS_CAT_SOUND,       /* key sounds, brightness, AVLS */
+    HS_CAT_TIME,        /* date and time formats, zone, summer time */
+    HS_CAT_SYSTEM,      /* languages, nickname */
+    HS_CAT_NETWORK,     /* WLAN power save */
+    HS_CATS
+};
+
+/* What a change asks of the caller: its strings again (the language), the look again (the
+   background, the colours, the style), the music player's mode again. */
 #define HS_TEXTS_CHANGED     1
-#define HS_WALLPAPER_CHANGED 2 /* Home's background again */
+#define HS_LOOK_CHANGED      2
+#define HS_WALLPAPER_CHANGED HS_LOOK_CHANGED
+#define HS_MUSIC_CHANGED     3
+
+const char *hs_cat_label(int c);
+int hs_cat_glyph(int c);                      /* hm_icons.h HM_ICON_* (Modern, Minimal) */
+int hs_cat_art(int c);                        /* HM_ART_* + 1 (Classic: the system's icon) */
+int hs_cat_rows(int c, int *idx, int max);    /* the rows of a category (indices for hs_*) */
+void hs_cat_value(int c, char *out, int cap); /* a word for its row ("Modern"), or "" */
+
+/* A colour to show with option o of row i (an accent, a sky), 0: none. */
+unsigned int hs_swatch(int i, int o);
+/* The twelve months' sky colours (for the swatches of Sky Colour). */
+void hs_set_skies(const unsigned int colours[12]);
 
 int hs_count(void);
 int hs_kind(int i);
