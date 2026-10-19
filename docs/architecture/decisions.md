@@ -735,3 +735,32 @@ decision was taken; the evidence column links the research behind it.
   left).
 - **Consequences:** 1.4 KB of the kernel plugin's budget (194 552 of 196 608 bytes loaded,
   debug build); 392 KB of temporary memory while it writes.
+
+## ADR-038 — What other PSP plugins do, in Home: screen off on HOLD, a sleep timer, favourites, the aurora
+
+- **Status:** Accepted (2026-10-20), from the owner's request to "study which plugins improve the
+  PSP and make a better, lighter Pocketwatch". The owner's `PLUGINS.TXT` (2026-10-19) runs Hold+
+  (`hold.prx`: the screen off while a game or music plays), dayviewer (the weekday in the XMB's
+  clock), category_lite (the games in categories), prxshot (screenshots: ADR-037), bright3,
+  battery_icon, power.prx (CPU clocks), CXMB (themes).
+- **Decision:** inside Home, where it costs nothing outside it:
+  - **Screen off with HOLD** (Settings → Sound and Display; off, while music plays - the
+    default - or always): after half a second of HOLD the backlight goes off
+    (`sceDisplaySetBrightness(0, 0)` through KUBridge, the pre-6.x NID translated by ARK-4's
+    table; the level read before with `sceDisplayGetBrightness`) and the CPU drops to 222 MHz
+    (the Media Engine decodes the music); Home draws nothing meanwhile. HOLD off: the light and
+    the clock come back. Never left dark when Home ends.
+  - **Sleep timer** (Music and Photos: off, 15, 30, 60, 90 min, not kept): at its end the music
+    stops and the PSP sleeps.
+  - **The clock** shows the date and time (as before), the time only, or the weekday and time.
+  - **Favourites**: Square on a game stars it (`favorites.txt`, the games' files); favourites come
+    first, a star on their picture in every style.
+  - **Aurora**: a background - three soft lights in the accent's colours drifting slowly over the
+    night, three scaled 64 x 64 textures a frame (the GE filters them smooth).
+- **Alternatives considered:** a HUD over games (missyhud: frame rate, battery) - it means drawing
+  into every game's frame from the kernel plugin, at its 2 KB budget, a device-only test; per-game
+  CPU clocks (ARK-4's own `overclock` setting does it); categories as their own section (the
+  favourites and the sorting cover the owner's need for now: OPEN QUESTION for the next round).
+- **Consequences:** two more KUBridge calls into `sceDisplay_driver` (RESEARCH REQUIRED on the
+  device: that 0 turns the backlight off on a PSP-3000 and the level read back restores it -
+  HM26); `home.txt` gets `hold` and `clock`.

@@ -245,8 +245,8 @@ static int set_bg(int o)
 }
 static void text_bg(int o, char *out, int cap)
 {
-    static const int k[HM_BGS] = {PW_S_HS_BG_AUTO, PW_S_HS_BG_SKY, PW_S_HS_BG_GRADIENT,
-                                  PW_S_HS_BG_PLAIN, PW_S_HM_WALLPAPER};
+    static const int k[HM_BGS] = {PW_S_HS_BG_AUTO,  PW_S_HS_BG_SKY,    PW_S_HS_BG_GRADIENT,
+                                  PW_S_HS_BG_PLAIN, PW_S_HM_WALLPAPER, PW_S_HS_BG_AURORA};
 
     if (o == HM_BG_WALLPAPER && get_wallpaper())
         stbsp_snprintf(out, cap, "%s", g_wp_name);
@@ -329,6 +329,79 @@ static void text_repeat(int o, char *out, int cap)
                          : o == HM_REPEAT_ONE ? PW_S_HS_REPEAT_ONE
                                               : PW_S_OFF));
 }
+static int clock_count(void)
+{
+    return HM_CLOCKS;
+}
+static int get_clock(void)
+{
+    return hm_cfg_get()->clock;
+}
+static int set_clock(int o)
+{
+    hm_cfg_get()->clock = o;
+    return save_home(0);
+}
+static void text_clock(int o, char *out, int cap)
+{
+    static const int k[HM_CLOCKS] = {PW_S_HS_CLOCK_DATE, PW_S_HS_CLOCK_TIME, PW_S_HS_CLOCK_DAY};
+
+    stbsp_snprintf(out, cap, "%s", pw_tr(k[o >= 0 && o < HM_CLOCKS ? o : 0]));
+}
+
+static int get_hold(void)
+{
+    return hm_cfg_get()->hold;
+}
+static int set_hold(int o)
+{
+    hm_cfg_get()->hold = o;
+    return save_home(0);
+}
+static void text_hold(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s",
+                   pw_tr(o == HM_HOLD_MUSIC    ? PW_S_HS_HOLD_MUSIC
+                         : o == HM_HOLD_ALWAYS ? PW_S_HS_HOLD_ALWAYS
+                                               : PW_S_OFF));
+}
+
+/* The sleep timer: the music stops and the PSP sleeps that long after it was set (not kept). */
+static const int k_timer_min[5] = {0, 15, 30, 60, 90};
+static int g_timer;              /* the option chosen */
+static unsigned int g_timer_end; /* hm_hw_now_ms() then, 0: none */
+static int timer_count(void)
+{
+    return 5;
+}
+static int get_timer(void)
+{
+    return g_timer_end ? g_timer : 0;
+}
+static int set_timer(int o)
+{
+    g_timer = o;
+    g_timer_end = o > 0 ? (hm_hw_now_ms() + (unsigned int)k_timer_min[o] * 60000u) | 1u : 0;
+    return 0;
+}
+static void text_timer(int o, char *out, int cap)
+{
+    if (o <= 0 || o >= 5)
+        stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_OFF));
+    else
+        stbsp_snprintf(out, cap, pw_tr(PW_S_HS_TIMER_MIN), k_timer_min[o]);
+}
+
+unsigned int hs_timer_end(void)
+{
+    return g_timer_end;
+}
+
+void hs_timer_done(void)
+{
+    g_timer_end = 0;
+}
+
 static int get_shuffle(void)
 {
     return hm_cfg_get()->shuffle;
@@ -594,16 +667,19 @@ static const row k_rows[] = {
     {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_WAVE, 0, two, get_wave, set_wave, on_off},
     {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_PERCENT, 0, two, get_percent, set_percent, on_off},
     {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_MOTION, 0, motion_count, get_motion, set_motion, text_motion},
+    {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_CLOCK, 0, clock_count, get_clock, set_clock, text_clock},
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_START, 0, two, get_start, set_start, text_start},
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_REPEAT, 0, three, get_repeat, set_repeat, text_repeat},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SHUFFLE, 0, two, get_shuffle, set_shuffle, on_off},
+    {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_TIMER, 0, timer_count, get_timer, set_timer, text_timer},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_HOLD, 0, three, get_hold, set_hold, text_hold},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_DATE_FORMAT, 0, three, get_date, set_date, text_date},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_TIME_FORMAT, 0, two, get_time, set_time, text_time},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_TIME_ZONE, 0, zone_count, get_zone, set_zone, text_zone},

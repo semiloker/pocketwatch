@@ -206,6 +206,8 @@ static void folder(hm_gfx *g, const hm_ui *ui, const hm_page *pg, int a)
         if (pg->tiles[i].icon || pg->layout == HM_PAGE_GAMES)
             hm_tile_draw(g, pg->tiles[i].icon, FOLDER_X - w / 2, y - h / 2, w, h,
                          a * (215 + 41 * near / 256) / 256);
+        if (pg->tiles[i].fav)
+            hm_fav_star(g, FOLDER_X - w / 2, y - h / 2, w, a);
         else /* a save or an album without a picture: the XMB's folder */
             g->icon(g, HM_ICON_FOLDER, FOLDER_X, y, h * 3 / 4, C_TEXT,
                     a * (215 + 41 * near / 256) / 256);

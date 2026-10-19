@@ -76,6 +76,8 @@ void hm_chevron(hm_gfx *g, int x, int y, int dir, unsigned int color, int alpha)
 void hm_switch(hm_gfx *g, int x, int y, int on, unsigned int accent, unsigned int knob, int alpha);
 /* A game's or a photo's picture, or a dark card with a disc. */
 void hm_tile_draw(hm_gfx *g, const unsigned int *icon, int x, int y, int w, int h, int alpha);
+/* A favourite's star at the top right corner of a picture at x, y of width w. */
+void hm_fav_star(hm_gfx *g, int x, int y, int w, int alpha);
 /* A track's cover, or a dark card with a note. */
 void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size, int r, int alpha);
 /* The system's picture (art->btn) of a button or the drawn glyph, centred. */

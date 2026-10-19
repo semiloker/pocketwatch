@@ -89,11 +89,14 @@ typedef struct {
 
 typedef struct {
     pw_font *title, *body, *big;
-    int cross_enter;     /* X confirms (outside Japan) */
-    const hm_art *art;   /* or NULL */
-    unsigned int accent; /* the theme's colour (switches, bars, the chosen tab): PW_RGB */
-    int theme;           /* HM_THEME_*: Modern's and Minimal's surfaces */
+    int cross_enter;             /* X confirms (outside Japan) */
+    const hm_art *art;           /* or NULL */
+    unsigned int accent;         /* the theme's colour (switches, bars, the chosen tab): PW_RGB */
+    int theme;                   /* HM_THEME_*: Modern's and Minimal's surfaces */
+    const unsigned int *glow[3]; /* the aurora's soft lights (HM_GLOW x HM_GLOW), or NULL */
 } hm_ui;
+
+#define HM_GLOW 64
 
 /* Home's themes (hcfg.h): how Modern and Minimal paint their cards and text. */
 enum { HM_THEME_DARK, HM_THEME_GLASS, HM_THEME_OLED, HM_THEME_PAPER, HM_THEMES };
@@ -102,6 +105,7 @@ typedef struct {
     const char *title;
     const char *meta;         /* "ULUS10277   12 h 30 min   3 save states", or NULL */
     const unsigned int *icon; /* HM_ICON_W x HM_ICON_H, or NULL (a drawn disc) */
+    int fav;                  /* a favourite: a star on it */
 } hm_tile;
 
 typedef struct {
@@ -147,6 +151,7 @@ typedef struct {
     int bg_mix;                       /* 0-256: from bg_prev to bg */
     int wave;                         /* 0-256: the XMB's wave over the background */
     int dim;                          /* 0-256: darker over a bright wallpaper (Modern, Minimal) */
+    int aurora;                       /* 0-256: the aurora's lights drifting over it */
     const char *play_label;           /* "Play" */
 
     /* Music: what plays (HM_PAGE_MUSIC row 0: play / pause; the tracks follow) */
@@ -230,6 +235,8 @@ void hm_make_pic1(const unsigned int *pic, int w, int h, unsigned int *out);
 void hm_make_gradient(unsigned int accent, unsigned int *out);
 /* A plain dark background lit by the accent from below (the OLED theme: black). */
 void hm_make_plain(unsigned int accent, int black, unsigned int *out);
+/* One of the aurora's lights: a soft round glow of colour c (HM_GLOW x HM_GLOW, alpha on top). */
+void hm_make_glow(unsigned int c, unsigned int *out);
 /* The XMB's sky (a 60 x 34 month picture, or NULL for its plain blue-grey) stretched over it. */
 void hm_make_sky(const pw_image *sky, unsigned int *out);
 /* A photo as it is: fitted whole into the screen, centred on black (the viewer). */

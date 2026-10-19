@@ -9,6 +9,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - In a game, HOME -> Screenshot saves the game's picture (without the menu) to
   PICTURE/<game ID>/: Pocketwatch Home shows it in the game's album, the XMB in Photo.
+- Pocketwatch Home: HOLD turns the screen off while music plays (and the CPU slows down to save
+  the battery), a sleep timer, the weekday in the clock, favourite games (Square: first, with a
+  star) and the Aurora background - softly drifting lights in your accent's colours.
 - Pocketwatch Home: every section opens pages of its own that slide in and out. Settings is
   now seven categories (Appearance, Pocketwatch, Music and Photos, Sound and Display, Date and
   Time, System, Network), System has Battery, Memory Stick, About This PSP and Power pages; in

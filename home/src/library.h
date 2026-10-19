@@ -29,6 +29,7 @@ typedef struct {
     int states;
     unsigned int *volatile icon; /* HM_ICON_W x HM_ICON_H, set by the loader */
     volatile int icon_tried;
+    int fav; /* a favourite: first in the list (favorites.txt) */
 } hm_game;
 
 int hm_library_scan(void); /* returns how many games */
@@ -37,6 +38,9 @@ void hm_library_sort(int recent);
 int hm_library_count(void);
 int hm_library_has(const char *image, const char *inner); /* the image has that file */
 hm_game *hm_library_game(int i);
+/* A favourite or not any more (Square on a game): kept in favorites.txt, the list in its new
+   order; returns the game's new index. */
+int hm_library_toggle_fav(int i);
 
 /* Start the loader thread; tell it which game is chosen. */
 void hm_library_start(void);

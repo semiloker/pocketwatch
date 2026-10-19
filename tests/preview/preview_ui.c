@@ -227,20 +227,21 @@ static void home_previews(const pw_image *sky_img)
     const char *rco = getenv("PW_PREVIEW_RCO"), *fg = getenv("PW_PREVIEW_FG");
     hm_tile games[5] = {
         {"Castlevania: The Dracula X Chronicles", "ULUS10277   Played 12 h 30 min   Save states: 3",
-         icons[0]},
-        {"Persona", "ULUS10432   Played 4 h 12 min", icons[1]},
-        {"The 3rd Birthday", "ULES01513   Save states: 1", icons[2]},
-        {"Silent Hill: Shattered Memories", "ULUS10450", icons[3]},
-        {"Untitled image", NULL, NULL},
+         icons[0], 1},
+        {"Persona", "ULUS10432   Played 4 h 12 min", icons[1], 0},
+        {"The 3rd Birthday", "ULES01513   Save states: 1", icons[2], 0},
+        {"Silent Hill: Shattered Memories", "ULUS10450", icons[3], 0},
+        {"Untitled image", NULL, NULL, 0},
     };
-    hm_tile photos[9], albums[4] = {{"All Photos", "23 photos", icons[1]},
-                                    {"Castlevania: The Dracula X Chronicles", "9 photos", icons[0]},
-                                    {"Screenshots", "11 photos", icons[2]},
-                                    {"pspIdent", "3 photos", 0}};
-    hm_tile saves[4] = {{"Chapter 3: The Clock Tower", "2026/10/18 14:05   1.2 MB", icons[0]},
-                        {"Richter - Stage 2", "2026/10/12 21:40   1.2 MB", icons[2]},
-                        {"System Data", "2026/09/30 08:12   48 KB", 0},
-                        {"Bonus", "2026/09/01 10:00   12 KB", icons[3]}};
+    hm_tile photos[9],
+        albums[4] = {{"All Photos", "23 photos", icons[1], 0},
+                     {"Castlevania: The Dracula X Chronicles", "9 photos", icons[0], 0},
+                     {"Screenshots", "11 photos", icons[2], 0},
+                     {"pspIdent", "3 photos", 0, 0}};
+    hm_tile saves[4] = {{"Chapter 3: The Clock Tower", "2026/10/18 14:05   1.2 MB", icons[0], 0},
+                        {"Richter - Stage 2", "2026/10/12 21:40   1.2 MB", icons[2], 0},
+                        {"System Data", "2026/09/30 08:12   48 KB", 0, 0},
+                        {"Bonus", "2026/09/01 10:00   12 KB", icons[3], 0}};
     hm_row playtime[5], sysr[7], setr[7], look[8], game[4], battery[5], save1[6];
     hm_row music[7];
     hm_page p, root;
@@ -269,7 +270,7 @@ static void home_previews(const pw_image *sky_img)
         }
     for (int i = 0; i < 9; i++)
         photos[i] = (hm_tile){i == 0 ? "Sunset at the pier.jpg" : "Photo", "PICTURE   2026/10/18",
-                              icons[i % 4]};
+                              icons[i % 4], 0};
     for (int y = 0; y < HM_H; y++) /* the synthetic game frame as the first game's PIC1 */
         memcpy(pic + y * HM_W, g_game + y * STRIDE, HM_W * 4);
     hm_make_background(pic, HM_W, HM_H, bg);
@@ -373,8 +374,9 @@ static void home_previews(const pw_image *sky_img)
         music[2].bar = 94;
     }
 
-    g_hui = (hm_ui){&g_title,     &g_body, &g_big, 1, rco && rco[0] ? &art : 0, PW_RGB(0, 114, 206),
-                    HM_THEME_DARK};
+    g_hui =
+        (hm_ui){&g_title,      &g_body,  &g_big, 1, rco && rco[0] ? &art : 0, PW_RGB(0, 114, 206),
+                HM_THEME_DARK, {0, 0, 0}};
     hm_gfx_cpu_init(&g_hg, &c);
     for (g_style = 0; g_style < HM_STYLES; g_style++) {
         int cl = g_style == HM_STYLE_CLASSIC;
@@ -728,6 +730,29 @@ static void home_previews(const pw_image *sky_img)
         v.hint_enter = "Open";
         snprintf(name, sizeof(name), "home-theme-%s-settings", names[theme]);
         hshot(&v, name);
+    }
+    { /* the aurora: three lights in the accent's colours over the night (Modern, Classic) */
+        static unsigned int glow[3][HM_GLOW * HM_GLOW], night[512 * HM_H];
+        unsigned int c = PW_RGB(128, 84, 230);
+
+        for (int k = 0; k < 3; k++) {
+            hm_make_glow(c, glow[k]);
+            g_hui.glow[k] = glow[k];
+            c = (c & 0xFF) << 8 | (c >> 8 & 0xFF) << 16 | (c >> 16 & 0xFF);
+        }
+        hm_make_plain(PW_RGB(128, 84, 230), 1, night);
+        g_hui.theme = HM_THEME_GLASS;
+        g_hui.accent = PW_RGB(128, 84, 230);
+        v.bg = night;
+        v.aurora = 256;
+        v.t_ms = 40000;
+        v.page[0] = root;
+        v.depth = v.depth_pos = 0;
+        hshot(&v, "home-theme-aurora");
+        g_style = HM_STYLE_CLASSIC;
+        v.style = HM_STYLE_CLASSIC;
+        hshot(&v, "home-theme-aurora");
+        g_hui.glow[0] = g_hui.glow[1] = g_hui.glow[2] = 0;
     }
     g_hui.theme = HM_THEME_DARK;
     g_style = 0;

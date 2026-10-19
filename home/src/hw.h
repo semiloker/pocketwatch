@@ -15,7 +15,9 @@ int hm_hw_exit_requested(void); /* HOME -> Quit was chosen */
 
 /* "10/18 14:05" in the system's date and time format; the same for a file's time (with the year).
  */
-void hm_hw_clock(char *out, int cap);
+void hm_hw_clock(char *out, int cap, int style); /* hcfg.h HM_CLOCK_* */
+/* The screen's backlight off (0) or back as it was (1), through sceDisplay_driver: 0 or < 0. */
+int hm_hw_backlight(int on);
 void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap);
 
 /* System Information (HOM-REQ-013): "PSP-3000", "6.61", "ARK-4 4.20.69", "00:1F:...". */

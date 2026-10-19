@@ -129,6 +129,7 @@ static void games(hm_page *p)
         g_game_tiles[i].title = g->title;
         g_game_tiles[i].meta = g->meta[0] ? g->meta : 0;
         g_game_tiles[i].icon = g->icon;
+        g_game_tiles[i].fav = g->fav;
     }
     p->layout = HM_PAGE_GAMES;
     p->tiles = g_game_tiles;
@@ -433,7 +434,7 @@ static void album_page(hm_page *p, int k)
     for (int i = 0; i < g_album_n; i++) {
         hm_photo *ph = hm_library_photo(g_album_list[i]);
 
-        g_photo_tiles[i] = (hm_tile){ph->name, ph->meta, ph->thumb};
+        g_photo_tiles[i] = (hm_tile){ph->name, ph->meta, ph->thumb, 0};
     }
     p->layout = HM_PAGE_PHOTOS;
     p->title = a == 0                                        ? pw_tr(PW_S_HM_ALL_PHOTOS)

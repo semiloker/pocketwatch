@@ -11,8 +11,10 @@
 #include <string.h>
 
 #include "gfx_gu.h"
+#include "hcfg.h"
 #include "hw.h"
 #include "stb_sprintf.h"
+#include "ui/i18n.h"
 
 #include <pspwlan.h>
 
@@ -254,15 +256,70 @@ static void format(const ScePspDateTime *t, int year, char *out, int cap)
     stbsp_snprintf(out, cap, "%s %s", dt, tm);
 }
 
-void hm_hw_clock(char *out, int cap)
+void hm_hw_clock(char *out, int cap, int style)
 {
     ScePspDateTime t;
+    char s[40];
+    int wd;
 
     if (sceRtcGetCurrentClockLocalTime(&t) < 0) {
         stbsp_snprintf(out, cap, "--:--");
         return;
     }
-    format(&t, 0, out, cap);
+    format(&t, 0, s, sizeof(s));
+    if (style == HM_CLOCK_DATE) {
+        stbsp_snprintf(out, cap, "%s", s);
+        return;
+    }
+    { /* the time alone: what follows the date */
+        const char *sp = strchr(s, ' ');
+
+        if (style == HM_CLOCK_TIME) {
+            stbsp_snprintf(out, cap, "%s", sp ? sp + 1 : s);
+            return;
+        }
+        wd = sceRtcGetDayOfWeek(t.year, t.month, t.day);
+        stbsp_snprintf(out, cap, "%s %s", pw_tr(PW_S_WD_0 + (wd >= 0 && wd < 7 ? wd : 0)),
+                       sp ? sp + 1 : s);
+    }
+}
+
+/* sceDisplay_driver's brightness, pre-6.x NIDs (translated by ARK-4's table): 0 turns the
+   backlight off, as the HOLD plugins do. */
+#define NID_DISPLAY_SET_BRIGHTNESS 0x9E3C6DC6
+#define NID_DISPLAY_GET_BRIGHTNESS 0x31C4BAA8
+
+int hm_hw_backlight(int on)
+{
+    static int level = -1, extra;
+    void *set = (void *)sctrlHENFindFunction("sceDisplay_Service", "sceDisplay_driver",
+                                             NID_DISPLAY_SET_BRIGHTNESS),
+         *get = (void *)sctrlHENFindFunction("sceDisplay_Service", "sceDisplay_driver",
+                                             NID_DISPLAY_GET_BRIGHTNESS);
+    struct hm_kcall a;
+
+    if (!set)
+        return -1;
+    memset(&a, 0, sizeof(a));
+    if (!on) {
+        int l = 0, e = 0;
+
+        if (get) { /* what to give back */
+            a.arg[0] = (unsigned int)&l;
+            a.arg[1] = (unsigned int)&e;
+            if (kuKernelCall(get, &a) >= 0 && l > 0) {
+                level = l;
+                extra = e;
+            }
+            memset(&a, 0, sizeof(a));
+        }
+        a.arg[0] = 0;
+        a.arg[1] = 0;
+    } else {
+        a.arg[0] = (unsigned int)(level > 0 ? level : 72);
+        a.arg[1] = (unsigned int)extra;
+    }
+    return kuKernelCall(set, &a) < 0 ? -1 : 0;
 }
 
 void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap)

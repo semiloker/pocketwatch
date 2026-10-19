@@ -154,6 +154,14 @@ void hm_tile_draw(hm_gfx *g, const unsigned int *icon, int x, int y, int w, int 
     }
 }
 
+void hm_fav_star(hm_gfx *g, int x, int y, int w, int alpha)
+{
+    int s = w >= 100 ? 18 : 14;
+
+    g->rrect(g, x + w - s - 3, y + 3, s, s, s / 2, 0, PW_RGB(20, 20, 26), alpha * 200 / 256);
+    g->icon(g, HM_ICON_STAR, x + w - 3 - s / 2, y + 3 + s / 2, s - 6, PW_RGB(255, 206, 64), alpha);
+}
+
 void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size, int r, int alpha)
 {
     if (cover) {
@@ -418,11 +426,57 @@ void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int ca
                    a);
 }
 
+/* sin of a phase in 1/256 turns, times 256 */
+static int isin(unsigned int ph)
+{
+    static const unsigned short q[65] = {
+        0,   6,   13,  19,  25,  31,  38,  44,  50,  56,  62,  68,  74,  80,  86,  92,  98,
+        104, 109, 115, 121, 126, 132, 137, 142, 147, 152, 157, 162, 167, 172, 177, 181, 185,
+        190, 194, 198, 202, 206, 209, 213, 216, 220, 223, 226, 229, 231, 234, 237, 239, 241,
+        243, 245, 247, 248, 250, 251, 252, 253, 254, 255, 255, 256, 256, 256};
+    unsigned int p = ph & 255, k = p & 63;
+    int v = p < 64 ? q[k] : p < 128 ? q[64 - k] : p < 192 ? -q[k] : -q[64 - k];
+
+    return p == 64 ? 256 : p == 192 ? -256 : v;
+}
+
+/* The aurora: three soft lights of the accent's colours drifting slowly (Lissajous paths). */
+static void aurora(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    static const short speed[3][2] = {{37, 29}, {23, 41}, {31, 19}};
+    int a = hm_clampi(v->aurora, 0, 256);
+
+    for (int k = 0; k < 3; k++) {
+        unsigned int t = v->t_ms / 100; /* 1/256 turn every speed x 100 ms */
+        int size = 300 + 40 * k,
+            x = 240 + 160 * isin(t * 8 / speed[k][0] + (unsigned int)k * 85) / 256,
+            y = 136 + 90 * isin(t * 8 / speed[k][1] + (unsigned int)k * 50 + 64) / 256;
+
+        if (ui->glow[k])
+            g->image(g, ui->glow[k], HM_GLOW, HM_GLOW, HM_GLOW, x - size / 2, y - size / 2, size,
+                     size, a * 180 / 256);
+    }
+}
+
+void hm_make_glow(unsigned int c, unsigned int *out)
+{
+    for (int y = 0; y < HM_GLOW; y++)
+        for (int x = 0; x < HM_GLOW; x++) {
+            int dx = 2 * x - HM_GLOW + 1, dy = 2 * y - HM_GLOW + 1,
+                r2 = (dx * dx + dy * dy) * 256 / (HM_GLOW * HM_GLOW), k = 256 - r2,
+                al = k > 0 ? k * k / 256 : 0; /* (1 - r^2)^2: soft to the edge */
+
+            out[y * HM_GLOW + x] = (c & 0xFFFFFFu) | (unsigned int)(al * 230 / 256) << 24;
+        }
+}
+
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = hm_clampi(v->appear, 0, 256);
 
     g->backdrop(g, v->bg, v->bg_prev && v->bg_mix < 256 ? v->bg_prev : 0, v->bg_mix);
+    if (v->aurora > 0 && v->viewer < 256)
+        aurora(g, ui, v);
     if (v->viewer >= 256) /* the picture whole; the styles draw only what is over it */
         viewer(g, ui, v);
     if (v->style == HM_STYLE_CLASSIC)

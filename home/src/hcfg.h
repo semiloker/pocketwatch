@@ -8,9 +8,11 @@
  * its 64 KB budget (RISK-022). Unknown keys and bad values are ignored. Portable.
  */
 
-enum { HM_BG_AUTO, HM_BG_SKY, HM_BG_GRADIENT, HM_BG_PLAIN, HM_BG_WALLPAPER, HM_BGS };
+enum { HM_BG_AUTO, HM_BG_SKY, HM_BG_GRADIENT, HM_BG_PLAIN, HM_BG_WALLPAPER, HM_BG_AURORA, HM_BGS };
 enum { HM_MOTION_NORMAL, HM_MOTION_FAST, HM_MOTION_CALM, HM_MOTIONS };
 enum { HM_REPEAT_OFF, HM_REPEAT_ALL, HM_REPEAT_ONE };
+enum { HM_HOLD_OFF, HM_HOLD_MUSIC, HM_HOLD_ALWAYS }; /* HOLD turns the screen off: when */
+enum { HM_CLOCK_DATE, HM_CLOCK_TIME, HM_CLOCK_DAY, HM_CLOCKS };
 
 #define HM_ACCENTS 9
 
@@ -24,6 +26,8 @@ typedef struct {
     int repeat;  /* HM_REPEAT_* (all) */
     int shuffle; /* 0 */
     int motion;  /* HM_MOTION_*: how fast things glide */
+    int hold;    /* HM_HOLD_* (while music plays) */
+    int clock;   /* HM_CLOCK_*: what the clock shows (date and time) */
 } hm_cfg;
 
 extern const char *const hm_cfg_accent_names[HM_ACCENTS];
@@ -31,6 +35,8 @@ extern const char *const hm_cfg_theme_names[4];
 extern const char *const hm_cfg_bg_names[HM_BGS];
 extern const char *const hm_cfg_motion_names[HM_MOTIONS];
 extern const char *const hm_cfg_repeat_names[3];
+extern const char *const hm_cfg_hold_names[3];
+extern const char *const hm_cfg_clock_names[HM_CLOCKS];
 
 void hm_cfg_defaults(hm_cfg *c);
 int hm_cfg_parse(hm_cfg *c, const char *text, unsigned int len); /* settings taken */

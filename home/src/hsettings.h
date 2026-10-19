@@ -39,6 +39,10 @@ int hs_cat_art(int c);                        /* HM_ART_* + 1 (Classic: the syst
 int hs_cat_rows(int c, int *idx, int max);    /* the rows of a category (indices for hs_*) */
 void hs_cat_value(int c, char *out, int cap); /* a word for its row ("Modern"), or "" */
 
+/* The sleep timer (Music and Photos): when it ends (hm_hw_now_ms, 0: none); done once acted on. */
+unsigned int hs_timer_end(void);
+void hs_timer_done(void);
+
 /* A colour to show with option o of row i (an accent, a sky), 0: none. */
 unsigned int hs_swatch(int i, int o);
 /* The twelve months' sky colours (for the swatches of Sky Colour). */

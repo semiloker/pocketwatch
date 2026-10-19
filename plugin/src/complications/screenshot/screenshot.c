@@ -60,8 +60,8 @@ static int run(int index, const pw_cpl_env *env)
         return PW_CPL_STAY;
     pw_dialog_busy(env->ui, pw_tr(PW_S_SAVING));
     if (pw_mem_alloc(&mem, "PwShot", cap + 1 + 3 * PW_FB_W + 64) == 0) {
-        len = pw_png_encode_rgb(PW_FB_W, PW_FB_H, row, (void *)px,
-                                (unsigned char *)mem.ptr + cap, mem.ptr, cap);
+        len = pw_png_encode_rgb(PW_FB_W, PW_FB_H, row, (void *)px, (unsigned char *)mem.ptr + cap,
+                                mem.ptr, cap);
         pw_dir_make("ms0:/PICTURE");
         stbsp_snprintf(path, sizeof(path), "ms0:/PICTURE/%s", id);
         pw_dir_make(path);

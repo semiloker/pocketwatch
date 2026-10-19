@@ -305,6 +305,44 @@ static void save_states(void)
 
 static int g_recent; /* hm_library_sort */
 
+/* ---- favourites: seplugins/pocketwatch/favorites.txt, a game's file (its path) a line ---- */
+
+#define FAVORITES PW_DIR "favorites.txt"
+#define FAV_MAX   (16 * 1024)
+
+static void read_favorites(void)
+{
+    char *buf = malloc(FAV_MAX + 1);
+    int n = buf ? hm_hw_read_file(FAVORITES, buf, FAV_MAX) : -1;
+
+    if (n > 0) {
+        buf[n] = 0;
+        for (int i = 0; i < g_count; i++) {
+            const char *p = strstr(buf, g_games[i].path);
+            size_t len = strlen(g_games[i].path);
+
+            /* the whole line, not a part of a longer path */
+            g_games[i].fav = p && (p == buf || p[-1] == '\n') &&
+                             (p[len] == '\n' || p[len] == '\r' || p[len] == 0);
+        }
+    }
+    free(buf);
+}
+
+static void write_favorites(void)
+{
+    SceUID fd = sceIoOpen(FAVORITES, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
+
+    if (fd < 0)
+        return;
+    for (int i = 0; i < g_count; i++)
+        if (g_games[i].fav) {
+            sceIoWrite(fd, g_games[i].path, strlen(g_games[i].path));
+            sceIoWrite(fd, "\n", 1);
+        }
+    sceIoClose(fd);
+}
+
 /* PSP games, PS1 games, homebrew; each by title - or, by recent, the last played first. */
 static int by_kind_and_title(const void *a, const void *b)
 {
@@ -312,6 +350,8 @@ static int by_kind_and_title(const void *a, const void *b)
     int kx = x->kind == HM_KIND_PSN ? HM_KIND_ISO : x->kind,
         ky = y->kind == HM_KIND_PSN ? HM_KIND_ISO : y->kind;
 
+    if (x->fav != y->fav) /* the favourites first, in the same order */
+        return y->fav - x->fav;
     if (g_recent && x->last != y->last)
         return x->last > y->last ? -1 : 1;
     return kx != ky ? kx - ky : strcmp(x->title, y->title);
@@ -328,6 +368,7 @@ int hm_library_scan(void)
     scan_apps();
     play_times();
     save_states();
+    read_favorites();
     qsort(g_games, (size_t)g_count, sizeof(g_games[0]), by_kind_and_title);
     make_albums(); /* (after the games: a folder named by a disc ID gets the game's title) */
     return g_count;
@@ -1036,6 +1077,22 @@ const unsigned int *hm_library_photo_background(int sel, int whole)
     for (int i = 0; i < 2; i++)
         if (g_bg_game[i] == tag)
             return g_bg[i];
+    return 0;
+}
+
+int hm_library_toggle_fav(int i)
+{
+    char path[192];
+
+    if (i < 0 || i >= g_count)
+        return i;
+    g_games[i].fav = !g_games[i].fav;
+    stbsp_snprintf(path, sizeof(path), "%s", g_games[i].path);
+    write_favorites();
+    hm_library_sort(g_recent); /* (the loader paused meanwhile) */
+    for (int k = 0; k < g_count; k++)
+        if (strcmp(g_games[k].path, path) == 0)
+            return k;
     return 0;
 }
 

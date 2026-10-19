@@ -84,6 +84,7 @@ static pw_image g_sky;
 static unsigned char *g_sky_file; /* the month skies' BMP (kept: the Sky Colour setting) */
 static unsigned int g_sky_len;
 static int g_sky_shown;                   /* the default background is the XMB's sky */
+static int g_aurora_shown;                /* ... or the aurora's dark sky */
 static char g_pop_text[HM_POPUP_MAX][32]; /* a choice's options (Classic) */
 static hm_view g_v;
 static hm_page_id g_stack[HM_DEPTH];
@@ -296,11 +297,24 @@ static void sky_swatches(void)
     hs_set_skies(colours);
 }
 
-/* The colours and the theme of the settings into the drawing's. */
+/* The colours and the theme of the settings into the drawing's; the aurora's lights in the
+   accent's colours (the accent, and its channels turned twice). */
 static void apply_look(void)
 {
+    static unsigned int *glow[3];
+    unsigned int c;
+
     g_ui.accent = hm_cfg_accent(hm_cfg_get()->accent);
     g_ui.theme = hm_cfg_get()->theme;
+    c = g_ui.accent;
+    for (int k = 0; k < 3; k++) {
+        if (!glow[k] && !(glow[k] = memalign(16, HM_GLOW * HM_GLOW * 4)))
+            return;
+        hm_make_glow(c, glow[k]);
+        hm_gu_written(glow[k], HM_GLOW * HM_GLOW * 4);
+        g_ui.glow[k] = glow[k];
+        c = (c & 0xFF) << 8 | (c >> 8 & 0xFF) << 16 | (c >> 16 & 0xFF); /* R->G->B->R */
+    }
 }
 
 /* Home's background without a game's art (Settings -> Background): the wallpaper, the XMB's
@@ -311,7 +325,7 @@ static void make_default_background(void)
 
     if (!g_gradient)
         return;
-    g_sky_shown = 0;
+    g_sky_shown = g_aurora_shown = 0;
     if (bg == HM_BG_WALLPAPER && hs_wallpaper_load(g_gradient) == 0)
         goto done;
     if (bg == HM_BG_AUTO || bg == HM_BG_WALLPAPER)
@@ -324,6 +338,9 @@ static void make_default_background(void)
         g_sky_shown = 1;
     } else if (bg == HM_BG_GRADIENT) {
         hm_make_gradient(g_ui.accent, g_gradient);
+    } else if (bg == HM_BG_AURORA) { /* the night: the lights drift over it */
+        hm_make_plain(g_ui.accent, theme != HM_THEME_PAPER, g_gradient);
+        g_aurora_shown = 1;
     } else {
         hm_make_plain(g_ui.accent, theme != HM_THEME_PAPER, g_gradient);
     }
@@ -557,6 +574,9 @@ static struct {
     unsigned int *ed_src, *ed_bg; /* the picture fitted to the screen; the preview drawn */
     int ed_w, ed_h;
     int snd;
+    int screen_off;      /* HOLD: the backlight off (music on) */
+    unsigned int t_hold; /* since when HOLD is on */
+    int cpu_mhz;         /* the clock before the screen went off */
 } g_s;
 
 static void toast(const char *text, unsigned int now)
@@ -1000,9 +1020,18 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
     switch (id) {
     case P_GAMES:
         p->sel = move_grid(p->sel, p->count, 1, ev, (unsigned int)back_one, (unsigned int)on_one);
-        if ((ev & g_enter) && p->count)
+        if ((ev & g_enter) && p->count) {
             launch(p->sel, 0, now);
-        else if ((ev & PSP_CTRL_TRIANGLE) && p->count) {
+        } else if ((ev & PSP_CTRL_SQUARE) && p->count) { /* a favourite, or not any more */
+            int k = hm_library_toggle_fav(p->sel);
+            hm_game *gm = hm_library_game(k);
+
+            p->sel = k;
+            p->selpos = k * 256;
+            toast(pw_tr(gm && gm->fav ? PW_S_HM_FAV_ON : PW_S_HM_FAV_OFF), now);
+            g_s.snd = HM_SND_OPEN;
+            build_all();
+        } else if ((ev & PSP_CTRL_TRIANGLE) && p->count) {
             push(P_GAME, p->sel);
             g_s.snd = HM_SND_OPEN;
         }
@@ -1186,6 +1215,7 @@ static void page_hints(void)
     case P_GAMES:
         g_v.hint_enter = p->count ? pw_tr(PW_S_HM_PLAY) : 0;
         g_v.hint_options = p->count ? pw_tr(PW_S_HM_OPTIONS) : 0;
+        g_v.hint_square = p->count ? pw_tr(PW_S_HM_FAVORITE) : 0;
         break;
     case P_STATES:
         g_v.hint_enter = p->count ? pw_tr(PW_S_HM_CONTINUE) : 0;
@@ -1489,6 +1519,35 @@ static void launch_now(stats *st, unsigned int now)
     hm_sound_enable(hs_sounds());
 }
 
+/* HOLD turns the screen off (hcfg.h hold): after half a second of HOLD, while music plays (or
+   always); the backlight and the CPU's clock come back when HOLD goes off. 1 while it is off. */
+static int hold_screen(unsigned int buttons, unsigned int now)
+{
+    int mode = hm_cfg_get()->hold, hold = (buttons & PSP_CTRL_HOLD) != 0,
+        want = hold && !g_s.usb && g_s.launching < 0 &&
+               (mode == HM_HOLD_ALWAYS ||
+                (mode == HM_HOLD_MUSIC && hm_music_current() >= 0 && !hm_music_paused()));
+
+    if (!hold)
+        g_s.t_hold = 0;
+    else if (!g_s.t_hold)
+        g_s.t_hold = now | 1;
+    if (want && !g_s.screen_off && now - g_s.t_hold >= 500) {
+        if (hm_hw_backlight(0) == 0) {
+            g_s.screen_off = 1;
+            g_s.cpu_mhz = scePowerGetCpuClockFrequencyInt();
+            if (g_s.cpu_mhz > 222) /* (the music is the Media Engine's: the CPU can rest) */
+                scePowerSetClockFrequency(222, 222, 111);
+        }
+    } else if (!want && g_s.screen_off) {
+        if (g_s.cpu_mhz > 222)
+            scePowerSetClockFrequency(g_s.cpu_mhz, g_s.cpu_mhz, g_s.cpu_mhz / 2);
+        hm_hw_backlight(1);
+        g_s.screen_off = 0;
+    }
+    return g_s.screen_off;
+}
+
 /* ---- the loop ---- */
 
 int main(void)
@@ -1559,6 +1618,20 @@ int main(void)
 
         t_prev = now;
         g_s.snd = -1;
+        /* the sleep timer: the music stops and the PSP sleeps */
+        if (hs_timer_end() && (int)(now - hs_timer_end()) >= 0) {
+            hs_timer_done();
+            hm_music_stop();
+            if (g_s.screen_off)
+                hm_hw_backlight(1), g_s.screen_off = 0;
+            scePowerRequestSuspend();
+        }
+        /* HOLD: the screen off (while music plays, or always), the CPU slower; nothing drawn */
+        if (hold_screen(buttons, now)) {
+            sceKernelDelayThread(50 * 1000);
+            t_prev = hm_hw_now_ms();
+            continue;
+        }
         /* input: USB, a question, the panels, the editor, the viewer, then the page */
         if (g_s.usb) {
             if ((ev & g_enter) && g_s.usb_state != HM_USB_CONNECTED) { /* again, by hand */
@@ -1647,7 +1720,7 @@ int main(void)
             hm_battery b;
 
             t_status = now;
-            hm_hw_clock(clock, sizeof(clock));
+            hm_hw_clock(clock, sizeof(clock), hm_cfg_get()->clock);
             hm_hw_battery(&b);
             g_v.battery = b.pct;
             g_v.charging = b.charging;
@@ -1716,6 +1789,10 @@ int main(void)
                    : g_v.bg == g_gradient      ? (g_v.bg_prev == g_gradient ? 256 : g_v.bg_mix)
                    : g_v.bg_prev == g_gradient ? 256 - g_v.bg_mix
                                                : 0;
+        g_v.aurora = !g_aurora_shown             ? 0
+                     : g_v.bg == g_gradient      ? (g_v.bg_prev == g_gradient ? 256 : g_v.bg_mix)
+                     : g_v.bg_prev == g_gradient ? 256 - g_v.bg_mix
+                                                 : 0;
         g_v.t_ms = now;
         g_v.appear = g_s.launching >= 0 ? 256 - pw_ramp(now, g_s.t_fade, FADE_MS)
                                         : pw_ramp(now, g_s.t_open, FADE_MS);
@@ -1742,6 +1819,8 @@ int main(void)
         hm_usb_stop();
         usb_log();
     }
+    if (g_s.screen_off) /* (never left dark) */
+        hm_hw_backlight(1);
     stats_write(&st, hm_hw_now_ms(), "leaving");
     hm_sound_end();
     hm_hw_touch(XMB_ONCE); /* leaving Home means the XMB, even when Home is the start screen */

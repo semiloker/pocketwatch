@@ -108,6 +108,8 @@ static void names(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page
             continue;
         g->text(g, ui->title, COL_X, y, pg->tiles[i].title ? pg->tiles[i].title : "",
                 COL_X1 - COL_X, i == pg->sel ? p->text : p->sub, line_alpha(t, a));
+        if (pg->tiles[i].fav) /* a favourite: a small star before it */
+            g->icon(g, HM_ICON_STAR, COL_X - 14, y - 5, 10, PW_RGB(255, 206, 64), line_alpha(t, a));
     }
     sel = &pg->tiles[hm_clampi(pg->sel, 0, pg->count - 1)];
     near = hm_near(pg->sel * 256 - pg->selpos);

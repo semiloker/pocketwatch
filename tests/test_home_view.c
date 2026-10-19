@@ -44,10 +44,10 @@ PW_TEST(home_draws_every_page_in_every_style)
                                   HM_PAGE_SAVES, HM_PAGE_MUSIC, HM_PAGE_NOW};
     pw_canvas c = {g_px, HM_W, HM_H, 512};
     pw_font title, body;
-    hm_ui ui = {&title, &body, &title, 1, 0, 0, 0};
+    hm_ui ui = {&title, &body, &title, 1, 0, 0, 0, {0, 0, 0}};
     hm_gfx_cpu g;
     hm_row one = mk("No music", HM_ROW_INFO);
-    hm_tile tile = {"A game", "ULUS10277", 0};
+    hm_tile tile = {"A game", "ULUS10277", 0, 1};
 
     pw_font_init_fallback(&title, 2);
     pw_font_init_fallback(&body, 1);
@@ -72,6 +72,7 @@ PW_TEST(home_draws_every_page_in_every_style)
                     v.mu_bar = full ? 100 : -1;
                     v.mu_title = full ? "Track" : 0;
                     v.wave = 256;
+                    v.aurora = full ? 256 : 0;
                     v.page[0].layout = HM_PAGE_ROWS;
                     v.page[0].rows = &one;
                     v.page[0].nrows = 1;
@@ -130,6 +131,7 @@ PW_TEST(home_settings_file_round_trip)
     CHECK_EQ(c.wave, 1);
     CHECK_EQ(c.percent, 1);
     CHECK_EQ(c.repeat, HM_REPEAT_ALL);
+    CHECK_EQ(c.hold, HM_HOLD_MUSIC);
     c.accent = 7;
     c.theme = HM_THEME_PAPER;
     c.bg = HM_BG_PLAIN;
@@ -138,10 +140,12 @@ PW_TEST(home_settings_file_round_trip)
     c.shuffle = 1;
     c.repeat = HM_REPEAT_ONE;
     c.motion = HM_MOTION_CALM;
+    c.hold = HM_HOLD_ALWAYS;
+    c.clock = HM_CLOCK_DAY;
     n = hm_cfg_format(&c, buf, sizeof(buf));
     CHECK(n > 0);
     hm_cfg_defaults(&d);
-    CHECK_EQ(hm_cfg_parse(&d, buf, (unsigned int)n), 9);
+    CHECK_EQ(hm_cfg_parse(&d, buf, (unsigned int)n), 11);
     CHECK(memcmp(&c, &d, sizeof(c)) == 0);
     /* unknown keys and bad values: ignored, the rest taken */
     hm_cfg_defaults(&d);

@@ -202,6 +202,8 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
             break;
         ta = ta * a / 256;
         hm_tile_draw(g, pg->tiles[i].icon, x, ROW_TOP, w, h, ta * (t > 128 ? 200 : 256) / 256);
+        if (pg->tiles[i].fav)
+            hm_fav_star(g, x, ROW_TOP, w, ta);
         if (t > -128 && t < 128) /* the focus ring, fading as the row moves */
             g->rrect(g, x - 4, ROW_TOP - 4, w + 8, h + 8, 9, PW_FX(2), p->text,
                      ta * (128 - (t < 0 ? -t : t)) / 128);
