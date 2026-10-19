@@ -27,6 +27,7 @@
 | `CPL-REQ-004` | Items can be disabled with a reason (e.g. "No state to load") and are shown disabled, not hidden. | P1 | Implemented: a disabled row still gets Enter so its complication can explain (the guards) | testing guide G1-G5 |
 | `CPL-REQ-005` | System complication: Resume Game, Quit Game ([game shell](game-shell.md) `SHL-REQ-005`). | P0 | Done (device test 2026-10-16); two table entries so the others sit between them | device test M3a |
 | `CPL-REQ-006` | Settings complication: per-complication settings through the config store (`SYS-REQ-010`). | P2 | Implemented: Fast Save and Load, Clock and Battery, Style, Language; edited in the XMB (Settings → Pocketwatch, ADR-024), read by the game at its start - the hub's Settings screen is gone | testing guide ST1-ST5 |
+| `CPL-REQ-010` | Screenshot complication: the game's frame as it was when the hub opened, as a PNG in `ms0:/PICTURE/<disc ID>/` (ADR-037), the folder Home shows as the game's album. | P2 | Implemented 2026-10-20; H18 pending | H18 |
 | `CPL-REQ-007` | Each complication can be left out at build time with a flag; the hub adapts. | P2 | Partial: `#ifdef` around its table line (the card test uses `PW_DEBUG`); no per-complication flags yet | release build has no card test |
 | `CPL-NFR-001` | A complication costs nothing while the hub is closed beyond its static data; it creates no thread unless it needs one. | P1 | Implemented (no complication has a thread) | code review, `make check` |
 

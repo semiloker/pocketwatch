@@ -11,17 +11,17 @@
 
 static hm_cfg g_cfg = {0, 0, 0, 0, 1, 1, 1, 0, 0};
 
-const char *const hm_cfg_accent_names[HM_ACCENTS] = {"blue",  "violet", "pink",  "red",     "orange",
-                                                     "gold",  "green",  "teal",  "graphite"};
+const char *const hm_cfg_accent_names[HM_ACCENTS] = {"blue", "violet", "pink", "red",     "orange",
+                                                     "gold", "green",  "teal", "graphite"};
 const char *const hm_cfg_theme_names[4] = {"dark", "glass", "oled", "paper"};
 const char *const hm_cfg_bg_names[HM_BGS] = {"auto", "sky", "gradient", "plain", "wallpaper"};
 const char *const hm_cfg_motion_names[HM_MOTIONS] = {"normal", "fast", "calm"};
 const char *const hm_cfg_repeat_names[3] = {"off", "all", "one"};
 
 static const unsigned int k_accent[HM_ACCENTS] = {
-    PW_RGB(0, 114, 206),  PW_RGB(128, 84, 230), PW_RGB(232, 72, 140),
-    PW_RGB(226, 58, 58),  PW_RGB(240, 130, 30), PW_RGB(212, 166, 24),
-    PW_RGB(40, 168, 90),  PW_RGB(0, 158, 170),  PW_RGB(118, 126, 146),
+    PW_RGB(0, 114, 206), PW_RGB(128, 84, 230), PW_RGB(232, 72, 140),
+    PW_RGB(226, 58, 58), PW_RGB(240, 130, 30), PW_RGB(212, 166, 24),
+    PW_RGB(40, 168, 90), PW_RGB(0, 158, 170),  PW_RGB(118, 126, 146),
 };
 
 void hm_cfg_defaults(hm_cfg *c)
@@ -39,8 +39,9 @@ unsigned int hm_cfg_accent(int i)
 
 int hm_cfg_tau(int motion, int tau_ms)
 {
-    return motion == HM_MOTION_FAST ? tau_ms * 3 / 5 : motion == HM_MOTION_CALM ? tau_ms * 8 / 5
-                                                                                : tau_ms;
+    return motion == HM_MOTION_FAST   ? tau_ms * 3 / 5
+           : motion == HM_MOTION_CALM ? tau_ms * 8 / 5
+                                      : tau_ms;
 }
 
 static int name_index(const char *const *names, int count, const char *v, unsigned int n)
@@ -145,19 +146,18 @@ int hm_cfg_format(const hm_cfg *c, char *out, unsigned int cap)
         stbsp_snprintf(sky, sizeof(sky), "%d", c->sky);
     else
         stbsp_snprintf(sky, sizeof(sky), "system");
-    n = stbsp_snprintf(out, (int)cap,
-                       "# Pocketwatch Home (its Settings write this file)\n"
-                       "accent = %s\ntheme = %s\nbackground = %s\nsky = %s\nwave = %s\n"
-                       "percent = %s\nrepeat = %s\nshuffle = %s\nmotion = %s\n",
-                       hm_cfg_accent_names[c->accent >= 0 && c->accent < HM_ACCENTS ? c->accent
-                                                                                     : 0],
-                       hm_cfg_theme_names[c->theme >= 0 && c->theme < 4 ? c->theme : 0],
-                       hm_cfg_bg_names[c->bg >= 0 && c->bg < HM_BGS ? c->bg : 0], sky,
-                       c->wave ? "on" : "off", c->percent ? "on" : "off",
-                       hm_cfg_repeat_names[c->repeat >= 0 && c->repeat < 3 ? c->repeat : 1],
-                       c->shuffle ? "on" : "off",
-                       hm_cfg_motion_names[c->motion >= 0 && c->motion < HM_MOTIONS ? c->motion
-                                                                                    : 0]);
+    n = stbsp_snprintf(
+        out, (int)cap,
+        "# Pocketwatch Home (its Settings write this file)\n"
+        "accent = %s\ntheme = %s\nbackground = %s\nsky = %s\nwave = %s\n"
+        "percent = %s\nrepeat = %s\nshuffle = %s\nmotion = %s\n",
+        hm_cfg_accent_names[c->accent >= 0 && c->accent < HM_ACCENTS ? c->accent : 0],
+        hm_cfg_theme_names[c->theme >= 0 && c->theme < 4 ? c->theme : 0],
+        hm_cfg_bg_names[c->bg >= 0 && c->bg < HM_BGS ? c->bg : 0], sky, c->wave ? "on" : "off",
+        c->percent ? "on" : "off",
+        hm_cfg_repeat_names[c->repeat >= 0 && c->repeat < 3 ? c->repeat : 1],
+        c->shuffle ? "on" : "off",
+        hm_cfg_motion_names[c->motion >= 0 && c->motion < HM_MOTIONS ? c->motion : 0]);
     return n > 0 && (unsigned int)n < cap ? n : -1;
 }
 

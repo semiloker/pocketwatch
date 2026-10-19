@@ -81,6 +81,8 @@ enum {
     PW_S_H_WLAN,
     PW_S_H_PLUGIN,
     PW_S_H_HIGHMEM,
+    PW_S_SCREENSHOT,
+    PW_S_SHOT_SAVED,
     PW_S_SETTINGS,
     PW_S_SET_FAST,
     PW_S_SET_STATUS,

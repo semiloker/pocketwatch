@@ -23,7 +23,7 @@ OBJS   = src/core/main.o src/core/log.o src/core/ring.o src/core/platform_psp.o 
          src/ui/backdrop.o src/ui/views_modern.o src/ui/views_minimal.o src/ui/cpuwatch.o \
          src/complications/system/system.o src/complications/states/states_ui.o \
          src/complications/settings/settings.o \
-         src/complications/playtime/playtime.o \
+         src/complications/playtime/playtime.o src/complications/screenshot/screenshot.o \
          src/core/playtime.o \
          src/shell/shell.o src/shell/guard.o src/core/game.o src/complications/states/store.o \
          lib/stb_sprintf.o exports.o

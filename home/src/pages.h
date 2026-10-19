@@ -77,12 +77,12 @@ void hm_pages_texts(void);
 /* The lists main.c also uses: a game's states, its saves, an album's pictures. */
 #include "savedata.h"
 #include "states.h"
-int hm_pages_states(int game);  /* (re)list the states of game: how many */
+int hm_pages_states(int game); /* (re)list the states of game: how many */
 hm_state *hm_pages_state(int i);
-int hm_pages_saves(int game);   /* (re)list the saves of game (their icons by the loader) */
+int hm_pages_saves(int game); /* (re)list the saves of game (their icons by the loader) */
 hm_save *hm_pages_save(int i);
-int hm_pages_album(int album);  /* the album's pictures: how many */
+int hm_pages_album(int album);   /* the album's pictures: how many */
 int hm_pages_album_photo(int k); /* the k-th one's photo index */
-void hm_pages_drop(void);       /* everything listed let go (USB) */
+void hm_pages_drop(void);        /* everything listed let go (USB) */
 
 #endif

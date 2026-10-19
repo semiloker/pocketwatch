@@ -38,9 +38,9 @@ enum {
 #define HM_ED_RANGE 5 /* the sliders go -5..5 (the vignette 0..5) */
 
 typedef struct {
-    int rotate; /* quarter turns clockwise, 0-3 */
-    int mirror; /* 0 / 1 */
-    int filter; /* HM_FL_* */
+    int rotate;                       /* quarter turns clockwise, 0-3 */
+    int mirror;                       /* 0 / 1 */
+    int filter;                       /* HM_FL_* */
     int light, contrast, sat, warmth; /* -HM_ED_RANGE..HM_ED_RANGE */
     int vignette;                     /* 0..HM_ED_RANGE */
 } hm_edit;

@@ -57,9 +57,9 @@ int hm_edit_changed(const hm_edit *e)
    filter's tone curve; saturation and the monochrome filters mix with the pixel's luma. */
 typedef struct {
     unsigned char r[256], g[256], b[256];
-    int sat;   /* 256: as it is, 0: grey, more: richer */
-    int tint;  /* 0 none, 1 sepia, 2 cool */
-    int grey;  /* the filter is monochrome */
+    int sat;  /* 256: as it is, 0: grey, more: richer */
+    int tint; /* 0 none, 1 sepia, 2 cool */
+    int grey; /* the filter is monochrome */
 } tables;
 
 static void make_tables(const hm_edit *e, tables *t)
@@ -161,8 +161,8 @@ void hm_edit_colours(const hm_edit *e, unsigned int *px, int w, int h, int strid
                 g = g * s >> 8;
                 b = b * s >> 8;
             }
-            row[x] = (p & 0xFF000000u) | (unsigned int)r | (unsigned int)g << 8 |
-                     (unsigned int)b << 16;
+            row[x] =
+                (p & 0xFF000000u) | (unsigned int)r | (unsigned int)g << 8 | (unsigned int)b << 16;
         }
     }
 }

@@ -110,13 +110,13 @@ void hm_pages_texts(void)
         if (g->play_s >= 60) {
             duration(d, sizeof(d), g->play_s);
             stbsp_snprintf(part, sizeof(part), pw_tr(PW_S_HM_PLAYED), d);
-            n += stbsp_snprintf(g->meta + n, (int)sizeof(g->meta) - n, "%s%s", n ? "   " : "",
-                                part);
+            n +=
+                stbsp_snprintf(g->meta + n, (int)sizeof(g->meta) - n, "%s%s", n ? "   " : "", part);
         }
         if (g->states > 0) {
             stbsp_snprintf(part, sizeof(part), pw_tr(PW_S_HM_STATES), g->states);
-            n += stbsp_snprintf(g->meta + n, (int)sizeof(g->meta) - n, "%s%s", n ? "   " : "",
-                                part);
+            n +=
+                stbsp_snprintf(g->meta + n, (int)sizeof(g->meta) - n, "%s%s", n ? "   " : "", part);
         }
     }
 }
@@ -312,7 +312,8 @@ static void save_page(hm_page *p, int si)
         add(b, &n, pw_tr(PW_S_HM_SD_DETAIL), s->detail, HM_ROW_INFO, A_NONE, 0);
     add(b, &n, pw_tr(PW_S_HM_SD_DATE), s->when, HM_ROW_INFO, A_NONE, 0);
     if (s->size_kb >= 1024)
-        stbsp_snprintf(val(b, n), VAL, "%u.%u MB", s->size_kb / 1024, s->size_kb % 1024 * 10 / 1024);
+        stbsp_snprintf(val(b, n), VAL, "%u.%u MB", s->size_kb / 1024,
+                       s->size_kb % 1024 * 10 / 1024);
     else
         stbsp_snprintf(val(b, n), VAL, "%u KB", s->size_kb);
     add(b, &n, pw_tr(PW_S_HM_SIZE), val(b, n), HM_ROW_INFO, A_NONE, 0);
@@ -335,9 +336,11 @@ static void music_page(hm_view *v, hm_page *p)
         bar = (int)(played * 256 / length > 256 ? 256 : played * 256 / length);
     stbsp_snprintf(g_mu_now, sizeof(g_mu_now), "%u:%02u", played / 60, played % 60);
     stbsp_snprintf(g_mu_len, sizeof(g_mu_len), "%u:%02u", length / 60, length % 60);
-    g_mu_rows[rows] = row(t ? t->title : n ? pw_tr(PW_S_HM_MU_IDLE) : pw_tr(PW_S_HM_MU_NONE),
-                          t ? (hm_music_paused() ? pw_tr(PW_S_HM_MU_PAUSED) : g_mu_now) : 0,
-                          HM_ROW_INFO);
+    g_mu_rows[rows] =
+        row(t   ? t->title
+            : n ? pw_tr(PW_S_HM_MU_IDLE)
+                : pw_tr(PW_S_HM_MU_NONE),
+            t ? (hm_music_paused() ? pw_tr(PW_S_HM_MU_PAUSED) : g_mu_now) : 0, HM_ROW_INFO);
     g_mu_rows[rows].bar = bar;
     g_mu_act[rows].act = A_OPEN;
     g_mu_act[rows++].arg = P_NOW;
@@ -390,9 +393,10 @@ static void albums_page(hm_page *p)
             continue;
         stbsp_snprintf(g_album_meta[k], sizeof(g_album_meta[k]), pw_tr(PW_S_HM_N_PHOTOS),
                        al->count);
-        g_album_tiles[k].title = a == 0               ? pw_tr(PW_S_HM_ALL_PHOTOS)
-                                 : strcmp(al->folder, "SCREENSHOT") == 0 ? pw_tr(PW_S_HM_SCREENSHOTS)
-                                                                          : al->title;
+        g_album_tiles[k].title = a == 0 ? pw_tr(PW_S_HM_ALL_PHOTOS)
+                                 : strcmp(al->folder, "SCREENSHOT") == 0
+                                     ? pw_tr(PW_S_HM_SCREENSHOTS)
+                                     : al->title;
         g_album_tiles[k].meta = g_album_meta[k];
         g_album_tiles[k].icon = cover ? cover->thumb : 0;
         k++;
@@ -432,7 +436,7 @@ static void album_page(hm_page *p, int k)
         g_photo_tiles[i] = (hm_tile){ph->name, ph->meta, ph->thumb};
     }
     p->layout = HM_PAGE_PHOTOS;
-    p->title = a == 0 ? pw_tr(PW_S_HM_ALL_PHOTOS)
+    p->title = a == 0                                        ? pw_tr(PW_S_HM_ALL_PHOTOS)
                : al && strcmp(al->folder, "SCREENSHOT") == 0 ? pw_tr(PW_S_HM_SCREENSHOTS)
                : al                                          ? al->title
                                                              : "";
@@ -463,7 +467,8 @@ static void playtime_page(hm_page *p)
                 most = s;
         }
     duration(g_pt_vals[rows], 48, total);
-    g_pt_rows[rows] = row(pw_tr(PW_S_PT_TOTAL), n ? g_pt_vals[0] : pw_tr(PW_S_PT_NONE), HM_ROW_INFO);
+    g_pt_rows[rows] =
+        row(pw_tr(PW_S_PT_TOTAL), n ? g_pt_vals[0] : pw_tr(PW_S_PT_NONE), HM_ROW_INFO);
     g_pt_act[rows++].act = A_NONE;
     for (int i = 0; i < n && rows < HM_GAMES_MAX + 1; i++) {
         hm_game *g = hm_library_game(order[i]);
@@ -540,8 +545,8 @@ static void system_page(hm_page *p, const hm_page_env *env)
     r = add(b, &n, pw_tr(PW_S_HM_USB), 0, HM_ROW_ACTION, A_USB, 0);
     r->glyph = HM_ICON_USB;
     r->art = HM_ART_USB + 1;
-    r = add(b, &n, pw_tr(PW_S_HM_BROWSER), env->web_failed ? pw_tr(PW_S_BAT_NA) : 0,
-            HM_ROW_ACTION, A_BROWSER, 0);
+    r = add(b, &n, pw_tr(PW_S_HM_BROWSER), env->web_failed ? pw_tr(PW_S_BAT_NA) : 0, HM_ROW_ACTION,
+            A_BROWSER, 0);
     r->glyph = HM_ICON_GLOBE;
     r->art = HM_ART_WWW + 1;
     hm_hw_battery(&bat);
@@ -552,8 +557,8 @@ static void system_page(hm_page *p, const hm_page_env *env)
     r->glyph = HM_ICON_BATTERY;
     if (hm_library_free_mb() >= 0)
         stbsp_snprintf(val(b, n), VAL, pw_tr(PW_S_HM_FREE_MB), hm_library_free_mb());
-    r = add(b, &n, pw_tr(PW_S_HM_STORAGE), hm_library_free_mb() >= 0 ? val(b, n) : 0,
-            HM_ROW_LINK, A_OPEN, P_SYS_STORAGE);
+    r = add(b, &n, pw_tr(PW_S_HM_STORAGE), hm_library_free_mb() >= 0 ? val(b, n) : 0, HM_ROW_LINK,
+            A_OPEN, P_SYS_STORAGE);
     r->glyph = PW_ICON_CARD;
     r->art = HM_ART_MS + 1;
     r = add(b, &n, pw_tr(PW_S_HM_ABOUT), env->model, HM_ROW_LINK, A_OPEN, P_SYS_ABOUT);
@@ -594,8 +599,9 @@ static void battery_page(hm_page *p)
         add(b, &n, pw_tr(PW_S_BAT_VOLTAGE), val(b, n), HM_ROW_INFO, A_NONE, 0);
     }
     if (bat.temp > 0 && bat.temp < 80) {
-        stbsp_snprintf(val(b, n), VAL, "%d \xC2\xB0"
-                                       "C",
+        stbsp_snprintf(val(b, n), VAL,
+                       "%d \xC2\xB0"
+                       "C",
                        bat.temp); /* U+00B0 */
         add(b, &n, pw_tr(PW_S_BAT_TEMPERATURE), val(b, n), HM_ROW_INFO, A_NONE, 0);
     }

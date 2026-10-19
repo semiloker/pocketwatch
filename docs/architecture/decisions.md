@@ -715,3 +715,23 @@ decision was taken; the evidence column links the research behind it.
   folder name is checked, only files of that folder are removed, a question comes first;
   RISK-025). Reading tags opens every track once after the start (a few ms each, on a
   low-priority thread, paused for USB). An edited copy needs memory for the picture twice.
+
+## ADR-037 — Screenshots from the hub, into the game's album
+
+- **Status:** Accepted (2026-10-20), from the owner's fourth round: "add to our XMB taking a
+  screenshot in a game" (Photos by game).
+- **Context:** the owner's card has screenshots by prxshot (`PSP/SCREENSHOT/<disc ID>/pic_*.bmp`,
+  on NOTE) and by another tool (`PICTURE/<disc ID>/<disc ID>_<date>.png`). The hub already
+  captures the game's last frame for its backdrop (`pw_fb_game`), and its debug build writes the
+  screen as a PNG (`pw_fb_screenshot`).
+- **Decision:** a complication, Screenshot, after Load State: the captured frame (the game as it
+  was when HOME was pressed, without the menu) as a stored PNG (`core/png.c`, 392 KB, no
+  compression - no code to add to the kernel budget) in `ms0:/PICTURE/<disc ID>/<disc ID>_<date
+  and time>.png`; a message names the folder. Home lists that folder as the game's album
+  (ADR-036); the XMB's Photo shows it too.
+- **Alternatives considered:** a button combination in the game (another thing to hook in the
+  game's input; HOME already freezes it and captures the frame); BMP like prxshot (larger, and the
+  PNG writer is already in the plugin); compressing (the kernel plugin has 2 KB of its budget
+  left).
+- **Consequences:** 1.4 KB of the kernel plugin's budget (194 552 of 196 608 bytes loaded,
+  debug build); 392 KB of temporary memory while it writes.

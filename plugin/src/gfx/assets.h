@@ -40,6 +40,7 @@ enum {
     PW_ART_BTN_SQUARE,
     PW_ART_BATTERY, /* the status bar's battery: four frames one under the other, full to empty */
     PW_ART_FOCUS,   /* the bar behind the chosen row of a text list (settings) */
+    PW_ART_PHOTO,   /* the Photo category (camera): Screenshot */
     PW_ART_COUNT
 };
 

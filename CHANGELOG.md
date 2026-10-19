@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- In a game, HOME -> Screenshot saves the game's picture (without the menu) to
+  PICTURE/<game ID>/: Pocketwatch Home shows it in the game's album, the XMB in Photo.
 - Pocketwatch Home: every section opens pages of its own that slide in and out. Settings is
   now seven categories (Appearance, Pocketwatch, Music and Photos, Sound and Display, Date and
   Time, System, Network), System has Battery, Memory Stick, About This PSP and Power pages; in

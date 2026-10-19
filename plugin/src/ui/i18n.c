@@ -67,6 +67,8 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_H_WLAN] = {"h_wlan", "Leave the game's network mode first."},
     [PW_S_H_PLUGIN] = {"h_plugin", "Turn off Custom Home and PSPStates in PLUGINS.TXT."},
     [PW_S_H_HIGHMEM] = {"h_highmem", "Turn off ARK's high memory option for this game."},
+    [PW_S_SCREENSHOT] = {"screenshot", "Screenshot"},
+    [PW_S_SHOT_SAVED] = {"shot_saved", "Saved to Photos: PICTURE/%s"},
 #if defined(PW_I18N_XMB) || defined(PW_I18N_HOME)
     [PW_S_SETTINGS] = {"settings", "Settings"},
     [PW_S_SET_FAST] = {"set_fast", "Fast Save and Load"},

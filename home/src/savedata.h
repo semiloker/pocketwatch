@@ -13,12 +13,12 @@
 #define HM_SAVES_MAX 48
 
 typedef struct {
-    char dir[24];      /* the folder's name (ULUS10277000) */
-    char title[64];    /* SAVEDATA_TITLE, else TITLE, else the folder */
-    char detail[128];  /* SAVEDATA_DETAIL's first line */
-    char game[64];     /* TITLE */
-    char when[32];     /* the folder's time, in the system's format */
-    char meta[96];     /* "2026/10/18 14:05   1.2 MB" */
+    char dir[24];     /* the folder's name (ULUS10277000) */
+    char title[64];   /* SAVEDATA_TITLE, else TITLE, else the folder */
+    char detail[128]; /* SAVEDATA_DETAIL's first line */
+    char game[64];    /* TITLE */
+    char when[32];    /* the folder's time, in the system's format */
+    char meta[96];    /* "2026/10/18 14:05   1.2 MB" */
     unsigned int size_kb;
     int files;
     unsigned long long stamp; /* newest first */
