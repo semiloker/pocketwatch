@@ -191,42 +191,39 @@ static int g_web_failed; /* the browser did not start last time (home.log says w
 
 static int system_rows(hm_row *out, char (*vals)[48], int *usb_row, int *exit_row, int *web_row)
 {
-    int rows = 0, charging = 0, pct = hm_hw_battery(&charging), left = scePowerGetBatteryLifeTime();
+    int rows = 0;
+    hm_battery b;
 
-    if (pct >= 0)
-        stbsp_snprintf(vals[rows], 48, "%d%%   %s", pct,
-                       pw_tr(charging ? PW_S_BAT_CHARGING : PW_S_BAT_ON_BATTERY));
-    out[rows] =
-        (hm_row){pw_tr(PW_S_BATTERY), pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA), -1, HM_ROW_INFO};
+    hm_hw_battery(&b); /* (read by hw.c's thread: these calls are slow) */
+    if (b.pct >= 0)
+        stbsp_snprintf(vals[rows], 48, "%d%%   %s", b.pct,
+                       pw_tr(b.charging ? PW_S_BAT_CHARGING : PW_S_BAT_ON_BATTERY));
+    out[rows] = (hm_row){pw_tr(PW_S_BATTERY), b.pct >= 0 ? vals[rows] : pw_tr(PW_S_BAT_NA), -1,
+                         HM_ROW_INFO};
     rows++;
-    {
-        int mv, temp, rcap, full, cycles;
-
-        hm_hw_battery_details(&mv, &temp, &rcap, &full, &cycles);
-        if (mv > 0) {
-            stbsp_snprintf(vals[rows], 48, "%d.%02d V", mv / 1000, mv % 1000 / 10);
-            out[rows++] = (hm_row){pw_tr(PW_S_BAT_VOLTAGE), vals[rows - 1], -1, HM_ROW_INFO};
-        }
-        if (temp > 0 && temp < 80) {
-            stbsp_snprintf(vals[rows], 48,
-                           "%d \xC2\xB0"
-                           "C",
-                           temp); /* U+00B0 */
-            out[rows++] = (hm_row){pw_tr(PW_S_BAT_TEMPERATURE), vals[rows - 1], -1, HM_ROW_INFO};
-        }
-        if (rcap > 0 && full > 0) {
-            stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_CAPACITY_V), rcap, full);
-            out[rows++] = (hm_row){pw_tr(PW_S_BAT_CAPACITY), vals[rows - 1], -1, HM_ROW_INFO};
-        }
-        if (cycles >= 0) {
-            stbsp_snprintf(vals[rows], 48, "%d", cycles);
-            out[rows++] = (hm_row){pw_tr(PW_S_BAT_CYCLES), vals[rows - 1], -1, HM_ROW_INFO};
-        }
+    if (b.mv > 0) {
+        stbsp_snprintf(vals[rows], 48, "%d.%02d V", b.mv / 1000, b.mv % 1000 / 10);
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_VOLTAGE), vals[rows - 1], -1, HM_ROW_INFO};
     }
-    if (!charging && left > 0 && left < 24 * 60) {
+    if (b.temp > 0 && b.temp < 80) {
+        stbsp_snprintf(vals[rows], 48,
+                       "%d \xC2\xB0"
+                       "C",
+                       b.temp); /* U+00B0 */
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_TEMPERATURE), vals[rows - 1], -1, HM_ROW_INFO};
+    }
+    if (b.rcap > 0 && b.full > 0) {
+        stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_CAPACITY_V), b.rcap, b.full);
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_CAPACITY), vals[rows - 1], -1, HM_ROW_INFO};
+    }
+    if (b.cycles >= 0) {
+        stbsp_snprintf(vals[rows], 48, "%d", b.cycles);
+        out[rows++] = (hm_row){pw_tr(PW_S_BAT_CYCLES), vals[rows - 1], -1, HM_ROW_INFO};
+    }
+    if (!b.charging && b.left_min > 0 && b.left_min < 24 * 60) {
         char d[32];
 
-        duration(d, sizeof(d), (unsigned int)left * 60);
+        duration(d, sizeof(d), (unsigned int)b.left_min * 60);
         stbsp_snprintf(vals[rows], 48, pw_tr(PW_S_BAT_SYSTEM), d);
         out[rows] = (hm_row){pw_tr(PW_S_BAT_LEFT), vals[rows], -1, HM_ROW_INFO};
         rows++;
@@ -305,7 +302,7 @@ static int settings_rows(hm_row *out, char (*vals)[48])
 /* ---- the frame rate (HOM-NFR-001): home.log, so a slow screen shows in numbers ---- */
 
 typedef struct {
-    unsigned int t0, frames, cpu_us, ge_us, warm_us, worst_ms, last, late, made;
+    unsigned int t0, frames, cpu_us, ge_us, warm_us, worst_ms, last, late, made, rows_us;
 } stats;
 
 static void stats_frame(stats *st, unsigned int now, unsigned int cpu_us, unsigned int warm_us,
@@ -338,6 +335,11 @@ static void log_line(const char *line)
     }
 }
 
+/* The first second's rows (the system's parameters, the nickname and language.txt are read then,
+   kept after) and what the battery's calls cost: once, so a slow one shows by name. */
+static unsigned int g_first_settings_us, g_first_system_us;
+static int g_costs_written;
+
 static void stats_write(stats *st, unsigned int now, const char *why)
 {
     char line[300];
@@ -345,6 +347,18 @@ static void stats_write(stats *st, unsigned int now, const char *why)
 
     if (st->frames < 2 || ms == 0)
         return;
+    if (!g_costs_written) {
+        char cost[200];
+
+        if (hm_hw_battery_cost(cost, sizeof(cost))) {
+            stbsp_snprintf(line, sizeof(line),
+                           "home reads: first settings rows %u us, system rows %u us; battery: "
+                           "%s\n",
+                           g_first_settings_us, g_first_system_us, cost);
+            log_line(line);
+            g_costs_written = 1;
+        }
+    }
     {
         unsigned int made, kept, bytes;
         struct mallinfo mi = mallinfo(); /* Home's heap; and the memory left outside it */
@@ -352,11 +366,11 @@ static void stats_write(stats *st, unsigned int now, const char *why)
         hm_gu_stats(&made, &kept, &bytes);
         stbsp_snprintf(line, sizeof(line),
                        "home %s: %u frames in %u ms (%u fps), %u late; a frame: CPU %u us, warm "
-                       "%u us, GE wait %u us; longest %u ms; stamps %u made, %u kept (%u KB); "
-                       "heap %u of %u KB, outside %u KB\n",
+                       "%u us, GE wait %u us; longest %u ms; rows %u us; stamps %u made, %u kept "
+                       "(%u KB); heap %u of %u KB, outside %u KB\n",
                        why, st->frames, ms, st->frames * 1000 / ms, st->late, st->cpu_us / n,
-                       st->warm_us / n, st->ge_us / n, st->worst_ms, st->made, kept, bytes >> 10,
-                       (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10,
+                       st->warm_us / n, st->ge_us / n, st->worst_ms, st->rows_us, st->made, kept,
+                       bytes >> 10, (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10,
                        (unsigned int)sceKernelMaxFreeMemSize() >> 10);
     }
     log_line(line);
@@ -839,17 +853,33 @@ int main(void)
         }
         /* what changes by the second: the clock, the battery, the cards' rows */
         if (t_status == 0 || now - t_status >= 1000) {
+            hm_battery b;
+
             t_status = now;
             hm_hw_clock(clock, sizeof(clock));
-            v.battery = hm_hw_battery(&v.charging);
+            hm_hw_battery(&b);
+            v.battery = b.pct;
+            v.charging = b.charging;
         }
-        if (t_rows == 0 || now - t_rows >= 1000) { /* all, so the others can be prepared */
-            t_rows = now;
+        /* all, so the others can be prepared; nothing slow in here (the system's parameters are
+           kept, the battery is read by a thread): "rows" in home.log */
+        if (t_rows == 0 || now - t_rows >= 1000) {
+            unsigned int t0 = sceKernelGetSystemTimeLow(), t1, t2;
+
             v.other_nrows[HM_TAB_MUSIC] = music_rows();
             v.other_nrows[HM_TAB_PLAYTIME] = playtime_rows(g_pt_rows, g_pt_vals);
             v.other_nrows[HM_TAB_SETTINGS] = settings_rows(g_set_rows, g_set_vals);
+            t1 = sceKernelGetSystemTimeLow();
             v.other_nrows[HM_TAB_SYSTEM] =
                 system_rows(g_sys_rows, g_sys_vals, &usb_row, &exit_row, &web_row);
+            t2 = sceKernelGetSystemTimeLow();
+            if (!g_first_system_us) {
+                g_first_settings_us = t1 - t0;
+                g_first_system_us = t2 - t1 ? t2 - t1 : 1;
+            }
+            if (t2 - t0 > st.rows_us)
+                st.rows_us = t2 - t0;
+            t_rows = now;
         }
         v.rows = v.other_rows[v.tab];
         v.nrows = v.other_nrows[v.tab];

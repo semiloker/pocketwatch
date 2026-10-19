@@ -53,11 +53,104 @@ static int callback_thread(SceSize args, void *argp)
     return 0;
 }
 
+/* ---- the battery: a thread of its own ---- */
+
+/* Out of the frame loop (ADR-031): with these calls in System's rows the PSP stopped ~300 ms
+   about every second (home.log 2026-10-19); the cycle count is a command the syscon sends to the
+   battery. Written into the buffer the screen does not read, then made the current one: the main
+   thread (a higher priority) copies g_bat[g_bat_cur] and is never preempted by this one. */
+static hm_battery g_bat[2];
+static volatile int g_bat_cur = -1;
+static char g_bat_cost[200];
+static volatile int g_bat_costed;
+
+static int read_cycles(void)
+{
+    void *get_cycle = /* the gauge's count, as the XMB plugin reads it (vsh/src/xbattery.c) */
+        (void *)sctrlHENFindFunction("sceSYSCON_Driver", "sceSyscon_driver", 0xB5105D51);
+    struct hm_kcall a;
+    volatile int out = -1;
+
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = (unsigned int)&out;
+    return get_cycle && kuKernelCall(get_cycle, &a) >= 0 && (int)a.ret1 >= 0 ? out : -1;
+}
+
+static int battery_thread(SceSize args, void *argp)
+{
+    int cycles = -1;
+
+    (void)args;
+    (void)argp;
+    for (int first = 1;; first = 0) {
+        int n = g_bat_cur == 0; /* the other buffer */
+        hm_battery *b = &g_bat[n];
+        unsigned int t[8];
+
+        t[0] = sceKernelGetSystemTimeLow();
+        b->charging = scePowerIsBatteryCharging() == 1;
+        b->pct = scePowerIsBatteryExist() == 1 ? scePowerGetBatteryLifePercent() : -1;
+        if (b->pct < 0 || b->pct > 100)
+            b->pct = -1;
+        t[1] = sceKernelGetSystemTimeLow();
+        b->left_min = scePowerGetBatteryLifeTime();
+        t[2] = sceKernelGetSystemTimeLow();
+        b->mv = scePowerGetBatteryVolt();
+        t[3] = sceKernelGetSystemTimeLow();
+        b->temp = scePowerGetBatteryTemp();
+        t[4] = sceKernelGetSystemTimeLow();
+        b->rcap = scePowerGetBatteryRemainCapacity();
+        t[5] = sceKernelGetSystemTimeLow();
+        b->full = scePowerGetBatteryFullCapacity();
+        t[6] = sceKernelGetSystemTimeLow();
+        if (first) /* (it moves by one in many charges: once) */
+            cycles = read_cycles();
+        t[7] = sceKernelGetSystemTimeLow();
+        b->cycles = cycles;
+        g_bat_cur = n;
+        if (first) {
+            stbsp_snprintf(g_bat_cost, sizeof(g_bat_cost),
+                           "percent %u us, life time %u us, volt %u us, temp %u us, remaining %u "
+                           "us, full %u us, cycles %u us",
+                           t[1] - t[0], t[2] - t[1], t[3] - t[2], t[4] - t[3], t[5] - t[4],
+                           t[6] - t[5], t[7] - t[6]);
+            g_bat_costed = 1;
+        }
+        sceKernelDelayThread(1000 * 1000);
+    }
+    return 0;
+}
+
+int hm_hw_battery(hm_battery *b)
+{
+    int cur = g_bat_cur;
+
+    if (cur < 0) {
+        memset(b, 0xFF, sizeof(*b)); /* every field -1 */
+        b->charging = 0;
+        return -1;
+    }
+    *b = g_bat[cur];
+    return 0;
+}
+
+int hm_hw_battery_cost(char *out, int cap)
+{
+    if (!g_bat_costed)
+        return 0;
+    stbsp_snprintf(out, cap, "%s", g_bat_cost);
+    return 1;
+}
+
 int hm_hw_init(void)
 {
     SceUID th = sceKernelCreateThread("PocketwatchHomeCb", callback_thread, 0x11, 0x1000, 0, 0);
     void *popup;
 
+    if (th >= 0)
+        sceKernelStartThread(th, 0, 0);
+    /* below the main thread (0x20), above the loader (0x30) */
+    th = sceKernelCreateThread("PocketwatchHomeBattery", battery_thread, 0x28, 0x4000, 0, 0);
     if (th >= 0)
         sceKernelStartThread(th, 0, 0);
     sceCtrlSetSamplingCycle(0);
@@ -112,13 +205,40 @@ int hm_hw_exit_requested(void)
     return g_exit;
 }
 
+/* ---- the system's parameters: kept ---- */
+
+#define PARAMS 16
+static int g_param[PARAMS];
+static unsigned int g_param_read; /* a bit per id */
+
+int hm_hw_param(int id)
+{
+    int v = 0;
+
+    if (id < 0 || id >= PARAMS)
+        return sceUtilityGetSystemParamInt(id, &v) == 0 ? v : -1;
+    if (!(g_param_read & 1u << id)) {
+        g_param[id] = sceUtilityGetSystemParamInt(id, &v) == 0 ? v : -1;
+        g_param_read |= 1u << id;
+    }
+    return g_param[id];
+}
+
+int hm_hw_set_param(int id, int v)
+{
+    int r = sceUtilitySetSystemParamInt(id, v);
+
+    if (id >= 0 && id < PARAMS)
+        g_param_read &= ~(1u << id); /* read back */
+    return r == 0 && hm_hw_param(id) == v ? 0 : -1;
+}
+
 static void format(const ScePspDateTime *t, int year, char *out, int cap)
 {
-    int datef = 0, timef = 0;
+    int datef = hm_hw_param(PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT),
+        timef = hm_hw_param(PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT);
     char tm[16], dt[16];
 
-    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_DATE_FORMAT, &datef);
-    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_TIME_FORMAT, &timef);
     if (timef == PSP_SYSTEMPARAM_TIME_FORMAT_12HR)
         stbsp_snprintf(tm, sizeof(tm), "%d:%02d %s", t->hour % 12 ? t->hour % 12 : 12, t->minute,
                        t->hour < 12 ? "AM" : "PM");
@@ -149,31 +269,16 @@ void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap)
     format(t, 1, out, cap);
 }
 
-int hm_hw_battery(int *charging)
-{
-    int p;
-
-    *charging = scePowerIsBatteryCharging() == 1;
-    if (scePowerIsBatteryExist() != 1)
-        return -1;
-    p = scePowerGetBatteryLifePercent();
-    return p < 0 || p > 100 ? -1 : p;
-}
-
 int hm_hw_cross_enter(void)
 {
-    int v = 1;
-
-    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_UNKNOWN, &v); /* 9: the confirm button */
-    return v != 0;
+    return hm_hw_param(PSP_SYSTEMPARAM_ID_INT_UNKNOWN) != 0; /* 9: the confirm button (else X) */
 }
 
 int hm_hw_language(void)
 {
-    int lang = PSP_SYSTEMPARAM_LANGUAGE_ENGLISH;
+    int lang = hm_hw_param(PSP_SYSTEMPARAM_ID_INT_LANGUAGE);
 
-    sceUtilityGetSystemParamInt(PSP_SYSTEMPARAM_ID_INT_LANGUAGE, &lang);
-    return lang;
+    return lang < 0 ? PSP_SYSTEMPARAM_LANGUAGE_ENGLISH : lang;
 }
 
 unsigned int hm_hw_free_mb(void)
@@ -255,27 +360,4 @@ void hm_hw_mac(char *out, int cap)
         return;
     }
     stbsp_snprintf(out, cap, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
-}
-
-void hm_hw_battery_details(int *mv, int *temp, int *rcap, int *full, int *cycles)
-{
-    static void *get_cycle;
-    static int looked;
-    struct hm_kcall a;
-    volatile int out = -1;
-
-    *mv = scePowerGetBatteryVolt();
-    *temp = scePowerGetBatteryTemp();
-    *rcap = scePowerGetBatteryRemainCapacity();
-    *full = scePowerGetBatteryFullCapacity();
-    *cycles = -1;
-    if (!looked) { /* the gauge's count, as the XMB plugin reads it (vsh/src/xbattery.c) */
-        looked = 1;
-        get_cycle =
-            (void *)sctrlHENFindFunction("sceSYSCON_Driver", "sceSyscon_driver", 0xB5105D51);
-    }
-    memset(&a, 0, sizeof(a));
-    a.arg[0] = (unsigned int)&out;
-    if (get_cycle && kuKernelCall(get_cycle, &a) >= 0 && (int)a.ret1 >= 0)
-        *cycles = out;
 }

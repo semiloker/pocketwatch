@@ -89,6 +89,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- Pocketwatch Home stopped for about a third of a second every second on the PSP (30 fps or less,
+  worse while changing settings): the battery and the system's settings are no longer read while
+  it draws.
 - Pocketwatch Home left only 512 KB of user memory to the firmware, not the 4 MB meant (a negative
   heap size takes all but libcglue's threshold): the keyboard, Saved Data, the MP3 decoder and the
   network could run out of memory on the PSP. Now 4 MB, and `home.log` shows the heap.

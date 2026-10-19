@@ -18,9 +18,9 @@
 #include "net.h"
 #include "stb_sprintf.h"
 
-static const int k_modules[] = {PSP_MODULE_NET_COMMON,    PSP_MODULE_NET_INET,
-                                PSP_MODULE_NET_PARSEURI,  PSP_MODULE_NET_PARSEHTTP,
-                                PSP_MODULE_NET_HTTP,      PSP_MODULE_NET_SSL};
+static const int k_modules[] = {PSP_MODULE_NET_COMMON,   PSP_MODULE_NET_INET,
+                                PSP_MODULE_NET_PARSEURI, PSP_MODULE_NET_PARSEHTTP,
+                                PSP_MODULE_NET_HTTP,     PSP_MODULE_NET_SSL};
 #define MODULES ((int)(sizeof(k_modules) / sizeof(k_modules[0])))
 
 /* The memory the browser is given, largest first: the sample's 10 MB, then less. */
@@ -34,8 +34,8 @@ static int g_cap, g_len;
 static void note(const char *what, int r)
 {
     if (g_log && g_len < g_cap - 1)
-        g_len += stbsp_snprintf(g_log + g_len, g_cap - g_len, r < 0 ? " %s=0x%08X" : " %s=%d",
-                                what, r);
+        g_len +=
+            stbsp_snprintf(g_log + g_len, g_cap - g_len, r < 0 ? " %s=0x%08X" : " %s=%d", what, r);
 }
 
 /* Everything up to step `up` let go again, in the reverse order. */

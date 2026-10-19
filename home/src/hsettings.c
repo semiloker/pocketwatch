@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/platform.h"
 #include "hsettings.h"
+#include "hw.h"
 #include "sound.h"
 #include "stb_sprintf.h"
 #include "ui/i18n.h"
@@ -216,7 +217,9 @@ static int set_status(int o)
     return save_config();
 }
 
-/* Pocketwatch's language: language.txt (as vsh/src/xsettings.c) */
+/* Pocketwatch's language: language.txt (as vsh/src/xsettings.c); read once, the rows are built
+   every second. */
+static int g_lang = -1;
 static int lang_count(void)
 {
     return pw_lang_name_count;
@@ -224,8 +227,11 @@ static int lang_count(void)
 static int get_lang(void)
 {
     char buf[16], code[12];
-    int n = pw_file_read(DIR "language.txt", buf, sizeof(buf) - 1), j = 0;
+    int n, j = 0;
 
+    if (g_lang >= 0)
+        return g_lang;
+    n = pw_file_read(DIR "language.txt", buf, sizeof(buf) - 1);
     for (int i = 0; i < n && j < 11; i++) {
         char c = buf[i];
 
@@ -235,7 +241,8 @@ static int get_lang(void)
             break;
     }
     code[j] = 0;
-    return pw_lang_name_index(j ? code : 0);
+    g_lang = pw_lang_name_index(j ? code : 0);
+    return g_lang;
 }
 static int set_lang(int o)
 {
@@ -245,6 +252,7 @@ static int set_lang(int o)
         pw_file_write(DIR "language.txt", code, (unsigned int)strlen(code), 0);
     else
         pw_file_remove(DIR "language.txt");
+    g_lang = -1;
     return HS_TEXTS_CHANGED;
 }
 static void text_lang(int o, char *out, int cap)
@@ -254,16 +262,14 @@ static void text_lang(int o, char *out, int cap)
                                                      : pw_lang_names[o].name);
 }
 
-/* The system: sceUtility system parameters, each write read back */
+/* The system: sceUtility system parameters (kept by hw.c), each write read back */
 static int sys_get(int id)
 {
-    int v = 0;
-
-    return sceUtilityGetSystemParamInt(id, &v) == 0 ? v : -1;
+    return hm_hw_param(id);
 }
 static int sys_set(int id, int v)
 {
-    return sceUtilitySetSystemParamInt(id, v) == 0 && sys_get(id) == v ? 0 : -1;
+    return hm_hw_set_param(id, v);
 }
 
 static const char *const k_sys_lang_native[12] = {
@@ -501,17 +507,28 @@ int hs_step(int i, int dir)
     return r->set(v);
 }
 
+/* Kept as hw.c keeps the other parameters: read again only after Home wrote it. */
+static char g_nick[64];
+static int g_nick_read;
 void hs_nickname(char *out, int cap)
 {
-    if (sceUtilityGetSystemParamString(PSP_SYSTEMPARAM_ID_STRING_NICKNAME, out, cap) != 0)
-        out[0] = 0;
+    if (!g_nick_read) {
+        if (sceUtilityGetSystemParamString(PSP_SYSTEMPARAM_ID_STRING_NICKNAME, g_nick,
+                                           sizeof(g_nick)) != 0)
+            g_nick[0] = 0;
+        g_nick[sizeof(g_nick) - 1] = 0;
+        g_nick_read = 1;
+    }
+    stbsp_snprintf(out, cap, "%s", g_nick);
 }
 
 int hs_set_nickname(const char *utf8)
 {
     char back[64];
+    int r = utf8[0] ? sceUtilitySetSystemParamString(PSP_SYSTEMPARAM_ID_STRING_NICKNAME, utf8) : -1;
 
-    if (!utf8[0] || sceUtilitySetSystemParamString(PSP_SYSTEMPARAM_ID_STRING_NICKNAME, utf8) != 0)
+    g_nick_read = 0;
+    if (r != 0)
         return -1;
     hs_nickname(back, sizeof(back));
     return strcmp(back, utf8) == 0 ? 0 : -1;

@@ -41,6 +41,11 @@ build/%.o: %.S | build
 
 build/stb_sprintf.o: CFLAGS += -Wno-sign-compare
 
+# main.o again whenever the version string changes (xmb.log's first line names the build).
+build/main.o: build/.version
+build/.version: FORCE | build
+	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
+
 -include $(wildcard build/*.d)
 
 # Budgets for `make check`: the XMB's user memory is shared with the other VSH plugins. 64 KB
@@ -58,4 +63,4 @@ clean: clean-local
 clean-local:
 	-rm -rf build exports.c
 
-.PHONY: check clean-local
+.PHONY: FORCE check clean-local

@@ -50,6 +50,11 @@ build/hm_image.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-p
                             -Wno-implicit-fallthrough -Wno-unused-but-set-variable
 build/stb_sprintf.o: CFLAGS += -Wno-sign-compare
 
+# main.o again whenever the version string changes (System -> Version names the build).
+build/main.o: build/.version
+build/.version: FORCE | build
+	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
+
 # `make check`: imports (user libraries and ARK-4's, ../tools/check_prx.py) and the budgets. Home is
 # a user program: its RAM is the 24 MB user partition, not kernel RAM; 2 MB loaded (the GE's
 # display list alone is 512 KB) keeps it lean beside its textures and the firmware's dialogs.
@@ -61,7 +66,7 @@ check: $(EXTRA_TARGETS)
 		--nid-table ../tools/nids/ark4_660.tsv --allowlist ../tools/nids/allowlist.tsv \
 		--max-prx-size $(MAX_PRX_SIZE) --max-mem $(MAX_MEM)
 
-.PHONY: check
+.PHONY: FORCE check
 
 -include $(wildcard build/*.d)
 

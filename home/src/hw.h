@@ -23,10 +23,23 @@ void hm_hw_model(char *out, int cap);
 void hm_hw_firmware(char *out, int cap);
 void hm_hw_cfw(char *out, int cap);
 void hm_hw_mac(char *out, int cap);
-int hm_hw_battery(int *charging); /* percent or -1 */
-/* The battery's readings (each -1 when not known): mV, degrees C, mAh left and full, cycles. */
-void hm_hw_battery_details(int *mv, int *temp, int *rcap, int *full, int *cycles);
+/* The battery as a thread of hw.c last read it, every second (the power driver's and the syscon's
+   calls are slow on the PSP: never in the frame loop). Each -1 when not known; for the main
+   thread only. 0, or -1 before the first reading. */
+typedef struct {
+    int pct, charging, left_min; /* percent, 1 when charging, minutes left (the system's guess) */
+    int mv, temp, rcap, full, cycles; /* mV, degrees C, mAh left and full, the gauge's count */
+} hm_battery;
+int hm_hw_battery(hm_battery *b);
+/* What the first reading's calls cost ("percent 12 us, ..."), for home.log; 0 until then. */
+int hm_hw_battery_cost(char *out, int cap);
 int hm_hw_cross_enter(void); /* the system's Enter button is X */
+
+/* The system's parameters (PSP_SYSTEMPARAM_ID_INT_*): read once, then kept - nothing but Home's
+   Settings changes them while Home runs, through hm_hw_set_param (written, read back). The value,
+   or -1 when not known; set: 0 when the value read back is v. */
+int hm_hw_param(int id);
+int hm_hw_set_param(int id, int v);
 
 /* The marker files the XMB plugin reads at the next start (ADR-026): the RTC tick now. */
 void hm_hw_touch(const char *path);

@@ -501,3 +501,35 @@ decision was taken; the evidence column links the research behind it.
   the sprite also does the cross-fade); keeping 8888 in VRAM (only one fits beside two frames).
 - **Consequences:** a faint dither pattern on dark gradients (seen in PPSSPP at 3x; not at 1x);
   VRAM is full - icons and stamps stay in RAM.
+
+## ADR-031 — Nothing slow in Home's frame loop: the battery is read by a thread, the system's parameters are kept
+
+- **Status:** Accepted (2026-10-19), from the owner's second device round of the GE version
+  ([log](../research/logs/2026-10-19-home-hm10-run2.log), build `78e3690`).
+- **Context:** VERIFIED from that log: the GE now waits 0.4-8.5 ms a frame (11-13 ms before
+  ADR-030), yet most 30 s windows made 30-36 fps and two made 5-7 fps. Their late frames are few
+  (30-82 in 30 s) and long: about 250-350 ms each, worked out from the frames, the late count and
+  the window, with the CPU part of the frame carrying the time - one stall about every second,
+  more while settings were changed. INFERRED: the rows refresh, once a second and after every
+  change in Settings or press in Music, called the power driver (battery percent, life time,
+  voltage, temperature, two capacities), the syscon (the battery's cycle count, a command to the
+  battery itself), the registry (eight `sceUtilityGetSystemParamInt`, the nickname twice) and the
+  card (`language.txt`) - nothing else in the frame runs once a second. Which call is slow is not
+  known: PPSSPP answers them all at once.
+- **Decision:** the frame loop makes no call into the power driver, the syscon, the registry or
+  the card. `hw.c` reads the battery in a thread of its own (priority 0x28: below the main
+  thread, above the loader) every second, the cycle count once, and the screen copies the last
+  reading (two buffers; the main thread is never preempted by the reader). The system's
+  parameters are read once and kept (`hm_hw_param`), read again only after Home writes one
+  (`hm_hw_set_param` reads it back); Settings keeps the nickname and `language.txt` the same way.
+  `home.log` gets the longest rows refresh of each window (`rows ... us`) and once the first
+  refresh's and every battery call's cost (`home reads: ...`), so the next round names the slow
+  call.
+- **Alternatives considered:** reading the battery every few seconds in the loop (the same stall,
+  rarer); building only the visible section's rows (System's stall stays); a thread for all the
+  rows (the texts and the settings' state shared with the main thread: locks around every
+  change).
+- **Consequences:** a parameter changed by someone else while Home runs is seen at Home's next
+  start - nothing else changes them meanwhile (the XMB is not running). The battery's numbers can
+  be a second old. The impose values (brightness, AVLS) are still read every second in the loop
+  (the screen key changes the brightness): `rows` shows whether they cost anything.
