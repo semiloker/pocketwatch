@@ -39,7 +39,7 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | `VSH` | XMB integration | In progress (M7, ADR-020/021): the XMB plugin with the Settings entry and the GAME-side start-up load implemented (device tests X1, V1 pending); the game's △ menu entry planned | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |
 | `BAT` | Battery (readings, estimates, the Battery page) | Implemented in the hub (branch `feature/psp-xmb-overhaul`), device test B1 pending | [subsystems/battery.md](subsystems/battery.md) |
 | `PLT` | Play time per game | Implemented in the hub (same branch), device test P1 pending | [subsystems/playtime.md](subsystems/playtime.md) |
-| `HOM` | Pocketwatch Home (our own home screen, ADR-025; the PSP can start in it, ADR-026) | Modern style on branch `feature/psp-xmb-overhaul`, device test HM1-HM9 pending | [subsystems/home.md](subsystems/home.md) |
+| `HOM` | Pocketwatch Home (our own home screen, ADR-025; the PSP can start in it, ADR-026) | Modern style on branch `feature/psp-xmb-overhaul` (PR #4): games, music, photos, play time, settings, system, browser, USB, key sounds; boot into Home VERIFIED on the device; device tests HM5-HM19 pending | [subsystems/home.md](subsystems/home.md) |
 | `FW` | Independent firmware feasibility | Research | [firmware/independent-firmware-feasibility.md](firmware/independent-firmware-feasibility.md) |
 
 Branch overview of the XMB overhaul (audit, what the platform allows, status): [psp-xmb-overhaul](psp-xmb-overhaul/README.md).
