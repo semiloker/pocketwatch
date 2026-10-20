@@ -10,6 +10,7 @@
 #include "home_view.h"
 #include "hsettings.h"
 #include "hw.h"
+#include "overlay.h"
 #include "plugins_txt.h"
 #include "sound.h"
 #include "stb_sprintf.h"
@@ -716,37 +717,107 @@ static int set_perf(int o)
 #define PERF_CFG     DIR "perf.txt"
 #define PLUGINS      "ms0:/seplugins/PLUGINS.TXT"
 #define PLUGINS_SIZE 8192
-static int g_perf_game = -1; /* 0 off, 1 the frame rate, 2 everything; -1 not read yet */
 static char g_plugins[2][PLUGINS_SIZE];
+
+/* The overlay module's settings (perf.txt, ADR-045): the numbers in games, the volume and
+   brightness indicator, the boost - Home uses the last two too. The module's line in PLUGINS.TXT
+   is on while a game needs it: the numbers, the indicator in games, a boost. */
+static pw_perf_cfg g_pc;
+static int g_pc_read, g_pc_line; /* read; the module's line is on */
+
+const pw_perf_cfg *hs_perf_cfg(void)
+{
+    if (!g_pc_read) {
+        char t[128];
+        int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE),
+            m = pw_file_read(PERF_CFG, t, sizeof(t));
+
+        pw_perf_cfg_parse(t, m > 0 ? m : 0, &g_pc);
+        g_pc_line = n > 0 && hm_plugins_get(g_plugins[0], n, PERF_PRX) == 1;
+        if (!g_pc_line) /* (not loaded: no numbers in games, whatever the file says) */
+            g_pc.mode = PW_PERF_OFF;
+        g_pc_read = 1;
+    }
+    return &g_pc;
+}
+
+static int pc_write(const pw_perf_cfg *c)
+{
+    static const char *const mode[3] = {"off", "fps", "full"}, *const osd[3] = {"off", "home",
+                                                                                "all"};
+    char t[96];
+    int line = c->mode != PW_PERF_OFF || c->osd == PW_OSD_ALL || c->boost > 0,
+        k = stbsp_snprintf(t, sizeof(t), "mode = %s\nosd = %s\nboost = %d\n", mode[c->mode % 3],
+                           osd[c->osd % 3], c->boost);
+
+    if (pw_file_write(PERF_CFG, t, (unsigned int)k, 0) != k)
+        return -1;
+    if (line != g_pc_line) {
+        int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE), m;
+
+        m = hm_plugins_set(g_plugins[0], n > 0 ? n : 0, PERF_PRX, line, g_plugins[1], PLUGINS_SIZE);
+        if (m < 0 || pw_file_write(PLUGINS, g_plugins[1], (unsigned int)m, 0) != m)
+            return -1;
+        g_pc_line = line;
+    }
+    g_pc = *c;
+    return 0;
+}
 
 static int get_perf_game(void)
 {
-    if (g_perf_game < 0) {
-        char t[32];
-        int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE),
-            m = pw_file_read(PERF_CFG, t, sizeof(t) - 1);
-
-        t[m > 0 ? m : 0] = 0;
-        g_perf_game = n > 0 && hm_plugins_get(g_plugins[0], n, PERF_PRX) == 1
-                          ? (strstr(t, "fps") ? 1 : 2)
-                          : 0;
-    }
-    return g_perf_game;
+    return hs_perf_cfg()->mode;
 }
 static int set_perf_game(int o)
 {
-    int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE), m;
+    pw_perf_cfg c = *hs_perf_cfg();
 
-    if (n < 0)
-        n = 0;
-    m = hm_plugins_set(g_plugins[0], n, PERF_PRX, o > 0, g_plugins[1], PLUGINS_SIZE);
-    if (m < 0 || (o > 0 && pw_file_write(PERF_CFG, o == 1 ? "mode = fps\n" : "mode = full\n",
-                                         o == 1 ? 11u : 12u, 0) < 0))
-        return -1;
-    if (pw_file_write(PLUGINS, g_plugins[1], (unsigned int)m, 0) != m)
-        return -1;
-    g_perf_game = o;
-    return HS_NEXT_GAME;
+    c.mode = o;
+    return pc_write(&c) < 0 ? -1 : HS_NEXT_GAME;
+}
+
+/* The volume and brightness indicator (HOM-REQ-034): off, over Home, over games too. */
+static int get_osd(void)
+{
+    return hs_perf_cfg()->osd;
+}
+static int set_osd(int o)
+{
+    pw_perf_cfg c = *hs_perf_cfg();
+
+    c.osd = o;
+    return pc_write(&c) < 0 ? -1 : o == PW_OSD_ALL ? HS_NEXT_GAME : 0;
+}
+static void text_osd(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s",
+                   pw_tr(o == PW_OSD_HOME  ? PW_S_HS_OSD_HOME
+                         : o == PW_OSD_ALL ? PW_S_HS_OSD_ALL
+                                           : PW_S_OFF));
+}
+
+/* The brightness boost (ADR-045): off, halfway up to the most, the most. Home at once, games
+   from the next one. */
+static const int k_boost[3] = {0, 50, 100};
+static int get_boost(void)
+{
+    int b = hs_perf_cfg()->boost;
+
+    return b >= 100 ? 2 : b > 0 ? 1 : 0;
+}
+static int set_boost(int o)
+{
+    pw_perf_cfg c = *hs_perf_cfg();
+
+    c.boost = k_boost[o % 3];
+    return pc_write(&c);
+}
+static void text_boost(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s",
+                   pw_tr(o == 1   ? PW_S_HS_BOOST_HALF
+                         : o == 2 ? PW_S_HS_BOOST_MAX
+                                  : PW_S_OFF));
 }
 static void text_perf_game(int o, char *out, int cap)
 {
@@ -804,6 +875,8 @@ static const row k_rows[] = {
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BOOST, 0, three, get_boost, set_boost, text_boost},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_OSD, 0, three, get_osd, set_osd, text_osd},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_HOLD, 0, three, get_hold, set_hold, text_hold},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_DATE_FORMAT, 0, three, get_date, set_date, text_date},

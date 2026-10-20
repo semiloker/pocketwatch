@@ -29,10 +29,13 @@
 | ID | Requirement | Priority | Status | Verification |
 |---|---|---|---|---|
 | `PRF-REQ-001` | Home → Settings → Pocketwatch → Performance Overlay (on / off, `home.txt perf`) shows over every Home screen, once a second: frames shown, Home's CPU and GE time a frame, its longest frame, the CPU / bus clock, the memory free outside Home's heap and the heap in use, the battery's percent, current, voltage and temperature - values the system does not give left out. | P2 | Implemented 2026-10-20; PPSSPP checked | PPSSPP, HM31 |
-| `PRF-REQ-002` | Overlay in Games (Off / FPS / Full) turns the line `UMD, ms0:/seplugins/pocketwatch/pocketwatch_perf.prx, on|off` of ARK-4's PLUGINS.TXT on or off (adding it once) and writes `perf.txt` (`mode = fps|full`); every other line of PLUGINS.TXT is kept byte for byte (CRLF too); it takes effect at the next game start (a toast says so). | P2 | Implemented 2026-10-20; PPSSPP checked (the file written, off again) | `plugins_txt_*`, PF1 |
+| `PRF-REQ-002` | Overlay in Games (Off / FPS / Full) turns the line `UMD, ms0:/seplugins/pocketwatch/pocketwatch_perf.prx, on|off` of ARK-4's PLUGINS.TXT on or off (adding it once) and writes `perf.txt` (PRF-REQ-008); every other line of PLUGINS.TXT is kept byte for byte (CRLF too); it takes effect at the next game start (a toast says so). | P2 | Implemented 2026-10-20; PPSSPP checked (the file written, off again) | `plugins_txt_*`, PF1 |
 | `PRF-REQ-003` | In a game the module writes, at every vblank, its lines into the frame about to be shown: the hub's frame (display priority 0) while the hub is open, else the game's. FPS: frames the game showed in the last second (a new frame buffer at a vblank); Full adds the CPU's busy share (100 less the idle threads' run time), the clocks, the user memory free, the battery's percent, current (every 10 s), voltage, temperature and the system's time left. Unknown values are left out. | P2 | Implemented 2026-10-20 | `perf_overlay_*`, PF1 |
 | `PRF-REQ-004` | L + R + SELECT held a second (no other button) switches the game overlay Off → FPS → Full → Off for the rest of that game. | P2 | Implemented 2026-10-20 | PF1 |
 | `PRF-REQ-005` | The game module costs the game nothing it does not ask for: not loaded at all while it is off; when on, < 16 KB of kernel RAM (`make check`), no card writes, no hooks into the game (it reads the display and the controller like the hub), its drawing < 1 % of the CPU (the line's mask is made once a second; a vblank only writes its pixels). | P1 | Implemented; 9.7 KB (`make check` 2026-10-20); the CPU share RESEARCH REQUIRED (PF1) | `make check`, PF1 |
+| `PRF-REQ-006` | With Volume and Brightness at Home and Games, the module shows in a game, for 1.5 s after a change of the volume, mute or the SCREEN button's step (read every 6th vblank), a black box with a white edge at the bottom middle: "VOL 18" / "MUTE" / "BRIGHT 3/4 92%" and a bar of 30 or 4 steps (ADR-045). | P1 | Implemented 2026-10-20; host tests `indicator_*` | tests, PF3 |
+| `PRF-REQ-007` | With Brightness Boost on, the module keeps the backlight at the system's level plus the boost's share of the way to 100 whenever the system changes it; the screen off stays off; another setting its own back 4 times within 400 ms of ours makes it give up (ADR-045). | P2 | Implemented 2026-10-20; host test `brightness_*` | tests, PF3 |
+| `PRF-REQ-008` | `perf.txt`: `mode = off|fps|full`, `osd = off|home|all`, `boost = 0-100` (missing: full, home, 0); the module's PLUGINS.TXT line is on while a game needs it (the numbers, the indicator in games, a boost) and off otherwise. | P1 | Implemented 2026-10-20; host test `perf_cfg_*`; PPSSPP checked (both files written) | tests, PF3 |
 | `PRF-NFR-001` | A game with the overlay on saves and loads states as without it (RISK-027). | P1 | RESEARCH REQUIRED | PF2 |
 
 ## C. Architecture and integration
@@ -81,6 +84,7 @@ picture's pixels read back). FPS mode: "60 FPS" only.
 | PRF-REQ-001 | HM31 | the lines change every second, nothing unknown shown as a number | PSP |
 | PRF-REQ-002..004 | PF1 | the overlay in the next game; the combo cycles it; Off removes it at the next game | PSP |
 | PRF-REQ-005, PRF-NFR-001 | PF1, PF2 | the game's frame rate the same with FPS on and off; save, load, Quit Game as without it | PSP |
+| PRF-REQ-006..008 | PF3 | the indicator on each press; the boost brighter, the screen-off and SCREEN still work; the line off again with everything off | PSP |
 
 ## H. Risks and decisions
 

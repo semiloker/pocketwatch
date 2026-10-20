@@ -104,6 +104,9 @@ void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int ca
 /* The keyboard (v->kb) in the style's colours: card the panel, knob the keys, sel / ink the
    chosen one; NULL: dark ones. */
 void hm_draw_keyboard(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_palette *p);
+/* The battery calibration's screen (a HM_PAGE_CAL page), over the page: before the sheet, the
+   toast and the keyboard. */
+void hm_draw_cal(hm_gfx *g, const hm_ui *ui, const hm_view *v);
 
 void hm_draw_classic(hm_gfx *g, const hm_ui *ui, const hm_view *v);
 void hm_draw_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v);

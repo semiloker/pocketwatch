@@ -108,14 +108,17 @@ int pw_perf_lines(const pw_perf_stats *s, int mode, char lines[2][PW_PERF_COLS +
 
 /* ---- drawing ---- */
 
-static void dot(void *fb, int stride, int fmt, int x, int y, int white)
+/* colour 0 black, 1 white, 2 grey, in each of the display's formats */
+static void dot(void *fb, int stride, int fmt, int x, int y, int colour)
 {
-    static const unsigned short k16[3][2] = {{0x0000, 0xFFFF}, {0x8000, 0xFFFF}, {0xF000, 0xFFFF}};
+    static const unsigned short k16[3][3] = {
+        {0x0000, 0xFFFF, 0x4208}, {0x8000, 0xFFFF, 0xA108}, {0xF000, 0xFFFF, 0xF444}};
+    static const unsigned int k32[3] = {0xFF000000u, 0xFFFFFFFFu, 0xFF404040u};
 
     if (fmt == 3)
-        ((unsigned int *)fb)[y * stride + x] = white ? 0xFFFFFFFFu : 0xFF000000u;
+        ((unsigned int *)fb)[y * stride + x] = k32[colour];
     else if (fmt >= 0 && fmt < 3)
-        ((unsigned short *)fb)[y * stride + x] = k16[fmt][white];
+        ((unsigned short *)fb)[y * stride + x] = k16[fmt][colour];
 }
 
 static int lit(const char *text, int n, int px, int py)
@@ -183,10 +186,179 @@ int pw_perf_next(int mode)
     return mode == PW_PERF_OFF ? PW_PERF_FPS : mode == PW_PERF_FPS ? PW_PERF_FULL : PW_PERF_OFF;
 }
 
-int pw_perf_parse(const char *text, int len)
+/* ---- perf.txt ---- */
+
+/* 1 when s (n bytes, then a space or the end) is the word w. */
+static int word_is(const char *s, int n, const char *w)
 {
-    for (int i = 0; i + 3 <= len; i++)
-        if (text[i] == 'f' && text[i + 1] == 'p' && text[i + 2] == 's')
-            return PW_PERF_FPS;
-    return PW_PERF_FULL;
+    int i = 0;
+
+    for (; i < n && w[i] && s[i] == w[i]; i++)
+        ;
+    return !w[i] && (i == n || s[i] == ' ' || s[i] == '\r' || s[i] == '\t');
+}
+
+void pw_perf_cfg_parse(const char *text, int len, pw_perf_cfg *c)
+{
+    c->mode = PW_PERF_FULL;
+    c->osd = PW_OSD_HOME;
+    c->boost = 0;
+    for (int i = 0; i < len;) {
+        int e = i, k, v;
+
+        while (e < len && text[e] != '\n')
+            e++;
+        for (k = i; k < e && text[k] == ' '; k++)
+            ;
+        for (v = k; v < e && text[v] != '='; v++)
+            ;
+        if (v < e) {
+            const char *val = text + v + 1;
+            int n, key = v - k;
+
+            while (key > 0 && text[k + key - 1] == ' ')
+                key--;
+            while (val < text + e && *val == ' ')
+                val++;
+            n = (int)(text + e - val);
+            if (word_is(text + k, key, "mode"))
+                c->mode = word_is(val, n, "off")   ? PW_PERF_OFF
+                          : word_is(val, n, "fps") ? PW_PERF_FPS
+                                                   : PW_PERF_FULL;
+            else if (word_is(text + k, key, "osd"))
+                c->osd = word_is(val, n, "off")   ? PW_OSD_OFF
+                         : word_is(val, n, "all") ? PW_OSD_ALL
+                                                  : PW_OSD_HOME;
+            else if (word_is(text + k, key, "boost")) {
+                int b = 0, d = 0;
+
+                for (; d < n && d < 3 && val[d] >= '0' && val[d] <= '9'; d++)
+                    b = b * 10 + (val[d] - '0');
+                c->boost = d && b <= 100 ? b : 0;
+            }
+        }
+        i = e + 1;
+    }
+}
+
+/* ---- the brightness boost ---- */
+
+int pw_bright_boost(int level, int boost)
+{
+    int v;
+
+    if (level <= 0 || boost <= 0)
+        return level;
+    v = level + (100 - level) * (boost > 100 ? 100 : boost) / 100;
+    return v > 100 ? 100 : v;
+}
+
+void pw_bright_init(pw_bright *b)
+{
+    b->set = b->base = -1;
+    b->fights = 0;
+    b->t_set = 0;
+}
+
+int pw_bright_step(pw_bright *b, int level, int boost, unsigned int now_ms)
+{
+    int want;
+
+    if (level < 0 || b->fights >= PW_BRIGHT_FIGHTS)
+        return -1;
+    if (b->set >= 0 && level == b->set) { /* ours still: the boost changed? */
+        want = boost > 0 ? pw_bright_boost(b->base, boost) : b->base;
+        if (want == b->set || want <= 0)
+            return -1;
+        b->set = boost > 0 ? want : -1;
+        b->t_set = now_ms;
+        return want;
+    }
+    /* the system's level (or another's) */
+    if (b->set >= 0 && now_ms - b->t_set < PW_BRIGHT_FIGHT_MS)
+        b->fights++;
+    b->base = level;
+    b->set = -1;
+    want = pw_bright_boost(level, boost);
+    if (level == 0 || want == level) /* (the screen off stays off) */
+        return -1;
+    b->set = want;
+    b->t_set = now_ms;
+    return want;
+}
+
+/* ---- the volume and brightness indicator ---- */
+
+int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms)
+{
+    int kind = PW_OSD_NONE;
+
+    if (o->primed) {
+        if (vol != o->vol || mute != o->mute)
+            kind = PW_OSD_VOLUME;
+        else if (bright != o->bright)
+            kind = PW_OSD_BRIGHT;
+    }
+    o->primed = 1;
+    o->vol = vol;
+    o->mute = mute;
+    o->bright = bright;
+    if (kind == PW_OSD_NONE)
+        return 0;
+    o->kind = kind;
+    o->t = now_ms;
+    return 1;
+}
+
+int pw_osd_shown(const pw_osd *o, unsigned int now_ms)
+{
+    return o->kind != PW_OSD_NONE && now_ms - o->t < PW_OSD_MS ? o->kind : PW_OSD_NONE;
+}
+
+void pw_osd_text(const pw_osd *o, int level, char out[PW_PERF_COLS + 1])
+{
+    line l = {out, 0};
+
+    out[0] = 0;
+    if (o->kind == PW_OSD_VOLUME && o->mute == 1) {
+        put(&l, "MUTE");
+    } else if (o->kind == PW_OSD_VOLUME) {
+        put(&l, "VOL ");
+        put_int(&l, o->vol < 0 ? 0 : o->vol);
+    } else if (o->kind == PW_OSD_BRIGHT) {
+        put(&l, "BRIGHT ");
+        put_int(&l, o->bright < 0 ? 0 : o->bright + 1);
+        put(&l, "/4");
+        if (level > 0) {
+            put(&l, " ");
+            put_int(&l, level);
+            put(&l, "%");
+        }
+    }
+}
+
+static void box(void *fb, int stride, int fmt, int w, int h, int x0, int y0, int bw, int bh,
+                int colour)
+{
+    for (int y = y0 < 0 ? 0 : y0; y < y0 + bh && y < h; y++)
+        for (int x = x0 < 0 ? 0 : x0; x < x0 + bw && x < w; x++)
+            dot(fb, stride, fmt, x, y, colour);
+}
+
+void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
+                 int n)
+{
+    int x0 = (w - PW_OSD_W) / 2, y0 = h - PW_OSD_H - 16, bx = x0 + 10 + label->w + 10,
+        bw = x0 + PW_OSD_W - 10 - bx;
+
+    box(fb, stride, fmt, w, h, x0, y0, PW_OSD_W, PW_OSD_H, 1); /* the edge */
+    box(fb, stride, fmt, w, h, x0 + 1, y0 + 1, PW_OSD_W - 2, PW_OSD_H - 2, 0);
+    pw_perf_draw(fb, stride, fmt, w, h, x0 + 9, y0 + (PW_OSD_H - PW_PERF_H) / 2, label);
+    if (n <= 0 || bw < n * 2)
+        return;
+    for (int i = 0; i < n; i++) { /* n steps, a pixel apart */
+        int sx = bx + i * bw / n, sw = (i + 1) * bw / n - i * bw / n - 1;
+
+        box(fb, stride, fmt, w, h, sx, y0 + 8, sw, PW_OSD_H - 16, i < k ? 1 : 2);
+    }
 }

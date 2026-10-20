@@ -111,6 +111,36 @@ int hm_battcal_parse(const char *text, unsigned int len, hm_battcal *out)
     return 0;
 }
 
+/* The discharging samples' charge (what hm_battcal_parse counts), at most max of them picked
+   evenly, the last one always. */
+int hm_battcal_curve(const char *text, unsigned int len, unsigned char *pct, int max)
+{
+    int n = 0, k = 0, step;
+
+    for (int pass = 0; pass < 2; pass++) {
+        const char *p = text, *end = text + len;
+        int started = 0, i = 0;
+
+        step = n > max && max > 0 ? (n + max - 1) / max : 1;
+        while (p < end) {
+            const char *e = line_end(p, end);
+            sample s;
+
+            if (e - p >= 6 && memcmp(p, "start ", 6) == 0)
+                started = 1;
+            else if (started && read_sample(p, e, &s) && !s.online && s.pct >= 0 && s.pct <= 100) {
+                if (pass == 0)
+                    n++;
+                else if ((i % step == 0 || i == n - 1) && k < max)
+                    pct[k++] = (unsigned char)s.pct;
+                i++;
+            }
+            p = e + 1;
+        }
+    }
+    return k;
+}
+
 int hm_battcal_start_line(char *out, int cap, unsigned long long unix_s, int full_mah, int cycles)
 {
     return stbsp_snprintf(out, cap, "start %llu %d %d\n", unix_s, full_mah, cycles);

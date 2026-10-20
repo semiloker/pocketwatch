@@ -646,6 +646,132 @@ static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         g->text(g, ui->body, 10, 19 + 18 * i, v->perf[i], w - 12, PW_RGB(255, 255, 255), 256);
 }
 
+/* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom middle, over
+   everything but the overlay. */
+static void osd(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    int a = hm_clampi(v->osd, 0, 256), w = 250, h = 30, x = (HM_W - w) / 2, y = HM_H - 76, tw,
+        bx = x + 40, bw, lit;
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+
+    if (a <= 0 || !v->osd_text)
+        return;
+    tw = pw_text_width(ui->body, v->osd_text);
+    bw = w - 40 - 16 - tw - 12;
+    lit = bw * hm_clampi(v->osd_level, 0, 256) / 256;
+    g->rrect(g, x, y, w, h, h / 2, 0, C_BLACK, a * 215 / 256);
+    g->icon(g, v->osd_glyph, x + 22, y + h / 2, 16, C_TEXT, a);
+    g->rrect(g, bx, y + h / 2 - 2, bw, 4, 2, 0, C_KNOB, a);
+    if (lit > 0)
+        g->rrect(g, bx, y + h / 2 - 2, lit, 4, 2, 0, acc, a);
+    hm_text_right(g, ui->body, x + w - 16, y + h / 2 + 5, v->osd_text, C_TEXT, a);
+}
+
+/* ---- the battery's calibration (BAT-REQ-011): a screen of its own ---- */
+
+#define CAL_CX 24 /* the chart */
+#define CAL_CY 82
+#define CAL_CW 250
+#define CAL_CH 100
+#define CAL_RX 292 /* the column of numbers */
+
+static void cal_chart(hm_gfx *g, const hm_ui *ui, const hm_calview *c, const hm_palette *p,
+                      unsigned int acc, int a)
+{
+    g->rrect(g, CAL_CX - 6, CAL_CY - 6, CAL_CW + 12, CAL_CH + 12, 8, 0, p->knob, a * 70 / 256);
+    if (c->npct >= 2)
+        for (int q = 1; q < 4; q++) /* 25, 50, 75 % */
+            g->fill(g, CAL_CX, CAL_CY + CAL_CH * q / 4, CAL_CW, 1, p->sub, a * 50 / 256);
+    if (c->npct < 2) {
+        if (c->chart_empty)
+            hm_text_wrap(g, ui->body, CAL_CX + CAL_CW / 2, CAL_CY + CAL_CH / 2, 16, 2,
+                         c->chart_empty, CAL_CW - 20, 1, p->sub, a);
+        return;
+    }
+    for (int i = 0; i < c->npct; i++) { /* a column per point: the charge filled under its top */
+        int x0 = CAL_CX + i * CAL_CW / c->npct, x1 = CAL_CX + (i + 1) * CAL_CW / c->npct,
+            top = CAL_CY + CAL_CH - CAL_CH * hm_clampi(c->pct[i], 0, 100) / 100;
+
+        if (x1 <= x0)
+            continue;
+        g->fill(g, x0, top, x1 - x0, CAL_CY + CAL_CH - top, acc, a * 80 / 256);
+        g->fill(g, x0, top, x1 - x0, 2, acc, a);
+    }
+    if (c->chart_left)
+        g->text(g, ui->body, CAL_CX, CAL_CY + CAL_CH + 20, c->chart_left, CAL_CW / 2, p->sub, a);
+    if (c->chart_right)
+        hm_text_right(g, ui->body, CAL_CX + CAL_CW, CAL_CY + CAL_CH + 20, c->chart_right, p->sub,
+                      a);
+}
+
+static void cal_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
+{
+    static const hm_palette dark = {.text = C_TEXT,
+                                    .sub = C_SUB,
+                                    .dim = C_DIM,
+                                    .card = C_CARD,
+                                    .knob = C_KNOB,
+                                    .sel = C_TEXT,
+                                    .ink = C_INK,
+                                    .ink2 = C_INK2,
+                                    .head = C_SUB,
+                                    .card_a = 256,
+                                    .sel_a = 256};
+    const hm_calview *c = v->cal;
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+    hm_palette pal;
+    const hm_palette *p = &pal;
+    int x = 24;
+
+    hm_palette_of(ui, &pal);
+    if (pal.card_a < 128) /* (glass cards: the text would be white on white) */
+        p = &dark;
+    g->fill(g, 0, 0, HM_W, HM_H, p->card, a);
+    g->text(g, ui->title, 24, 34, c->title ? c->title : "", HM_W - 48, p->text, a);
+    for (int i = 0; i < 4; i++) { /* the steps: done, now, to come */
+        char t[48];
+        int now = c->step == i + 1, done = c->step > i + 1, w;
+
+        stbsp_snprintf(t, sizeof(t), "%d  %s", i + 1, c->steps[i] ? c->steps[i] : "");
+        w = pw_text_width(ui->body, t) + 20;
+        g->rrect(g, x, 46, w, 22, 11, now || done ? 0 : PW_FX(1), now ? acc : p->knob,
+                 a *
+                     (now    ? 256
+                      : done ? 150
+                             : 110) /
+                     256);
+        hm_text_center(g, ui->body, x + w / 2, 61, t, w - 8,
+                       now    ? C_TEXT
+                       : done ? p->text
+                              : p->sub,
+                       a);
+        x += w + 8;
+    }
+    cal_chart(g, ui, c, p, acc, a);
+    if (c->big)
+        g->text(g, ui->big, CAL_RX, 112, c->big, HM_W - CAL_RX - 24, p->text, a);
+    if (c->big_sub)
+        g->text(g, ui->body, CAL_RX, 132, c->big_sub, HM_W - CAL_RX - 24, p->sub, a);
+    for (int i = 0; i < c->nstats && i < 4; i++) { /* (four: the words under them) */
+        const char *val = c->value[i] ? c->value[i] : "";
+        int y = 152 + i * 18, room = HM_W - 24 - CAL_RX - pw_text_width(ui->body, val) - 8;
+
+        g->text(g, ui->body, CAL_RX, y, c->label[i] ? c->label[i] : "", room > 0 ? room : 1, p->sub,
+                a);
+        hm_text_right(g, ui->body, HM_W - 24, y, val, p->text, a);
+    }
+    if (c->what)
+        hm_text_wrap(g, ui->body, 24, 225, 15, 2, c->what, HM_W - 48, 0, p->text, a * 220 / 256);
+    hm_hints_right(g, ui, v, HM_W - 16, 264, p->sub, a);
+}
+
+void hm_draw_cal(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    for (int d = 1; v->cal && d < HM_DEPTH; d++) /* as it slides in and out */
+        if (v->page[d].layout == HM_PAGE_CAL && d <= v->depth + 1 && hm_near(hm_page_t(v, d)) > 0)
+            cal_draw(g, ui, v, hm_near(hm_page_t(v, d)));
+}
+
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = hm_clampi(v->appear, 0, 256);
@@ -661,6 +787,7 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         hm_draw_minimal(g, ui, v);
     else
         hm_draw_modern(g, ui, v);
+    osd(g, ui, v);
     if (v->perf[0])
         perf_overlay(g, ui, v);
     if (a < 256) /* fading in, or out before a game starts */

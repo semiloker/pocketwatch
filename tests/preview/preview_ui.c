@@ -536,6 +536,53 @@ static void home_previews(const pw_image *sky_img)
             v.kb = 0;
             v.kb_t = 0;
         }
+        { /* the battery's calibration (measuring, its chart), the volume and brightness pill */
+            static unsigned char pct[90];
+            hm_calview c;
+            hm_page cal;
+
+            memset(&c, 0, sizeof(c));
+            for (int i = 0; i < 90; i++)
+                pct[i] = (unsigned char)(100 - i * 62 / 89);
+            c.step = 3;
+            c.steps[0] = "Charge";
+            c.steps[1] = "Unplug";
+            c.steps[2] = "Run down";
+            c.steps[3] = "Result";
+            c.title = "Battery Calibration";
+            c.what = "Measuring. Leave Home on until the PSP turns itself off, then charge it and "
+                     "open this page again.";
+            c.big = "38%";
+            c.big_sub = "On battery";
+            c.label[0] = "Elapsed";
+            c.value[0] = "3 h 05 min";
+            c.label[1] = "Used";
+            c.value[1] = "1104 mAh";
+            c.label[2] = "Average";
+            c.value[2] = "358 mA";
+            c.label[3] = "Full charge";
+            c.value[3] = "~1780 mAh";
+            c.nstats = 4;
+            c.pct = pct;
+            c.npct = 90;
+            c.chart_left = "100%";
+            c.chart_right = "3 h 05 min";
+            memset(&cal, 0, sizeof(cal));
+            cal.layout = HM_PAGE_CAL;
+            cal.title = c.title;
+            over(&v, &v.page[0], &cal);
+            v.cal = &c;
+            v.hint_enter = "Stop";
+            hshot(&v, "home-calibration");
+            v.cal = 0;
+            v.depth = v.depth_pos = 0;
+            v.osd = 256;
+            v.osd_glyph = HM_ICON_SUN;
+            v.osd_level = 92 * 256 / 100;
+            v.osd_text = "4/4   92%";
+            hshot(&v, "home-osd");
+            v.osd = 0;
+        }
         v.depth = v.depth_pos = 0;
         v.hint_back = v.hint_square = v.hint_options = 0;
 

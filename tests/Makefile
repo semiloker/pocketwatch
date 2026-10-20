@@ -31,6 +31,7 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/view_classic.c $(HOME_DIR)/view_modern.c $(HOME_DIR)/view_minimal.c $(HOME_DIR)/hm_icons.c $(HOME_DIR)/xmbart.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c $(HOME_DIR)/music_name.c $(HOME_DIR)/sound_synth.c \
               $(HOME_DIR)/hcfg.c $(HOME_DIR)/savedata_text.c $(HOME_DIR)/photo_edit.c $(HOME_DIR)/keyboard.c \
               $(HOME_DIR)/clockfix.c $(HOME_DIR)/battcal.c $(HOME_DIR)/plugins_txt.c $(PERF_DIR)/overlay.c \
+              $(HOME_DIR)/wifi_list.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 

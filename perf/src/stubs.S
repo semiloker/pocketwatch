@@ -23,9 +23,14 @@
 	IMPORT_FUNC  "sceDisplay_driver",0xEEDA2E54,sceDisplayGetFrameBuf
 	IMPORT_FUNC  "sceDisplay_driver",0x984C27E7,sceDisplayWaitVblankStart
 	IMPORT_FUNC  "sceDisplay_driver",0x5B5AEFAD,sceDisplayGetFrameBufferInternal
+	IMPORT_FUNC  "sceDisplay_driver",0x31C4BAA8,sceDisplayGetBrightness
+	IMPORT_FUNC  "sceDisplay_driver",0x9E3C6DC6,sceDisplaySetBrightness
 
 	IMPORT_START "sceCtrl_driver",0x00010000
 	IMPORT_FUNC  "sceCtrl_driver",0x3A622550,sceCtrlPeekBufferPositive
+
+	IMPORT_START "sceImpose_driver",0x00010000
+	IMPORT_FUNC  "sceImpose_driver",0x531C9778,sceImposeGetParam
 
 	IMPORT_START "SysMemForKernel",0x00010000
 	IMPORT_FUNC  "SysMemForKernel",0x9697CD32,sceKernelPartitionTotalFreeMemSize

@@ -31,6 +31,10 @@ typedef struct {
 /* 0, or < 0 when the text is not a run (no start line, no two discharging samples). */
 int hm_battcal_parse(const char *text, unsigned int len, hm_battcal *out);
 
+/* The run's charge over its time for a chart: the discharging samples' percent, at most max of
+   them (picked evenly, the last one always), oldest first. Returns how many. */
+int hm_battcal_curve(const char *text, unsigned int len, unsigned char *pct, int max);
+
 /* One line of each kind, for the writer (hw.c): bytes written. */
 int hm_battcal_start_line(char *out, int cap, unsigned long long unix_s, int full_mah, int cycles);
 int hm_battcal_sample_line(char *out, int cap, unsigned long long unix_s, int pct, int mv, int ma,

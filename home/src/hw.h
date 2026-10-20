@@ -51,6 +51,20 @@ enum { HM_CAL_NEWS_NONE, HM_CAL_NEWS_DONE, HM_CAL_NEWS_SHORT };
 void hm_hw_cal(int start);             /* start (1) or stop (0) */
 int hm_hw_cal_result(hm_battcal *out); /* the last one measured: 0, or < 0 none */
 int hm_hw_cal_news(void);              /* HM_CAL_NEWS_* once: a run ended */
+/* The run going on, else the last one (battery-last.txt): its numbers so far and its charge over
+   time (at most max points, oldest first) for the calibration's page (BAT-REQ-011). The points,
+   or -1 when there is no run at all. */
+#define HM_CAL_PTS 120
+int hm_hw_cal_live(hm_battcal *c, unsigned char *pct, int max);
+
+/* What the volume and brightness indicator shows (HOM-REQ-034): impose's volume (0-30), mute
+   (0 / 1) and brightness (the SCREEN button's step, 0-3), and the backlight's level (0-100);
+   each -1 when not known. Fast (a kernel call each): for the frame loop. */
+typedef struct {
+    int vol, mute, bright, level;
+} hm_hw_av;
+void hm_hw_av_read(hm_hw_av *out);
+int hm_hw_set_level(int level); /* the backlight's level (1-100): 0, or < 0 */
 
 /* The clock (HOM-REQ-031, ADR-041): lost (a battery left flat) - put back to the newest time of
    Pocketwatch's files - at the start; set from the internet's time (net.c). */

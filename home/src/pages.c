@@ -9,6 +9,7 @@
 #include "hw.h"
 #include "library.h"
 #include "music.h"
+#include "net.h"
 #include "pages.h"
 #include "stb_sprintf.h"
 #include "ui/i18n.h"
@@ -502,6 +503,165 @@ static void playtime_page(hm_page *p)
     p->nrows = rows;
 }
 
+/* ---- Wi-Fi (HOM-REQ-033) ---- */
+
+static hm_wifi_conn g_conns[HM_WIFI_CONNS];
+static int g_nconns = -1; /* not read yet */
+static hm_wifi_ap g_aps[HM_WIFI_APS];
+static int g_naps;
+
+void hm_pages_wifi_read(void)
+{
+    g_nconns = hm_net_connections(g_conns, HM_WIFI_CONNS);
+}
+
+const hm_wifi_ap *hm_pages_wifi_ap(int i)
+{
+    return i >= 0 && i < g_naps ? &g_aps[i] : 0;
+}
+
+const hm_wifi_conn *hm_pages_wifi_conn(int slot)
+{
+    for (int i = 0; i < g_nconns; i++)
+        if (g_conns[i].slot == slot)
+            return &g_conns[i];
+    return 0;
+}
+
+/* A network's security as a search reports it, and a saved connection's. */
+static const char *ap_security(int sec)
+{
+    return pw_tr(sec == HM_WIFI_SEC_NONE       ? PW_S_WIFI_OPEN
+                 : sec == HM_WIFI_SEC_WEP      ? PW_S_WIFI_WEP
+                 : sec == HM_WIFI_SEC_WPA_TKIP ? PW_S_WIFI_WPA
+                 : sec == HM_WIFI_SEC_WPA_AES  ? PW_S_WIFI_WPA2
+                                               : PW_S_WIFI_UNSUP);
+}
+
+static const char *conn_security(int secure)
+{
+    return secure == 0                  ? pw_tr(PW_S_WIFI_OPEN)
+           : secure == 1 || secure == 2 ? pw_tr(PW_S_WIFI_WEP)
+           : secure == 3                ? pw_tr(PW_S_WIFI_WPA)
+           : secure == 4                ? pw_tr(PW_S_WIFI_WPA2)
+                                        : pw_tr(PW_S_BAT_NA);
+}
+
+static int is_saved(const char *ssid)
+{
+    for (int i = 0; i < g_nconns; i++)
+        if (strcmp(g_conns[i].ssid, ssid) == 0)
+            return 1;
+    return 0;
+}
+
+static void wifi_page(hm_page *p, const hm_page_env *env)
+{
+    rowbuf *b = &g_rows[P_WIFI];
+    const hm_net_result *last = env->net;
+    int n = 0;
+    hm_row *r;
+
+    if (g_nconns < 0)
+        hm_pages_wifi_read();
+    g_naps = hm_net_aps(g_aps, HM_WIFI_APS);
+    if (g_nconns > 0)
+        add(b, &n, pw_tr(PW_S_WIFI_SAVED), 0, HM_ROW_HEADER, A_NONE, 0);
+    for (int i = 0; i < g_nconns; i++) {
+        const hm_wifi_conn *c = &g_conns[i];
+
+        r = add(b, &n, c->name[0] ? c->name : c->ssid,
+                c->ssid[0] && strcmp(c->name, c->ssid) != 0 ? c->ssid : conn_security(c->secure),
+                HM_ROW_LINK, A_OPEN, P_WIFI_NET);
+        b->act[n - 1].arg2 = c->slot;
+        r->glyph = HM_ICON_GLOBE;
+    }
+    add(b, &n, pw_tr(PW_S_WIFI_NEARBY), 0, HM_ROW_HEADER, A_NONE, 0);
+    val(b, n)[0] = 0;
+    if (env->net_job == HM_JOB_SCAN)
+        stbsp_snprintf(val(b, n), VAL, "%s", pw_tr(PW_S_WIFI_SEARCHING));
+    else if (last && last->kind == HM_JOB_SCAN && last->ret == HM_NET_SWITCH_OFF)
+        stbsp_snprintf(val(b, n), VAL, "%s", pw_tr(PW_S_CLK_NO_WIFI));
+    else if (last && last->kind == HM_JOB_SCAN && last->ret < 0)
+        stbsp_snprintf(val(b, n), VAL, "%s", pw_tr(PW_S_WIFI_SEARCH_FAILED));
+    else if (last && last->kind == HM_JOB_SCAN && last->found > 0)
+        stbsp_snprintf(val(b, n), VAL, pw_tr(PW_S_WIFI_FOUND), last->found);
+    else if (last && last->kind == HM_JOB_SCAN)
+        stbsp_snprintf(val(b, n), VAL, "%s", pw_tr(PW_S_WIFI_NONE_FOUND));
+    r = add(b, &n, pw_tr(PW_S_WIFI_SEARCH), val(b, n)[0] ? val(b, n) : 0, HM_ROW_ACTION,
+            A_WIFI_SCAN, 0);
+    r->glyph = HM_ICON_GLOBE;
+    for (int i = 0; i < g_naps && n < ROWS - 1; i++) {
+        stbsp_snprintf(val(b, n), VAL, "%d%%   %s%s%s", g_aps[i].strength,
+                       ap_security(g_aps[i].security), is_saved(g_aps[i].ssid) ? "   " : "",
+                       is_saved(g_aps[i].ssid) ? pw_tr(PW_S_WIFI_IS_SAVED) : "");
+        r = add(b, &n, g_aps[i].ssid, val(b, n), HM_ROW_ACTION, A_WIFI_JOIN, i);
+        r->bar = g_aps[i].strength * 256 / 100;
+    }
+    add(b, &n, pw_tr(PW_S_WIFI_NOTE), 0, HM_ROW_NOTE, A_NONE, 0);
+    p->layout = HM_PAGE_ROWS;
+    p->title = pw_tr(PW_S_WIFI_CONNS);
+    p->rows = b->r;
+    p->nrows = n;
+}
+
+static void wifi_net_page(hm_page *p, int slot, const hm_page_env *env)
+{
+    rowbuf *b = &g_rows[P_WIFI_NET];
+    const hm_wifi_conn *c = hm_pages_wifi_conn(slot);
+    const hm_net_result *last = env->net;
+    int n = 0;
+    hm_row *r;
+
+    p->layout = HM_PAGE_ROWS;
+    p->rows = b->r;
+    p->title = c ? (c->name[0] ? c->name : c->ssid) : pw_tr(PW_S_WIFI_CONNS);
+    if (!c) {
+        p->nrows = 0;
+        return;
+    }
+    add(b, &n, pw_tr(PW_S_WIFI_NETWORK), c->ssid, HM_ROW_INFO, A_NONE, 0);
+    add(b, &n, pw_tr(PW_S_WIFI_SECURITY), conn_security(c->secure), HM_ROW_INFO, A_NONE, 0);
+    val(b, n)[0] = 0;
+    if ((env->net_job == HM_JOB_TEST || env->net_job == HM_JOB_JOIN) && last && last->slot == slot)
+        stbsp_snprintf(val(b, n), VAL, "%s", pw_tr(PW_S_WIFI_CONNECTING));
+    else if (last && (last->kind == HM_JOB_TEST || last->kind == HM_JOB_JOIN) &&
+             last->slot == slot && last->ret == 0)
+        stbsp_snprintf(val(b, n), VAL, pw_tr(PW_S_WIFI_CONNECTED), last->ip);
+    else if (last && (last->kind == HM_JOB_TEST || last->kind == HM_JOB_JOIN) && last->slot == slot)
+        stbsp_snprintf(val(b, n), VAL, "%s",
+                       pw_tr(last->ret == HM_NET_SWITCH_OFF ? PW_S_CLK_NO_WIFI : PW_S_WIFI_FAILED));
+    r = add(b, &n, pw_tr(PW_S_WIFI_TEST), val(b, n)[0] ? val(b, n) : 0, HM_ROW_ACTION, A_WIFI_TEST,
+            slot);
+    r->glyph = HM_ICON_GLOBE;
+    r = add(b, &n, pw_tr(PW_S_DELETE), 0, HM_ROW_ACTION, A_WIFI_DELETE, slot);
+    r->glyph = HM_ICON_TRASH;
+    p->nrows = n;
+}
+
+/* ---- the battery's calibration (BAT-REQ-011): its screen is drawn from main.c's hm_calview;
+   Enter on it starts or stops the run ---- */
+
+static int cal_state(int cal)
+{
+    static const int k[4] = {PW_S_BAT_CAL_START, PW_S_BAT_CAL_CHARGE, PW_S_BAT_CAL_UNPLUG,
+                             PW_S_BAT_CAL_RUN};
+
+    return k[cal >= 0 && cal < 4 ? cal : 0];
+}
+
+static void cal_page(hm_page *p)
+{
+    rowbuf *b = &g_rows[P_CAL];
+
+    p->layout = HM_PAGE_CAL;
+    p->title = pw_tr(PW_S_CAL_TITLE);
+    p->rows = b->r;
+    p->nrows = 0;
+    b->act[0].act = A_CAL; /* (Enter: the page has no rows to choose) */
+    b->act[0].arg = b->act[0].arg2 = 0;
+}
+
 /* ---- Settings ---- */
 
 static void settings_page(hm_page *p)
@@ -518,6 +678,24 @@ static void settings_page(hm_page *p)
         r->glyph = hs_cat_glyph(c);
         r->art = hs_cat_art(c);
         b->act[n - 1].arg2 = c;
+    }
+    {
+        hm_battery bat;
+        hm_row *r;
+
+        if (g_nconns < 0)
+            hm_pages_wifi_read();
+        if (g_nconns > 0)
+            stbsp_snprintf(val(b, n), VAL, "%d", g_nconns);
+        r = add(b, &n, pw_tr(PW_S_WIFI_CONNS), g_nconns > 0 ? val(b, n) : 0, HM_ROW_LINK, A_OPEN,
+                P_WIFI);
+        r->glyph = HM_ICON_GLOBE;
+        r->art = HM_ART_NETWORK + 1;
+        hm_hw_battery(&bat);
+        r = add(b, &n, pw_tr(PW_S_CAL_TITLE), bat.cal != HM_CAL_OFF ? pw_tr(cal_state(bat.cal)) : 0,
+                HM_ROW_LINK, A_OPEN, P_CAL);
+        r->glyph = HM_ICON_BATTERY;
+        r->art = HM_ART_POWER + 1;
     }
     p->layout = HM_PAGE_ROWS;
     p->rows = b->r;
@@ -599,8 +777,6 @@ static void battery_page(hm_page *p)
 
     hm_battcal cal;
     char d[32];
-    static const int k_cal[4] = {PW_S_BAT_CAL_START, PW_S_BAT_CAL_CHARGE, PW_S_BAT_CAL_UNPLUG,
-                                 PW_S_BAT_CAL_RUN};
 
     hm_hw_battery(&bat); /* (read by hw.c's thread: these calls are slow) */
     if (bat.pct >= 0)
@@ -663,8 +839,9 @@ static void battery_page(hm_page *p)
     } else {
         add(b, &n, pw_tr(PW_S_BAT_MEASURED), pw_tr(PW_S_BAT_NOT_MEASURED), HM_ROW_INFO, A_NONE, 0);
     }
-    add(b, &n, pw_tr(PW_S_BAT_CAL), pw_tr(k_cal[bat.cal >= 0 && bat.cal < 4 ? bat.cal : 0]),
-        HM_ROW_ACTION, A_CAL, 0);
+    add(b, &n, pw_tr(PW_S_CAL_TITLE), bat.cal != HM_CAL_OFF ? pw_tr(cal_state(bat.cal)) : 0,
+        HM_ROW_LINK, A_OPEN, P_CAL)
+        ->glyph = HM_ICON_BATTERY;
     p->layout = HM_PAGE_ROWS;
     p->title = pw_tr(PW_S_BATTERY);
     p->rows = b->r;
@@ -806,6 +983,15 @@ void hm_page_build(hm_view *v, int d, hm_page_id id, const hm_page_env *env)
         break;
     case P_SYS_POWER:
         power_page(p);
+        break;
+    case P_WIFI:
+        wifi_page(p, env);
+        break;
+    case P_WIFI_NET:
+        wifi_net_page(p, id.arg, env);
+        break;
+    case P_CAL:
+        cal_page(p);
         break;
     default:
         break;

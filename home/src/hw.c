@@ -126,6 +126,7 @@ static void append(const char *path, const char *text, int truncate)
    written whatever the screen does; the run's file survives the PSP turning itself off ---- */
 
 #define CAL_RUN     "ms0:/seplugins/pocketwatch/battery-cal.txt"
+#define CAL_LAST    "ms0:/seplugins/pocketwatch/battery-last.txt" /* the run before, for its chart */
 #define CAL_RESULT  "ms0:/seplugins/pocketwatch/battery.txt"
 #define CAL_EVERY_S 30
 #define CAL_TEXT    (96 * 1024) /* a run of 12 h at 30 s: 1440 lines of ~35 bytes */
@@ -137,14 +138,46 @@ static hm_battcal g_cal_res;    /* the last result (battery.txt) */
 static volatile int g_cal_have;
 static unsigned int g_cal_last; /* the last sample (ms) */
 
-static int read_run(hm_battcal *c)
+/* The page's copy (BAT-REQ-011): written into the one the screen does not read, then made the
+   current one, as g_bat. */
+static struct {
+    hm_battcal c;
+    unsigned char pct[HM_CAL_PTS];
+    int n; /* -1: no run */
+} g_live[2] = {{.n = -1}, {.n = -1}};
+static volatile int g_live_cur;
+
+/* A run's file read: its numbers (0, or < 0) and, for the page, its curve. */
+static int read_run_at(const char *path, hm_battcal *c)
 {
     char *text = malloc(CAL_TEXT);
-    int n = text ? hm_hw_read_file(CAL_RUN, text, CAL_TEXT) : -1,
-        r = n > 0 ? hm_battcal_parse(text, (unsigned int)n, c) : -1;
+    int n = text ? hm_hw_read_file(path, text, CAL_TEXT) : -1,
+        r = n > 0 ? hm_battcal_parse(text, (unsigned int)n, c) : -1, k = g_live_cur ^ 1;
 
+    g_live[k].n = -1;
+    if (r == 0) {
+        g_live[k].c = *c;
+        g_live[k].n = hm_battcal_curve(text, (unsigned int)n, g_live[k].pct, HM_CAL_PTS);
+    }
+    g_live_cur = k;
     free(text);
     return r;
+}
+
+static int read_run(hm_battcal *c)
+{
+    return read_run_at(CAL_RUN, c);
+}
+
+int hm_hw_cal_live(hm_battcal *c, unsigned char *pct, int max)
+{
+    int k = g_live_cur, n = g_live[k].n < max ? g_live[k].n : max;
+
+    if (g_live[k].n < 0)
+        return -1;
+    *c = g_live[k].c;
+    memcpy(pct, g_live[k].pct, (size_t)(n > 0 ? n : 0));
+    return n;
 }
 
 /* The run ends (the charger came back, Stop, or the PSP turned off during it): its result kept
@@ -166,7 +199,9 @@ static void cal_finish(void)
     } else {
         g_cal_news = HM_CAL_NEWS_SHORT;
     }
-    sceIoRemove(CAL_RUN);
+    sceIoRemove(CAL_LAST); /* kept for its chart until the next run ends */
+    if (sceIoRename(CAL_RUN, CAL_LAST) < 0)
+        sceIoRemove(CAL_RUN);
     g_cal = HM_CAL_OFF;
 }
 
@@ -182,6 +217,11 @@ static void cal_sample(const hm_battery *b, int start)
     hm_battcal_sample_line(line, sizeof(line), t, b->pct, b->mv, b->ma, b->rcap, b->online);
     append(CAL_RUN, line, 0);
     g_cal_last = sceKernelGetSystemTimeLow() / 1000;
+    if (!start) { /* the page's numbers and chart (the start line and one sample: none yet) */
+        hm_battcal c;
+
+        read_run(&c);
+    }
 }
 
 /* Charge to full, unplug, run down: one step a second. */
@@ -233,7 +273,8 @@ static void cal_resume(const hm_battery *b)
     if (n > 0 && hm_battcal_result_parse(text, (unsigned int)n, &g_cal_res) == 0)
         g_cal_have = 1;
     if (read_run(&c) < 0) {
-        sceIoRemove(CAL_RUN); /* (nothing usable in it) */
+        sceIoRemove(CAL_RUN);      /* (nothing usable in it) */
+        read_run_at(CAL_LAST, &c); /* the last run's chart */
         return;
     }
     if (c.pct_to > 10 && !b->online) { /* Home was left in the middle: go on */
@@ -640,6 +681,67 @@ int hm_hw_backlight(int on)
         a.arg[1] = (unsigned int)extra;
     }
     return kuKernelCall(set, &a) < 0 ? -1 : 0;
+}
+
+/* ---- the volume and brightness indicator, the brightness boost (HOM-REQ-034, ADR-045) ---- */
+
+#define NID_IMPOSE_GET_PARAM 0x531C9778 /* sceImpose_driver, as hsettings.c */
+#define IMPOSE_VOLUME        0x1
+#define IMPOSE_BRIGHTNESS    0x2
+#define IMPOSE_MUTE          0x8
+
+static void *g_av_fn[3]; /* impose's get, the display's get and set */
+static int g_av_extra;   /* the display's second value, given back as read */
+
+static void av_find(void)
+{
+    if (g_av_fn[0] || g_av_fn[1])
+        return;
+    g_av_fn[0] =
+        (void *)sctrlHENFindFunction("sceImpose_Driver", "sceImpose_driver", NID_IMPOSE_GET_PARAM);
+    g_av_fn[1] = (void *)sctrlHENFindFunction("sceDisplay_Service", "sceDisplay_driver",
+                                              NID_DISPLAY_GET_BRIGHTNESS);
+    g_av_fn[2] = (void *)sctrlHENFindFunction("sceDisplay_Service", "sceDisplay_driver",
+                                              NID_DISPLAY_SET_BRIGHTNESS);
+}
+
+static int impose_get(int param)
+{
+    struct hm_kcall a;
+
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = (unsigned int)param;
+    return g_av_fn[0] && kuKernelCall(g_av_fn[0], &a) >= 0 ? (int)a.ret1 : -1;
+}
+
+void hm_hw_av_read(hm_hw_av *out)
+{
+    struct hm_kcall a;
+    volatile int level = -1, extra = 0;
+
+    av_find();
+    out->vol = impose_get(IMPOSE_VOLUME);
+    out->mute = impose_get(IMPOSE_MUTE);
+    out->bright = impose_get(IMPOSE_BRIGHTNESS);
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = (unsigned int)&level;
+    a.arg[1] = (unsigned int)&extra;
+    out->level = g_av_fn[1] && kuKernelCall(g_av_fn[1], &a) >= 0 ? level : -1;
+    if (out->level >= 0)
+        g_av_extra = extra;
+}
+
+int hm_hw_set_level(int level)
+{
+    struct hm_kcall a;
+
+    av_find();
+    if (!g_av_fn[2] || level < 1 || level > 100)
+        return -1;
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = (unsigned int)level;
+    a.arg[1] = (unsigned int)g_av_extra;
+    return kuKernelCall(g_av_fn[2], &a) < 0 ? -1 : 0;
 }
 
 void hm_hw_format_time(const ScePspDateTime *t, char *out, int cap)

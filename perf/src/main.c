@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Pocketwatch's performance overlay in games (PRF-REQ-001..005, ADR-043, docs/research/
- * m7-perf-overlay.md): a kernel module of its own, in ARK-4's PLUGINS.TXT only while Home's
- * Settings -> Overlay in Games is on - the game plugin's kernel RAM (2 KB left, ADR-037) pays
- * nothing, and a game without it runs as before. One thread: at every vblank it writes its lines
- * into the frame the PSP shows next (the hub's own while the hub is open, else the game's), once a
- * second it measures. It writes nothing to the card; it reads perf.txt once.
+ * Pocketwatch's overlay module in games (PRF-REQ-001..008, ADR-043, ADR-045, docs/research/
+ * m7-perf-overlay.md): the performance numbers, the volume and brightness indicator, the
+ * brightness boost. A kernel module of its own, in ARK-4's PLUGINS.TXT only while one of them is
+ * on in Home's Settings - the game plugin's kernel RAM (2 KB left, ADR-037) pays nothing, and a
+ * game without it runs as before. One thread: at every vblank it writes into the frame the PSP
+ * shows next (the hub's own while the hub is open, else the game's); every 6th it reads the
+ * volume and the brightness; once a second it measures. It writes nothing to the card; it reads
+ * perf.txt once.
  */
 #include <pspctrl.h>
 #include <pspdisplay.h>
@@ -32,20 +34,28 @@ int sceDisplayWaitVblankStart(void);
 int sceDisplayGetFrameBufferInternal(int pri, void **top, int *bufw, int *fmt, int sync);
 int sceCtrlPeekBufferPositive(SceCtrlData *pad, int count);
 SceSize sceKernelPartitionTotalFreeMemSize(int pid);
+int sceImposeGetParam(int param);
+int sceDisplayGetBrightness(int *level, int *unk);
+int sceDisplaySetBrightness(int level, int unk);
 
-#define CFG      "ms0:/seplugins/pocketwatch/perf.txt"
-#define HOLD_MS  1000 /* L + R + SELECT held this long: the next mode */
-#define ELEC_S   10   /* the current: a command the syscon sends to the battery, so not often */
-#define COMBO    (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
-#define OTHERS   0x0000F0F8u /* the d-pad, the face buttons, START: none of them with the combo */
-#define SCREEN_W 480
-#define SCREEN_H 272
+#define CFG               "ms0:/seplugins/pocketwatch/perf.txt"
+#define HOLD_MS           1000 /* L + R + SELECT held this long: the next mode */
+#define ELEC_S            10 /* the current: a command the syscon sends to the battery, so not often */
+#define COMBO             (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER | PSP_CTRL_SELECT)
+#define OTHERS            0x0000F0F8u /* the d-pad, the face buttons, START: none of them with the combo */
+#define SCREEN_W          480
+#define SCREEN_H          272
+#define AV_EVERY          6 /* vblanks between readings of the volume and the brightness (100 ms) */
+#define IMPOSE_VOLUME     0x1 /* pspimpose_driver.h */
+#define IMPOSE_BRIGHTNESS 0x2
+#define IMPOSE_MUTE       0x8
 
 static volatile int g_run = 1;
 static SceUID g_thread = -1;
 
 static int g_mode = PW_PERF_FULL;
-static pw_perf_mask g_mask[2];
+static pw_perf_cfg g_cfg;
+static pw_perf_mask g_mask[2], g_osd_mask;
 static int g_lines;
 
 static SceUID g_idle[2]; /* the idle threads: what they ran is the CPU left over */
@@ -58,13 +68,14 @@ static unsigned int now_ms(void)
 
 static void read_mode(void)
 {
-    char t[32];
+    char t[96];
     SceUID fd = sceIoOpen(CFG, PSP_O_RDONLY, 0);
     int n = fd >= 0 ? sceIoRead(fd, t, sizeof(t)) : 0;
 
     if (fd >= 0)
         sceIoClose(fd);
-    g_mode = pw_perf_parse(t, n > 0 ? n : 0);
+    pw_perf_cfg_parse(t, n > 0 ? n : 0, &g_cfg);
+    g_mode = g_cfg.mode;
 }
 
 static void find_idle(void)
@@ -110,10 +121,47 @@ static void lines(const pw_perf_stats *s)
         pw_perf_render(l[i], &g_mask[i]);
 }
 
+/* The volume and the brightness (ADR-045): the indicator when one changed, the boost kept. */
+static pw_osd g_osd;
+static pw_bright g_bright;
+static int g_level = -1; /* the backlight's level as last read */
+
+static void av_step(unsigned int now)
+{
+    int level = 0, unk = 0, set;
+
+    if (sceDisplayGetBrightness(&level, &unk) < 0)
+        level = -1;
+    g_level = level;
+    if (g_cfg.boost > 0 && (set = pw_bright_step(&g_bright, level, g_cfg.boost, now)) > 0) {
+        sceDisplaySetBrightness(set, unk);
+        g_level = set;
+    }
+    if (g_cfg.osd == PW_OSD_ALL &&
+        pw_osd_step(&g_osd, sceImposeGetParam(IMPOSE_VOLUME), sceImposeGetParam(IMPOSE_MUTE),
+                    sceImposeGetParam(IMPOSE_BRIGHTNESS), now)) {
+        char t[PW_PERF_COLS + 1];
+
+        pw_osd_text(&g_osd, g_level, t);
+        pw_perf_render(t, &g_osd_mask);
+    }
+}
+
+static void osd_draw(void *top, int bufw, int fmt, unsigned int now)
+{
+    int kind = pw_osd_shown(&g_osd, now);
+
+    if (kind == PW_OSD_VOLUME)
+        pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
+                    g_osd.mute == 1 ? 0 : g_osd.vol, 30);
+    else if (kind == PW_OSD_BRIGHT)
+        pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright + 1, 4);
+}
+
 static int perf_thread(SceSize args, void *argp)
 {
     pw_perf_stats s;
-    unsigned int t_sec = now_ms(), t_hold = 0, held = 0, elec_at = 0;
+    unsigned int t_sec = now_ms(), t_hold = 0, held = 0, elec_at = 0, vblanks = 0;
     unsigned long long idle0 = 0, wall0 = sceKernelGetSystemTimeWide();
     void *last = 0;
     int flips = 0;
@@ -121,6 +169,7 @@ static int perf_thread(SceSize args, void *argp)
     (void)args;
     (void)argp;
     read_mode();
+    pw_bright_init(&g_bright);
     find_idle();
     idle0 = idle_us();
     memset(&s, 0, sizeof(s));
@@ -135,6 +184,8 @@ static int perf_thread(SceSize args, void *argp)
 
         sceDisplayWaitVblankStart();
         now = now_ms();
+        if (++vblanks % AV_EVERY == 0 && (g_cfg.boost > 0 || g_cfg.osd == PW_OSD_ALL))
+            av_step(now);
         /* L + R + SELECT held a second, nothing else: the next mode (once per hold) */
         memset(&pad, 0, sizeof(pad));
         if (sceCtrlPeekBufferPositive(&pad, 1) > 0 && (pad.Buttons & COMBO) == COMBO &&
@@ -184,7 +235,7 @@ static int perf_thread(SceSize args, void *argp)
             idle0 = idle;
             wall0 = wall;
         }
-        if (g_mode == PW_PERF_OFF || !g_lines)
+        if ((g_mode == PW_PERF_OFF || !g_lines) && pw_osd_shown(&g_osd, now) == PW_OSD_NONE)
             continue;
         /* the hub's frame (priority 0) while it is open, else the game's */
         if (sceDisplayGetFrameBufferInternal(0, &top, &bufw, &fmt, PSP_DISPLAY_SETBUF_IMMEDIATE) <
@@ -197,8 +248,9 @@ static int perf_thread(SceSize args, void *argp)
         if (!top || bufw < SCREEN_W)
             continue;
         top = (void *)((unsigned int)top | 0x40000000u); /* uncached: no cache to write back */
-        for (int i = 0; i < g_lines; i++)
+        for (int i = 0; g_mode != PW_PERF_OFF && i < g_lines; i++)
             pw_perf_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, 4, 4 + i * 11, &g_mask[i]);
+        osd_draw(top, bufw, fmt, now);
     }
     return 0;
 }

@@ -126,9 +126,14 @@ def main():
     allow = load_tsv(args.allowlist, 2)
 
     failures = 0
+    owner = {}  # a stub's library: two tables claiming one stub is a broken fixup (2026-10-20)
     print("Imports:")
     for lib, nid, name in imports(elf):
         key = (lib, "0x%08X" % nid)
+        if name != "?" and owner.setdefault(name, lib) != lib:
+            print("FAIL: %s is in the tables of %s and %s (an IMPORT_START of a library PSPSDK"
+                  " already has?)" % (name, owner[name], lib))
+            failures += 1
         if key in table:
             status = "ark-mapped -> %s" % table[key][2]
         elif lib not in randomized:

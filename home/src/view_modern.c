@@ -746,6 +746,7 @@ void hm_draw_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     }
     if (v->panel > 0)
         panel(g, ui, &p, v);
+    hm_draw_cal(g, ui, v);
     if (v->sheet > 0)
         sheet(g, ui, &p, v);
     hm_draw_toast(g, ui, v, p.card_a >= 128 ? p.card : C_CARD, p.card_a >= 128 ? p.text : C_TEXT);

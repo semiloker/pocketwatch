@@ -90,4 +90,8 @@ int hs_choose(int i, int o);
 /* The selectable row nearest to i in direction dir (headers are skipped); i itself if none. */
 int hs_next(int i, int dir);
 
+/* The overlay module's settings (perf.txt): the indicator and the boost Home uses too. */
+#include "overlay.h"
+const pw_perf_cfg *hs_perf_cfg(void);
+
 #endif

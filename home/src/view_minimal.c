@@ -333,6 +333,7 @@ void hm_draw_minimal(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     }
     if (v->panel > 0)
         panel(g, ui, &p, v);
+    hm_draw_cal(g, ui, v);
     if (v->sheet > 0)
         sheet(g, ui, v);
     hm_draw_toast(g, ui, v, C_BLACK, C_TEXT);

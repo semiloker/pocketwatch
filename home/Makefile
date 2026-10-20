@@ -17,15 +17,20 @@ OBJS = build/main.o build/hw.o build/library.o build/launch.o build/texts.o buil
        build/text.o build/pgf.o build/sfo.o build/playtime.o build/crc32.o build/stb_sprintf.o \
        build/config.o build/langnames.o build/hcfg.o build/pages.o build/savedata.o \
        build/savedata_text.o build/photo_edit.o build/hm_imgwrite.o build/clockfix.o \
-       build/battcal.o build/battmodel.o build/plugins_txt.o
+       build/battcal.o build/battmodel.o build/plugins_txt.o build/wifi_list.o build/overlay.o
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-INCDIR  = src lib ../plugin/src ../plugin/lib
+INCDIR  = src lib ../plugin/src ../plugin/lib ../perf/src
 CFLAGS  = -O2 -G0 -Wall -Wextra -Werror -DPW_I18N_HOME -DPW_VERSION=\"$(VERSION)\"
 ASFLAGS = $(CFLAGS)
-LIBS    = -lpspgu -lpspusb -lpspusbstor -lpsphttp -lpspssl -lpspnet_apctl -lpspnet_resolver \
-          -lpspnet_inet -lpspnet -lpspwlan -lpspmp3 -lpspaudio -lpsppower -lpsprtc -lpsputility
+LIBS    = -lpspgu -lpspusb -lpspusbstor -lpsphttp -lpspssl -lpspnet_apctl build/apctl_scan.o \
+          -lpspnet_resolver -lpspnet_inet -lpspnet -lpspwlan -lpspmp3 -lpspaudio -lpsppower -lpsprtc \
+          -lpsputility
+# newlib's glue (libcglue: recv, send, close) wants three more sceNetInet stubs, linked last: out
+# of order, psp-fixup-imports counted them into sceNetInet's table over sceNet's and sceWlanDrv's
+# stubs - the loader then unlinked sceNetInit (0x8002013A, 2026-10-20). Taken with the others.
+LDFLAGS = -Wl,-u,sceNetInetRecv -Wl,-u,sceNetInetSend -Wl,-u,sceNetInetGetErrno
 
 BUILD_PRX      = 1
 PSP_FW_VERSION = 660
@@ -35,7 +40,7 @@ PSP_EBOOT_ICON  = res/ICON0.PNG
 PSP_EBOOT_PIC1  = res/PIC1.PNG
 
 VPATH = src ../plugin/src/ui ../plugin/src/gfx ../plugin/src/core \
-        ../plugin/src/complications/states ../plugin/lib
+        ../plugin/src/complications/states ../plugin/lib ../perf/src
 
 PSPSDK = $(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
@@ -48,6 +53,10 @@ build/%.o: %.c | build
 
 build/%.o: %.S | build
 	$(CC) $(ASFLAGS) -c -o $@ $<
+
+# (order-only: on the link line through LIBS, after -lpspnet_apctl - not in $^ - its stubs
+# follow the library's)
+$(TARGET).elf: | build/apctl_scan.o
 
 # Third-party code keeps its own style.
 build/hm_image.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-parameter \

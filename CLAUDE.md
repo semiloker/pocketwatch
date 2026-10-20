@@ -53,6 +53,16 @@ The project's full workflow is imported here and applies to every session:
   module of its own that ARK-4 loads only while its PLUGINS.TXT line is on - Home → Settings →
   Pocketwatch → Overlay in Games writes that line and `perf.txt`; in a game L+R+SELECT held 1 s
   cycles Off / FPS / Full; deploy copies it. Home has its own overlay (`home.txt perf`).
+- The overlay module also shows the volume and brightness indicator in games and keeps the
+  brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all`,
+  `boost = 0-100`, written by Home's Settings (Sound and Display), its PLUGINS.TXT line on while a
+  game needs one of them; Home shows the indicator and applies the boost itself.
+- Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,
+  the firmware's netparam calls; `home net:` lines). Imports: never an `IMPORT_START` of a library
+  PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs
+  out of order" built Home's `sceNetInet` table over `sceNet`'s (0x8002013A); `make check` fails
+  on a stub in two tables. Extra NIDs of an SDK library: `IMPORT_FUNC`s linked right after it
+  (`home/src/apctl_scan.S`). After USB Home drops the FAT driver's cache before writing (ADR-046).
 - Home keeps the clock (ADR-041): at its start, before any write, a lost clock (the kernel refuses
   it, or it reads before 2016) is set to the newest file time of 2016 or later; Settings → Date and
   Time → Set Time from Internet (SNTP on a thread); `home clock:` lines in `home.log`. Home's

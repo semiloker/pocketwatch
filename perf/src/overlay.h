@@ -45,7 +45,58 @@ void pw_perf_draw(void *fb, int stride, int fmt, int w, int h, int x, int y, con
 /* The next mode when L + R + SELECT were held a second: off, the frame rate, everything, off. */
 int pw_perf_next(int mode);
 
-/* perf.txt (Home writes it): "mode = fps" or "mode = full"; anything else: full. */
-int pw_perf_parse(const char *text, int len);
+/* perf.txt (Home writes it, the module reads it at a game's start): "mode = off|fps|full" (the
+   numbers), "osd = off|home|all" (the volume and brightness indicator: none, over Home only, over
+   games too), "boost = <0-100>" (the backlight: that share of the way from the system's level up
+   to the most, ADR-045). What is missing or not known: full, home, 0. */
+enum { PW_OSD_OFF, PW_OSD_HOME, PW_OSD_ALL };
+typedef struct {
+    int mode, osd, boost;
+} pw_perf_cfg;
+void pw_perf_cfg_parse(const char *text, int len, pw_perf_cfg *c);
+
+/* ---- the brightness boost (ADR-045): portable, the module's and Home's ---- */
+
+/* The level boost gives for the system's level (1-100); 0 (off) stays 0. */
+int pw_bright_boost(int level, int boost);
+
+/* Keeping it while the system changes the level (the SCREEN button, the charger, a wake): given
+   the display's level now, the one to set, or -1 to leave it. A boost turned off gives the
+   system's level back. When another (a brightness plugin) sets its own again and again, within
+   PW_BRIGHT_FIGHT_MS of ours, PW_BRIGHT_FIGHTS times: given up (fights >= PW_BRIGHT_FIGHTS). */
+#define PW_BRIGHT_FIGHTS   4
+#define PW_BRIGHT_FIGHT_MS 400
+typedef struct {
+    int set;    /* the level set here last, -1 none */
+    int base;   /* the system's level under it */
+    int fights; /* times it was put back at once */
+    unsigned int t_set;
+} pw_bright;
+void pw_bright_init(pw_bright *b);
+int pw_bright_step(pw_bright *b, int level, int boost, unsigned int now_ms);
+
+/* ---- the volume and brightness indicator ---- */
+
+enum { PW_OSD_NONE, PW_OSD_VOLUME, PW_OSD_BRIGHT };
+#define PW_OSD_MS 1500 /* shown this long after the last change */
+typedef struct {
+    int vol, mute, bright; /* as last read (-1 not known) */
+    int kind;              /* PW_OSD_*: what changed last */
+    unsigned int t;        /* when */
+    int primed;            /* (the first reading only remembered) */
+} pw_osd;
+/* The readings now (-1: not known): 1 when one changed (o->kind, o->t set). */
+int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms);
+/* What to show now: the kind within PW_OSD_MS of its change, else PW_OSD_NONE. */
+int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
+/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", "BRIGHT 3/4 92%". */
+void pw_osd_text(const pw_osd *o, int level, char out[PW_PERF_COLS + 1]);
+
+/* The indicator in a game's frame: a black box with a white edge at the bottom middle, label in
+   it and a bar of n steps, k of them lit (format, clip: pw_perf_draw's). */
+#define PW_OSD_W 280
+#define PW_OSD_H 24
+void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
+                 int n);
 
 #endif

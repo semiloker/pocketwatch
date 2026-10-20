@@ -286,3 +286,24 @@ risk; close it with the evidence.
   and its own memory; no card writes, no hooks, no interrupts; a load restores the whole kernel
   image, the module's thread with it (INFERRED). Device test PF2 before it is recommended for
   games with states; until then the testing guide says to turn it off for state tests.
+
+## RISK-028 — Home writes the PSP's network connections
+
+- **Description:** a new Wi-Fi connection (ADR-044) is written into the registry on flash1 through
+  the firmware's netparam calls; a wrong value (the security, the key's type) makes a connection
+  that does not connect, a wrong call could spoil the XMB's list of connections.
+- **Likelihood L** / **Impact M** (the XMB's Network Settings shows, fixes and deletes them; no
+  other setting is touched).
+- **Mitigation:** only when the owner saves a network; only the firmware's own calls (what its
+  `pspnet_ap_dialog_dummy` does), never registry keys by hand; a failed step deletes the connection
+  it began; that network's earlier one replaced, never another; WEP not made here; a test logs what
+  an XMB-made connection holds to compare (HM33).
+
+## RISK-029 — The brightness boost fights another brightness plugin, or costs battery
+
+- **Description:** the boost (ADR-045) sets the backlight whenever the system changes it; another
+  plugin doing the same (bright3.prx is on the owner's PSP for VSH, GAME and POPS) would put its
+  own back - a flicker; the brightest level draws more power.
+- **Likelihood M** / **Impact L**.
+- **Mitigation:** off by default; given up after 4 put-backs within 400 ms of ours (logged in Home:
+  `home brightness:`); the screen off is never turned on; HM34 and PF3 with bright3 on.

@@ -58,3 +58,26 @@ PW_TEST(battery_calibration_needs_a_start_and_keeps_its_result)
     CHECK_EQ(r.avg_ma, 320);
     CHECK(r.complete);
 }
+
+PW_TEST(battery_calibration_curve_picks_the_samples_evenly_and_keeps_the_last)
+{
+    char text[8192];
+    unsigned char pct[16];
+    int n = 0;
+
+    n += hm_battcal_start_line(text + n, (int)sizeof(text) - n, 1760950000ULL, 1790, 12);
+    for (int i = 0; i < 100; i++) /* 99 % down to 0 %, one on the charger in between */
+        n += hm_battcal_sample_line(text + n, (int)sizeof(text) - n, 1760950000ULL + 30u * i,
+                                    99 - i, 4000, -250, 1500, i == 50);
+    CHECK_EQ(hm_battcal_curve(text, (unsigned int)n, pct, 16), 15); /* 99 samples: every 7th */
+    CHECK_EQ(pct[0], 99);
+    CHECK_EQ(pct[1], 92);
+    CHECK_EQ(pct[14], 0); /* the last one (sample 98) */
+    {
+        unsigned char all[200];
+
+        CHECK_EQ(hm_battcal_curve(text, (unsigned int)n, all, 200), 99); /* room: every one */
+        CHECK_EQ(all[98], 0);
+    }
+    CHECK_EQ(hm_battcal_curve("12 3", 4, pct, 16), 0); /* no start line: nothing */
+}

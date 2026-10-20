@@ -8,7 +8,9 @@
  * (extras/menus/arkMenu/src/usb.cpp). Home never deactivates it by itself: a computer slow to
  * take the card would lose it again (the automatic retry every 3 s of 2026-10-19 did that). Enter
  * on the USB card connects again by hand. While it is on, the card belongs to the computer: Home
- * does no file I/O.
+ * does no file I/O. When it ends, the FAT driver's cached tables are dropped before anything is
+ * written (hm_usb_stop): a write from the stale copy put a folder back as it was before the
+ * computer's changes (2026-10-20, a new file lost; chkdsk: a lost chain).
  *
  * Another plugin may hold the port (ADR-034): RemoteJoyLite, loaded for games - and so for Home,
  * a homebrew - starts the bus and activates its own device (PID 0x1C9). The bus then answers

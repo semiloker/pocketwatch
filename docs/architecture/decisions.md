@@ -896,3 +896,77 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** a new build target (`perf/`), copied by `scripts/deploy.ps1`; nothing changes
   for a game while it is off. The game's GE load is not shown (OPEN QUESTION); states with the
   overlay on are RESEARCH REQUIRED (RISK-027, PF2).
+
+## ADR-044 — Wi-Fi in Home: the PSP's own connections, made and tested from Home
+
+- **Status:** Accepted (2026-10-20), from the owner's round-7 report: "Wi-Fi does not work, it says
+  not available; and if it did, how would I connect - there is no section, I cannot choose or type
+  a password".
+- **Context:** the PSP had no saved connection (`profile=0`), and Home's network never came up:
+  `sceNetInit` 0x8002013A. Cause (VERIFIED, [m7-wifi](../research/m7-wifi.md)): Home's own build -
+  newlib's glue pulled three `sceNetInet` stubs at the end of the link, `psp-fixup-imports` ("stubs
+  out of order") built the `sceNetInet` table over `sceNet`'s and `sceWlanDrv`'s stubs, so loading
+  the inet library unlinked `sceNetInit`. Fixed in `home/Makefile` (`-Wl,-u` takes them with the
+  others); `tools/check_prx.py` fails when a stub is in two tables.
+- **Decision:** Settings → Wi-Fi Connections: the saved connections (the XMB's list: name,
+  network, security; Test Connection - connect, the address, the internet's time set while there -
+  and Delete) and Search for Networks (each network once, strongest first: signal, security,
+  "Saved"). Enter on one: open - saved and tested; WPA / WPA2 - its password on Home's keyboard
+  (8-63 characters or 64 hex digits; never logged nor kept), saved and tested; WEP - the XMB's
+  Network Settings. A connection is made the firmware's way (`sceUtility_netparam_internal`:
+  Create, Set, Copy, as the firmware's `pspnet_ap_dialog_dummy` does; the same calls through
+  KUBridge when they are not linked for a user program): its name the SSID, DHCP, no proxy, that
+  network's earlier one replaced. Every job on a thread of its own (`home net:` lines). The search's
+  three calls are `IMPORT_FUNC`s of the SDK's own `sceNetApctl` table, linked right after it
+  (`home/src/apctl_scan.S`). The owner's request is the decision for these writes of the PSP's
+  network settings (the registry on flash1, as the XMB's Network Settings writes them).
+- **Alternatives considered:** sending the owner to the XMB's Network Settings (it scans and asks
+  the password too, but the owner wants it in Pocketwatch); writing the registry keys
+  (`/CONFIG/NETWORK/INFRASTRUCTURE/<n>`, two dozen keys - one wrong breaks the XMB's list); the
+  netconf dialog (connects only through saved ones).
+- **Consequences:** Home writes network settings (RISK-028). Not verified on a device: the security
+  values (3 WPA-TKIP, 4 WPA-AES) and the key type (1 a passphrase) - a test of a connection made
+  in the XMB logs `secure=` and `wpa_type=` to compare (HM33). PPSSPP: the search works, saving
+  is refused (it has no netparam calls).
+
+## ADR-045 — A volume and brightness indicator in Home and in games; a brightness boost
+
+- **Status:** Accepted (2026-10-20), owner: "add more screen brightness; show a brightness overlay
+  when I press it, in the menu and in games, and the sound too".
+- **Decision:** Home and the overlay module (perf/) read impose's volume (0-30) and mute and the
+  SCREEN button's step (0-3) every 100 ms; a change shows for 1.5 s - over Home a pill at the
+  bottom (icon, bar, "18" / "Muted" / "3/4 92%"), in a game a black box with a white edge at the
+  bottom middle ("VOL 18", "MUTE", "BRIGHT 3/4 92%", a bar of 30 or 4 steps). The boost: whenever
+  the system sets the backlight (SCREEN, the charger, a wake) it is set to that level plus the
+  boost's share of the way to 100 (Brighter 50 %, Maximum 100 %); off gives the system's level
+  back; the screen off stays off; another plugin setting its own back 4 times within 400 ms of
+  ours makes it give up (logged). Settings → Sound and Display → Brightness Boost, Volume and
+  Brightness (Off / In Home - the default / Home and Games). `perf.txt` keeps them for both
+  (`mode`, `osd`, `boost`); the module's PLUGINS.TXT line is on while a game needs it. The logic is
+  portable (`perf/src/overlay.c`), Home links it too.
+- **Alternatives considered:** Pocketwatch's own SCREEN steps (a hook in impose's button path);
+  a fifth step (the same, and the system's values per step are not known); a plugin of its own
+  (one more PLUGINS.TXT line and thread for the same readings).
+- **Consequences:** with the indicator in games or a boost the module runs in every game
+  (RISK-027, PF2, PF3); the boost costs battery and may meet another brightness plugin (bright3 on
+  the owner's PSP: RISK-029). The system's level for each step: OPEN QUESTION (the indicator shows
+  it, PF3 / HM34).
+
+## ADR-046 — After USB, the FAT driver's cached tables are dropped before Home writes
+
+- **Status:** Accepted (2026-10-20), from the owner's round 7: "the overlay does not work in the
+  game" - `pocketwatch_perf.prx` was not on the card.
+- **Context:** VERIFIED (the card, chkdsk, [log](../research/logs/2026-10-20-round7-home.log)): the
+  deploy copied it (hash checked) while Home lent the card over USB; when USB ended Home appended
+  its USB line to `home.log` from the PSP's cached copy of `seplugins/pocketwatch/`, which put the
+  folder back as before the deploy: the new file's entry gone (chkdsk: one lost chain of 32 KB, its
+  cluster), the other PRXs' entries back to the earlier deploy's times.
+- **Decision:** `hm_usb_stop` drops the cache after deactivating: `sceIoDevctl("fatms0:",
+  0x0240D81E)` (oslib `src/usb.c`, Custom Home `usb.c`; PPSSPP `sceIo.cpp` names it "invalidate MS
+  driver file table cache"); nothing writes before it; its result in the USB line ("cache
+  dropped").
+- **Alternatives considered:** unassigning and assigning `ms0:` again (fails while a file is open;
+  the library's threads hold some); no write after USB (the next one would still see the stale
+  tables).
+- **Consequences:** test HM32. The lost 32 KB on the owner's card is harmless (`chkdsk /F` makes it
+  FOUND.000).

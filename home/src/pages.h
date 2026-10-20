@@ -30,6 +30,9 @@ enum {
     P_SYS_STORAGE, /* the Memory Stick's */
     P_SYS_ABOUT,   /* the PSP's */
     P_SYS_POWER,   /* Sleep, Turn Off, Exit */
+    P_WIFI,        /* Settings: Wi-Fi - the saved connections, the networks around */
+    P_WIFI_NET,    /* one saved connection: Test, Delete */
+    P_CAL,         /* the battery's calibration (a screen of its own) */
     P_COUNT
 };
 
@@ -44,11 +47,15 @@ enum {
     A_EXIT, /* to the XMB */
     A_SLEEP,
     A_OFF,
-    A_PLAY,     /* start the game */
-    A_TRACK,    /* play track arg (or pause the one playing) */
-    A_DELETE,   /* delete what the page shows (a save) */
-    A_NET_TIME, /* the clock from the internet (HOM-REQ-032) */
-    A_CAL,      /* the battery's calibration run: start or stop (BAT-REQ-008) */
+    A_PLAY,        /* start the game */
+    A_TRACK,       /* play track arg (or pause the one playing) */
+    A_DELETE,      /* delete what the page shows (a save) */
+    A_NET_TIME,    /* the clock from the internet (HOM-REQ-032) */
+    A_CAL,         /* the battery's calibration run: start or stop (BAT-REQ-008) */
+    A_WIFI_SCAN,   /* search for networks (HOM-REQ-033) */
+    A_WIFI_JOIN,   /* the network arg (hm_pages_wifi_ap): a new connection */
+    A_WIFI_TEST,   /* connect through the saved connection arg */
+    A_WIFI_DELETE, /* delete it (asked first) */
 };
 
 typedef struct {
@@ -61,10 +68,14 @@ typedef struct {
 } hm_page_id;
 
 /* What the pages show that main.c keeps. */
+#include "net.h"
+
 typedef struct {
     const char *model, *firmware, *cfw, *mac;
     int web_failed;
-    int saves_game; /* the game whose saves are listed (-1 none) */
+    int saves_game;           /* the game whose saves are listed (-1 none) */
+    int net_job;              /* HM_JOB_* running, HM_JOB_NONE */
+    const hm_net_result *net; /* the last job's answer (kind HM_JOB_NONE: none yet) */
 } hm_page_env;
 
 /* Fill page d of v for id (its rows or tiles, name, layout, empty text); positions are kept. */
@@ -87,5 +98,10 @@ int hm_pages_album(int album);   /* the album's pictures: how many */
 int hm_pages_album_photo(int k); /* the k-th one's photo index */
 int hm_pages_album_at(int k);    /* the album at tile k of the albums page */
 void hm_pages_drop(void);        /* everything listed let go (USB) */
+
+/* Wi-Fi: the saved connections read again (after a job, a deletion); the network shown at i. */
+void hm_pages_wifi_read(void);
+const hm_wifi_ap *hm_pages_wifi_ap(int i);
+const hm_wifi_conn *hm_pages_wifi_conn(int slot);
 
 #endif

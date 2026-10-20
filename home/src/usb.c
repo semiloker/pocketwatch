@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <pspiofilemgr.h>
 #include <pspkernel.h>
 #include <pspusb.h>
 #include <pspusbstor.h>
@@ -11,6 +12,11 @@
 #define EF_DRIVER   "USBStorEFlash_Driver"
 #define STATES_KEPT 8
 
+/* The FAT driver's tables cached from before (oslib src/usb.c, Custom Home usb.c; PPSSPP
+   sceIo.cpp: "Invalidate MS driver file table cache"): without it Home's first write after USB
+   put back the folder as it was and the PC's new file was gone (home.log, chkdsk 2026-10-20). */
+#define FATMS_INVALIDATE 0x0240D81E
+
 /* ARK-4 KUBridge (src/stubs.S): load a kernel module for this user program. */
 SceUID kuKernelLoadModule(const char *path, int flags, SceKernelLMOption *option);
 
@@ -22,7 +28,7 @@ static const char *const k_mods[] = {
 #define MODS ((int)(sizeof(k_mods) / sizeof(k_mods[0])))
 
 static int g_loaded, g_started;
-static int g_load_ret[MODS], g_bus_ret, g_stor_ret, g_act_ret;
+static int g_load_ret[MODS], g_bus_ret, g_stor_ret, g_act_ret, g_inval_ret = 1;
 static int g_bus_ours;     /* the bus was started here (else another plugin's: left running) */
 static int g_stor_pending; /* the storage driver not started yet: retried by hm_usb_poll */
 static int g_stor_tries;
@@ -57,6 +63,7 @@ static void stop_all(void)
     if (g_link.active)
         sceUsbDeactivate(USB_PID);
     g_link.active = 0;
+    g_inval_ret = sceIoDevctl("fatms0:", FATMS_INVALIDATE, NULL, 0, NULL, 0); /* before any write */
     if (!g_stor_pending) {
         sceUsbStop(EF_DRIVER, 0, 0);
         sceUsbStop(PSP_USBSTOR_DRIVERNAME, 0, 0); /* (RemoteJoyLite's hook reactivates it) */
@@ -192,6 +199,7 @@ int hm_usb_report(char *out, int cap)
     for (int i = 0; i < g_nseen && n < cap; i++)
         n += snprintf(out + n, (size_t)(cap - n), " %X at %u ms", g_seen[i].bits, g_seen[i].t);
     if (n < cap)
-        n += snprintf(out + n, (size_t)(cap - n), "; %d again by hand", g_link.retries);
+        n += snprintf(out + n, (size_t)(cap - n), "; %d again by hand; cache dropped %X",
+                      g_link.retries, g_inval_ret);
     return n < cap ? n : cap - 1;
 }

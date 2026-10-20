@@ -564,7 +564,8 @@ static int top_id(void)
 
 /* ---- the loop's state ---- */
 
-enum { CONFIRM_NONE, CONFIRM_SAVE, CONFIRM_STATE, CONFIRM_PHOTO };
+enum { CONFIRM_NONE, CONFIRM_SAVE, CONFIRM_STATE, CONFIRM_PHOTO, CONFIRM_WIFI, CONFIRM_CAL };
+enum { KB_NICKNAME, KB_WIFI }; /* what the keyboard is typing */
 
 static struct {
     int launching, launch_slot, leave, usb, usb_state, popup, popup_row;
@@ -583,6 +584,7 @@ static struct {
     unsigned int t_hold; /* since when HOLD is on */
     int cpu_mhz;         /* the clock before the screen went off */
     int kb, kb_saved;    /* Home's keyboard is open (the nickname); it saved */
+    int kb_for;          /* KB_*: the nickname, a Wi-Fi password */
 } g_s;
 
 static hm_kb g_kb;
@@ -593,62 +595,84 @@ static void toast(const char *text, unsigned int now)
     g_s.t_toast = now;
 }
 
-/* ---- the clock from the internet (HOM-REQ-032, ADR-041): its own thread, the screen goes on;
-   the loop reads g_sync once it is no longer 1 ---- */
+/* ---- the network's jobs (net.c: a thread of their own, the screen goes on): the clock from the
+   internet (HOM-REQ-032, ADR-041), Wi-Fi (HOM-REQ-033, ADR-044) ---- */
 
-static volatile int g_sync; /* 0 idle, 1 asking, 2 set, else HM_NET_* */
-static char g_sync_log[256];
+static hm_net_result g_net; /* the job running, else the last one's answer */
+static hm_wifi_ap g_kb_ap;  /* the network a password is typed for */
 
-static int sync_thread(SceSize args, void *argp)
+static void net_start(int kind, int slot, const hm_wifi_ap *ap, const char *key)
 {
-    unsigned long long us = 0;
-    char line[320];
-    int r;
-
-    (void)args;
-    (void)argp;
-    r = hm_net_time(&us, g_sync_log, sizeof(g_sync_log));
-    if (r == 0 && hm_hw_set_utc(us) < 0)
-        r = HM_NET_FAILED;
-    stbsp_snprintf(line, sizeof(line), "home clock: from the internet %d:%s\n", r, g_sync_log);
-    hm_hw_log(line);
-    g_sync = r == 0 ? 2 : r;
-    return sceKernelExitDeleteThread(0);
-}
-
-static void sync_start(void)
-{
-    SceUID th;
-
-    if (g_sync == 1)
+    if (hm_net_job(kind, slot, ap, key) < 0)
         return;
-    g_sync = 1;
-    hs_set_net_time(HS_NET_ASKING, 0);
-    th = sceKernelCreateThread("PocketwatchHomeClock", sync_thread, 0x30, 0x8000, 0, 0);
-    if (th < 0 || sceKernelStartThread(th, 0, 0) < 0)
-        g_sync = HM_NET_FAILED;
+    if (kind == HM_JOB_TIME)
+        hs_set_net_time(HS_NET_ASKING, 0);
+    g_env.net_job = kind;
+    g_env.net = &g_net;
+    g_net.kind = kind;
+    g_net.slot = slot;
 }
 
-/* Its answer, once: the row's value and a toast. */
-static void sync_done(unsigned int now)
+/* A job's answer, once: the rows' values and a toast. */
+static void net_poll(unsigned int now)
 {
-    int r = g_sync;
+    static char text[80];
+    int st = hm_net_job_poll(&g_net), r = g_net.ret;
     char when[16];
 
-    if (r == 0 || r == 1)
+    g_env.net = &g_net;
+    g_env.net_job = st == 1 ? g_net.kind : HM_JOB_NONE;
+    if (st != 2)
         return;
-    g_sync = 0;
     hm_hw_clock(when, sizeof(when), HM_CLOCK_TIME);
-    hs_set_net_time(r == 2                   ? HS_NET_DONE
-                    : r == HM_NET_SWITCH_OFF ? HS_NET_NO_WIFI
-                    : r == HM_NET_NO_PROFILE ? HS_NET_NO_PROFILE
-                                             : HS_NET_FAILED,
-                    when);
-    toast(pw_tr(r == 2                   ? PW_S_CLK_SYNCED
-                : r == HM_NET_SWITCH_OFF ? PW_S_CLK_NO_WIFI
-                : r == HM_NET_NO_PROFILE ? PW_S_CLK_NO_NET
-                                         : PW_S_CLK_FAILED),
-          now);
+    if (g_net.kind == HM_JOB_TIME || g_net.time_set)
+        hs_set_net_time(r == 0 || g_net.time_set ? HS_NET_DONE
+                        : r == HM_NET_SWITCH_OFF ? HS_NET_NO_WIFI
+                        : r == HM_NET_NO_PROFILE ? HS_NET_NO_PROFILE
+                                                 : HS_NET_FAILED,
+                        when);
+    if (g_net.kind == HM_JOB_TIME) {
+        toast(pw_tr(r == 0                   ? PW_S_CLK_SYNCED
+                    : r == HM_NET_SWITCH_OFF ? PW_S_CLK_NO_WIFI
+                    : r == HM_NET_NO_PROFILE ? PW_S_CLK_NO_NET
+                                             : PW_S_CLK_FAILED),
+              now);
+    } else if (g_net.kind == HM_JOB_SCAN) {
+        if (r == HM_NET_SWITCH_OFF)
+            toast(pw_tr(PW_S_CLK_NO_WIFI), now);
+    } else { /* a connection made or tried */
+        hm_pages_wifi_read();
+        if (r == 0)
+            stbsp_snprintf(text, sizeof(text), pw_tr(PW_S_WIFI_CONNECTED), g_net.ip);
+        toast(r == 0                   ? text
+              : r == HM_NET_SWITCH_OFF ? pw_tr(PW_S_CLK_NO_WIFI)
+              : r == HM_NET_NOT_SAVED  ? pw_tr(PW_S_WIFI_NOT_SAVED)
+              : r == HM_NET_FULL       ? pw_tr(PW_S_WIFI_FULL)
+                                       : pw_tr(PW_S_WIFI_FAILED),
+              now);
+    }
+}
+
+/* Enter on a network found: a new connection - its password typed first. */
+static void wifi_join(int i, unsigned int now)
+{
+    const hm_wifi_ap *ap = hm_pages_wifi_ap(i);
+    static char title[96];
+
+    if (!ap)
+        return;
+    if (ap->security == HM_WIFI_SEC_NONE) {
+        net_start(HM_JOB_JOIN, 0, ap, 0);
+    } else if (hm_wifi_secure(ap->security) < 0) { /* WEP, Enterprise: not here */
+        toast(pw_tr(ap->security == HM_WIFI_SEC_WEP ? PW_S_WIFI_WEP_XMB : PW_S_WIFI_UNSUP), now);
+        g_s.snd = HM_SND_ERROR;
+    } else {
+        g_kb_ap = *ap;
+        stbsp_snprintf(title, sizeof(title), pw_tr(PW_S_WIFI_PASSWORD), ap->ssid);
+        hm_kb_open(&g_kb, title, "", HM_WIFI_KEY - 1, 0);
+        g_s.kb = 1;
+        g_s.kb_for = KB_WIFI;
+    }
 }
 
 /* ---- the battery's calibration: the end of a run, told once ---- */
@@ -664,6 +688,167 @@ static void cal_news(unsigned int now)
         toast(text, now);
     } else if (news == HM_CAL_NEWS_SHORT) {
         toast(pw_tr(PW_S_BAT_CAL_SHORT), now);
+    }
+}
+
+/* ---- the battery's calibration screen (BAT-REQ-011): its words and numbers, by the second ---- */
+
+static hm_calview g_calv;
+static unsigned char g_cal_pct[HM_CAL_PTS];
+
+static void dur(char *out, int cap, unsigned int s)
+{
+    unsigned int m = s / 60;
+
+    if (m >= 60)
+        stbsp_snprintf(out, cap, pw_tr(PW_S_DUR_HM), (int)(m / 60), (int)(m % 60));
+    else
+        stbsp_snprintf(out, cap, pw_tr(PW_S_DUR_M), (int)m);
+}
+
+static void cal_texts(void)
+{
+    static char big[16], st[5][48], left[16], right[32];
+    hm_calview *c = &g_calv;
+    hm_battery b;
+    hm_battcal live, res;
+    int have = hm_hw_cal_result(&res) == 0, n = 0, npts;
+
+    hm_hw_battery(&b);
+    npts = hm_hw_cal_live(&live, g_cal_pct, HM_CAL_PTS);
+    memset(c, 0, sizeof(*c));
+    c->title = pw_tr(PW_S_CAL_TITLE);
+    c->steps[0] = pw_tr(PW_S_CAL_S1);
+    c->steps[1] = pw_tr(PW_S_CAL_S2);
+    c->steps[2] = pw_tr(PW_S_CAL_S3);
+    c->steps[3] = pw_tr(PW_S_CAL_S4);
+    c->step = b.cal == HM_CAL_CHARGE   ? 1
+              : b.cal == HM_CAL_UNPLUG ? 2
+              : b.cal == HM_CAL_RUN    ? 3
+              : have                   ? 4
+                                       : 0;
+    c->what = pw_tr(c->step == 1   ? PW_S_CAL_DO_CHARGE
+                    : c->step == 2 ? PW_S_CAL_DO_UNPLUG
+                    : c->step == 3 ? PW_S_CAL_DO_RUN
+                    : c->step == 4 ? PW_S_CAL_DO_DONE
+                                   : PW_S_CAL_HOW);
+    if (b.pct >= 0) {
+        stbsp_snprintf(big, sizeof(big), "%d%%", b.pct);
+        c->big = big;
+        c->big_sub = pw_tr(b.charging ? PW_S_BAT_CHARGING
+                           : b.online ? PW_S_BAT_ON_POWER
+                                      : PW_S_BAT_ON_BATTERY);
+    }
+#define STAT(l, ...)                                                                               \
+    do {                                                                                           \
+        if (n < 4) {                                                                               \
+            stbsp_snprintf(st[n], sizeof(st[n]), __VA_ARGS__);                                     \
+            c->label[n] = pw_tr(l);                                                                \
+            c->value[n] = st[n];                                                                   \
+            n++;                                                                                   \
+        }                                                                                          \
+    } while (0)
+    if (c->step == 3 && npts >= 0) { /* measuring: what it drew so far */
+        char d[24];
+
+        dur(d, sizeof(d), live.seconds);
+        STAT(PW_S_CAL_ELAPSED, "%s", d);
+        STAT(PW_S_CAL_USED, "%d mAh", live.mah);
+        STAT(PW_S_CAL_AVERAGE, "%d mA", live.avg_ma);
+        if (live.est_full_mah > 0)
+            STAT(PW_S_CAL_PROJECTED, "~%d mAh", live.est_full_mah);
+        else
+            STAT(PW_S_CAL_PROJECTED, "%s", pw_tr(PW_S_CAL_LATER));
+    } else if (c->step == 4) { /* the last one measured */
+        char d[24];
+
+        dur(d, sizeof(d), res.seconds);
+        if (res.full_mah > 0)
+            STAT(PW_S_BAT_MEASURED, "%d mAh  %d%%", res.est_full_mah,
+                 res.est_full_mah * 100 / res.full_mah);
+        else
+            STAT(PW_S_BAT_MEASURED, "%d mAh", res.est_full_mah);
+        STAT(PW_S_BAT_LASTED, "%s", d);
+        STAT(PW_S_CAL_AVERAGE, "%d mA", res.avg_ma);
+    }
+    if (c->step != 3 && b.ma != PW_BATT_UNKNOWN && b.pct >= 0)
+        STAT(PW_S_BAT_CURRENT, "%+d mA", b.ma);
+    if (c->step == 3 && b.ma != PW_BATT_UNKNOWN)
+        STAT(PW_S_BAT_CURRENT, "%d mA", b.ma);
+    if (b.mv > 0)
+        STAT(PW_S_BAT_VOLTAGE, "%d.%02d V", b.mv / 1000, b.mv % 1000 / 10);
+    if (b.rcap > 0 && b.full > 0)
+        STAT(PW_S_BAT_CAPACITY, "%d/%d", b.rcap, b.full);
+    if (b.cycles >= 0)
+        STAT(PW_S_BAT_CYCLES, "%d", b.cycles);
+#undef STAT
+    c->nstats = n;
+    if (npts >= 2) {
+        c->pct = g_cal_pct;
+        c->npct = npts;
+        dur(right, sizeof(right), live.seconds);
+        stbsp_snprintf(left, sizeof(left), "%d%%", live.pct_from);
+        c->chart_left = left;
+        c->chart_right = right;
+    } else {
+        c->chart_empty = pw_tr(PW_S_CAL_NO_CHART);
+    }
+}
+
+/* ---- the volume and brightness indicator, the brightness boost (HOM-REQ-034, ADR-045): read
+   every 100 ms ---- */
+
+#define AV_MS 100
+
+static pw_osd g_osd;
+static pw_bright g_bright;
+
+static void av_frame(unsigned int now)
+{
+    static unsigned int t_av;
+    static int level = -1, told;
+    static char text[32];
+    const pw_perf_cfg *c = hs_perf_cfg();
+    int kind, set;
+
+    if (g_s.screen_off || (c->osd == PW_OSD_OFF && c->boost == 0 && g_bright.set < 0)) {
+        g_v.osd = 0;
+        return;
+    }
+    if (now - t_av >= AV_MS) {
+        hm_hw_av av;
+
+        t_av = now;
+        hm_hw_av_read(&av);
+        level = av.level;
+        if ((set = pw_bright_step(&g_bright, av.level, c->boost, now)) > 0 &&
+            hm_hw_set_level(set) == 0)
+            level = set;
+        if (g_bright.fights >= PW_BRIGHT_FIGHTS && !told) {
+            hm_hw_log("home brightness: another plugin sets its level back: the boost gave up\n");
+            told = 1;
+        }
+        if (c->osd != PW_OSD_OFF)
+            pw_osd_step(&g_osd, av.vol, av.mute, av.bright, now);
+    }
+    kind = c->osd != PW_OSD_OFF ? g_osd.kind : PW_OSD_NONE; /* (its words stay as it fades) */
+    g_v.osd = !kind                       ? 0
+              : now - g_osd.t < PW_OSD_MS ? 256
+                                          : 256 - pw_ramp(now, g_osd.t + PW_OSD_MS, 300);
+    if (kind == PW_OSD_VOLUME) {
+        g_v.osd_glyph = HM_ICON_SPEAKER;
+        g_v.osd_level =
+            g_osd.mute == 1 || g_osd.vol < 0 ? 0 : (g_osd.vol > 30 ? 30 : g_osd.vol) * 256 / 30;
+        if (g_osd.mute == 1)
+            stbsp_snprintf(text, sizeof(text), "%s", pw_tr(PW_S_OSD_MUTED));
+        else
+            stbsp_snprintf(text, sizeof(text), "%d", g_osd.vol);
+        g_v.osd_text = text;
+    } else if (kind == PW_OSD_BRIGHT) {
+        g_v.osd_glyph = HM_ICON_SUN;
+        g_v.osd_level = level < 0 ? 0 : (level > 100 ? 100 : level) * 256 / 100;
+        stbsp_snprintf(text, sizeof(text), "%d/4   %d%%", g_osd.bright + 1, level);
+        g_v.osd_text = text;
     }
 }
 
@@ -725,9 +910,23 @@ static void perf_frame(unsigned int now, unsigned int cpu_us, unsigned int ge_us
 
 static void kb_close(int save)
 {
-    if (save && hm_kb_changed(&g_kb) && hs_set_nickname(g_kb.text) == 0)
+    if (g_s.kb_for == KB_WIFI) {
+        if (save)
+            net_start(HM_JOB_JOIN, 0, &g_kb_ap, g_kb.text);
+        memset(g_kb.text, 0, sizeof(g_kb.text)); /* (the password is not kept) */
         g_s.kb_saved = 1;
+    } else if (save && hm_kb_changed(&g_kb) && hs_set_nickname(g_kb.text) == 0) {
+        g_s.kb_saved = 1;
+    }
     g_s.kb = 0;
+}
+
+/* Done on the keyboard: what it typed must do (a nickname not empty, a WPA key's length). */
+static int kb_ok(void)
+{
+    int hex;
+
+    return g_s.kb_for == KB_WIFI ? hm_wifi_key_ok(g_kb.text, &hex) : g_kb.text[0] != 0;
 }
 
 /* The PSP keyboard's own buttons: Square erases, Triangle a space, L / R the caret, SELECT the
@@ -743,6 +942,8 @@ static void kb_keys(unsigned int ev)
             k->ask_sel = (k->ask_sel + (ev & PSP_CTRL_LEFT ? 2 : 1)) % 3;
         else if ((ev & g_enter) && k->ask_sel == HM_KB_ASK_EDIT)
             k->ask = 0;
+        else if ((ev & g_enter) && k->ask_sel == HM_KB_ASK_SAVE && !kb_ok())
+            k->ask = 0, toast(pw_tr(PW_S_WIFI_KEY_BAD), hm_hw_now_ms()), g_s.snd = HM_SND_ERROR;
         else if (ev & g_enter)
             kb_close(k->ask_sel == HM_KB_ASK_SAVE), g_s.snd = HM_SND_OPEN;
         else if (ev & (g_back | PSP_CTRL_HOME))
@@ -760,8 +961,10 @@ static void kb_keys(unsigned int ev)
         }
     } else if ((ev & PSP_CTRL_START) ||
                ((ev & g_enter) && hm_kb_special(k, k->row, k->col) == HM_KB_DONE)) {
-        if (k->text[0]) /* (the system keeps no empty nickname) */
+        if (kb_ok()) /* (the system keeps no empty nickname; WPA: 8-63 characters) */
             kb_close(1), g_s.snd = HM_SND_OPEN;
+        else if (g_s.kb_for == KB_WIFI)
+            toast(pw_tr(PW_S_WIFI_KEY_BAD), hm_hw_now_ms()), g_s.snd = HM_SND_ERROR;
         else
             g_s.snd = HM_SND_ERROR;
     } else if (ev & g_enter) {
@@ -1090,7 +1293,7 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
     switch (a.act) {
     case A_OPEN:
         if (a.arg == P_GAME || a.arg == P_STATES || a.arg == P_SAVES || a.arg == P_INFO ||
-            a.arg == P_ALBUM)
+            a.arg == P_ALBUM || a.arg == P_WIFI_NET)
             push(a.arg, a.arg2);
         else if (a.arg == P_SET_CAT)
             push(a.arg, a.arg2);
@@ -1118,18 +1321,42 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
         *start_usb = 1;
         return 1;
     case A_BROWSER:
-        if (g_sync != 1) /* (the network is the clock's meanwhile) */
+        if (!g_env.net_job) /* (the network is a job's meanwhile) */
             *browser = 1;
         return 1;
     case A_NET_TIME:
-        sync_start();
+        net_start(HM_JOB_TIME, 0, 0, 0);
+        g_s.snd = HM_SND_OPEN;
+        return 1;
+    case A_WIFI_SCAN:
+        net_start(HM_JOB_SCAN, 0, 0, 0);
+        g_s.snd = HM_SND_OPEN;
+        return 1;
+    case A_WIFI_JOIN:
+        if (!g_env.net_job)
+            wifi_join(a.arg, now);
+        if (g_s.snd < 0)
+            g_s.snd = HM_SND_OPEN;
+        return 1;
+    case A_WIFI_TEST:
+        net_start(HM_JOB_TEST, a.arg, 0, 0);
+        g_s.snd = HM_SND_OPEN;
+        return 1;
+    case A_WIFI_DELETE:
+        g_s.confirm = CONFIRM_WIFI;
+        g_s.confirm_arg = a.arg;
         g_s.snd = HM_SND_OPEN;
         return 1;
     case A_CAL: {
         hm_battery b;
 
         hm_hw_battery(&b);
-        hm_hw_cal(b.cal == HM_CAL_OFF);
+        if (b.cal == HM_CAL_OFF) {
+            hm_hw_cal(1);
+        } else { /* hours of measuring: asked first */
+            g_s.confirm = CONFIRM_CAL;
+            g_s.confirm_arg = 0;
+        }
         g_s.snd = HM_SND_OPEN;
         return 1;
     }
@@ -1458,6 +1685,13 @@ static void page_hints(void)
         g_v.hint_square = hm_music_current() >= 0 ? pw_tr(PW_S_HM_STOP) : 0;
         g_v.hint_lr = hm_music_current() >= 0 && !classic() ? pw_tr(PW_S_HM_SEEK) : 0;
         break;
+    case P_CAL: {
+        hm_battery b;
+
+        hm_hw_battery(&b);
+        g_v.hint_enter = pw_tr(b.cal == HM_CAL_OFF ? PW_S_BAT_CAL_START : PW_S_CAL_STOP);
+        break;
+    }
     case P_NOW:
         g_v.hint_enter = hm_music_current() >= 0 && !hm_music_paused() ? pw_tr(PW_S_HM_PAUSE)
                                                                        : pw_tr(PW_S_HM_PLAY);
@@ -1477,6 +1711,10 @@ static void page_hints(void)
             g_v.hint_enter = pw_tr(PW_S_DELETE);
         else if (a.act == A_NICKNAME || a.act == A_EXIT || a.act == A_SLEEP || a.act == A_OFF)
             g_v.hint_enter = pw_tr(PW_S_OK);
+        else if (a.act == A_WIFI_SCAN || a.act == A_WIFI_TEST || a.act == A_WIFI_JOIN)
+            g_v.hint_enter = g_env.net_job ? 0 : pw_tr(PW_S_OK);
+        else if (a.act == A_WIFI_DELETE)
+            g_v.hint_enter = pw_tr(PW_S_DELETE);
         break;
     }
     if (g_s.popup) {
@@ -1501,6 +1739,17 @@ static void confirm_texts(void)
 
         stbsp_snprintf(text, sizeof(text), pw_tr(PW_S_CONFIRM_DELETE), s ? s->slot : 0);
         g_v.sheet_text = text;
+    } else if (g_s.confirm == CONFIRM_WIFI) {
+        const hm_wifi_conn *c = hm_pages_wifi_conn(g_s.confirm_arg);
+
+        stbsp_snprintf(text, sizeof(text), pw_tr(PW_S_WIFI_DELETE_Q), c ? c->ssid : "");
+        g_v.sheet_text = text;
+        g_v.sheet_glyph = HM_ICON_GLOBE;
+    } else if (g_s.confirm == CONFIRM_CAL) {
+        g_v.sheet_glyph = HM_ICON_BATTERY;
+        g_v.sheet_title = pw_tr(PW_S_CAL_TITLE);
+        g_v.sheet_text = pw_tr(PW_S_CAL_STOP_Q);
+        g_v.sheet_again = pw_tr(PW_S_CAL_STOP);
     } else {
         g_v.sheet_text =
             pw_tr(g_s.confirm == CONFIRM_SAVE ? PW_S_HM_DEL_SAVE_Q : PW_S_HM_DEL_PHOTO_Q);
@@ -1529,6 +1778,17 @@ static void do_delete(unsigned int now)
             gm->states--;
             hm_pages_texts();
         }
+    } else if (g_s.confirm == CONFIRM_CAL) {
+        hm_hw_cal(0);
+        g_s.confirm = CONFIRM_NONE;
+        g_s.snd = HM_SND_BACK;
+        build_all();
+        return;
+    } else if (g_s.confirm == CONFIRM_WIFI) {
+        ok = hm_net_delete(g_s.confirm_arg) < 0 ? -1 : 0;
+        hm_pages_wifi_read();
+        if (id == P_WIFI_NET)
+            pop();
     } else if (g_s.confirm == CONFIRM_PHOTO) {
         hm_photo *ph = hm_library_photo(g_s.confirm_arg);
 
@@ -1802,6 +2062,8 @@ int main(void)
     g_env.cfw = g_cfw;
     g_env.mac = g_mac;
     g_env.saves_game = -1;
+    g_env.net = &g_net;
+    pw_bright_init(&g_bright);
     hm_sound_init();
     hm_sound_enable(hs_sounds());
     load_art();
@@ -1834,7 +2096,7 @@ int main(void)
         toast(pw_tr(clock_was == HM_CLOCK_RESTORED ? PW_S_CLK_RESTORED : PW_S_CLK_LOST),
               g_s.t_open);
         if (hm_net_switch() == 1)
-            sync_start();
+            net_start(HM_JOB_TIME, 0, 0, 0);
     }
 
     while (!hm_hw_exit_requested() && !g_s.leave) {
@@ -1940,13 +2202,15 @@ int main(void)
             hm_kb_open(&g_kb, pw_tr(PW_S_HS_NICKNAME), was, 32, /* the XMB's nickname length */
                        strcmp(hm_texts_code(), "uk") == 0);
             g_s.kb = 1;
+            g_s.kb_for = KB_NICKNAME;
         }
         if (g_s.kb_saved) {
             g_s.kb_saved = 0;
             t_rows = 0; /* the row shows the new name */
         }
-        sync_done(now); /* the internet's time came (or not) */
-        cal_news(now);  /* a calibration run ended */
+        net_poll(now); /* a network job's answer */
+        av_frame(now); /* the volume and brightness indicator, the boost */
+        cal_news(now); /* a calibration run ended */
         /* a page opened or a section changed: its rows now; whose saves are listed */
         if (g_v.depth != was_depth || g_v.tab != was_tab)
             t_rows = 0;
@@ -1971,6 +2235,10 @@ int main(void)
             if (t_rows == 0 || now - t_rows >= 1000) {
                 build_all();
                 t_rows = now;
+                g_v.cal = 0; /* the calibration's screen, while one of the pages is it */
+                for (int d = 0; d < HM_DEPTH && d <= g_v.depth + 1; d++)
+                    if (g_stack[d].id == P_CAL && g_v.page[d].layout == HM_PAGE_CAL)
+                        cal_texts(), g_v.cal = &g_calv;
             } else if (id == P_MUSIC || id == P_NOW || id == P_SAVES || id == P_ALBUM ||
                        id == P_ALBUMS || id == P_GAMES) {
                 /* the time playing, the pictures arriving: the page shown only */

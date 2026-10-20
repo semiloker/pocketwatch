@@ -58,7 +58,23 @@ enum {
     HM_PAGE_SAVES,  /* tiles: saved data, save states (Modern: a list with the pictures) */
     HM_PAGE_MUSIC,  /* rows: what plays, then the tracks */
     HM_PAGE_NOW,    /* what plays, whole: the cover, the time, the controls */
+    HM_PAGE_CAL,    /* the battery's calibration: a screen of its own (hm_calview), any style */
 };
+
+/* The battery's calibration (BAT-REQ-011): its steps, what to do now, the numbers, the run's
+   charge over time - drawn the same in every style, over the whole screen. */
+typedef struct {
+    int step;                  /* 1 charge, 2 unplug, 3 run down, 4 measured; 0 not started */
+    const char *steps[4];      /* their names */
+    const char *title, *what;  /* the page's name; what to do now */
+    const char *big, *big_sub; /* the charge ("87%"), how it is powered */
+    const char *label[5], *value[5];
+    int nstats;
+    const unsigned char *pct; /* the chart: the charge (0-100) over the run, oldest first */
+    int npct;
+    const char *chart_left, *chart_right; /* under it: its start, its length */
+    const char *chart_empty;              /* in it while there is nothing */
+} hm_calview;
 
 /* The system's own item icons in Classic (topmenu_icon.rco, the XMB's Settings items), by what
    they stand for; hm_art.item[]. */
@@ -212,6 +228,12 @@ typedef struct {
     int toast;
     const char *toast_text;
     const char *perf[2]; /* the performance overlay's lines (ADR-043), NULL: off */
+
+    /* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom while osd > 0 */
+    int osd, osd_glyph, osd_level; /* 0-256 fading; its icon; the bar (0-256) */
+    const char *osd_text;          /* "18", "Muted", "3/4  92%" */
+
+    const hm_calview *cal; /* the calibration's screen (a HM_PAGE_CAL page), or NULL */
 
     /* Home's keyboard over everything while kb_t > 0 (0-256, sliding in), NULL when closed */
     const hm_kb *kb;

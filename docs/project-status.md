@@ -125,9 +125,29 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 - Budgets unchanged: game plugin 194 552 / 196 608 (debug), XMB plugin 65 261 / 65 536; Home
   1 621 916 / 2 097 152.
 
+## Device results 2026-10-20, round 7 (owner, build `615e6d5`, [log](research/logs/2026-10-20-round7-home.log))
+
+- **The clock was put back** at the first start (VERIFIED: `home clock: lost (0x00000000,
+  1295231352 s); the card's newest time 1792512064 s of 13 files`, set and read back; the files
+  since are dated 2026-10-20). HM29's internet part: no saved connection (`profile=0`).
+- **"The overlay does not work in the game"**: `pocketwatch_perf.prx` was not on the card - Home
+  put `seplugins/pocketwatch/` back from its cache after USB (VERIFIED by chkdsk's lost chain;
+  ADR-046, fixed: the cache dropped).
+- **"Wi-Fi does not work"**: no connection saved, and Home's network was broken by its own build
+  (VERIFIED: the `sceNetInet` import table over `sceNet`'s; ADR-044, fixed, `make check` guards
+  it). Home now searches networks and makes connections (HOM-REQ-033, [m7-wifi](research/m7-wifi.md)).
+- Asked for: the calibration as a whole screen (BAT-REQ-011), more brightness and a volume and
+  brightness indicator in the menu and games (ADR-045, HOM-REQ-034, PRF-REQ-006..008) - done the
+  same day; previews `home-calibration.png`, `home-osd.png`; PPSSPP: the Wi-Fi search, the
+  settings' files.
+
 ## Next actions (in order)
 
-0. **Owner (next round):** deploy (`scripts\deploy.cmd`), then HM29 (the clock: the first start
+0. **Owner (round 8):** deploy, then **turn the PSP off from Home's USB screen** (the old Home's
+   exit from USB would undo the deploy once more); HM32 (USB), HM33 (Wi-Fi: make the home network's
+   connection), HM29 again (the internet's time), HM34 and PF3 (the indicator, the boost), PF1
+   (the numbers in games), HM30 (the calibration's screen), PF2; send `home.log`,
+   `pocketwatch.log`. **Before (round 7):** deploy (`scripts\deploy.cmd`), then HM29 (the clock: the first start
    should fix the 2011 date), HM31 and PF1 (the overlays; overlay off again before state tests),
    HM30 (a calibration run, hours), PF2; and HM25 again (ADR-040) with `home.log`; HM24, HM27, HM28.
    **Before that (round 6):**
