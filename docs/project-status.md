@@ -96,7 +96,7 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 - Not built for the PSP in this change: the WSL toolchain (`~/pspdev`) was missing on the
   machine; host tests, previews and the format check pass.
 
-## Device results 2026-10-20, round 6 (owner, build `ead1320`, Modern, `home.log`)
+## Device results 2026-10-20, round 6 (owner, build `ead1320`, Modern, [log](research/logs/2026-10-20-home-round6.log))
 
 - Photos still "jerky, jumps, I cannot look through a folder", and "micro freezes". Causes
   (code, reproduced in PPSSPP with the owner's 15 photos in 7 folders): the albums' grid had
