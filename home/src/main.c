@@ -574,6 +574,7 @@ static struct {
     unsigned int *ed_src, *ed_bg; /* the picture fitted to the screen; the preview drawn */
     int ed_w, ed_h;
     int snd;
+    int panel_open;      /* the HOME panel (its items stay while it fades out) */
     int screen_off;      /* HOLD: the backlight off (music on) */
     unsigned int t_hold; /* since when HOLD is on */
     int cpu_mhz;         /* the clock before the screen went off */
@@ -1434,10 +1435,10 @@ static void panel_keys(unsigned int ev, int *start_usb)
         g_v.panel_sel = g_v.panel_sel < g_v.panel_count - 1 ? g_v.panel_sel + 1 : g_v.panel_sel;
         g_s.snd = HM_SND_MOVE;
     } else if (ev & (g_back | PSP_CTRL_HOME)) {
-        g_v.panel_count = 0;
+        g_s.panel_open = 0;
         g_s.snd = HM_SND_BACK;
     } else if (ev & g_enter) {
-        g_v.panel_count = 0;
+        g_s.panel_open = 0;
         if (g_v.panel_sel == PANEL_USB)
             *start_usb = 1;
         else if (g_v.panel_sel == PANEL_XMB)
@@ -1658,10 +1659,11 @@ int main(void)
                 g_s.confirm = CONFIRM_NONE;
                 g_s.snd = HM_SND_BACK;
             }
-        } else if (g_s.launching < 0 && g_v.panel_count) {
+        } else if (g_s.launching < 0 && g_s.panel_open) {
             panel_keys(ev, &start_usb);
         } else if (g_s.launching < 0 && (ev & PSP_CTRL_HOME)) {
             panel_home(&g_v);
+            g_s.panel_open = 1;
             g_v.panel_sel = 0;
             g_s.snd = HM_SND_OPEN;
         } else if (g_s.launching < 0 && g_s.popup) {
@@ -1758,7 +1760,7 @@ int main(void)
         }
         g_v.depth_pos = pw_ease(g_v.depth_pos, g_v.depth * 256, dt, tau * 3 / 2, 6);
         g_v.tab_pos = pw_ease(g_v.tab_pos, g_v.tab * 256, dt, tau, 6);
-        g_v.panel = pw_ease(g_v.panel, g_v.panel_count ? 256 : 0, dt, tau, 6);
+        g_v.panel = pw_ease(g_v.panel, g_s.panel_open ? 256 : 0, dt, tau, 6);
         g_v.panel_pos = pw_ease(g_v.panel_pos, g_v.panel_sel * 256, dt, tau, 6);
         g_v.sheet = pw_ease(g_v.sheet, g_s.usb || g_s.confirm ? 256 : 0, dt, tau, 6);
         g_v.popup = pw_ease(g_v.popup, g_s.popup ? 256 : 0, dt, tau, 6);
