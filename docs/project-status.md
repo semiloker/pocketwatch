@@ -79,10 +79,13 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 
 ## Next actions (in order)
 
-0. **Owner (2026-10-19, the build with ADR-032/033 on the card):** H17 (HOME in Need for
-   Speed: Most Wanted, ten times), HM12 (USB from Home: does the PC get the card?), HM20-HM21
-   (the styles in Home), then HM11, HM13-HM19 with what each showed; send `pocketwatch.log` and
-   `home.log`. Then the list below.
+0. **Owner (2026-10-20, build `cee6786` on the card, ADR-034..038):** HM12 (USB from Home with
+   RemoteJoyLite on), HM22 (the settings' categories and pages, the themes, accents and
+   backgrounds), HM23 (a game's Saved Data and Save States - delete only a copy), HM24 (music:
+   tags, covers, seeking, repeat and shuffle), HM25 (albums, the editor), HM26 (HOLD, the sleep
+   timer, the clock, favourites, the Aurora), H18 (HOME → Screenshot), then H17, HM20-HM21 and
+   HM11, HM13-HM19; send `home.log` (its `home art:` line names every flash0 read) and
+   `pocketwatch.log`. Then the list below.
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
 2. **Dev, meanwhile:** M7 XMB side: research the 6.61 XMB's △ menu (call sites, how xmbctrl
