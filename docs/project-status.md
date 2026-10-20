@@ -99,7 +99,9 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 ## Next actions (in order)
 
 0. **Dev:** build this change for the PSP (the toolchain in WSL first) and put it on the card;
-   **owner:** HM24, HM25, HM27, HM28 (ADR-039) with `home.log`. Then:
+   **owner:** HM24, HM25, HM27, HM28 (ADR-039) with `home.log`; name the games that open the
+   PSP's keyboard (for G1 of [m7-game-keyboard](research/m7-game-keyboard.md), and choose its
+   option A / B / C). Then:
    **Owner (2026-10-20, build `cee6786` on the card, ADR-034..038):** HM12 (USB from Home with
    RemoteJoyLite on), HM22 (the settings' categories and pages, the themes, accents and
    backgrounds), HM23 (a game's Saved Data and Save States - delete only a copy), HM24 (music:

@@ -785,8 +785,8 @@ decision was taken; the evidence column links the research behind it.
     used by Home.
   - **In games** the keyboard stays the firmware's: a game draws `sceUtilityOsk` itself, and
     replacing it means a module that answers the game's `sceUtilityOsk*` calls and draws into
-    the game's frame; the kernel plugin has 2 KB of its budget left (ADR-037). OPEN QUESTION
-    (the owner's choice and a research note first): a separate PRX for it.
+    the game's frame; the kernel plugin has 2 KB of its budget left (ADR-037). OPEN QUESTION:
+    the options and the probe are in [m7-game-keyboard](../research/m7-game-keyboard.md).
   - **Music keys:** left / right seek (10 s a press, then 5 s steps while held), up / down the
     previous / next track; the hints name both (d-pad icons in every style). This replaces
     ADR-036's "tap left / right: track, hold: seek" (a tap acted only on release, and the hold
