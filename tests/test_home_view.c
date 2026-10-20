@@ -142,10 +142,12 @@ PW_TEST(home_settings_file_round_trip)
     c.motion = HM_MOTION_CALM;
     c.hold = HM_HOLD_ALWAYS;
     c.clock = HM_CLOCK_DAY;
+    c.perf = 1;
     n = hm_cfg_format(&c, buf, sizeof(buf));
     CHECK(n > 0);
     hm_cfg_defaults(&d);
-    CHECK_EQ(hm_cfg_parse(&d, buf, (unsigned int)n), 11);
+    CHECK_EQ(d.perf, 0);
+    CHECK_EQ(hm_cfg_parse(&d, buf, (unsigned int)n), 12);
     CHECK(memcmp(&c, &d, sizeof(c)) == 0);
     /* unknown keys and bad values: ignored, the rest taken */
     hm_cfg_defaults(&d);

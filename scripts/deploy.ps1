@@ -3,7 +3,8 @@
     Copies the built PRX files to a PSP connected over USB.
 
 .DESCRIPTION
-    Installs plugin\pocketwatch.prx (and vsh\pocketwatch_xmb.prx when it is built) to
+    Installs plugin\pocketwatch.prx (and vsh\pocketwatch_xmb.prx, perf\pocketwatch_perf.prx when
+    they are built) to
     <PSP>\seplugins\pocketwatch\, and home\EBOOT.PBP (Pocketwatch Home) to
     <PSP>\PSP\GAME\PocketwatchHome\.
     With -Enable it also registers the game plugin in seplugins\PLUGINS.TXT (ARK-4 format);
@@ -53,6 +54,13 @@ Write-Host "Copied pocketwatch.prx -> $dest"
 if (Test-Path $xmbPrx) {
     Copy-Item -Path $xmbPrx -Destination $dest -Force
     Write-Host "Copied pocketwatch_xmb.prx -> $dest"
+}
+# The performance overlay for games (ADR-043): copied only; Home's Settings -> Overlay in Games
+# writes its PLUGINS.TXT line.
+$perfPrx = Join-Path $root 'perf\pocketwatch_perf.prx'
+if (Test-Path $perfPrx) {
+    Copy-Item -Path $perfPrx -Destination $dest -Force
+    Write-Host "Copied pocketwatch_perf.prx -> $dest"
 }
 
 # Pocketwatch Home: a homebrew application, started from Game -> Memory Stick.

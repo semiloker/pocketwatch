@@ -831,3 +831,68 @@ decision was taken; the evidence column links the research behind it.
   would not show at all); moving the focus ring by the eased position too (the grid's motion
   was the jump, not the ring).
 - **Consequences:** HM25 is run again; previews show seven albums in two rows.
+
+## ADR-041 — Home keeps the clock: the last time known, then the internet's
+
+- **Status:** Accepted (2026-10-20), from the owner's request: after weeks unused the PSP asks for
+  the date again; "our own variant that sets the right date and time in real time". The owner
+  asked for the clock to be set (an explicit decision for these writes; RISK-026).
+- **Decision:** at Home's start, before anything is written, the clock is checked: lost when the
+  kernel refuses it or it reads before 2016 (the owner's PSP read 2011-01-16 after the firmware's
+  date screen was passed). A lost clock is set to the newest time, from 2016 on, of 14 files -
+  those Pocketwatch writes (each carries the clock of its last write) and those the PC copies
+  (their build's time) - with `sceRtcSetCurrentTick` through KUBridge, read back and logged; a
+  toast says so. Then, when the WLAN switch is on, Home asks an SNTP server (pool.ntp.org, then
+  time.google.com) over the first connection saved in the XMB, on a thread of its own, and sets the
+  exact time; Settings → Date and Time → Set Time from Internet does the same by hand and shows
+  the last answer. A date from 2016 on is never changed by the restore. Research:
+  [m7-clock](../research/m7-clock.md).
+- **Alternatives considered:** a kernel PRX of our own for the setter (NTPSP's way; KUBridge
+  already gives Home kernel calls); the syscon's clock written directly (bypasses the rtc module's
+  base); a time file written by Pocketwatch (the files' own times already are one); asking the
+  owner (what was to be avoided).
+- **Consequences:** the restored time is short by the time the PSP sat unused until the internet's
+  time comes; the network's modules are loaded the way NTPSP loads them, because Home's browser
+  path failed in `sceNetInit` on the owner's PSP (RESEARCH REQUIRED, HM29). Whether the firmware's
+  own date screen still appears after Home set the clock is an OPEN QUESTION (C1).
+
+## ADR-042 — Pocketwatch measures the battery itself (calibration run)
+
+- **Status:** Accepted (2026-10-20), from the owner's request: "our own variant for the battery,
+  so it can really be calibrated and its data, charge and time left understood".
+- **Decision:** Home's Battery page shows the gauge's current (read every 10 s by Home's battery
+  thread), our estimate of the time left or to full (`core/battmodel.c`: the run's average current,
+  "about"; the system's figure until there is history), the capacity left and full, voltage,
+  temperature, cycles; and a calibration run: Start → charge to full → unplug → leave Home on until
+  the PSP turns itself off. Home's battery thread writes a sample every 30 s to
+  `battery-cal.txt` and keeps the PSP from sleeping on its own; the next start computes the
+  capacity delivered (the current integrated, gaps over 120 s and their charge left out) and keeps
+  it in `battery.txt`: "Measured by Pocketwatch: N mAh (P % of the gauge's full)", how long it
+  lasted and at what average current. Research:
+  [m7-battery-calibration](../research/m7-battery-calibration.md).
+- **Alternatives considered:** writing the battery's gauge (out of bounds); a voltage curve (the
+  voltage sags under load; needs many runs); the XMB's Battery page (the XMB plugin has no room,
+  RISK-022).
+- **Consequences:** a run takes hours and needs Home on; the gauge itself may re-learn its full
+  capacity from the same run (INFERRED, compared in HM30).
+
+## ADR-043 — A performance overlay over Home and in games, as a module of its own
+
+- **Status:** Accepted (2026-10-20), from the owner's request: "an overlay over Pocketwatch's menu
+  and in games, a performance overlay, to understand it - all the data of the PSP".
+- **Decision:** over Home: Settings → Pocketwatch → Performance Overlay shows Home's frame rate,
+  its CPU and GE time a frame, its longest frame, the clocks, the memory and the battery, once a
+  second. In games: `pocketwatch_perf.prx` (perf/), a kernel module of its own that ARK-4 loads
+  only while its PLUGINS.TXT line is on; Settings → Pocketwatch → Overlay in Games (Off / FPS /
+  Full) turns that line on or off and writes `perf.txt`. At every vblank it writes its lines into
+  the frame about to be shown - the hub's while the hub is open - and once a second it measures:
+  the frames the game showed, the CPU's busy share (the idle threads' run time), the clocks, user
+  memory, the battery. L + R + SELECT held a second cycles Off / FPS / Full. Spec:
+  [perf-overlay](../subsystems/perf-overlay.md); research:
+  [m7-perf-overlay](../research/m7-perf-overlay.md).
+- **Alternatives considered:** inside the game plugin (no room: 2 KB left, ADR-037); always loaded
+  (its RAM in every game); hooking the game's `sceDisplaySetFrameBuf` (exact frames, but a patch in
+  every game's path for a diagnostic).
+- **Consequences:** a new build target (`perf/`), copied by `scripts/deploy.ps1`; nothing changes
+  for a game while it is off. The game's GE load is not shown (OPEN QUESTION); states with the
+  overlay on are RESEARCH REQUIRED (RISK-027, PF2).

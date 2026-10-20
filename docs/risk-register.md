@@ -262,3 +262,27 @@ risk; close it with the evidence.
 - **Mitigation:** only folders listed from `PSP/SAVEDATA` that start with the game's disc ID;
   names with `/` or a leading `.` refused; only the files directly in that folder; a question
   (Delete / Cancel) every time; test HM23 on a copy of a save first.
+
+## RISK-026 — Home sets the PSP's clock wrong
+
+- **Description:** Home writes the clock (ADR-041): put back after it was lost, or from an SNTP
+  answer. A wrong value - a misread file time, a bad answer, a tick in the wrong unit - would leave
+  the PSP's clock wrong (saves, play time, screenshots carry it).
+- **Likelihood L** / **Impact M** (fixed in the XMB's Settings → Date and Time; nothing is lost).
+- **Mitigation:** only a clock the kernel refuses or that reads before 2016 is put back, and only
+  to a file time from 2016 on; SNTP answers checked (server mode, stratum 1-15, synchronised,
+  2016 or later); the firmware's own setter (`sceRtcSetCurrentTick`, as NTPSP and System Settings
+  do), never the syscon directly; the clock read back after every write and logged
+  (`home clock:` in `home.log`); test HM29.
+
+## RISK-027 — The overlay module's thread runs through a save or a load
+
+- **Description:** the game overlay (ADR-043) is a kernel module whose thread is not frozen with
+  the game; it keeps writing into the frame through the states engine's freeze, and a load puts
+  back a kernel image made with or without the module.
+- **Likelihood L** / **Impact M** (a state that does not load, at worst a game that hangs; the
+  overlay is off by default and only loaded while turned on).
+- **Mitigation:** the module touches only the display's frame (VRAM, part of every state anyway)
+  and its own memory; no card writes, no hooks, no interrupts; a load restores the whole kernel
+  image, the module's thread with it (INFERRED). Device test PF2 before it is recommended for
+  games with states; until then the testing guide says to turn it off for state tests.

@@ -4,6 +4,8 @@
 
 #include <psptypes.h>
 
+#include "battcal.h"
+
 /* Pocketwatch Home's view of the PSP: the buttons, the clock, the battery, the card. The screen is
    gfx_gu.h's. */
 
@@ -31,8 +33,30 @@ void hm_hw_mac(char *out, int cap);
 typedef struct {
     int pct, charging, left_min; /* percent, 1 when charging, minutes left (the system's guess) */
     int mv, temp, rcap, full, cycles; /* mV, degrees C, mAh left and full, the gauge's count */
+    int online;                       /* external power */
+    int ma;                           /* the gauge's current (negative discharging), every 10 s;
+                                         PW_BATT_UNKNOWN */
+    int est_state, est_min, est_conf; /* ours (core/battmodel.c): PW_BATT_*, minutes left or to
+                                         full (-1), PW_BATT_EST_* */
+    int avg_ma;                       /* the run's average current, or PW_BATT_UNKNOWN */
+    int cal;                          /* HM_CAL_*: the calibration run */
 } hm_battery;
 int hm_hw_battery(hm_battery *b);
+
+/* Pocketwatch's battery calibration (BAT-REQ-008..010, ADR-042): charge to full, unplug, leave
+   Home on until the PSP turns itself off; every 30 s a sample into battery-cal.txt, and at the
+   end (the next start after it) the capacity measured into battery.txt. */
+enum { HM_CAL_OFF, HM_CAL_CHARGE, HM_CAL_UNPLUG, HM_CAL_RUN };
+enum { HM_CAL_NEWS_NONE, HM_CAL_NEWS_DONE, HM_CAL_NEWS_SHORT };
+void hm_hw_cal(int start);             /* start (1) or stop (0) */
+int hm_hw_cal_result(hm_battcal *out); /* the last one measured: 0, or < 0 none */
+int hm_hw_cal_news(void);              /* HM_CAL_NEWS_* once: a run ended */
+
+/* The clock (HOM-REQ-031, ADR-041): lost (a battery left flat) - put back to the newest time of
+   Pocketwatch's files - at the start; set from the internet's time (net.c). */
+enum { HM_CLOCK_OK, HM_CLOCK_RESTORED, HM_CLOCK_LOST };
+int hm_hw_clock_check(void);                   /* HM_CLOCK_*; logged */
+int hm_hw_set_utc(unsigned long long unix_us); /* 0 when the clock reads it back */
 /* What the first reading's calls cost ("percent 12 us, ..."), for home.log; 0 until then. */
 int hm_hw_battery_cost(char *out, int cap);
 int hm_hw_cross_enter(void); /* the system's Enter button is X */
@@ -53,7 +77,9 @@ int hm_hw_language(void);         /* PSP_SYSTEMPARAM_LANGUAGE_* */
 unsigned int hm_hw_free_mb(void); /* free space on ms0:, MB */
 
 int hm_hw_read_file(const char *path, void *buf, unsigned int cap); /* bytes or < 0 */
-/* A line (with its newline) at the end of seplugins/pocketwatch/home.log; from any thread. */
+/* A line (with its newline) at the end of seplugins/pocketwatch/home.log; from any thread.
+   Dropped while the card is lent to the PC (hm_hw_card_lent: USB). */
 void hm_hw_log(const char *line);
+void hm_hw_card_lent(int lent);
 
 #endif

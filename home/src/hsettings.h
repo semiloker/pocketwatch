@@ -11,7 +11,7 @@
  */
 
 enum { HS_HEADER, HS_CHOICE, HS_ACTION };
-enum { HS_ACT_NONE, HS_ACT_NICKNAME };
+enum { HS_ACT_NONE, HS_ACT_NICKNAME, HS_ACT_NET_TIME };
 
 /* The categories, each a page of its own (ADR-035), in the order of Home's Settings: the XMB's
    Settings items stand for them in Classic. */
@@ -33,6 +33,7 @@ enum {
 #define HS_WALLPAPER_CHANGED HS_LOOK_CHANGED
 #define HS_MUSIC_CHANGED     3
 #define HS_KEYS_CHANGED      4 /* the Enter button: Enter and Back swap */
+#define HS_NEXT_GAME         5 /* the game overlay: from the next game on (a toast says so) */
 
 const char *hs_cat_label(int c);
 int hs_cat_glyph(int c);                      /* hm_icons.h HM_ICON_* (Modern, Minimal) */
@@ -70,6 +71,11 @@ int hs_wallpaper_set(const char *path, const unsigned int *bg);
 /* The nickname (UTF-8) as the system has it, and a new one (HS_ACT_NICKNAME). */
 void hs_nickname(char *out, int cap);
 int hs_set_nickname(const char *utf8);
+
+/* Set Time from Internet's row (HOM-REQ-032): what main.c's thread last did, and when (the time
+   it set, "14:05"). */
+enum { HS_NET_IDLE, HS_NET_ASKING, HS_NET_DONE, HS_NET_NO_WIFI, HS_NET_NO_PROFILE, HS_NET_FAILED };
+void hs_set_net_time(int state, const char *when);
 
 /* An on/off row: 1 off, 2 on; 0 for any other row (Modern draws those as switches). */
 int hs_toggle(int i);

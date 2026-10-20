@@ -630,6 +630,22 @@ void hm_make_glow(unsigned int c, unsigned int *out)
         }
 }
 
+/* The performance overlay (ADR-043): Home's numbers at the top left, over everything. */
+static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
+{
+    int w = 0, n = v->perf[1] ? 2 : 1;
+
+    for (int i = 0; i < n; i++) {
+        int t = pw_text_width(ui->body, v->perf[i]);
+
+        w = t > w ? t : w;
+    }
+    w = hm_clampi(w + 12, 0, HM_W - 8);
+    g->rrect(g, 4, 4, w, 4 + 18 * n, 6, 0, C_BLACK, 190);
+    for (int i = 0; i < n; i++)
+        g->text(g, ui->body, 10, 19 + 18 * i, v->perf[i], w - 12, PW_RGB(255, 255, 255), 256);
+}
+
 void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = hm_clampi(v->appear, 0, 256);
@@ -645,6 +661,8 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         hm_draw_minimal(g, ui, v);
     else
         hm_draw_modern(g, ui, v);
+    if (v->perf[0])
+        perf_overlay(g, ui, v);
     if (a < 256) /* fading in, or out before a game starts */
         g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, 256 - a);
 }

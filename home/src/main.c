@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "core/battmodel.h"
 #include "core/config.h"
 #include "dialogs.h"
 #include "gfx/image.h"
@@ -592,6 +593,134 @@ static void toast(const char *text, unsigned int now)
     g_s.t_toast = now;
 }
 
+/* ---- the clock from the internet (HOM-REQ-032, ADR-041): its own thread, the screen goes on;
+   the loop reads g_sync once it is no longer 1 ---- */
+
+static volatile int g_sync; /* 0 idle, 1 asking, 2 set, else HM_NET_* */
+static char g_sync_log[256];
+
+static int sync_thread(SceSize args, void *argp)
+{
+    unsigned long long us = 0;
+    char line[320];
+    int r;
+
+    (void)args;
+    (void)argp;
+    r = hm_net_time(&us, g_sync_log, sizeof(g_sync_log));
+    if (r == 0 && hm_hw_set_utc(us) < 0)
+        r = HM_NET_FAILED;
+    stbsp_snprintf(line, sizeof(line), "home clock: from the internet %d:%s\n", r, g_sync_log);
+    hm_hw_log(line);
+    g_sync = r == 0 ? 2 : r;
+    return sceKernelExitDeleteThread(0);
+}
+
+static void sync_start(void)
+{
+    SceUID th;
+
+    if (g_sync == 1)
+        return;
+    g_sync = 1;
+    hs_set_net_time(HS_NET_ASKING, 0);
+    th = sceKernelCreateThread("PocketwatchHomeClock", sync_thread, 0x30, 0x8000, 0, 0);
+    if (th < 0 || sceKernelStartThread(th, 0, 0) < 0)
+        g_sync = HM_NET_FAILED;
+}
+
+/* Its answer, once: the row's value and a toast. */
+static void sync_done(unsigned int now)
+{
+    int r = g_sync;
+    char when[16];
+
+    if (r == 0 || r == 1)
+        return;
+    g_sync = 0;
+    hm_hw_clock(when, sizeof(when), HM_CLOCK_TIME);
+    hs_set_net_time(r == 2                   ? HS_NET_DONE
+                    : r == HM_NET_SWITCH_OFF ? HS_NET_NO_WIFI
+                    : r == HM_NET_NO_PROFILE ? HS_NET_NO_PROFILE
+                                             : HS_NET_FAILED,
+                    when);
+    toast(pw_tr(r == 2                   ? PW_S_CLK_SYNCED
+                : r == HM_NET_SWITCH_OFF ? PW_S_CLK_NO_WIFI
+                : r == HM_NET_NO_PROFILE ? PW_S_CLK_NO_NET
+                                         : PW_S_CLK_FAILED),
+          now);
+}
+
+/* ---- the battery's calibration: the end of a run, told once ---- */
+
+static void cal_news(unsigned int now)
+{
+    static char text[64];
+    int news = hm_hw_cal_news();
+    hm_battcal c;
+
+    if (news == HM_CAL_NEWS_DONE && hm_hw_cal_result(&c) == 0) {
+        stbsp_snprintf(text, sizeof(text), pw_tr(PW_S_BAT_CAL_DONE), c.est_full_mah);
+        toast(text, now);
+    } else if (news == HM_CAL_NEWS_SHORT) {
+        toast(pw_tr(PW_S_BAT_CAL_SHORT), now);
+    }
+}
+
+/* ---- the performance overlay over Home (ADR-043): its numbers once a second ---- */
+
+static struct {
+    unsigned int t0, frames, cpu_us, ge_us, worst_ms, last;
+} g_perf;
+static char g_perf_line[2][96];
+
+static void perf_frame(unsigned int now, unsigned int cpu_us, unsigned int ge_us)
+{
+    if (g_perf.frames && now - g_perf.last > g_perf.worst_ms)
+        g_perf.worst_ms = now - g_perf.last;
+    g_perf.last = now;
+    g_perf.frames++;
+    g_perf.cpu_us += cpu_us;
+    g_perf.ge_us += ge_us;
+    if (!hm_cfg_get()->perf) {
+        g_v.perf[0] = g_v.perf[1] = 0;
+        return;
+    }
+    if (now - g_perf.t0 >= 1000) {
+        unsigned int ms = now - g_perf.t0, n = g_perf.frames ? g_perf.frames : 1;
+        struct mallinfo mi = mallinfo();
+        hm_battery b;
+
+        hm_hw_battery(&b);
+        stbsp_snprintf(g_perf_line[0], sizeof(g_perf_line[0]),
+                       "%u FPS  CPU %u.%u ms  GE %u.%u ms  max %u ms  %d/%d MHz",
+                       g_perf.frames * 1000 / ms, g_perf.cpu_us / n / 1000,
+                       g_perf.cpu_us / n % 1000 / 100, g_perf.ge_us / n / 1000,
+                       g_perf.ge_us / n % 1000 / 100, g_perf.worst_ms,
+                       scePowerGetCpuClockFrequencyInt(), scePowerGetBusClockFrequencyInt());
+        { /* (what the system does not give is left out) */
+            char *l = g_perf_line[1];
+            int k = stbsp_snprintf(l, sizeof(g_perf_line[1]), "RAM %u KB  heap %u/%u KB",
+                                   (unsigned int)sceKernelTotalFreeMemSize() >> 10,
+                                   (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10),
+                cap = (int)sizeof(g_perf_line[1]);
+
+            if (b.pct >= 0)
+                k += stbsp_snprintf(l + k, cap - k, "  BAT %d%%", b.pct);
+            if (b.pct >= 0 && b.ma != PW_BATT_UNKNOWN)
+                k += stbsp_snprintf(l + k, cap - k, " %d mA", b.ma);
+            if (b.mv > 0)
+                k += stbsp_snprintf(l + k, cap - k, " %d.%02d V", b.mv / 1000, b.mv % 1000 / 10);
+            if (b.temp > 0 && b.temp < 80)
+                stbsp_snprintf(l + k, cap - k, " %d C", b.temp);
+        }
+        g_v.perf[0] = g_perf_line[0];
+        g_v.perf[1] = g_perf_line[1];
+        memset(&g_perf, 0, sizeof(g_perf));
+        g_perf.t0 = g_perf.last = now;
+    }
+}
+
 /* ---- Home's keyboard (HOM-REQ-030) ---- */
 
 static void kb_close(int save)
@@ -935,6 +1064,8 @@ static void after_setting(int r, int was_sort, int was_style)
         g_enter = g_ui.cross_enter ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
         g_back = g_ui.cross_enter ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
     }
+    if (r == HS_NEXT_GAME) /* the game overlay's module: ARK-4 loads it at a game's start */
+        toast(pw_tr(PW_S_HS_PERF_NEXT), hm_hw_now_ms());
     if (r == HS_TEXTS_CHANGED) { /* a language: every text again */
         hm_texts_load();
         texts(&g_v);
@@ -987,8 +1118,21 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
         *start_usb = 1;
         return 1;
     case A_BROWSER:
-        *browser = 1;
+        if (g_sync != 1) /* (the network is the clock's meanwhile) */
+            *browser = 1;
         return 1;
+    case A_NET_TIME:
+        sync_start();
+        g_s.snd = HM_SND_OPEN;
+        return 1;
+    case A_CAL: {
+        hm_battery b;
+
+        hm_hw_battery(&b);
+        hm_hw_cal(b.cal == HM_CAL_OFF);
+        g_s.snd = HM_SND_OPEN;
+        return 1;
+    }
     case A_EXIT:
         g_s.leave = 1;
         return 1;
@@ -1545,7 +1689,8 @@ static void popup_keys(unsigned int ev)
 static void usb_end(void)
 {
     hm_usb_stop();
-    usb_log(); /* what each step did, and the states the link went through */
+    hm_hw_card_lent(0); /* the card is ours again */
+    usb_log();          /* what each step did, and the states the link went through */
     g_s.usb = 0;
     hm_pages_drop();
     hm_library_rescan();
@@ -1566,6 +1711,7 @@ static void usb_begin(unsigned int now)
     g_s.usb = 1;
     g_s.usb_state = hm_usb_start(now);
     usb_log(); /* the drivers: before the connection, the card is still ours */
+    hm_hw_card_lent(1);
     if (g_s.usb_state != HM_USB_FAILED)
         g_s.usb_state = hm_usb_poll(now);
     g_s.t_usb = now;
@@ -1631,9 +1777,11 @@ int main(void)
     stats st;
     unsigned int t_prev, t_rows = 0, t_status = 0;
     const unsigned int *shown = 0; /* the background drawn last */
-    int up = 0;
+    int up = 0, clock_was;
     char clock[24] = "";
 
+    /* first: before anything writes a file, whose time would be the lost clock's */
+    clock_was = hm_hw_clock_check();
     if (hm_hw_init() < 0)
         return 0;
     pw_icon_cache(malloc(64 * 1024), 64 * 1024);
@@ -1680,12 +1828,21 @@ int main(void)
     g_s.t_open = t_prev = hm_hw_now_ms();
     memset(&st, 0, sizeof(st));
     st.t0 = st.last = g_s.t_open;
+    g_perf.t0 = g_s.t_open;
+    /* a lost clock: what was done about it, and the internet's time when Wi-Fi is on */
+    if (clock_was != HM_CLOCK_OK) {
+        toast(pw_tr(clock_was == HM_CLOCK_RESTORED ? PW_S_CLK_RESTORED : PW_S_CLK_LOST),
+              g_s.t_open);
+        if (hm_net_switch() == 1)
+            sync_start();
+    }
 
     while (!hm_hw_exit_requested() && !g_s.leave) {
         unsigned int now = hm_hw_now_ms(), t_cpu = sceKernelGetSystemTimeLow(), t_warm,
                      buttons = hm_hw_buttons(),
                      ev = pw_keys_update(&keys, buttons, REPEAT, now * 1000);
         const unsigned int *want;
+        unsigned int ge;
         int dt = (int)(now - t_prev), start_usb = 0, nickname = 0, browser = 0,
             tau = hm_cfg_tau(hm_cfg_get()->motion, PW_ANIM_TAU_MS), was_depth = g_v.depth,
             was_tab = g_v.tab;
@@ -1788,6 +1945,8 @@ int main(void)
             g_s.kb_saved = 0;
             t_rows = 0; /* the row shows the new name */
         }
+        sync_done(now); /* the internet's time came (or not) */
+        cal_news(now);  /* a calibration run ended */
         /* a page opened or a section changed: its rows now; whose saves are listed */
         if (g_v.depth != was_depth || g_v.tab != was_tab)
             t_rows = 0;
@@ -1897,7 +2056,9 @@ int main(void)
         hm_prefetch(g, &g_ui, &g_v);
         t_warm = sceKernelGetSystemTimeLow() - t_warm;
         g_t_warm = t_warm;
-        stats_frame(&st, now, t_cpu, t_warm, hm_gu_end(), top_id());
+        ge = hm_gu_end();
+        stats_frame(&st, now, t_cpu, t_warm, ge, top_id());
+        perf_frame(now, t_cpu, ge);
         if (!up) { /* the first screen is up: tell the XMB plugin's guard */
             hm_hw_remove(PENDING);
             up = 1;

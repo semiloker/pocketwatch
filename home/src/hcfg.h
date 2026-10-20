@@ -28,6 +28,7 @@ typedef struct {
     int motion;  /* HM_MOTION_*: how fast things glide */
     int hold;    /* HM_HOLD_* (while music plays) */
     int clock;   /* HM_CLOCK_*: what the clock shows (date and time) */
+    int perf;    /* the performance overlay over Home (0) */
 } hm_cfg;
 
 extern const char *const hm_cfg_accent_names[HM_ACCENTS];

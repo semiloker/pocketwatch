@@ -10,6 +10,7 @@
 #include "home_view.h"
 #include "hsettings.h"
 #include "hw.h"
+#include "plugins_txt.h"
 #include "sound.h"
 #include "stb_sprintf.h"
 #include "ui/i18n.h"
@@ -699,6 +700,87 @@ static int set_sounds(int o)
     return 0;
 }
 
+/* The performance overlay (ADR-043): over Home (home.txt), and in games - the module
+   pocketwatch_perf.prx, its line in ARK-4's PLUGINS.TXT and what it shows (perf.txt). */
+static int get_perf(void)
+{
+    return hm_cfg_get()->perf ? 1 : 0;
+}
+static int set_perf(int o)
+{
+    hm_cfg_get()->perf = o;
+    return save_home(0);
+}
+
+#define PERF_PRX     DIR "pocketwatch_perf.prx"
+#define PERF_CFG     DIR "perf.txt"
+#define PLUGINS      "ms0:/seplugins/PLUGINS.TXT"
+#define PLUGINS_SIZE 8192
+static int g_perf_game = -1; /* 0 off, 1 the frame rate, 2 everything; -1 not read yet */
+static char g_plugins[2][PLUGINS_SIZE];
+
+static int get_perf_game(void)
+{
+    if (g_perf_game < 0) {
+        char t[32];
+        int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE),
+            m = pw_file_read(PERF_CFG, t, sizeof(t) - 1);
+
+        t[m > 0 ? m : 0] = 0;
+        g_perf_game = n > 0 && hm_plugins_get(g_plugins[0], n, PERF_PRX) == 1
+                          ? (strstr(t, "fps") ? 1 : 2)
+                          : 0;
+    }
+    return g_perf_game;
+}
+static int set_perf_game(int o)
+{
+    int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE), m;
+
+    if (n < 0)
+        n = 0;
+    m = hm_plugins_set(g_plugins[0], n, PERF_PRX, o > 0, g_plugins[1], PLUGINS_SIZE);
+    if (m < 0 || (o > 0 && pw_file_write(PERF_CFG, o == 1 ? "mode = fps\n" : "mode = full\n",
+                                         o == 1 ? 11u : 12u, 0) < 0))
+        return -1;
+    if (pw_file_write(PLUGINS, g_plugins[1], (unsigned int)m, 0) != m)
+        return -1;
+    g_perf_game = o;
+    return HS_NEXT_GAME;
+}
+static void text_perf_game(int o, char *out, int cap)
+{
+    stbsp_snprintf(out, cap, "%s",
+                   pw_tr(o == 1   ? PW_S_HS_PERF_FPS
+                         : o == 2 ? PW_S_HS_PERF_FULL
+                                  : PW_S_OFF));
+}
+
+/* Set Time from Internet (HOM-REQ-032): the last answer, as main.c's thread had it. */
+static int g_net_time;
+static char g_net_when[16];
+
+void hs_set_net_time(int state, const char *when)
+{
+    g_net_time = state;
+    stbsp_snprintf(g_net_when, sizeof(g_net_when), "%s", when ? when : "");
+}
+
+static void text_net_time(char *out, int cap)
+{
+    out[0] = 0;
+    if (g_net_time == HS_NET_ASKING)
+        stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_CLK_WORKING));
+    else if (g_net_time == HS_NET_DONE)
+        stbsp_snprintf(out, cap, pw_tr(PW_S_CLK_SET), g_net_when);
+    else if (g_net_time == HS_NET_NO_WIFI)
+        stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_CLK_NO_WIFI));
+    else if (g_net_time == HS_NET_NO_PROFILE)
+        stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_CLK_NO_NET));
+    else if (g_net_time == HS_NET_FAILED)
+        stbsp_snprintf(out, cap, "%s", pw_tr(PW_S_CLK_FAILED));
+}
+
 static const row k_rows[] = {
     {HS_CAT_LOOK, HS_CHOICE, PW_S_SET_STYLE, 0, three, get_style, set_style, text_style},
     {HS_CAT_LOOK, HS_CHOICE, PW_S_HS_THEME, 0, theme_count, get_theme, set_theme, text_theme},
@@ -713,6 +795,9 @@ static const row k_rows[] = {
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_HS_SORT, 0, two, get_sort, set_sort, text_sort},
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_FAST, 0, two, get_fast, set_fast, on_off},
     {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_SET_STATUS, 0, two, get_status, set_status, on_off},
+    {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_HS_PERF, 0, two, get_perf, set_perf, on_off},
+    {HS_CAT_POCKETWATCH, HS_CHOICE, PW_S_HS_PERF_GAME, 0, three, get_perf_game, set_perf_game,
+     text_perf_game},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_REPEAT, 0, three, get_repeat, set_repeat, text_repeat},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SHUFFLE, 0, two, get_shuffle, set_shuffle, on_off},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_TIMER, 0, timer_count, get_timer, set_timer, text_timer},
@@ -725,6 +810,7 @@ static const row k_rows[] = {
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_TIME_FORMAT, 0, two, get_time, set_time, text_time},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_TIME_ZONE, 0, zone_count, get_zone, set_zone, text_zone},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_SUMMER_TIME, 0, two, get_summer, set_summer, on_off},
+    {HS_CAT_TIME, HS_ACTION, PW_S_CLK_NET, HS_ACT_NET_TIME, 0, 0, 0, 0},
     {HS_CAT_SYSTEM, HS_CHOICE, PW_S_SET_LANGUAGE, 0, lang_count, get_lang, set_lang, text_lang},
     {HS_CAT_SYSTEM, HS_CHOICE, PW_S_HS_SYS_LANGUAGE, 0, sys_lang_count, get_sys_lang, set_sys_lang,
      text_sys_lang},
@@ -826,6 +912,10 @@ void hs_value(int i, char *out, int cap)
         return;
     if (r->action == HS_ACT_NICKNAME) {
         hs_nickname(out, cap);
+        return;
+    }
+    if (r->action == HS_ACT_NET_TIME) {
+        text_net_time(out, cap);
         return;
     }
     v = r->get();

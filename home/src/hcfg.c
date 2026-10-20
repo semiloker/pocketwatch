@@ -9,7 +9,7 @@
 
 #define FILE_MAX 1024
 
-static hm_cfg g_cfg = {0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0};
+static hm_cfg g_cfg = {0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0};
 
 const char *const hm_cfg_accent_names[HM_ACCENTS] = {"blue", "violet", "pink", "red",     "orange",
                                                      "gold", "green",  "teal", "graphite"};
@@ -113,6 +113,8 @@ static int take(hm_cfg *c, const char *k, unsigned int kn, const char *v, unsign
         c->hold = x;
     else if (KEY("clock") && (x = name_index(hm_cfg_clock_names, HM_CLOCKS, v, vn)) >= 0)
         c->clock = x;
+    else if (KEY("perf") && (x = boolean(v, vn)) >= 0)
+        c->perf = x;
 #undef KEY
     return x >= 0;
 }
@@ -158,7 +160,8 @@ int hm_cfg_format(const hm_cfg *c, char *out, unsigned int cap)
         out, (int)cap,
         "# Pocketwatch Home (its Settings write this file)\n"
         "accent = %s\ntheme = %s\nbackground = %s\nsky = %s\nwave = %s\n"
-        "percent = %s\nrepeat = %s\nshuffle = %s\nmotion = %s\nhold = %s\nclock = %s\n",
+        "percent = %s\nrepeat = %s\nshuffle = %s\nmotion = %s\nhold = %s\nclock = %s\n"
+        "perf = %s\n",
         hm_cfg_accent_names[c->accent >= 0 && c->accent < HM_ACCENTS ? c->accent : 0],
         hm_cfg_theme_names[c->theme >= 0 && c->theme < 4 ? c->theme : 0],
         hm_cfg_bg_names[c->bg >= 0 && c->bg < HM_BGS ? c->bg : 0], sky, c->wave ? "on" : "off",
@@ -167,7 +170,8 @@ int hm_cfg_format(const hm_cfg *c, char *out, unsigned int cap)
         c->shuffle ? "on" : "off",
         hm_cfg_motion_names[c->motion >= 0 && c->motion < HM_MOTIONS ? c->motion : 0],
         hm_cfg_hold_names[c->hold >= 0 && c->hold < 3 ? c->hold : 1],
-        hm_cfg_clock_names[c->clock >= 0 && c->clock < HM_CLOCKS ? c->clock : 0]);
+        hm_cfg_clock_names[c->clock >= 0 && c->clock < HM_CLOCKS ? c->clock : 0],
+        c->perf ? "on" : "off");
     return n > 0 && (unsigned int)n < cap ? n : -1;
 }
 

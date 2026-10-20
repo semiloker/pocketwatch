@@ -105,10 +105,32 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 - The log: 500-1035 ms frames (about one in 30 s) and 10-30 late frames in 30 s, no part named;
   RESEARCH REQUIRED: the next `home.log`'s `slow:` entries (ADR-040). No `home music:` line:
   music was not tested in this round.
+- The card's clock: the PSP reads 2011-01-16/17 (`xmb.log`, the files' dates) - lost and passed
+  through the firmware's date screen (see below, ADR-041).
+
+## 2026-10-20: the clock, the battery, the performance overlay (owner's requests)
+
+- **Clock** (ADR-041, HOM-REQ-031/032, [m7-clock](research/m7-clock.md)): implemented in Home -
+  a lost clock (kernel error, or before 2016) set at the start to the newest file time; then SNTP
+  over Wi-Fi, by itself after a restore and by hand in Settings → Date and Time. Host tests;
+  PPSSPP: the "Wi-Fi switch is off" answer. Not run on the PSP; the network in Home is RESEARCH
+  REQUIRED (the browser's `sceNetInit` failed there with 0x8002013A; the clock's path is NTPSP's).
+- **Battery** (ADR-042, BAT-REQ-008..010, [m7-battery-calibration](research/m7-battery-calibration.md)):
+  Home's Battery page shows the current and our estimate; a calibration run measures the
+  capacity the battery delivers. Host tests; PPSSPP: the page and the run's first steps.
+- **Performance overlay** (ADR-043, PRF-REQ-001..005, [perf-overlay](subsystems/perf-overlay.md)):
+  over Home (PPSSPP checked: 59 fps, the frame's CPU and GE time, clocks, memory); in games
+  `pocketwatch_perf.prx` (perf/, 9.7 KB loaded, `make check` passed), turned on in Home's
+  Settings through PLUGINS.TXT (PPSSPP: the line written and turned off again). Not run on the PSP.
+- Budgets unchanged: game plugin 194 552 / 196 608 (debug), XMB plugin 65 261 / 65 536; Home
+  1 621 916 / 2 097 152.
 
 ## Next actions (in order)
 
-0. **Owner:** HM25 again (ADR-040) with `home.log`; HM24, HM27, HM28. **Before that (round 6):**
+0. **Owner (next round):** deploy (`scripts\deploy.cmd`), then HM29 (the clock: the first start
+   should fix the 2011 date), HM31 and PF1 (the overlays; overlay off again before state tests),
+   HM30 (a calibration run, hours), PF2; and HM25 again (ADR-040) with `home.log`; HM24, HM27, HM28.
+   **Before that (round 6):**
    **owner:** HM24, HM25, HM27, HM28 (ADR-039) with `home.log`; name the games that open the
    PSP's keyboard (for G1 of [m7-game-keyboard](research/m7-game-keyboard.md), and choose its
    option A / B / C). Then:

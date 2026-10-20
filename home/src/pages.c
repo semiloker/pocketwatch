@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "core/battmodel.h"
 #include "hcfg.h"
 #include "hm_icons.h"
 #include "hsettings.h"
@@ -535,7 +536,10 @@ static void category_page(hm_page *p, int c)
 
         hs_value(idx[i], val(b, n), VAL);
         r = add(b, &n, hs_label(idx[i]), val(b, n)[0] ? val(b, n) : 0, kinds[hs_kind(idx[i])],
-                hs_action(idx[i]) == HS_ACT_NICKNAME ? A_NICKNAME : A_SETTING, idx[i]);
+                hs_action(idx[i]) == HS_ACT_NICKNAME   ? A_NICKNAME
+                : hs_action(idx[i]) == HS_ACT_NET_TIME ? A_NET_TIME
+                                                       : A_SETTING,
+                idx[i]);
         r->toggle = hs_toggle(idx[i]);
         cur = hs_current(idx[i]);
         r->swatch = hs_swatch(idx[i], cur);
@@ -593,19 +597,37 @@ static void battery_page(hm_page *p)
     int n = 0;
     hm_battery bat;
 
+    hm_battcal cal;
+    char d[32];
+    static const int k_cal[4] = {PW_S_BAT_CAL_START, PW_S_BAT_CAL_CHARGE, PW_S_BAT_CAL_UNPLUG,
+                                 PW_S_BAT_CAL_RUN};
+
     hm_hw_battery(&bat); /* (read by hw.c's thread: these calls are slow) */
     if (bat.pct >= 0)
         stbsp_snprintf(val(b, n), VAL, "%d%%   %s", bat.pct,
-                       pw_tr(bat.charging ? PW_S_BAT_CHARGING : PW_S_BAT_ON_BATTERY));
+                       pw_tr(bat.charging ? PW_S_BAT_CHARGING
+                             : bat.online ? PW_S_BAT_ON_POWER
+                                          : PW_S_BAT_ON_BATTERY));
     add(b, &n, pw_tr(PW_S_BAT_CHARGE), bat.pct >= 0 ? val(b, n) : pw_tr(PW_S_BAT_NA), HM_ROW_INFO,
         A_NONE, 0)
         ->bar = bat.pct >= 0 ? bat.pct * 256 / 100 : -1;
-    if (!bat.charging && bat.left_min > 0 && bat.left_min < 24 * 60) {
-        char d[32];
-
+    /* how long: ours once it has history (BAT-REQ-003), the system's before, never as exact */
+    if (bat.est_conf >= PW_BATT_EST_ROUGH && bat.est_min > 0 && bat.est_min < 48 * 60) {
+        duration(d, sizeof(d), (unsigned int)bat.est_min * 60);
+        stbsp_snprintf(val(b, n), VAL, pw_tr(PW_S_BAT_ABOUT), d);
+        add(b, &n, pw_tr(bat.est_state == PW_BATT_CHARGING ? PW_S_BAT_TO_FULL : PW_S_BAT_LEFT),
+            val(b, n), HM_ROW_INFO, A_NONE, 0);
+    } else if (!bat.charging && !bat.online && bat.left_min > 0 && bat.left_min < 24 * 60) {
         duration(d, sizeof(d), (unsigned int)bat.left_min * 60);
         stbsp_snprintf(val(b, n), VAL, pw_tr(PW_S_BAT_SYSTEM), d);
         add(b, &n, pw_tr(PW_S_BAT_LEFT), val(b, n), HM_ROW_INFO, A_NONE, 0);
+    } else if (bat.pct >= 0 && bat.est_state != PW_BATT_FULL) {
+        add(b, &n, pw_tr(bat.charging ? PW_S_BAT_TO_FULL : PW_S_BAT_LEFT),
+            pw_tr(PW_S_BAT_ESTIMATING), HM_ROW_INFO, A_NONE, 0);
+    }
+    if (bat.ma != PW_BATT_UNKNOWN && bat.pct >= 0) {
+        stbsp_snprintf(val(b, n), VAL, "%d mA", bat.ma);
+        add(b, &n, pw_tr(PW_S_BAT_CURRENT), val(b, n), HM_ROW_INFO, A_NONE, 0);
     }
     if (bat.mv > 0) {
         stbsp_snprintf(val(b, n), VAL, "%d.%02d V", bat.mv / 1000, bat.mv % 1000 / 10);
@@ -626,6 +648,23 @@ static void battery_page(hm_page *p)
         stbsp_snprintf(val(b, n), VAL, "%d", bat.cycles);
         add(b, &n, pw_tr(PW_S_BAT_CYCLES), val(b, n), HM_ROW_INFO, A_NONE, 0);
     }
+    /* Pocketwatch's own measure of the battery (BAT-REQ-008..010): a run from full to empty */
+    if (hm_hw_cal_result(&cal) == 0) {
+        if (cal.full_mah > 0)
+            stbsp_snprintf(val(b, n), VAL, pw_tr(PW_S_BAT_MEASURED_V), cal.est_full_mah,
+                           cal.est_full_mah * 100 / cal.full_mah, cal.full_mah);
+        else
+            stbsp_snprintf(val(b, n), VAL, "%d mAh", cal.est_full_mah);
+        add(b, &n, pw_tr(PW_S_BAT_MEASURED), val(b, n), HM_ROW_INFO, A_NONE, 0);
+        duration(d, sizeof(d), cal.seconds);
+        stbsp_snprintf(val(b, n), VAL, "%s   %d%% - %d%%   %d mA", d, cal.pct_from, cal.pct_to,
+                       cal.avg_ma);
+        add(b, &n, pw_tr(PW_S_BAT_LASTED), val(b, n), HM_ROW_INFO, A_NONE, 0);
+    } else {
+        add(b, &n, pw_tr(PW_S_BAT_MEASURED), pw_tr(PW_S_BAT_NOT_MEASURED), HM_ROW_INFO, A_NONE, 0);
+    }
+    add(b, &n, pw_tr(PW_S_BAT_CAL), pw_tr(k_cal[bat.cal >= 0 && bat.cal < 4 ? bat.cal : 0]),
+        HM_ROW_ACTION, A_CAL, 0);
     p->layout = HM_PAGE_ROWS;
     p->title = pw_tr(PW_S_BATTERY);
     p->rows = b->r;

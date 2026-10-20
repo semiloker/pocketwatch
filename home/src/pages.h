@@ -44,9 +44,11 @@ enum {
     A_EXIT, /* to the XMB */
     A_SLEEP,
     A_OFF,
-    A_PLAY,   /* start the game */
-    A_TRACK,  /* play track arg (or pause the one playing) */
-    A_DELETE, /* delete what the page shows (a save) */
+    A_PLAY,     /* start the game */
+    A_TRACK,    /* play track arg (or pause the one playing) */
+    A_DELETE,   /* delete what the page shows (a save) */
+    A_NET_TIME, /* the clock from the internet (HOM-REQ-032) */
+    A_CAL,      /* the battery's calibration run: start or stop (BAT-REQ-008) */
 };
 
 typedef struct {

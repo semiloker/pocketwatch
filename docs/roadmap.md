@@ -155,7 +155,9 @@ native; settings and card intact.
 Continue a game from a state from the XMB: "Continue from Save State" in the game's △ menu
 (ADR-020), the ISO launched the XMB's way, the slot loaded once the game runs (GAME side done:
 `continue.txt`, test V1). Next: research the XMB's △ menu call sites, then the VSH PRX.
-[vsh-integration](subsystems/vsh-integration.md).
+[vsh-integration](subsystems/vsh-integration.md). Also under M7 since 2026-10-20: Home keeping
+the clock, Pocketwatch's battery calibration and the performance overlay (ADR-041..043, device
+tests HM29-HM31, PF1-PF2; [perf-overlay](subsystems/perf-overlay.md)).
 
 ## Speed backlog
 

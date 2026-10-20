@@ -16,7 +16,8 @@ OBJS = build/main.o build/hw.o build/library.o build/launch.o build/texts.o buil
        build/draw.o build/shapes.o build/icons.o build/font8x8.o build/input.o build/i18n.o \
        build/text.o build/pgf.o build/sfo.o build/playtime.o build/crc32.o build/stb_sprintf.o \
        build/config.o build/langnames.o build/hcfg.o build/pages.o build/savedata.o \
-       build/savedata_text.o build/photo_edit.o build/hm_imgwrite.o
+       build/savedata_text.o build/photo_edit.o build/hm_imgwrite.o build/clockfix.o \
+       build/battcal.o build/battmodel.o build/plugins_txt.o
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 

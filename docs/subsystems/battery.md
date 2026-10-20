@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Area code | `BAT` |
-| Status | Implemented in the XMB 2026-10-17 (Settings → Battery, ADR-024; branch `feature/psp-xmb-overhaul`), host-tested; first in-game reading on the device 2026-10-17; device test B1 pending |
-| Code | [`core/battmodel.c`](../../plugin/src/core/battmodel.c) (portable model, estimates), [`vsh/src/xbattery.c`](../../vsh/src/xbattery.c) (readings, the 15 s thread), [`vsh/src/xsettings.c`](../../vsh/src/xsettings.c) (the page's rows) |
+| Status | Implemented in the XMB 2026-10-17 (Settings → Battery, ADR-024; branch `feature/psp-xmb-overhaul`), host-tested; first in-game reading on the device 2026-10-17; Home's Battery page with the current, our estimate and Pocketwatch's calibration run 2026-10-20 (ADR-042); device tests B1, HM30 pending |
+| Code | [`core/battmodel.c`](../../plugin/src/core/battmodel.c) (portable model, estimates), [`vsh/src/xbattery.c`](../../vsh/src/xbattery.c) (readings, the 15 s thread), [`vsh/src/xsettings.c`](../../vsh/src/xsettings.c) (the page's rows); Home: [`home/src/hw.c`](../../home/src/hw.c) (its battery thread, the calibration run), [`home/src/battcal.c`](../../home/src/battcal.c) (the run's file and result, portable), [`home/src/pages.c`](../../home/src/pages.c) (`battery_page`); research [m7-battery-calibration](../research/m7-battery-calibration.md) |
 
 ## A. Overview
 
@@ -25,8 +25,11 @@
 | `BAT-REQ-003` | The time left is "Estimating..." until there is history; then the firmware's figure marked "(system)"; after a minute of readings ours, "about": remaining capacity / average current of the run, or the slope of the percentage over ten minutes. Never shown as exact. | P1 | Implemented | `battery_estimate_needs_history_then_uses_the_current`, `battery_slope_when_there_is_no_current` |
 | `BAT-REQ-004` | A change of charging or external power, a gap of more than five minutes, or time running backwards (a state was loaded) starts a new run of history; old readings never mix into a new estimate. | P1 | Implemented | `battery_runs_restart_on_power_changes_gaps_and_loads` |
 | `BAT-REQ-005` | While charging, the time to full is the missing capacity at the average charge current, "about" (optimistic near the end, the charger slows down). | P2 | Implemented | `battery_charging_time_to_full` |
-| `BAT-REQ-006` | Readings cost nothing visible: in the XMB one every 15 s from a low-priority thread (scePower calls and two syscon getters through kuKernelCall), one more when the page opens; nothing in a game. | P1 | Implemented (ADR-024) | code review, device test B1 |
+| `BAT-REQ-006` | Readings cost nothing visible: in the XMB one every 15 s from a low-priority thread (scePower calls and two syscon getters through kuKernelCall), one more when the page opens; nothing in a game (except the performance overlay's, when the owner turns it on: PRF-REQ-003). | P1 | Implemented (ADR-024) | code review, device test B1 |
 | `BAT-REQ-007` | Health (capacity relative to the design capacity) is shown only when the design capacity is known. | P2 | Planned: the design capacity is not known (RESEARCH REQUIRED: syscon `GetIFC`/`GetInfo` contents) | - |
+| `BAT-REQ-008` | Home's Battery page (System → Battery) shows the charge and state (on the battery / charging / on external power), our time left or to full ("about", BAT-REQ-003; the system's figure before there is history), the gauge's current (read every 10 s by Home's battery thread, never in the frame loop), voltage, temperature, capacity left and full, cycles. | P1 | Implemented 2026-10-20 (ADR-042); PPSSPP checked; HM30 pending | PPSSPP, HM30 |
+| `BAT-REQ-009` | A calibration run: Battery → Calibration → Start; "Charge it full" until the charger stops (98 % or more, not charging), "Full: unplug the charger", then "Measuring: leave Home on" until the PSP turns itself off; a sample (time, %, mV, mA, mAh left, external power) every 30 s in `battery-cal.txt`; no automatic sleep meanwhile; the charger again or Stop ends it; a run Home was left in goes on at Home's next start while the PSP is still on its battery. | P1 | Implemented 2026-10-20 (ADR-042) | HM30 |
+| `BAT-REQ-010` | The run's result: the capacity delivered (the current integrated; a gap of over 120 s and the charge lost in it left out; the gauge's drop where no current was read), scaled to 100 % of the charge it covered when that is 30 % or more, kept in `battery.txt` and shown as "Measured by Pocketwatch: N mAh (P % of the gauge's full)" with how long it lasted, from which to which percent, at what average current; a toast when a run ends; too short a run says so and keeps nothing. | P1 | Implemented 2026-10-20 (ADR-042); host tests `battery_calibration_*`; HM30 pending | tests, HM30 |
 
 ## C. Architecture and integration
 

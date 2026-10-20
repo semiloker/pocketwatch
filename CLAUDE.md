@@ -49,6 +49,14 @@ The project's full workflow is imported here and applies to every session:
   loop (ADR-031): the battery comes from `hw.c`'s thread, the system's parameters from
   `hm_hw_param` (kept). Home's strings are the
   `PW_I18N_HOME` tier (after `PW_S_HOME_FIRST`); the XMB plugin builds without them.
+- `perf/` builds `pocketwatch_perf.prx`, the performance overlay in games (ADR-043): a kernel
+  module of its own that ARK-4 loads only while its PLUGINS.TXT line is on - Home → Settings →
+  Pocketwatch → Overlay in Games writes that line and `perf.txt`; in a game L+R+SELECT held 1 s
+  cycles Off / FPS / Full; deploy copies it. Home has its own overlay (`home.txt perf`).
+- Home keeps the clock (ADR-041): at its start, before any write, a lost clock (the kernel refuses
+  it, or it reads before 2016) is set to the newest file time of 2016 or later; Settings → Date and
+  Time → Set Time from Internet (SNTP on a thread); `home clock:` lines in `home.log`. Home's
+  battery calibration (ADR-042): `battery-cal.txt` (the run), `battery.txt` (the result).
 - Performance (ADR-029): `make -C tests bench FONT=<a .pgf> BENCH_OPT=-Os` is a frame of each
   hub style as the PSP draws it, plus Home's stamp cost. Per-pixel helpers are `PW_PIXEL`
   (always inlined; the plugin is `-Os` and its kernel RAM budget has no room for `-O2`). Check

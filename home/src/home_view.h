@@ -211,6 +211,7 @@ typedef struct {
     /* A short note at the bottom ("Saved"), fading (0-256) */
     int toast;
     const char *toast_text;
+    const char *perf[2]; /* the performance overlay's lines (ADR-043), NULL: off */
 
     /* Home's keyboard over everything while kb_t > 0 (0-256, sliding in), NULL when closed */
     const hm_kb *kb;

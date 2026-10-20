@@ -36,3 +36,10 @@ if [ -n "${2:-}" ]; then
     hargs+=("VERSION=$2")
 fi
 make -C "$ROOT/home" "${hargs[@]}"
+# The performance overlay for games (perf/, ADR-043): a kernel module of its own, loaded only when
+# Home turns its PLUGINS.TXT line on.
+pargs=("${1:-all}")
+if [ -n "${2:-}" ]; then
+    pargs+=("VERSION=$2")
+fi
+make -C "$ROOT/perf" "${pargs[@]}"
