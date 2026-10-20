@@ -317,6 +317,17 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HS_BTN_CROSS] = {"hs_btn_cross", "Cross"},
     [PW_S_HS_ADHOC] = {"hs_adhoc", "Ad Hoc Channel"},
     [PW_S_HS_AUTOMATIC] = {"hs_automatic", "Automatic"},
+    [PW_S_DUR_S] = {"dur_s", "%d s"},
+    [PW_S_HM_SEEK] = {"hm_seek", "Seek"},
+    [PW_S_HM_TRACK] = {"hm_track", "Track"},
+    [PW_S_KB_SPACE] = {"kb_space", "Space"},
+    [PW_S_KB_ERASE] = {"kb_erase", "Erase"},
+    [PW_S_KB_CURSOR] = {"kb_cursor", "Cursor"},
+    [PW_S_KB_DONE] = {"kb_done", "Done"},
+    [PW_S_KB_ASK] = {"kb_ask", "Save the changes?"},
+    [PW_S_KB_SAVE] = {"kb_save", "Save"},
+    [PW_S_KB_DISCARD] = {"kb_discard", "Discard"},
+    [PW_S_KB_KEEP] = {"kb_keep", "Keep Editing"},
 #endif
 };
 

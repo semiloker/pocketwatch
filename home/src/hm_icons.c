@@ -258,6 +258,20 @@ void hm_icon_draw(pw_canvas *c, int icon, int cx, int cy, int size, unsigned int
         pw_shape_triangle(c, x + S(-15), y + S(20), x + S(15), y + S(20), x, y + S(6), color,
                           alpha);
         break;
+    case HM_ICON_LR:
+    case HM_ICON_UD: { /* (x, y swapped for up / down) */
+        int v = icon == HM_ICON_UD;
+
+        for (int d = -1; d <= 1; d += 2) {
+            int tip = S(26 * d), base = S(6 * d), w = S(15);
+
+            if (v)
+                pw_shape_triangle(c, x - w, y + base, x + w, y + base, x, y + tip, color, alpha);
+            else
+                pw_shape_triangle(c, x + base, y - w, x + base, y + w, x + tip, y, color, alpha);
+        }
+        break;
+    }
     case HM_ICON_FLIP:
         pw_shape_capsule(c, x, y + S(-24), x, y + S(24), t / 3, color, alpha);
         pw_shape_triangle(c, x + S(-5), y + S(-16), x + S(-5), y + S(16), x + S(-25), y + S(16),

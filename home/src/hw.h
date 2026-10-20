@@ -53,5 +53,7 @@ int hm_hw_language(void);         /* PSP_SYSTEMPARAM_LANGUAGE_* */
 unsigned int hm_hw_free_mb(void); /* free space on ms0:, MB */
 
 int hm_hw_read_file(const char *path, void *buf, unsigned int cap); /* bytes or < 0 */
+/* A line (with its newline) at the end of seplugins/pocketwatch/home.log; from any thread. */
+void hm_hw_log(const char *line);
 
 #endif

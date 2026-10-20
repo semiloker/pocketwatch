@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-19. Update this file whenever a milestone, a blocker or the next action
+Last updated: 2026-10-20. Update this file whenever a milestone, a blocker or the next action
 changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 
 ## Where we are
@@ -77,9 +77,30 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 - Changing the style changes nothing in Home (HOM-REQ-006 was still planned); Music, Photos, Play
   Time and Settings "look bad, not like they should".
 
+## Device results 2026-10-20, round 5 (owner, build `cee6786`, spoken; no log sent)
+
+- HOME → Screenshot works and the picture is in All Photos; its name (`ULUS10277_<date>_<time>`)
+  did not fit and did not say which game it came from. Answered (ADR-039): a game's pictures are
+  named by date and time under the game's title, and the game's page lists its Photos.
+- Play Time: a second of Castlevania showed nothing. Cause (code): Home listed only games with
+  a minute or more, and a session under a second is never written. Answered: seconds are shown.
+- Music: no way found to seek, no hint of the keys; covers slow, track changes lag. Answered:
+  left / right seek, up / down the track, both in the hints; the playing track tagged first;
+  `home.log` now times a cover and a track's start (RESEARCH REQUIRED: the numbers, HM24).
+- Photos: right "after the third" went "somewhere". Cause (code): Modern's grids scrolled by the
+  selection divided by the columns (a quarter row per step). Fixed. If the owner was in Classic,
+  right at the top of Photos is the next section (as in the XMB) - OPEN QUESTION, HM25.
+- The nickname's firmware keyboard and its question should be Pocketwatch's, "in games and in
+  the menu". Home: its own keyboard (HOM-REQ-030). Games: OPEN QUESTION (ADR-039: a separate
+  PRX, the kernel plugin has 2 KB left).
+- Not built for the PSP in this change: the WSL toolchain (`~/pspdev`) was missing on the
+  machine; host tests, previews and the format check pass.
+
 ## Next actions (in order)
 
-0. **Owner (2026-10-20, build `cee6786` on the card, ADR-034..038):** HM12 (USB from Home with
+0. **Dev:** build this change for the PSP (the toolchain in WSL first) and put it on the card;
+   **owner:** HM24, HM25, HM27, HM28 (ADR-039) with `home.log`. Then:
+   **Owner (2026-10-20, build `cee6786` on the card, ADR-034..038):** HM12 (USB from Home with
    RemoteJoyLite on), HM22 (the settings' categories and pages, the themes, accents and
    backgrounds), HM23 (a game's Saved Data and Save States - delete only a copy), HM24 (music:
    tags, covers, seeking, repeat and shuffle), HM25 (albums, the editor), HM26 (HOLD, the sleep

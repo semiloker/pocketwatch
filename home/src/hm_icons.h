@@ -49,6 +49,8 @@ enum {
     HM_ICON_FLIP,   /* two triangles and a line between */
     HM_ICON_HOME,   /* a house */
     HM_ICON_LAYERS, /* themes */
+    HM_ICON_LR,     /* the d-pad's left and right: two triangles apart */
+    HM_ICON_UD,     /* its up and down */
     HM_ICON_LAST
 };
 

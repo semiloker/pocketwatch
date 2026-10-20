@@ -356,7 +356,7 @@ static void options(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page 
 }
 
 static void hints(hm_gfx *g, const hm_ui *ui, const char *enter, const char *back,
-                  const char *options, const char *square, int a);
+                  const char *options, const char *square, const hm_view *dpad, int a);
 
 /* A choice's options: the XMB's panel sliding in from the right. */
 static void popup(hm_gfx *g, const hm_ui *ui, const hm_view *v)
@@ -378,7 +378,7 @@ static void popup(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         stext(g, ui->title, x0 + 20 + sw, y + 5, v->popup_items[k], POP_W - 30 - sw, C_TEXT,
               p * (k == v->popup_sel ? 256 : 160) / 256);
     }
-    hints(g, ui, v->hint_enter, v->hint_back, 0, 0, p);
+    hints(g, ui, v->hint_enter, v->hint_back, 0, 0, 0, p);
 }
 
 /* A game's Triangle menu: the XMB's option panel on the right, its rows centred on the cursor. */
@@ -441,21 +441,25 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page *pg,
 /* ---- the hints: centred at the bottom, the system's button pictures ---- */
 
 static void hints(hm_gfx *g, const hm_ui *ui, const char *enter, const char *back,
-                  const char *options, const char *square, int a)
+                  const char *options, const char *square, const hm_view *dpad, int a)
 {
-    const char *label[4] = {enter, options, square, back};
+    const char *label[6] = {
+        enter, options, square, back, dpad ? dpad->hint_lr : 0, dpad ? dpad->hint_ud : 0};
     int btn[4] = {ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, PW_BTN_TRIANGLE, PW_BTN_SQUARE,
                   ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS},
         w = 0, x;
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 6; i++)
         if (label[i])
             w += 14 + pw_text_width(ui->body, label[i]) + 16;
     x = HM_W / 2 - (w - 16) / 2;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
         if (!label[i])
             continue;
-        hm_button_pic(g, ui, btn[i], x + 6, 256, 12, C_TEXT, a);
+        if (i >= 4)
+            g->icon(g, i == 4 ? HM_ICON_LR : HM_ICON_UD, x + 6, 256, 12, C_TEXT, a);
+        else
+            hm_button_pic(g, ui, btn[i], x + 6, 256, 12, C_TEXT, a);
         stext(g, ui->body, x + 14, 260, label[i], 0, C_TEXT, a);
         x += 14 + pw_text_width(ui->body, label[i]) + 16;
     }
@@ -503,7 +507,7 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                     stext_right(g, ui->body, HM_W - 60, base, v->panel_values[i], C_TEXT, p);
             }
         }
-        hints(g, ui, v->panel_hint ? v->panel_hint : 0, 0, 0, 0, p);
+        hints(g, ui, v->panel_hint ? v->panel_hint : 0, 0, 0, 0, 0, p);
     }
 }
 
@@ -528,7 +532,7 @@ static void sheet(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                      p * (256 - age * 28) / 256);
         }
     }
-    hints(g, ui, v->sheet_again, v->sheet_hint, 0, 0, p);
+    hints(g, ui, v->sheet_again, v->sheet_hint, 0, 0, 0, p);
 }
 
 /* ---- the screen ---- */
@@ -579,7 +583,7 @@ void hm_draw_classic(hm_gfx *g, const hm_ui *ui, const hm_view *v)
             hm_top(v)->layout != HM_PAGE_ALBUMS)
             hints(g, ui, v->depth > 0 || hm_top(v)->layout == HM_PAGE_NOW ? v->hint_enter : 0,
                   v->depth > 0 ? v->hint_back : 0, v->depth > 0 ? v->hint_options : 0,
-                  v->depth > 0 ? v->hint_square : 0, a);
+                  v->depth > 0 ? v->hint_square : 0, v, a);
     }
     if (v->popup > 0)
         popup(g, ui, v);
@@ -588,6 +592,7 @@ void hm_draw_classic(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     if (v->sheet > 0)
         sheet(g, ui, v);
     hm_draw_toast(g, ui, v, C_BLACK, C_TEXT);
+    hm_draw_keyboard(g, ui, v, 0);
 }
 
 void hm_prefetch_classic(hm_gfx *g, const hm_ui *ui, const hm_view *v)

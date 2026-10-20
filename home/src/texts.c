@@ -11,6 +11,13 @@
 #define CODE_MAX 12
 
 /* language.txt's code (as ui/lang.c reads it), or the system's language. */
+static char g_code[CODE_MAX];
+
+const char *hm_texts_code(void)
+{
+    return g_code;
+}
+
 void hm_texts_load(void)
 {
     char code[CODE_MAX], buf[CODE_MAX + 4], path[96], *text;
@@ -27,6 +34,7 @@ void hm_texts_load(void)
     }
     code[j] = 0;
     c = j ? code : pw_i18n_code(hm_hw_language());
+    strcpy(g_code, c ? c : "");
     pw_i18n_reset();
     if (!c || strcmp(c, "en") == 0 || !(text = malloc(LANG_MAX + 1)))
         return;

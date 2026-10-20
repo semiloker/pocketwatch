@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "hcfg.h"
+#include "hw.h"
 #include "music.h"
 #include "stb_sprintf.h"
 
@@ -68,6 +69,7 @@ static int by_title(const void *a, const void *b)
 
 static SceUID g_tags_thread = -1;
 static volatile int g_tags_pause, g_tags_idle;
+static volatile int g_tag_first = -1; /* the track asked for: its tag (and cover) before the rest */
 
 static int read_fd(void *ctx, unsigned int off, void *buf, unsigned int n)
 {
@@ -78,37 +80,50 @@ static int read_fd(void *ctx, unsigned int off, void *buf, unsigned int n)
     return sceIoRead(fd, buf, n);
 }
 
+static void tag_one(hm_track *t)
+{
+    SceUID fd;
+    hm_id3 tag;
+
+    if ((fd = sceIoOpen(t->path, PSP_O_RDONLY, 0)) >= 0) {
+        if (hm_id3_read(read_fd, (void *)(long)fd, &tag) == 0) {
+            /* the tag's words over the file name's (a file name can be wrong) */
+            if (tag.title[0])
+                stbsp_snprintf(t->title, sizeof(t->title), "%s", tag.title);
+            if (tag.artist[0])
+                stbsp_snprintf(t->artist, sizeof(t->artist), "%s", tag.artist);
+            if (tag.album[0])
+                stbsp_snprintf(t->album, sizeof(t->album), "%s", tag.album);
+            t->pic_off = tag.pic_off;
+            t->pic_len = tag.pic_len;
+        }
+        sceIoClose(fd);
+    }
+    t->tagged = 1;
+}
+
 static int tagger(SceSize args, void *argp)
 {
     (void)args;
     (void)argp;
     for (int i = 0; i < g_count; i++) {
-        hm_track *t = &g_tracks[i];
-        SceUID fd;
-        hm_id3 tag;
+        int first = g_tag_first;
 
         while (g_tags_pause) {
             g_tags_idle = 1;
             sceKernelDelayThread(50 * 1000);
         }
         g_tags_idle = 0;
-        if (t->tagged)
+        if (first >= 0 && first < g_count) {
+            g_tag_first = -1;
+            if (!g_tracks[first].tagged)
+                tag_one(&g_tracks[first]);
+            i--; /* (i next) */
             continue;
-        if ((fd = sceIoOpen(t->path, PSP_O_RDONLY, 0)) >= 0) {
-            if (hm_id3_read(read_fd, (void *)(long)fd, &tag) == 0) {
-                /* the tag's words over the file name's (a file name can be wrong) */
-                if (tag.title[0])
-                    stbsp_snprintf(t->title, sizeof(t->title), "%s", tag.title);
-                if (tag.artist[0])
-                    stbsp_snprintf(t->artist, sizeof(t->artist), "%s", tag.artist);
-                if (tag.album[0])
-                    stbsp_snprintf(t->album, sizeof(t->album), "%s", tag.album);
-                t->pic_off = tag.pic_off;
-                t->pic_len = tag.pic_len;
-            }
-            sceIoClose(fd);
         }
-        t->tagged = 1;
+        if (g_tracks[i].tagged)
+            continue;
+        tag_one(&g_tracks[i]);
         sceKernelDelayThread(2 * 1000); /* (the screen's and the player's reads first) */
     }
     g_tags_idle = 1;
@@ -156,7 +171,8 @@ const hm_track *hm_music_track(int i)
 
 /* ---- the player thread ---- */
 
-static volatile int g_want = -1; /* a track asked for */
+static volatile int g_want = -1;        /* a track asked for */
+static volatile unsigned int g_want_ms; /* when */
 static volatile int g_playing = -1;
 static volatile int g_paused, g_stop;
 static volatile int g_seek = -1; /* a time asked for (s) */
@@ -247,7 +263,7 @@ static int seek_byte(SceUID fd, int data, int size, unsigned int ref, unsigned i
 
 /* One file, to its end or until something else is asked for: 1 at its end, 0 when stopped or
    another track was asked for, -1 when it could not be played. */
-static int play(const char *path)
+static int play(const char *path, unsigned int asked_ms)
 {
     static SceUChar8 __attribute__((aligned(64))) stream[STREAM];
     static SceShort16 __attribute__((aligned(64))) pcm[PCM / 2];
@@ -318,6 +334,14 @@ static int play(const char *path)
             end = g_samples ? 1 : -1;
             break;
         }
+        if (g_samples == 0 && asked_ms) { /* the first sound: how long a track takes to start */
+            char line[96];
+
+            stbsp_snprintf(line, sizeof(line), "home music: a track started in %u ms\n",
+                           hm_hw_now_ms() - asked_ms);
+            hm_hw_log(line);
+            asked_ms = 0;
+        }
         g_samples += (unsigned int)bytes / (2u * (unsigned int)ch);
         sceAudioSRCOutputBlocking(PSP_AUDIO_VOLUME_MAX, out);
     }
@@ -354,6 +378,7 @@ static int player(SceSize args, void *argp)
     (void)argp;
     for (;;) {
         int i = g_want;
+        unsigned int asked = g_want_ms;
 
         if (i < 0) {
             sceKernelDelayThread(20 * 1000);
@@ -366,7 +391,8 @@ static int player(SceSize args, void *argp)
             int r;
 
             g_playing = i;
-            r = play(g_tracks[i].path);
+            r = play(g_tracks[i].path, asked);
+            asked = 0;
             if (r == 0 || g_stop || g_want >= 0)
                 break;
             failed = r < 0 ? failed + 1 : 0; /* three files that do not play: stop */
@@ -411,6 +437,9 @@ void hm_music_play(int i)
     }
     if (g_playing >= 0 && g_playing != i)
         remember(g_playing);
+    if (!g_tracks[i].tagged)
+        g_tag_first = i;
+    g_want_ms = hm_hw_now_ms();
     g_want = i;
 }
 
@@ -443,6 +472,7 @@ void hm_music_skip(int dir)
     if (dir < 0 && g_shuffle && g_nhist > 0) {
         int back = g_history[--g_nhist];
 
+        g_want_ms = hm_hw_now_ms();
         g_want = back; /* (not remembered again) */
         return;
     }

@@ -327,6 +327,17 @@ enum {
     PW_S_HS_BTN_CROSS,
     PW_S_HS_ADHOC,
     PW_S_HS_AUTOMATIC,
+    PW_S_DUR_S,
+    PW_S_HM_SEEK,
+    PW_S_HM_TRACK,
+    PW_S_KB_SPACE,
+    PW_S_KB_ERASE,
+    PW_S_KB_CURSOR,
+    PW_S_KB_DONE,
+    PW_S_KB_ASK,
+    PW_S_KB_SAVE,
+    PW_S_KB_DISCARD,
+    PW_S_KB_KEEP,
     PW_S_COUNT
 };
 

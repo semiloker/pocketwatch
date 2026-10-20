@@ -428,6 +428,17 @@ int hm_hw_read_file(const char *path, void *buf, unsigned int cap)
     return n;
 }
 
+void hm_hw_log(const char *line)
+{
+    SceUID fd = sceIoOpen("ms0:/seplugins/pocketwatch/home.log",
+                          PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
+
+    if (fd >= 0) {
+        sceIoWrite(fd, line, strlen(line));
+        sceIoClose(fd);
+    }
+}
+
 void hm_hw_touch(const char *path)
 {
     SceUID fd = sceIoOpen(path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);

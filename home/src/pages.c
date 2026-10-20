@@ -52,8 +52,10 @@ static void duration(char *out, int cap, unsigned int s)
 
     if (m >= 60)
         stbsp_snprintf(out, cap, pw_tr(PW_S_DUR_HM), (int)(m / 60), (int)(m % 60));
-    else
+    else if (m > 0)
         stbsp_snprintf(out, cap, pw_tr(PW_S_DUR_M), (int)m);
+    else /* a short first run counts too (the owner: "nothing after a second of Castlevania") */
+        stbsp_snprintf(out, cap, pw_tr(PW_S_DUR_S), (int)s);
 }
 
 static hm_row row(const char *label, const char *value, int kind)
@@ -107,7 +109,7 @@ void hm_pages_texts(void)
                            g->id[0] ? "   " : "", g->id);
         } else if (g->id[0])
             n += stbsp_snprintf(g->meta + n, (int)sizeof(g->meta) - n, "%s", g->id);
-        if (g->play_s >= 60) {
+        if (g->play_s > 0) {
             duration(d, sizeof(d), g->play_s);
             stbsp_snprintf(part, sizeof(part), pw_tr(PW_S_HM_PLAYED), d);
             n +=
@@ -224,6 +226,17 @@ static void game_page(hm_page *p, int gi)
     r->glyph = HM_ICON_SYSTEM;
     for (int i = 0; i < n; i++)
         b->act[i].arg2 = gi;
+    for (int a = 1; a < hm_library_album_count(); a++) { /* its screenshots' album */
+        hm_album *al = hm_library_album(a);
+
+        if (al->game == gi && al->count > 0) {
+            stbsp_snprintf(val(b, n), VAL, "%d", al->count);
+            r = add(b, &n, pw_tr(PW_S_HM_PHOTOS), val(b, n), HM_ROW_LINK, A_OPEN, P_ALBUM);
+            r->glyph = HM_ICON_PHOTOS;
+            b->act[n - 1].arg2 = a;
+            break;
+        }
+    }
     p->rows = b->r;
     p->nrows = n;
 }
@@ -254,7 +267,7 @@ static void info_page(hm_page *p, int gi)
     else
         stbsp_snprintf(val(b, n), VAL, "%u KB", g->size_kb);
     add(b, &n, pw_tr(PW_S_HM_SIZE), val(b, n), HM_ROW_INFO, A_NONE, 0);
-    if (g->play_s >= 60) {
+    if (g->play_s > 0) {
         duration(val(b, n), VAL, g->play_s);
         add(b, &n, pw_tr(PW_S_PLAYTIME), val(b, n), HM_ROW_INFO, A_NONE, 0);
     }
@@ -409,7 +422,7 @@ static void albums_page(hm_page *p)
 }
 
 /* The album shown at tile k (albums with no pictures are not shown). */
-static int album_at(int k)
+int hm_pages_album_at(int k)
 {
     int n = hm_library_album_count(), seen = 0;
 
@@ -424,9 +437,8 @@ static int album_at(int k)
     return 0;
 }
 
-static void album_page(hm_page *p, int k)
+static void album_page(hm_page *p, int a)
 {
-    int a = album_at(k);
     hm_album *al = hm_library_album(a);
 
     if (g_album_of != a)
@@ -454,7 +466,7 @@ static void playtime_page(hm_page *p)
     unsigned int total = 0, most = 1;
 
     for (int i = 0; i < hm_library_count(); i++)
-        if (hm_library_game(i)->play_s >= 60) {
+        if (hm_library_game(i)->play_s > 0) {
             int k = n++;
             unsigned int s = hm_library_game(i)->play_s;
 

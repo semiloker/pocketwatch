@@ -221,9 +221,14 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
 /* The top row on screen (1/256 rows) for a grid of cols: the chosen row stays second. */
 static int grid_first(const hm_page *pg, int cols, int show)
 {
-    int rows = (pg->count + cols - 1) / cols;
+    int rows = (pg->count + cols - 1) / cols, i = hm_clampi(pg->selpos, 0, 1 << 20) / 256,
+        f = pg->selpos - i * 256,
+        /* the row the selection is on, gliding only while it crosses into another row (selpos /
+           cols scrolled a quarter row at every step along a row: the owner's "it goes somewhere")
+         */
+        row = i / cols * 256 + f * ((i + 1) / cols - i / cols);
 
-    return hm_clampi(pg->selpos / cols - 256, 0, rows > show ? (rows - show) * 256 : 0);
+    return hm_clampi(row - 256, 0, rows > show ? (rows - show) * 256 : 0);
 }
 
 /* Rows of a grid fade out at the content's edges. */
@@ -746,6 +751,7 @@ void hm_draw_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     if (v->sheet > 0)
         sheet(g, ui, &p, v);
     hm_draw_toast(g, ui, v, p.card_a >= 128 ? p.card : C_CARD, p.card_a >= 128 ? p.text : C_TEXT);
+    hm_draw_keyboard(g, ui, v, &p);
 }
 
 void hm_prefetch_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)

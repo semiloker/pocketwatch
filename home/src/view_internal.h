@@ -101,6 +101,9 @@ void hm_text_wrap(hm_gfx *g, pw_font *f, int x, int y, int lh, int lines, const 
                   int center, unsigned int color, int alpha);
 void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int card,
                    unsigned int text);
+/* The keyboard (v->kb) in the style's colours: card the panel, knob the keys, sel / ink the
+   chosen one; NULL: dark ones. */
+void hm_draw_keyboard(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_palette *p);
 
 void hm_draw_classic(hm_gfx *g, const hm_ui *ui, const hm_view *v);
 void hm_draw_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v);

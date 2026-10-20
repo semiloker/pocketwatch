@@ -29,6 +29,7 @@
 #include "home_view.h"
 #include "hsettings.h"
 #include "hw.h"
+#include "keyboard.h"
 #include "launch.h"
 #include "library.h"
 #include "music.h"
@@ -60,7 +61,6 @@ PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 #define CONTINUE  PW_DIR "continue.txt" /* read by the game plugin (M7 V1) */
 #define XMB_ONCE  PW_DIR "xmb-once"     /* read by the XMB plugin (vsh/src/xboot.c) */
 #define PENDING   PW_DIR "boot-pending" /* the XMB plugin's crash guard: Home did come up */
-#define HOME_LOG  PW_DIR "home.log"     /* the frame rate, every STATS_MS */
 #define HOME_CFG  PW_DIR "home.txt"     /* Home's own settings (hcfg.h) */
 #define BROWSER   PW_DIR "browser.txt"  /* the browser's first page (a URL), if not the default */
 /* A search made for old browsers (plain HTTP; the PSP's browser has no modern TLS). PROPOSED. */
@@ -72,6 +72,7 @@ PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 #define HOLD_MS      450 /* left / right held this long: seeking, not the next track */
 #define SEEK_EVERY   220
 #define SEEK_STEP    5    /* s */
+#define SEEK_TAP     10   /* s: one press of left / right */
 #define EDIT_SIDE    1600 /* an edited copy's longest side at most (memory) */
 #define REPEAT       (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_UP | PSP_CTRL_DOWN)
 
@@ -153,16 +154,6 @@ static void stats_frame(stats *st, unsigned int now, unsigned int cpu_us, unsign
     st->made += made;
 }
 
-static void log_line(const char *line)
-{
-    SceUID fd = sceIoOpen(HOME_LOG, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
-
-    if (fd >= 0) {
-        sceIoWrite(fd, line, strlen(line));
-        sceIoClose(fd);
-    }
-}
-
 /* What the battery's calls cost: once, so a slow one shows by name. */
 static int g_costs_written;
 
@@ -178,7 +169,7 @@ static void stats_write(stats *st, unsigned int now, const char *why)
 
         if (hm_hw_battery_cost(cost, sizeof(cost))) {
             stbsp_snprintf(line, sizeof(line), "home reads: battery: %s\n", cost);
-            log_line(line);
+            hm_hw_log(line);
             g_costs_written = 1;
         }
     }
@@ -196,7 +187,7 @@ static void stats_write(stats *st, unsigned int now, const char *why)
                        bytes >> 10, (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10,
                        (unsigned int)sceKernelMaxFreeMemSize() >> 10);
     }
-    log_line(line);
+    hm_hw_log(line);
     memset(st, 0, sizeof(*st));
     st->t0 = st->last = hm_hw_now_ms();
 }
@@ -224,7 +215,7 @@ static void usb_log(void)
 
     line[n] = '\n';
     line[n + 1] = 0;
-    log_line(line);
+    hm_hw_log(line);
 }
 
 /* ---- the HOME panel (HOM-REQ-010) ---- */
@@ -417,7 +408,7 @@ static void load_art(void)
                    "%u ms;%s\n",
                    found, mask, items, sky, colour, g_sky.px ? "" : " not found",
                    (sceKernelGetSystemTimeLow() - t0) / 1000, g_art_reads);
-    log_line(line);
+    hm_hw_log(line);
 }
 
 /* ---- firmware dialogs and the browser ---- */
@@ -450,13 +441,7 @@ static void run_browser(void)
     hm_library_pause(0);
     g_env.web_failed = r < 0;
     stbsp_snprintf(line, sizeof(line), "home browser %s: 0x%08X,%s\n", url, (unsigned int)r, log);
-    log_line(line);
-}
-
-static void dialog_frame(void *ctx)
-{
-    hm_draw(hm_gu_begin(), &g_ui, (const hm_view *)ctx);
-    hm_gu_finish();
+    hm_hw_log(line);
 }
 
 /* One frame now (a message before something slow). */
@@ -566,7 +551,7 @@ static struct {
     int launching, launch_slot, leave, usb, usb_state, popup, popup_row;
     int viewer, slideshow, photo; /* the photo shown whole (its index) */
     int confirm, confirm_arg;
-    int hold_dir, hold_seeked; /* left / right held on a music page */
+    int hold_dir; /* left / right held on a music page */
     unsigned int hold_t0, hold_last;
     unsigned int t_fade, t_open, t_caption, t_slide, t_toast, t_usb;
     int editor, ed_dirty;
@@ -578,12 +563,77 @@ static struct {
     int screen_off;      /* HOLD: the backlight off (music on) */
     unsigned int t_hold; /* since when HOLD is on */
     int cpu_mhz;         /* the clock before the screen went off */
+    int kb, kb_saved;    /* Home's keyboard is open (the nickname); it saved */
 } g_s;
+
+static hm_kb g_kb;
 
 static void toast(const char *text, unsigned int now)
 {
     g_v.toast_text = text;
     g_s.t_toast = now;
+}
+
+/* ---- Home's keyboard (HOM-REQ-030) ---- */
+
+static void kb_close(int save)
+{
+    if (save && hm_kb_changed(&g_kb) && hs_set_nickname(g_kb.text) == 0)
+        g_s.kb_saved = 1;
+    g_s.kb = 0;
+}
+
+/* The PSP keyboard's own buttons: Square erases, Triangle a space, L / R the caret, SELECT the
+   next page, START done; Back with changes asks first (the owner wanted that question in
+   Pocketwatch's look too). */
+static void kb_keys(unsigned int ev)
+{
+    hm_kb *k = &g_kb;
+
+    g_s.snd = HM_SND_MOVE;
+    if (k->ask) {
+        if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT))
+            k->ask_sel = (k->ask_sel + (ev & PSP_CTRL_LEFT ? 2 : 1)) % 3;
+        else if ((ev & g_enter) && k->ask_sel == HM_KB_ASK_EDIT)
+            k->ask = 0;
+        else if (ev & g_enter)
+            kb_close(k->ask_sel == HM_KB_ASK_SAVE), g_s.snd = HM_SND_OPEN;
+        else if (ev & (g_back | PSP_CTRL_HOME))
+            k->ask = 0, g_s.snd = HM_SND_BACK;
+        return;
+    }
+    if (ev & (g_back | PSP_CTRL_HOME)) {
+        if (hm_kb_changed(k)) {
+            k->ask = 1;
+            k->ask_sel = HM_KB_ASK_SAVE;
+            g_s.snd = HM_SND_OPEN;
+        } else {
+            kb_close(0);
+            g_s.snd = HM_SND_BACK;
+        }
+    } else if ((ev & PSP_CTRL_START) ||
+               ((ev & g_enter) && hm_kb_special(k, k->row, k->col) == HM_KB_DONE)) {
+        if (k->text[0]) /* (the system keeps no empty nickname) */
+            kb_close(1), g_s.snd = HM_SND_OPEN;
+        else
+            g_s.snd = HM_SND_ERROR;
+    } else if (ev & g_enter) {
+        hm_kb_press(k);
+    } else if (ev & PSP_CTRL_SQUARE) {
+        hm_kb_erase(k);
+    } else if (ev & PSP_CTRL_TRIANGLE) {
+        hm_kb_type(k, " ");
+    } else if (ev & PSP_CTRL_SELECT) {
+        hm_kb_next_page(k);
+    } else if (ev & (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER)) {
+        hm_kb_caret(k, ev & PSP_CTRL_LTRIGGER ? -1 : 1);
+    } else if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) {
+        hm_kb_move(k, ev & PSP_CTRL_LEFT ? -1 : 1, 0);
+    } else if (ev & (PSP_CTRL_UP | PSP_CTRL_DOWN)) {
+        hm_kb_move(k, 0, ev & PSP_CTRL_UP ? -1 : 1);
+    } else {
+        g_s.snd = -1;
+    }
 }
 
 /* ---- the photo editor (HOM-REQ-026) ---- */
@@ -890,7 +940,8 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
 
     switch (a.act) {
     case A_OPEN:
-        if (a.arg == P_GAME || a.arg == P_STATES || a.arg == P_SAVES || a.arg == P_INFO)
+        if (a.arg == P_GAME || a.arg == P_STATES || a.arg == P_SAVES || a.arg == P_INFO ||
+            a.arg == P_ALBUM)
             push(a.arg, a.arg2);
         else if (a.arg == P_SET_CAT)
             push(a.arg, a.arg2);
@@ -949,30 +1000,26 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
     }
 }
 
-/* Left / right on a music page: a tap is the next or the previous track, held it seeks. */
+/* Left / right on a music page seek: a press SEEK_TAP at once, held a step every SEEK_EVERY; up /
+   down are the tracks. (A tap was the next track and only a hold sought: the owner found no way
+   to seek, 2026-10-20.) */
 static unsigned int music_keys(unsigned int ev, unsigned int buttons, unsigned int now)
 {
     unsigned int lr = PSP_CTRL_LEFT | PSP_CTRL_RIGHT;
 
-    if ((ev & lr) && !g_s.hold_dir) {
+    if (ev & lr) {
         g_s.hold_dir = ev & PSP_CTRL_LEFT ? -1 : 1;
-        g_s.hold_t0 = now;
-        g_s.hold_seeked = 0;
-    }
-    if (g_s.hold_dir && (buttons & lr)) {
+        g_s.hold_t0 = g_s.hold_last = now;
+        hm_music_seek(g_s.hold_dir * SEEK_TAP);
+    } else if (g_s.hold_dir && (buttons & lr)) {
         if (now - g_s.hold_t0 >= HOLD_MS && now - g_s.hold_last >= SEEK_EVERY) {
             hm_music_seek(g_s.hold_dir * SEEK_STEP);
-            g_s.hold_seeked = 1;
             g_s.hold_last = now;
         }
-    } else if (g_s.hold_dir) { /* let go: a tap was a skip */
-        if (!g_s.hold_seeked) {
-            hm_music_skip(g_s.hold_dir);
-            g_s.snd = HM_SND_MOVE;
-        }
+    } else {
         g_s.hold_dir = 0;
     }
-    g_v.mu_seek = g_s.hold_seeked && g_s.hold_dir ? g_s.hold_dir : 0;
+    g_v.mu_seek = g_s.hold_dir;
     return ev & ~lr;
 }
 
@@ -1065,7 +1112,7 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
         p->sel = move_grid(p->sel, p->count, modern ? HM_ALBUM_COLS : 1, ev, (unsigned int)back_one,
                            (unsigned int)on_one);
         if ((ev & g_enter) && p->count) {
-            push(P_ALBUM, p->sel);
+            push(P_ALBUM, hm_pages_album_at(p->sel));
             g_s.snd = HM_SND_OPEN;
         }
         break;
@@ -1216,6 +1263,7 @@ static void page_hints(void)
     if (p->nrows)
         a = hm_page_act(g_stack[g_v.depth], p->row_sel);
     g_v.hint_enter = g_v.hint_options = g_v.hint_square = 0;
+    g_v.hint_lr = g_v.hint_ud = 0;
     g_v.hint_back = g_v.depth > 0 ? pw_tr(PW_S_BACK) : 0;
     switch (id) {
     case P_GAMES:
@@ -1246,12 +1294,15 @@ static void page_hints(void)
                                  : pw_tr(PW_S_HM_PLAY);
         g_v.hint_options = hm_music_count() ? pw_tr(PW_S_HM_NOW) : 0;
         g_v.hint_square = hm_music_current() >= 0 ? pw_tr(PW_S_HM_STOP) : 0;
+        g_v.hint_lr = hm_music_current() >= 0 && !classic() ? pw_tr(PW_S_HM_SEEK) : 0;
         break;
     case P_NOW:
         g_v.hint_enter = hm_music_current() >= 0 && !hm_music_paused() ? pw_tr(PW_S_HM_PAUSE)
                                                                        : pw_tr(PW_S_HM_PLAY);
         g_v.hint_square = pw_tr(PW_S_HS_SHUFFLE);
         g_v.hint_options = pw_tr(PW_S_HS_REPEAT);
+        g_v.hint_lr = hm_music_current() >= 0 ? pw_tr(PW_S_HM_SEEK) : 0;
+        g_v.hint_ud = pw_tr(PW_S_HM_TRACK);
         break;
     default:
         if (a.act == A_OPEN || a.act == A_USB || a.act == A_BROWSER)
@@ -1659,6 +1710,8 @@ int main(void)
                 g_s.confirm = CONFIRM_NONE;
                 g_s.snd = HM_SND_BACK;
             }
+        } else if (g_s.launching < 0 && g_s.kb) {
+            kb_keys(ev);
         } else if (g_s.launching < 0 && g_s.panel_open) {
             panel_keys(ev, &start_usb);
         } else if (g_s.launching < 0 && (ev & PSP_CTRL_HOME)) {
@@ -1705,16 +1758,17 @@ int main(void)
             t_prev = hm_hw_now_ms();
             continue;
         }
-        if (nickname) {
-            char was[64], typed[64];
+        if (nickname) { /* Home's own keyboard, not the firmware's (HOM-REQ-030) */
+            char was[HM_KB_BYTES];
 
             hs_nickname(was, sizeof(was));
-            if (hm_dialog_osk(pw_tr(PW_S_HS_NICKNAME), was, typed, sizeof(typed), g_ui.cross_enter,
-                              hm_hw_language(), dialog_frame, &g_v) == 1)
-                hs_set_nickname(typed);
-            t_rows = 0;
-            t_prev = hm_hw_now_ms();
-            continue;
+            hm_kb_open(&g_kb, pw_tr(PW_S_HS_NICKNAME), was, 32, /* the XMB's nickname length */
+                       strcmp(hm_texts_code(), "uk") == 0);
+            g_s.kb = 1;
+        }
+        if (g_s.kb_saved) {
+            g_s.kb_saved = 0;
+            t_rows = 0; /* the row shows the new name */
         }
         /* a page opened or a section changed: its rows now; whose saves are listed */
         if (g_v.depth != was_depth || g_v.tab != was_tab)
@@ -1766,6 +1820,8 @@ int main(void)
         g_v.popup = pw_ease(g_v.popup, g_s.popup ? 256 : 0, dt, tau, 6);
         g_v.popup_pos = pw_ease(g_v.popup_pos, g_v.popup_sel * 256, dt, tau, 6);
         g_v.editor = pw_ease(g_v.editor, g_s.editor ? 256 : 0, dt, tau, 6);
+        g_v.kb_t = pw_ease(g_v.kb_t, g_s.kb ? 256 : 0, dt, tau, 6);
+        g_v.kb = g_s.kb || g_v.kb_t > 0 ? &g_kb : 0;
         g_v.ed_pos = pw_ease(g_v.ed_pos, g_v.ed_sel * 256, dt, tau, 6);
         g_v.toast =
             now - g_s.t_toast < TOAST_MS ? 256 : 256 - pw_ramp(now, g_s.t_toast + TOAST_MS, 300);

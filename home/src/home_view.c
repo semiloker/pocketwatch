@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <string.h>
 
+#include "stb_sprintf.h"
+#include "ui/i18n.h"
 #include "ui/shapes.h"
 #include "ui/xmbbg.h"
 #include "view_internal.h"
@@ -229,6 +231,16 @@ int hm_hints_right(hm_gfx *g, const hm_ui *ui, const hm_view *v, int x1, int y, 
         g->button(g, btn[i], x - 9, y - 4, 12, color, alpha);
         x -= 26;
     }
+    for (int i = 0; i < 2; i++) {
+        const char *s = i ? v->hint_ud : v->hint_lr;
+
+        if (!s)
+            continue;
+        x -= pw_text_width(ui->body, s);
+        g->text(g, ui->body, x, y, s, 0, color, alpha);
+        g->icon(g, i ? HM_ICON_UD : HM_ICON_LR, x - 9, y - 4, 12, color, alpha);
+        x -= 26;
+    }
     return x;
 }
 
@@ -424,6 +436,154 @@ void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int ca
              a * 230 / 256);
     hm_text_center(g, ui->body, HM_W / 2, HM_H - 41 + (256 - a) * 8 / 256, v->toast_text, 0, text,
                    a);
+}
+
+/* ---- the keyboard (HOM-REQ-030) ---- */
+
+#define KB_UNIT  20 /* px of half a key */
+#define KB_TOP   72 /* the first row of keys */
+#define KB_PITCH 36
+#define KB_H     32
+#define KB_FIELD (HM_W - 60) /* px of text in the field */
+
+/* The width of the first n characters of s. */
+static int kb_width(pw_font *f, const char *s, int n)
+{
+    char part[HM_KB_BYTES];
+    int b = 0;
+
+    for (int i = 0; i < n && s[b]; i++)
+        do
+            b++;
+        while ((s[b] & 0xC0) == 0x80);
+    memcpy(part, s, (size_t)b);
+    part[b] = 0;
+    return pw_text_width(f, part);
+}
+
+static void kb_hint(hm_gfx *g, const hm_ui *ui, int *x, int btn, const char *keys,
+                    const char *label, unsigned int color, int a)
+{
+    if (btn >= 0) {
+        g->button(g, btn, *x + 5, 260, 10, color, a);
+        *x += 14;
+    } else {
+        g->text(g, ui->body, *x, 264, keys, 0, color, a);
+        *x += pw_text_width(ui->body, keys) + 4;
+    }
+    g->text(g, ui->body, *x, 264, label, 0, color, a);
+    *x += pw_text_width(ui->body, label) + 16;
+}
+
+void hm_draw_keyboard(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_palette *p)
+{
+    static const char *const page_name[HM_KB_PAGES] = {"АБВ", "#+=", "ABC"}; /* the next one */
+    static const hm_palette dark = {.text = C_TEXT,
+                                    .sub = C_SUB,
+                                    .dim = C_DIM,
+                                    .card = C_CARD,
+                                    .knob = C_KNOB,
+                                    .sel = C_TEXT,
+                                    .ink = C_INK,
+                                    .ink2 = C_INK2,
+                                    .head = C_SUB,
+                                    .card_a = 256,
+                                    .sel_a = 256};
+    const hm_kb *k = v->kb;
+    int a = hm_clampi(v->kb_t, 0, 256), dy = (256 - a) * 40 / 256, skip = 0, x;
+    char c[16];
+
+    if (!k || a <= 0)
+        return;
+    if (!p || p->card_a < 128) /* (glass cards: the text would be white on white) */
+        p = &dark;
+    g->fill(g, 0, 0, HM_W, HM_H, p->card, a);
+    /* the name of what is typed, how much is left, the text and its caret */
+    g->text(g, ui->body, 24, 20 + dy, k->title ? k->title : "", HM_W / 2, p->sub, a);
+    stbsp_snprintf(c, sizeof(c), "%d/%d", hm_kb_chars(k->text), k->max_chars);
+    hm_text_right(g, ui->body, HM_W - 24, 20 + dy, c, p->sub, a);
+    g->rrect(g, 20, 28 + dy, HM_W - 40, 34, 8, 0, p->knob, a * 200 / 256);
+    while (skip < k->caret &&
+           kb_width(ui->title, k->text, k->caret) - kb_width(ui->title, k->text, skip) >
+               KB_FIELD) /* a long text: its end, where the caret is */
+        skip++;
+    {
+        const char *s = k->text;
+
+        for (int i = 0; i < skip; i++)
+            do
+                s++;
+            while ((*s & 0xC0) == 0x80);
+        g->text(g, ui->title, 30, 51 + dy, s, KB_FIELD, p->text, a);
+        x = 30 + kb_width(ui->title, s, k->caret - skip);
+        if (!k->ask && v->t_ms % 1000 < 600)
+            g->fill(g, x, 34 + dy, 2, 22, p->text, a);
+    }
+    /* the keys */
+    for (int r = 0; r < HM_KB_ROWS; r++)
+        for (int i = 0; i < hm_kb_keys(k, r); i++) {
+            int kx, kw, on = r == k->row && i == k->col, y = KB_TOP + r * KB_PITCH + dy, kind;
+            const char *s;
+            pw_font *f = ui->title;
+
+            hm_kb_place(k, r, i, &kx, &kw);
+            kx = HM_W / 2 + kx * KB_UNIT + 2;
+            kw = kw * KB_UNIT - 4;
+            kind = hm_kb_special(k, r, i);
+            s = kind == HM_KB_CHAR    ? hm_kb_char(k, r, i, c)
+                : kind == HM_KB_SHIFT ? "Aa"
+                : kind == HM_KB_PAGE  ? page_name[k->page]
+                : kind == HM_KB_SPACE ? pw_tr(PW_S_KB_SPACE)
+                : kind == HM_KB_ERASE ? pw_tr(PW_S_KB_ERASE)
+                                      : pw_tr(PW_S_KB_DONE);
+            if (kind != HM_KB_CHAR)
+                f = ui->body;
+            g->rrect(g, kx, y, kw, KB_H, 6, 0, on ? p->sel : p->knob,
+                     a *
+                         (on                   ? 256
+                          : kind == HM_KB_CHAR ? 150
+                                               : 210) /
+                         256);
+            if (kind == HM_KB_SHIFT && k->shift)
+                g->rrect(g, kx, y, kw, KB_H, 6, PW_FX(2), on ? p->ink : p->text, a);
+            hm_text_center(g, f, kx + kw / 2, y + KB_H / 2 + (f == ui->title ? 6 : 4), s, kw - 4,
+                           on ? p->ink : p->text, a);
+        }
+    /* what the other buttons do (the PSP's own keyboard: Square erases, Triangle a space) */
+    {
+        int w = 0, x0;
+        const char *lab[4] = {pw_tr(PW_S_KB_ERASE), pw_tr(PW_S_KB_SPACE), pw_tr(PW_S_KB_CURSOR),
+                              pw_tr(PW_S_KB_DONE)};
+
+        for (int i = 0; i < 4; i++)
+            w += pw_text_width(ui->body, lab[i]) + 16 +
+                 (i < 2 ? 14 : pw_text_width(ui->body, i == 2 ? "L R" : "START") + 4);
+        x0 = HM_W / 2 - (w - 16) / 2;
+        kb_hint(g, ui, &x0, PW_BTN_SQUARE, 0, lab[0], p->sub, a);
+        kb_hint(g, ui, &x0, PW_BTN_TRIANGLE, 0, lab[1], p->sub, a);
+        kb_hint(g, ui, &x0, -1, "L R", lab[2], p->sub, a);
+        kb_hint(g, ui, &x0, -1, "START", lab[3], p->sub, a);
+    }
+    /* Back with changes: keep them, drop them, or go on typing */
+    if (k->ask) {
+        const char *opt[3] = {pw_tr(PW_S_KB_SAVE), pw_tr(PW_S_KB_DISCARD), pw_tr(PW_S_KB_KEEP)};
+        int w = 0, ox;
+
+        g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, a * 120 / 256);
+        g->rrect(g, 50, 88, HM_W - 100, 104, 12, 0, p->card, a);
+        g->rrect(g, 50, 88, HM_W - 100, 104, 12, PW_FX(1), p->sub, a * 120 / 256);
+        hm_text_center(g, ui->title, HM_W / 2, 124, pw_tr(PW_S_KB_ASK), HM_W - 120, p->text, a);
+        for (int i = 0; i < 3; i++)
+            w += pw_text_width(ui->body, opt[i]) + 28 + (i ? 10 : 0);
+        ox = HM_W / 2 - w / 2;
+        for (int i = 0; i < 3; i++) {
+            int ow = pw_text_width(ui->body, opt[i]) + 28, on = i == k->ask_sel;
+
+            g->rrect(g, ox, 146, ow, 28, 14, 0, on ? p->sel : p->knob, a * (on ? 256 : 200) / 256);
+            hm_text_center(g, ui->body, ox + ow / 2, 164, opt[i], 0, on ? p->ink : p->text, a);
+            ox += ow + 10;
+        }
+    }
 }
 
 /* sin of a phase in 1/256 turns, times 256 */

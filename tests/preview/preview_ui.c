@@ -507,12 +507,32 @@ static void home_previews(const pw_image *sky_img)
         v.hint_square = "Shuffle";
         v.hint_options = "Repeat";
         v.hint_back = "Back";
+        v.hint_lr = "Seek";
+        v.hint_ud = "Track";
         v.mu_shuffle = 1;
         hshot(&v, "home-now-playing");
         v.mu_cover = 0; /* without a cover */
         v.mu_seek = 1;
         hshot(&v, "home-now-no-cover");
         v.mu_seek = 0;
+        v.hint_lr = v.hint_ud = 0;
+        { /* Home's keyboard (the nickname), its Cyrillic page, the question on Back */
+            hm_kb kb;
+
+            hm_kb_open(&kb, "Nickname", "Semiloker", 32, 0);
+            kb.row = 2;
+            kb.col = 4;
+            v.kb = &kb;
+            v.kb_t = 256;
+            hshot(&v, "home-keyboard");
+            kb.page = HM_KB_CYRILLIC;
+            kb.shift = 1;
+            hshot(&v, "home-keyboard-cyrillic");
+            kb.ask = 1;
+            hshot(&v, "home-keyboard-ask");
+            v.kb = 0;
+            v.kb_t = 0;
+        }
         v.depth = v.depth_pos = 0;
         v.hint_back = v.hint_square = v.hint_options = 0;
 

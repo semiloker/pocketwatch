@@ -764,3 +764,45 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** two more KUBridge calls into `sceDisplay_driver` (RESEARCH REQUIRED on the
   device: that 0 turns the backlight off on a PSP-3000 and the level read back restores it -
   HM26); `home.txt` gets `hold` and `clock`.
+
+## ADR-039 — Home's own keyboard; the d-pad seeks; a game's screenshots by date and game
+
+- **Status:** Accepted (2026-10-20), from the owner's fifth round (build `cee6786`, spoken
+  feedback, no log): the nickname opened "the default keyboard" and its "keep or cancel the
+  text?" question - both should be Pocketwatch's, "in games and in the menu"; no way to seek in
+  Music and no hint of what to press; covers "load very long", changing tracks lags; a
+  screenshot's name did not fit and did not say which game it came from; the photo grid "goes
+  somewhere" after the third press of right; one second of Castlevania showed nothing in Play
+  Time.
+- **Decision:**
+  - **Keyboard** (`home/src/keyboard.c`, portable, HOM-REQ-030): three pages - Latin, Cyrillic
+    (Ukrainian letters when Home's language is `uk`), signs - five rows each, the last one
+    Shift (one capital), the next page, Space, Erase, Done. The PSP keyboard's own buttons:
+    Square erases, Triangle a space, L / R move the caret, SELECT the next page, START done.
+    Back with changes asks "Save the changes?" - Save, Discard, Keep Editing - in the same
+    panel; Back without changes closes it. Drawn once (`hm_draw_keyboard`) in each style's
+    colours. It replaces `sceUtilityOsk` for the nickname; the firmware's keyboard is no longer
+    used by Home.
+  - **In games** the keyboard stays the firmware's: a game draws `sceUtilityOsk` itself, and
+    replacing it means a module that answers the game's `sceUtilityOsk*` calls and draws into
+    the game's frame; the kernel plugin has 2 KB of its budget left (ADR-037). OPEN QUESTION
+    (the owner's choice and a research note first): a separate PRX for it.
+  - **Music keys:** left / right seek (10 s a press, then 5 s steps while held), up / down the
+    previous / next track; the hints name both (d-pad icons in every style). This replaces
+    ADR-036's "tap left / right: track, hold: seek" (a tap acted only on release, and the hold
+    was not discoverable). The track asked for is tagged first, so its cover does not wait for
+    every other file's tag; `home.log` says what a cover and a track's start cost (`home cover:`,
+    `home music: a track started in N ms`) - the slowness is measured before it is changed.
+  - **Photos:** a picture in a game's folder is named by when it was taken ("2026/10/20 14:05")
+    under the game's title (All Photos too); others by their file name without the extension.
+    A game's page lists its Photos (the album) when it has any. Modern's grids scroll by whole
+    rows (the scroll followed the selection's position divided by the columns: a quarter row
+    at every step to the right).
+  - **Play Time:** every game with recorded time, seconds when under a minute (the page showed
+    a minute or more only).
+- **Alternatives considered:** keeping the firmware's keyboard with Home's colours (it cannot be
+  restyled); tap = track, hold = seek with hints only (the owner asked how to seek at all);
+  showing the file name in full on two lines (it says nothing about the game).
+- **Consequences:** Home's strings gain the keyboard's, the seek and track hints and `dur_s`;
+  Cyrillic keys need the system font's Cyrillic (the translations already do). Text input in
+  the Internet Browser is still the firmware's (it is the firmware's own page).

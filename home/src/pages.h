@@ -83,6 +83,7 @@ int hm_pages_saves(int game); /* (re)list the saves of game (their icons by the 
 hm_save *hm_pages_save(int i);
 int hm_pages_album(int album);   /* the album's pictures: how many */
 int hm_pages_album_photo(int k); /* the k-th one's photo index */
+int hm_pages_album_at(int k);    /* the album at tile k of the albums page */
 void hm_pages_drop(void);        /* everything listed let go (USB) */
 
 #endif

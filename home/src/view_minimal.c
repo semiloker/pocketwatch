@@ -222,21 +222,35 @@ static void page(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
 static void hints(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v, int a)
 {
     int w = 0, x;
-    const char *label[5] = {v->hint_enter, v->hint_options, v->hint_square, v->hint_back,
+    const char *label[7] = {v->hint_enter,
+                            v->hint_options,
+                            v->hint_square,
+                            v->hint_back,
+                            v->hint_lr,
+                            v->hint_ud,
                             v->depth == 0 ? v->hint_tabs : 0};
-    int btn[5] = {ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE, PW_BTN_TRIANGLE, PW_BTN_SQUARE,
-                  ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS, -1};
+    int btn[7] = {ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE,
+                  PW_BTN_TRIANGLE,
+                  PW_BTN_SQUARE,
+                  ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS,
+                  -2,
+                  -3,
+                  -1};
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 7; i++)
         if (label[i])
-            w += (btn[i] >= 0 ? 14 : pw_text_width(ui->body, "L R ")) +
+            w += (btn[i] != -1 ? 14 : pw_text_width(ui->body, "L R ")) +
                  pw_text_width(ui->body, label[i]) + 18;
     x = HM_W / 2 - (w - 18) / 2;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 7; i++) {
         if (!label[i])
             continue;
-        if (btn[i] >= 0) {
-            g->button(g, btn[i], x + 5, 260, 10, p->sub, a * 200 / 256);
+        if (btn[i] >= 0 || btn[i] < -1) {
+            if (btn[i] >= 0)
+                g->button(g, btn[i], x + 5, 260, 10, p->sub, a * 200 / 256);
+            else
+                g->icon(g, btn[i] == -2 ? HM_ICON_LR : HM_ICON_UD, x + 5, 260, 10, p->sub,
+                        a * 200 / 256);
             x += 14;
         } else {
             g->text(g, ui->body, x, 264, "L R", 0, p->sub, a * 200 / 256);
@@ -322,6 +336,7 @@ void hm_draw_minimal(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     if (v->sheet > 0)
         sheet(g, ui, v);
     hm_draw_toast(g, ui, v, C_BLACK, C_TEXT);
+    hm_draw_keyboard(g, ui, v, &p);
 }
 
 void hm_prefetch_minimal(hm_gfx *g, const hm_ui *ui, const hm_view *v)

@@ -11,7 +11,7 @@ OBJS = build/main.o build/hw.o build/library.o build/launch.o build/texts.o buil
        build/disc.o build/hm_image.o build/gfx_gu.o build/sprites.o build/usb.o build/usb_link.o \
        build/view_classic.o build/view_modern.o build/view_minimal.o build/hm_icons.o \
        build/xmbart.o build/rco.o build/rlz.o build/image.o build/xmbbg.o \
-       build/hsettings.o build/dialogs.o build/states.o build/platform_home.o build/music.o \
+       build/hsettings.o build/keyboard.o build/dialogs.o build/states.o build/platform_home.o build/music.o \
        build/music_name.o build/sound.o build/sound_synth.o build/net.o build/stubs.o \
        build/draw.o build/shapes.o build/icons.o build/font8x8.o build/input.o build/i18n.o \
        build/text.o build/pgf.o build/sfo.o build/playtime.o build/crc32.o build/stb_sprintf.o \

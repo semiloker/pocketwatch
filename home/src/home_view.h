@@ -4,6 +4,7 @@
 
 #include "gfx.h"
 #include "gfx/image.h"
+#include "keyboard.h"
 #include "gfx/text.h"
 #include "ui/draw.h"
 
@@ -169,6 +170,7 @@ typedef struct {
     const char *hint_options;           /* Triangle, or NULL */
     const char *hint_square;            /* Square, or NULL */
     const char *hint_back;              /* Back, or NULL */
+    const char *hint_lr, *hint_ud;      /* the d-pad's left / right and up / down, or NULL */
     unsigned int t_ms;
     int appear; /* 0-256: the screen fading in, or out before a game starts */
 
@@ -208,6 +210,10 @@ typedef struct {
     /* A short note at the bottom ("Saved"), fading (0-256) */
     int toast;
     const char *toast_text;
+
+    /* Home's keyboard over everything while kb_t > 0 (0-256, sliding in), NULL when closed */
+    const hm_kb *kb;
+    int kb_t;
 
     /* For hm_prefetch: every section's first rows (by tab), drawn when their section opens */
     const hm_row *other_rows[HM_TABS];

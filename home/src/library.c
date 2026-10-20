@@ -598,7 +598,8 @@ static unsigned int *cover_picture(int *w, int *h)
 static void load_cover(int seq)
 {
     int slot = g_next, w = 0, h = 0;
-    unsigned int *px = cover_picture(&w, &h);
+    unsigned int t0 = hm_hw_now_ms(), *px = cover_picture(&w, &h), t1 = hm_hw_now_ms();
+    char line[160];
 
     g_cover_found = 0;
     if (px && g_bg[slot] && (g_cover_px || (g_cover_px = memalign(16, HM_COVER * HM_COVER * 4)))) {
@@ -622,6 +623,11 @@ static void load_cover(int seq)
     }
     if (px)
         hm_image_free(px);
+    /* what a cover costs (the owner: "the cover loads very long", 2026-10-20) */
+    stbsp_snprintf(line, sizeof(line),
+                   "home cover: %dx%d (%s), read and decoded %u ms, all %u ms\n", w, h,
+                   g_cover_len ? "tag" : "file", t1 - t0, hm_hw_now_ms() - t0);
+    hm_hw_log(line);
 }
 
 static void load_file_background(int seq)
@@ -814,6 +820,25 @@ static unsigned long long when_of(const ScePspDateTime *t)
            (unsigned long long)t->minute * 60 + t->second;
 }
 
+/* A picture's name: its file's, without the extension. */
+static void photo_name(hm_photo *p, const char *file)
+{
+    const char *dot = strrchr(file, '.');
+
+    stbsp_snprintf(p->name, sizeof(p->name), "%.*s", dot ? (int)(dot - file) : 63, file);
+}
+
+/* A game's screenshot is named by when it was taken, under the game's title: its file name
+   (ULUS10277_20261020_140512) did not fit and said nothing (owner, 2026-10-20). */
+static void game_label(hm_photo *p, const char *title)
+{
+    unsigned long long w = p->when, x = w / 3600;
+
+    stbsp_snprintf(p->name, sizeof(p->name), "%d/%02d/%02d %02d:%02d", (int)(x / 24 / 32 / 13),
+                   (int)(x / 24 / 32 % 13), (int)(x / 24 % 32), (int)(x % 24), (int)(w / 60 % 60));
+    stbsp_snprintf(p->meta, sizeof(p->meta), "%s", title);
+}
+
 /* The album of a folder (made when new); root: the top folder's own name. */
 static int album_of(const char *folder)
 {
@@ -851,7 +876,7 @@ static void scan_pictures(const char *dir, const char *folder, int depth)
 
                 memset(p, 0, sizeof(*p));
                 stbsp_snprintf(p->path, sizeof(p->path), "%s", path);
-                stbsp_snprintf(p->name, sizeof(p->name), "%s", e.d_name);
+                photo_name(p, e.d_name);
                 stbsp_snprintf(p->meta, sizeof(p->meta), "%s%s%d/%02d/%02d", folder ? folder : "",
                                folder ? "   " : "", t->year, t->month, t->day);
                 p->when = when_of(t);
@@ -910,6 +935,8 @@ static void make_albums(void)
         if (al->cover < 0)
             al->cover = i; /* (newest first) */
         al->count++;
+        if (al->game >= 0)
+            game_label(&g_photos[i], al->title);
     }
     g_albums[0].count = g_photo_count;
     g_albums[0].cover = g_photo_count ? 0 : -1;
@@ -968,7 +995,7 @@ int hm_library_photo_added(const char *path)
     memmove(&g_photos[1], &g_photos[0], sizeof(hm_photo) * (size_t)g_photo_count); /* newest */
     memset(&g_photos[0], 0, sizeof(hm_photo));
     stbsp_snprintf(g_photos[0].path, sizeof(g_photos[0].path), "%s", path);
-    stbsp_snprintf(g_photos[0].name, sizeof(g_photos[0].name), "%s", slash + 1);
+    photo_name(&g_photos[0], slash + 1);
     stbsp_snprintf(g_photos[0].meta, sizeof(g_photos[0].meta), "%s   %d/%02d/%02d", folder,
                    st.sce_st_mtime.year, st.sce_st_mtime.month, st.sce_st_mtime.day);
     g_photos[0].when = when_of(&st.sce_st_mtime);

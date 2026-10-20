@@ -4,5 +4,6 @@
 
 /* The translation the plugin uses (seplugins/pocketwatch/lang/<code>.txt, language.txt first). */
 void hm_texts_load(void);
+const char *hm_texts_code(void); /* its code ("ru"), "" for English */
 
 #endif
