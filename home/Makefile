@@ -56,8 +56,8 @@ build/hm_imgwrite.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unuse
                                -Wno-implicit-fallthrough -Wno-unused-but-set-variable \
                                -Wno-missing-field-initializers -Wno-type-limits
 
-# main.o again whenever the version string changes (System -> Version names the build).
-build/main.o: build/.version
+# main.o and pages.o again whenever the version string changes (System -> About names the build).
+build/main.o build/pages.o: build/.version
 build/.version: FORCE | build
 	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
 
