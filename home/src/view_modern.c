@@ -35,10 +35,10 @@
 #define PG_GAP   9
 #define PG_PITCH 66
 
-#define AL_W     136 /* Albums: cards */
-#define AL_H     76
-#define AL_GAP   12
-#define AL_PITCH 118
+#define AL_W     100 /* Albums: cards, two rows of four (136 x 76 left one row on screen and */
+#define AL_H     56  /* the chosen one under the edge, 2026-10-20) */
+#define AL_GAP   10
+#define AL_PITCH 96
 
 #define MU_X   24 /* Music: what plays, on a card */
 #define MU_W   168
@@ -218,17 +218,14 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
 
 /* ---- grids: the photos of an album, the albums ---- */
 
-/* The top row on screen (1/256 rows) for a grid of cols: the chosen row stays second. */
+/* The top row on screen (1/256 rows) for a grid of cols with show whole rows: the chosen row
+   stays second. It follows grid_pos (its own motion, main.c): following selpos, it waited while
+   selpos passed the row's other photos and then jumped (the owner's "jerky", 2026-10-20). */
 static int grid_first(const hm_page *pg, int cols, int show)
 {
-    int rows = (pg->count + cols - 1) / cols, i = hm_clampi(pg->selpos, 0, 1 << 20) / 256,
-        f = pg->selpos - i * 256,
-        /* the row the selection is on, gliding only while it crosses into another row (selpos /
-           cols scrolled a quarter row at every step along a row: the owner's "it goes somewhere")
-         */
-        row = i / cols * 256 + f * ((i + 1) / cols - i / cols);
+    int rows = (pg->count + cols - 1) / cols;
 
-    return hm_clampi(row - 256, 0, rows > show ? (rows - show) * 256 : 0);
+    return hm_clampi(pg->grid_pos - 256, 0, rows > show ? (rows - show) * 256 : 0);
 }
 
 /* Rows of a grid fade out at the content's edges. */
@@ -249,7 +246,8 @@ static void photos(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_pag
         return;
     }
     t = &pg->tiles[sel];
-    first = grid_first(pg, HM_PHOTO_COLS, 3);
+    /* under an album's title two rows fit whole (the third peeks out); the section's own: three */
+    first = grid_first(pg, HM_PHOTO_COLS, pg->title ? 2 : 3);
     if (!pg->title) { /* the section's own grid: the chosen one's name above it */
         int mw = t->meta ? pw_text_width(ui->body, t->meta) : 0;
 

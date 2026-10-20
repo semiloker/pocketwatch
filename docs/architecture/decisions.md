@@ -806,3 +806,28 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** Home's strings gain the keyboard's, the seek and track hints and `dur_s`;
   Cyrillic keys need the system font's Cyrillic (the translations already do). Text input in
   the Internet Browser is still the firmware's (it is the firmware's own page).
+
+## ADR-040 — Modern's photo grids: two rows of albums, a scroll of its own; slow frames logged
+
+- **Status:** Accepted (2026-10-20), from the owner's sixth round (build `ead1320`, Modern,
+  `home.log`): Photos still "jerky, jumps, I cannot look through a folder", and "micro freezes".
+  Supersedes ADR-039's grid scrolling.
+- **Decision:**
+  - **Albums: four columns of 100 x 56 cards, two rows on screen.** The 136 x 76 cards left one
+    row on screen: the second row was drawn under the hints' edge with no opacity, while the
+    scroll kept the chosen row second, so right after the third album the choice went off
+    screen (VERIFIED in PPSSPP with the owner's 15 photos in 7 folders, `view_modern.c`).
+  - **A grid scrolls by its own motion** (`hm_page.grid_pos`, eased in `main.c` to the chosen
+    row): ADR-039's scroll followed `selpos` and moved only while `selpos` crossed into the
+    next row, so a move down waited for three quarters of the motion and then jumped, while the
+    focus ring was already there.
+  - **Inside an album two rows show whole** (the third peeks out): the last row stops second,
+    not faded under the edge.
+  - **Slow frames named:** each frame of 100 ms or more adds `[ms page keys rows state draw
+    warm ge stamps]` (ms per part) to the next `home running:` line, so the next round says what
+    a freeze was. RESEARCH REQUIRED: the round-6 log has 500-1035 ms frames (one in 30 s) and
+    10-30 late frames in 30 s, but no part named; no fix is guessed (AI workflow, section 7).
+- **Alternatives considered:** keeping the large cards with one row on screen (the next row
+  would not show at all); moving the focus ring by the eased position too (the grid's motion
+  was the jump, not the ring).
+- **Consequences:** HM25 is run again; previews show seven albums in two rows.

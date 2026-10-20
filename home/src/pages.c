@@ -699,13 +699,15 @@ int hm_page_root(int tab)
 void hm_page_build(hm_view *v, int d, hm_page_id id, const hm_page_env *env)
 {
     hm_page *p = &v->page[d];
-    int row_sel = p->row_sel, row_pos = p->row_pos, sel = p->sel, selpos = p->selpos;
+    int row_sel = p->row_sel, row_pos = p->row_pos, sel = p->sel, selpos = p->selpos,
+        grid_pos = p->grid_pos;
 
     memset(p, 0, sizeof(*p));
     p->row_sel = row_sel;
     p->row_pos = row_pos;
     p->sel = sel;
     p->selpos = selpos;
+    p->grid_pos = grid_pos;
     switch (id.id) {
     case P_GAMES:
         games(p);

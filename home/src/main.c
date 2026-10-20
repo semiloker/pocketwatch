@@ -132,20 +132,37 @@ static void load_fonts(void)
 
 typedef struct {
     unsigned int t0, frames, cpu_us, ge_us, warm_us, worst_ms, last, late, made, rows_us;
+    char slow[400]; /* the frames over SLOW_MS: on which page, and where their time went */
 } stats;
 
+#define SLOW_MS 100
+
+/* Where the frame's time went, by part (us): the keys, the rows, the rest of the page's state (the
+   loader's focus, the motion), the drawing (the CPU's list), the prefetch; set by the loop. */
+static unsigned int g_t_keys, g_t_rows, g_t_state, g_t_draw, g_t_warm;
+
 static void stats_frame(stats *st, unsigned int now, unsigned int cpu_us, unsigned int warm_us,
-                        unsigned int ge_us)
+                        unsigned int ge_us, int page)
 {
     unsigned int made, kept, bytes;
 
+    unsigned int took = hm_hw_now_ms() - now; /* this frame, from its keys to its end */
+    int n = (int)strlen(st->slow);
+
+    hm_gu_stats(&made, &kept, &bytes);
     if (st->frames) {
         if (now - st->last > st->worst_ms)
             st->worst_ms = now - st->last;
         if (now - st->last > 20) /* more than one vblank: a frame missed */
             st->late++;
     }
-    hm_gu_stats(&made, &kept, &bytes);
+    /* a stall the owner sees (2026-10-20: "micro freezes" in Photos): what it was, so the next
+       round names it */
+    if (took >= SLOW_MS && n < (int)sizeof(st->slow) - 64)
+        stbsp_snprintf(st->slow + n, sizeof(st->slow) - (size_t)n,
+                       " [%u ms p%d keys %u rows %u state %u draw %u warm %u ge %u st %u]", took,
+                       page, g_t_keys / 1000, g_t_rows / 1000, g_t_state / 1000, g_t_draw / 1000,
+                       g_t_warm / 1000, ge_us / 1000, made);
     st->last = now;
     st->frames++;
     st->cpu_us += cpu_us;
@@ -159,7 +176,7 @@ static int g_costs_written;
 
 static void stats_write(stats *st, unsigned int now, const char *why)
 {
-    char line[300];
+    char line[720];
     unsigned int ms = now - st->t0, n = st->frames ? st->frames : 1;
 
     if (st->frames < 2 || ms == 0)
@@ -181,11 +198,12 @@ static void stats_write(stats *st, unsigned int now, const char *why)
         stbsp_snprintf(line, sizeof(line),
                        "home %s: %u frames in %u ms (%u fps), %u late; a frame: CPU %u us, warm "
                        "%u us, GE wait %u us; longest %u ms; rows %u us; stamps %u made, %u kept "
-                       "(%u KB); heap %u of %u KB, outside %u KB\n",
+                       "(%u KB); heap %u of %u KB, outside %u KB%s%s\n",
                        why, st->frames, ms, st->frames * 1000 / ms, st->late, st->cpu_us / n,
                        st->warm_us / n, st->ge_us / n, st->worst_ms, st->rows_us, st->made, kept,
                        bytes >> 10, (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10,
-                       (unsigned int)sceKernelMaxFreeMemSize() >> 10);
+                       (unsigned int)sceKernelMaxFreeMemSize() >> 10, st->slow[0] ? "; slow:" : "",
+                       st->slow);
     }
     hm_hw_log(line);
     memset(st, 0, sizeof(*st));
@@ -1790,6 +1808,7 @@ int main(void)
             unsigned int t0 = sceKernelGetSystemTimeLow(), us;
             int id = top_id();
 
+            g_t_keys = t0 - t_cpu;
             if (t_rows == 0 || now - t_rows >= 1000) {
                 build_all();
                 t_rows = now;
@@ -1801,6 +1820,7 @@ int main(void)
             us = sceKernelGetSystemTimeLow() - t0;
             if (us > st.rows_us)
                 st.rows_us = us;
+            g_t_rows = us;
         }
         g_v.battery_pct = hm_cfg_get()->percent;
         page_hints();
@@ -1808,9 +1828,14 @@ int main(void)
         /* motion, by time */
         for (int d = 0; d < HM_DEPTH; d++) {
             hm_page *p = &g_v.page[d];
+            int cols = g_v.style != HM_STYLE_MODERN ? 1
+                       : g_stack[d].id == P_ALBUM   ? HM_PHOTO_COLS
+                       : g_stack[d].id == P_ALBUMS  ? HM_ALBUM_COLS
+                                                    : 1;
 
             p->selpos = pw_ease(p->selpos, p->sel * 256, dt, tau, 6);
             p->row_pos = pw_ease(p->row_pos, p->row_sel * 256, dt, tau, 6);
+            p->grid_pos = pw_ease(p->grid_pos, p->sel / cols * 256, dt, tau, 6);
         }
         g_v.depth_pos = pw_ease(g_v.depth_pos, g_v.depth * 256, dt, tau * 3 / 2, 6);
         g_v.tab_pos = pw_ease(g_v.tab_pos, g_v.tab * 256, dt, tau, 6);
@@ -1861,14 +1886,18 @@ int main(void)
                                         : pw_ramp(now, g_s.t_open, FADE_MS);
 
         /* the frame: the list, then - while the GE draws it - what the next frames may need */
+        g_t_draw = sceKernelGetSystemTimeLow();
+        g_t_state = g_t_draw - t_cpu - g_t_keys - g_t_rows;
         g = hm_gu_begin();
         hm_draw(g, &g_ui, &g_v);
         hm_gu_finish();
         t_warm = sceKernelGetSystemTimeLow();
+        g_t_draw = t_warm - g_t_draw;
         t_cpu = t_warm - t_cpu;
         hm_prefetch(g, &g_ui, &g_v);
         t_warm = sceKernelGetSystemTimeLow() - t_warm;
-        stats_frame(&st, now, t_cpu, t_warm, hm_gu_end());
+        g_t_warm = t_warm;
+        stats_frame(&st, now, t_cpu, t_warm, hm_gu_end(), top_id());
         if (!up) { /* the first screen is up: tell the XMB plugin's guard */
             hm_hw_remove(PENDING);
             up = 1;

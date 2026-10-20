@@ -234,10 +234,13 @@ static void home_previews(const pw_image *sky_img)
         {"Untitled image", NULL, NULL, 0},
     };
     hm_tile photos[9],
-        albums[4] = {{"All Photos", "23 photos", icons[1], 0},
+        albums[7] = {{"All Photos", "23 photos", icons[1], 0},
                      {"Castlevania: The Dracula X Chronicles", "9 photos", icons[0], 0},
                      {"Screenshots", "11 photos", icons[2], 0},
-                     {"pspIdent", "3 photos", 0, 0}};
+                     {"pspIdent", "3 photos", 0, 0},
+                     {"Need for Speed", "1 photos", icons[3], 0},
+                     {"PICTURE", "8 photos", icons[2], 0},
+                     {"ULUS10509", "1 photos", icons[0], 0}};
     hm_tile saves[4] = {{"Chapter 3: The Clock Tower", "2026/10/18 14:05   1.2 MB", icons[0], 0},
                         {"Richter - Stage 2", "2026/10/12 21:40   1.2 MB", icons[2], 0},
                         {"System Data", "2026/09/30 08:12   48 KB", 0, 0},
@@ -540,9 +543,10 @@ static void home_previews(const pw_image *sky_img)
         memset(&root, 0, sizeof(root));
         root.layout = HM_PAGE_ALBUMS;
         root.tiles = albums;
-        root.count = 4;
+        root.count = 7;
         root.sel = 1;
         root.selpos = 256;
+        root.grid_pos = 0; /* (Modern: the first row) */
         v.page[0] = root;
         v.tab = HM_TAB_PHOTOS;
         v.tab_pos = HM_TAB_PHOTOS * 256;
@@ -556,6 +560,7 @@ static void home_previews(const pw_image *sky_img)
         p.count = 9;
         p.sel = 5;
         p.selpos = 5 * 256;
+        p.grid_pos = 5 / HM_PHOTO_COLS * 256;
         over(&v, &root, &p);
         v.hint_enter = "View";
         v.hint_square = "Delete";

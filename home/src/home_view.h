@@ -41,7 +41,7 @@ enum { HM_STYLE_CLASSIC, HM_STYLE_MODERN, HM_STYLE_MINIMAL, HM_STYLES };
 #define HM_PANEL_MAX  8
 #define HM_POPUP_MAX  48
 #define HM_PHOTO_COLS 4 /* Modern's grid of photos: up / down move by a row */
-#define HM_ALBUM_COLS 3 /* Modern's grid of albums */
+#define HM_ALBUM_COLS 4 /* Modern's grid of albums (two rows on screen) */
 #define HM_DEPTH      4 /* pages in a section: its first and three opened from it */
 
 /* A row's kind: a reading, a choice (left / right change it; Classic: Enter opens its options),
@@ -131,6 +131,7 @@ typedef struct {
     int nrows, row_sel, row_pos; /* row_pos: where the cursor is (1/256 rows, animated) */
     const hm_tile *tiles;
     int count, sel, selpos; /* selpos: the row's position (1/256, animated) */
+    int grid_pos;           /* a grid's chosen row (1/256 rows, animated): how far it scrolled */
     const char *empty;      /* shown when there is nothing */
 } hm_page;
 

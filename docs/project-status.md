@@ -96,9 +96,19 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 - Not built for the PSP in this change: the WSL toolchain (`~/pspdev`) was missing on the
   machine; host tests, previews and the format check pass.
 
+## Device results 2026-10-20, round 6 (owner, build `ead1320`, Modern, `home.log`)
+
+- Photos still "jerky, jumps, I cannot look through a folder", and "micro freezes". Causes
+  (code, reproduced in PPSSPP with the owner's 15 photos in 7 folders): the albums' grid had
+  one row on screen while its scroll assumed two (the choice went off screen after the third
+  album), and the grids' scroll waited for the selection's motion, then jumped. Fixed (ADR-040).
+- The log: 500-1035 ms frames (about one in 30 s) and 10-30 late frames in 30 s, no part named;
+  RESEARCH REQUIRED: the next `home.log`'s `slow:` entries (ADR-040). No `home music:` line:
+  music was not tested in this round.
+
 ## Next actions (in order)
 
-0. **Dev:** build this change for the PSP (the toolchain in WSL first) and put it on the card;
+0. **Owner:** HM25 again (ADR-040) with `home.log`; HM24, HM27, HM28. **Before that (round 6):**
    **owner:** HM24, HM25, HM27, HM28 (ADR-039) with `home.log`; name the games that open the
    PSP's keyboard (for G1 of [m7-game-keyboard](research/m7-game-keyboard.md), and choose its
    option A / B / C). Then:
