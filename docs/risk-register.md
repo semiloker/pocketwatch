@@ -306,4 +306,5 @@ risk; close it with the evidence.
   own back - a flicker; the brightest level draws more power.
 - **Likelihood M** / **Impact L**.
 - **Mitigation:** off by default; given up after 4 put-backs within 400 ms of ours (logged in Home:
-  `home brightness:`); the screen off is never turned on; HM34 and PF3 with bright3 on.
+  `home brightness:`), a change while SCREEN is pressed not counted; the screen off is never turned
+  on. bright3 is turned off in the owner's PLUGINS.TXT since Own Steps took its place (ADR-047).

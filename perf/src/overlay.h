@@ -4,15 +4,15 @@
 
 /*
  * The game overlay's text and drawing (PRF-REQ-001..005, ADR-043): what the module measured as one
- * or two lines, written straight into the frame the game shows - the plugin's 8x8 font with a
- * black outline, so it reads on any picture, and no read of VRAM (uncached reads are slow).
+ * or two short lines on a black box, written straight into the frame the game shows - the plugin's
+ * 8x8 font with a black outline, and no read of VRAM (uncached reads are slow).
  * Portable (no PSP headers, host-tested): perf/src/main.c measures and finds the frame.
  */
 
 enum { PW_PERF_OFF, PW_PERF_FPS, PW_PERF_FULL };
 
 #define PW_PERF_NA   (-32768) /* a value not known */
-#define PW_PERF_COLS 59       /* characters on a line: 472 of the screen's 480 px */
+#define PW_PERF_COLS 40       /* characters on a line (the longest is about 36) */
 
 typedef struct {
     int fps;              /* frames the game showed in the last second */
@@ -41,6 +41,8 @@ void pw_perf_render(const char *text, pw_perf_mask *m);
 /* m at x, y (its top left) into a frame: fb its first pixel, stride in pixels, fmt the display's
    pixel format (0 5650, 1 5551, 2 4444, 3 8888), clipped to w x h. */
 void pw_perf_draw(void *fb, int stride, int fmt, int w, int h, int x, int y, const pw_perf_mask *m);
+/* A black box under them (bw x bh at x, y), clipped. */
+void pw_perf_box(void *fb, int stride, int fmt, int w, int h, int x, int y, int bw, int bh);
 
 /* The next mode when L + R + SELECT were held a second: off, the frame rate, everything, off. */
 int pw_perf_next(int mode);
@@ -48,10 +50,16 @@ int pw_perf_next(int mode);
 /* perf.txt (Home writes it, the module reads it at a game's start): "mode = off|fps|full" (the
    numbers), "osd = off|home|all" (the volume and brightness indicator: none, over Home only, over
    games too), "boost = <0-100>" (the backlight: that share of the way from the system's level up
-   to the most, ADR-045). What is missing or not known: full, home, 0. */
+   to the most, ADR-045), "steps = on|off" and "levels = 20 30 ..." (Pocketwatch's own brightness
+   steps for the SCREEN button instead of the system's four, ADR-047: up to PW_STEPS_MAX levels of
+   1-100). What is missing or not known: full, home, 0, off, PW_STEPS_DEFAULT. */
 enum { PW_OSD_OFF, PW_OSD_HOME, PW_OSD_ALL };
+#define PW_STEPS_MAX     10
+#define PW_STEPS_DEFAULT {20, 30, 40, 50, 60, 70, 85, 100}
 typedef struct {
     int mode, osd, boost;
+    int steps;                         /* Pocketwatch's steps instead of the system's */
+    int levels[PW_STEPS_MAX], nlevels; /* the steps' backlight levels, darkest first */
 } pw_perf_cfg;
 void pw_perf_cfg_parse(const char *text, int len, pw_perf_cfg *c);
 
@@ -61,9 +69,11 @@ void pw_perf_cfg_parse(const char *text, int len, pw_perf_cfg *c);
 int pw_bright_boost(int level, int boost);
 
 /* Keeping it while the system changes the level (the SCREEN button, the charger, a wake): given
-   the display's level now, the one to set, or -1 to leave it. A boost turned off gives the
-   system's level back. When another (a brightness plugin) sets its own again and again, within
-   PW_BRIGHT_FIGHT_MS of ours, PW_BRIGHT_FIGHTS times: given up (fights >= PW_BRIGHT_FIGHTS). */
+   the display's level now, the one to set, or -1 to leave it - the boosted system level, or fixed
+   (Pocketwatch's step) when fixed > 0. A boost turned off gives the system's level back; the
+   screen off stays off. When another (a brightness plugin) sets its own again and again, within
+   PW_BRIGHT_FIGHT_MS of ours, PW_BRIGHT_FIGHTS times, it gives up (fights >= PW_BRIGHT_FIGHTS);
+   expected: the change is the owner's SCREEN press (no fight). */
 #define PW_BRIGHT_FIGHTS   4
 #define PW_BRIGHT_FIGHT_MS 400
 typedef struct {
@@ -73,7 +83,22 @@ typedef struct {
     unsigned int t_set;
 } pw_bright;
 void pw_bright_init(pw_bright *b);
-int pw_bright_step(pw_bright *b, int level, int boost, unsigned int now_ms);
+int pw_bright_step(pw_bright *b, int level, int boost, int fixed, int expected,
+                   unsigned int now_ms);
+
+/* Pocketwatch's steps (ADR-047): a short press of SCREEN (released within PW_STEPS_TAP_MS) is the
+   next step, round from the brightest to the darkest; a long one is the system's (the screen
+   off). */
+#define PW_STEPS_TAP_MS 600
+typedef struct {
+    int cur;  /* the step now */
+    int down; /* SCREEN held */
+    unsigned int t_down;
+} pw_steps;
+/* The step whose level is nearest to level. */
+int pw_steps_nearest(const pw_perf_cfg *c, int level);
+/* SCREEN now (held 1 / 0): 1 when the step changed. */
+int pw_steps_button(pw_steps *s, int held, int n, unsigned int now_ms);
 
 /* ---- the volume and brightness indicator ---- */
 
@@ -89,8 +114,9 @@ typedef struct {
 int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms);
 /* What to show now: the kind within PW_OSD_MS of its change, else PW_OSD_NONE. */
 int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
-/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", "BRIGHT 3/4 92%". */
-void pw_osd_text(const pw_osd *o, int level, char out[PW_PERF_COLS + 1]);
+/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", "BRIGHT 3/4 92%" -
+   o->bright of steps (the system's four, or Pocketwatch's). */
+void pw_osd_text(const pw_osd *o, int level, int steps, char out[PW_PERF_COLS + 1]);
 
 /* The indicator in a game's frame: a black box with a white edge at the bottom middle, label in
    it and a bar of n steps, k of them lit (format, clip: pw_perf_draw's). */

@@ -141,9 +141,23 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
   same day; previews `home-calibration.png`, `home-osd.png`; PPSSPP: the Wi-Fi search, the
   settings' files.
 
+## Device results 2026-10-20, round 8 (owner, build `f36f0f5`, spoken and `home.log`)
+
+- "The overlay and the indicator are still not seen in games": `pocketwatch_perf.prx` was lost
+  once more - the old Home (615e6d5) ended the deploy's USB (VERIFIED: its USB line without "cache
+  dropped", chkdsk a second lost chain of 32 KB); the new Home's USB line carries it. Redeployed.
+- VERIFIED on the device: Home's network comes up now - Search for Networks found 2
+  (`home net: search 0 ... seen=2`); no connection made yet. New: the browser's
+  `sceUtilityHtmlViewerInitStart` 0x800200D9 (OPEN QUESTION, not asked for now).
+- Asked for: no brightness slider in the XMB; remove bright3 and do its job in Pocketwatch; the
+  numbers overlay "terrible, not understandable" - done (ADR-047): Own Steps, the module in the
+  XMB, the overlay redrawn; bright3's lines off, its levels moved to `perf.txt`.
+
 ## Next actions (in order)
 
-0. **Owner (round 8):** deploy, then **turn the PSP off from Home's USB screen** (the old Home's
+0. **Owner (round 9):** PF4 (Own Steps in Home, the XMB, a game), PF1 and PF3 (the overlay and the
+   indicator in a game), HM33 (Wi-Fi: make the connection), HM32 (USB, now with the new Home);
+   send `home.log`. **Before (round 8):** deploy, then **turn the PSP off from Home's USB screen** (the old Home's
    exit from USB would undo the deploy once more); HM32 (USB), HM33 (Wi-Fi: make the home network's
    connection), HM29 again (the internet's time), HM34 and PF3 (the indicator, the boost), PF1
    (the numbers in games), HM30 (the calibration's screen), PF2; send `home.log`,

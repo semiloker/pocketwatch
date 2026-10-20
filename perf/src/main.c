@@ -7,7 +7,8 @@
  * game without it runs as before. One thread: at every vblank it writes into the frame the PSP
  * shows next (the hub's own while the hub is open, else the game's); every 6th it reads the
  * volume and the brightness; once a second it measures. It writes nothing to the card; it reads
- * perf.txt once.
+ * perf.txt once. Loaded for the XMB too (a VSH line, ADR-047): there it shows only the brightness
+ * and keeps the boost or the steps - no numbers, and the XMB has its own volume bar.
  */
 #include <pspctrl.h>
 #include <pspdisplay.h>
@@ -121,41 +122,75 @@ static void lines(const pw_perf_stats *s)
         pw_perf_render(l[i], &g_mask[i]);
 }
 
-/* The volume and the brightness (ADR-045): the indicator when one changed, the boost kept. */
+/* The volume and the brightness (ADR-045, ADR-047): the indicator when one changed, the boost or
+   Pocketwatch's steps kept. */
 static pw_osd g_osd;
 static pw_bright g_bright;
-static int g_level = -1; /* the backlight's level as last read */
+static pw_steps g_steps;
+static int g_steps_set;         /* the first step taken from the level */
+static int g_level = -1;        /* the backlight's level as last read */
+static int g_vsh;               /* in the XMB: the brightness only */
+static unsigned int g_t_screen; /* SCREEN held last (a change of the owner's) */
+
+static int steps_n(void)
+{
+    return g_cfg.steps ? g_cfg.nlevels : 4;
+}
 
 static void av_step(unsigned int now)
 {
-    int level = 0, unk = 0, set;
+    int level = 0, unk = 0, set, fixed = 0;
 
     if (sceDisplayGetBrightness(&level, &unk) < 0)
         level = -1;
+    if (g_cfg.steps && !g_steps_set && level > 0) {
+        g_steps.cur = pw_steps_nearest(&g_cfg, level);
+        g_steps_set = 1;
+    }
+    if (g_cfg.steps)
+        fixed = g_cfg.levels[g_steps.cur];
     g_level = level;
-    if (g_cfg.boost > 0 && (set = pw_bright_step(&g_bright, level, g_cfg.boost, now)) > 0) {
+    if ((g_cfg.boost > 0 || fixed > 0) &&
+        (set = pw_bright_step(&g_bright, level, g_cfg.boost, fixed, now - g_t_screen < 1000, now)) >
+            0) {
         sceDisplaySetBrightness(set, unk);
         g_level = set;
     }
-    if (g_cfg.osd == PW_OSD_ALL &&
-        pw_osd_step(&g_osd, sceImposeGetParam(IMPOSE_VOLUME), sceImposeGetParam(IMPOSE_MUTE),
-                    sceImposeGetParam(IMPOSE_BRIGHTNESS), now)) {
-        char t[PW_PERF_COLS + 1];
+    if (g_cfg.osd == PW_OSD_ALL) {
+        int bright = g_cfg.steps ? g_steps.cur : sceImposeGetParam(IMPOSE_BRIGHTNESS);
 
-        pw_osd_text(&g_osd, g_level, t);
-        pw_perf_render(t, &g_osd_mask);
+        if (pw_osd_step(&g_osd, g_vsh ? -1 : sceImposeGetParam(IMPOSE_VOLUME),
+                        g_vsh ? -1 : sceImposeGetParam(IMPOSE_MUTE), bright, now)) {
+            char t[PW_PERF_COLS + 1];
+
+            pw_osd_text(&g_osd, g_level, steps_n(), t);
+            pw_perf_render(t, &g_osd_mask);
+        }
     }
 }
 
-static void osd_draw(void *top, int bufw, int fmt, unsigned int now)
+/* hub: the hub's frame is shown - it has its own volume bar */
+static void osd_draw(void *top, int bufw, int fmt, unsigned int now, int hub)
 {
     int kind = pw_osd_shown(&g_osd, now);
 
-    if (kind == PW_OSD_VOLUME)
+    if (kind == PW_OSD_VOLUME && !hub)
         pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
                     g_osd.mute == 1 ? 0 : g_osd.vol, 30);
     else if (kind == PW_OSD_BRIGHT)
-        pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright + 1, 4);
+        pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright + 1, steps_n());
+}
+
+/* The numbers on a black box: the owner could not read them over a game's picture. */
+static void lines_draw(void *top, int bufw, int fmt)
+{
+    int w = 0;
+
+    for (int i = 0; i < g_lines; i++)
+        w = g_mask[i].w > w ? g_mask[i].w : w;
+    pw_perf_box(top, bufw, fmt, SCREEN_W, SCREEN_H, 2, 2, w + 6, g_lines * 11 + 4);
+    for (int i = 0; i < g_lines; i++)
+        pw_perf_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, 5, 4 + i * 11, &g_mask[i]);
 }
 
 static int perf_thread(SceSize args, void *argp)
@@ -184,12 +219,19 @@ static int perf_thread(SceSize args, void *argp)
 
         sceDisplayWaitVblankStart();
         now = now_ms();
-        if (++vblanks % AV_EVERY == 0 && (g_cfg.boost > 0 || g_cfg.osd == PW_OSD_ALL))
+        memset(&pad, 0, sizeof(pad));
+        sceCtrlPeekBufferPositive(&pad, 1);
+        /* SCREEN: a tap is Pocketwatch's next step (read every vblank: a tap is short) */
+        if (pad.Buttons & PSP_CTRL_SCREEN)
+            g_t_screen = now;
+        if (g_cfg.steps &&
+            pw_steps_button(&g_steps, (pad.Buttons & PSP_CTRL_SCREEN) != 0, g_cfg.nlevels, now))
+            av_step(now);
+        else if (++vblanks % AV_EVERY == 0 &&
+                 (g_cfg.boost > 0 || g_cfg.steps || g_cfg.osd == PW_OSD_ALL))
             av_step(now);
         /* L + R + SELECT held a second, nothing else: the next mode (once per hold) */
-        memset(&pad, 0, sizeof(pad));
-        if (sceCtrlPeekBufferPositive(&pad, 1) > 0 && (pad.Buttons & COMBO) == COMBO &&
-            !(pad.Buttons & OTHERS)) {
+        if (!g_vsh && (pad.Buttons & COMBO) == COMBO && !(pad.Buttons & OTHERS)) {
             if (!t_hold)
                 t_hold = now;
             else if (!held && now - t_hold >= HOLD_MS) {
@@ -209,6 +251,10 @@ static int perf_thread(SceSize args, void *argp)
         if (now - t_sec >= 1000) {
             unsigned long long wall = sceKernelGetSystemTimeWide(), idle = idle_us();
 
+            if (!g_vsh && sceKernelFindModuleByName("vsh_module")) { /* the XMB: no numbers */
+                g_vsh = 1;
+                g_mode = PW_PERF_OFF;
+            }
             s.fps = flips > 0 ? flips * 1000 / (int)(now - t_sec) : -1;
             s.cpu_pct = g_nidle && wall > wall0 ? 100 - (int)((idle - idle0) * 100 / (wall - wall0))
                                                 : PW_PERF_NA;
@@ -248,9 +294,9 @@ static int perf_thread(SceSize args, void *argp)
         if (!top || bufw < SCREEN_W)
             continue;
         top = (void *)((unsigned int)top | 0x40000000u); /* uncached: no cache to write back */
-        for (int i = 0; g_mode != PW_PERF_OFF && i < g_lines; i++)
-            pw_perf_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, 4, 4 + i * 11, &g_mask[i]);
-        osd_draw(top, bufw, fmt, now);
+        if (g_mode != PW_PERF_OFF && g_lines)
+            lines_draw(top, bufw, fmt);
+        osd_draw(top, bufw, fmt, now, top != (void *)((unsigned int)game | 0x40000000u));
     }
     return 0;
 }

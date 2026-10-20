@@ -723,7 +723,9 @@ static char g_plugins[2][PLUGINS_SIZE];
    brightness indicator, the boost - Home uses the last two too. The module's line in PLUGINS.TXT
    is on while a game needs it: the numbers, the indicator in games, a boost. */
 static pw_perf_cfg g_pc;
-static int g_pc_read, g_pc_line; /* read; the module's line is on */
+static int g_pc_read, g_pc_line, g_pc_vsh; /* read; the module's game line, XMB line are on */
+
+static int pc_write(const pw_perf_cfg *c);
 
 const pw_perf_cfg *hs_perf_cfg(void)
 {
@@ -733,33 +735,54 @@ const pw_perf_cfg *hs_perf_cfg(void)
             m = pw_file_read(PERF_CFG, t, sizeof(t));
 
         pw_perf_cfg_parse(t, m > 0 ? m : 0, &g_pc);
-        g_pc_line = n > 0 && hm_plugins_get(g_plugins[0], n, PERF_PRX) == 1;
+        g_pc_line = n > 0 && hm_plugins_get(g_plugins[0], n, "UMD", PERF_PRX) == 1;
+        g_pc_vsh = n > 0 && hm_plugins_get(g_plugins[0], n, "VSH", PERF_PRX) == 1;
         if (!g_pc_line) /* (not loaded: no numbers in games, whatever the file says) */
             g_pc.mode = PW_PERF_OFF;
         g_pc_read = 1;
+        { /* the module's lines as the settings want them (the XMB's since ADR-047): once */
+            int bright = g_pc.boost > 0 || g_pc.steps;
+
+            if (g_pc_line != (g_pc.mode != PW_PERF_OFF || g_pc.osd == PW_OSD_ALL || bright) ||
+                g_pc_vsh != (g_pc.osd == PW_OSD_ALL || bright))
+                pc_write(&g_pc);
+        }
     }
     return &g_pc;
+}
+
+/* One of the module's PLUGINS.TXT lines on or off. */
+static int pc_line(const char *runlevel, int on)
+{
+    int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE),
+        m = hm_plugins_set(g_plugins[0], n > 0 ? n : 0, runlevel, PERF_PRX, on, g_plugins[1],
+                           PLUGINS_SIZE);
+
+    return m < 0 || pw_file_write(PLUGINS, g_plugins[1], (unsigned int)m, 0) != m ? -1 : 0;
 }
 
 static int pc_write(const pw_perf_cfg *c)
 {
     static const char *const mode[3] = {"off", "fps", "full"}, *const osd[3] = {"off", "home",
                                                                                 "all"};
-    char t[96];
-    int line = c->mode != PW_PERF_OFF || c->osd == PW_OSD_ALL || c->boost > 0,
-        k = stbsp_snprintf(t, sizeof(t), "mode = %s\nosd = %s\nboost = %d\n", mode[c->mode % 3],
-                           osd[c->osd % 3], c->boost);
+    char t[192];
+    int bright = c->boost > 0 || c->steps,
+        line = c->mode != PW_PERF_OFF || c->osd == PW_OSD_ALL || bright, /* games */
+        vsh = c->osd == PW_OSD_ALL || bright, /* the XMB: the brightness only */
+        k = stbsp_snprintf(t, sizeof(t), "mode = %s\nosd = %s\nboost = %d\nsteps = %s\nlevels =",
+                           mode[c->mode % 3], osd[c->osd % 3], c->boost, c->steps ? "on" : "off");
 
+    for (int i = 0; i < c->nlevels && k < (int)sizeof(t) - 8; i++)
+        k += stbsp_snprintf(t + k, (int)sizeof(t) - k, " %d", c->levels[i]);
+    k += stbsp_snprintf(t + k, (int)sizeof(t) - k, "\n");
     if (pw_file_write(PERF_CFG, t, (unsigned int)k, 0) != k)
         return -1;
-    if (line != g_pc_line) {
-        int n = pw_file_read(PLUGINS, g_plugins[0], PLUGINS_SIZE), m;
-
-        m = hm_plugins_set(g_plugins[0], n > 0 ? n : 0, PERF_PRX, line, g_plugins[1], PLUGINS_SIZE);
-        if (m < 0 || pw_file_write(PLUGINS, g_plugins[1], (unsigned int)m, 0) != m)
-            return -1;
-        g_pc_line = line;
-    }
+    if (line != g_pc_line && pc_line("UMD", line) < 0)
+        return -1;
+    g_pc_line = line;
+    if (vsh != g_pc_vsh && pc_line("VSH", vsh) < 0)
+        return -1;
+    g_pc_vsh = vsh;
     g_pc = *c;
     return 0;
 }
@@ -796,20 +819,22 @@ static void text_osd(int o, char *out, int cap)
                                            : PW_S_OFF));
 }
 
-/* The brightness boost (ADR-045): off, halfway up to the most, the most. Home at once, games
-   from the next one. */
+/* The brightness (ADR-045, ADR-047): the system's steps, boosted halfway up to the most or to
+   the most, or Pocketwatch's own steps for SCREEN (perf.txt levels - what the owner's bright3
+   plugin was for). Home at once, games and the XMB from their next start. */
 static const int k_boost[3] = {0, 50, 100};
 static int get_boost(void)
 {
-    int b = hs_perf_cfg()->boost;
+    const pw_perf_cfg *c = hs_perf_cfg();
 
-    return b >= 100 ? 2 : b > 0 ? 1 : 0;
+    return c->steps ? 3 : c->boost >= 100 ? 2 : c->boost > 0 ? 1 : 0;
 }
 static int set_boost(int o)
 {
     pw_perf_cfg c = *hs_perf_cfg();
 
-    c.boost = k_boost[o % 3];
+    c.steps = o == 3;
+    c.boost = o == 3 ? 0 : k_boost[o % 3];
     return pc_write(&c);
 }
 static void text_boost(int o, char *out, int cap)
@@ -817,6 +842,7 @@ static void text_boost(int o, char *out, int cap)
     stbsp_snprintf(out, cap, "%s",
                    pw_tr(o == 1   ? PW_S_HS_BOOST_HALF
                          : o == 2 ? PW_S_HS_BOOST_MAX
+                         : o == 3 ? PW_S_HS_STEPS
                                   : PW_S_OFF));
 }
 static void text_perf_game(int o, char *out, int cap)
@@ -875,7 +901,7 @@ static const row k_rows[] = {
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
-    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BOOST, 0, three, get_boost, set_boost, text_boost},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BOOST, 0, four, get_boost, set_boost, text_boost},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_OSD, 0, three, get_osd, set_osd, text_osd},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_HOLD, 0, three, get_hold, set_hold, text_hold},

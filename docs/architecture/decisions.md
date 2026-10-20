@@ -970,3 +970,31 @@ decision was taken; the evidence column links the research behind it.
   tables).
 - **Consequences:** test HM32. The lost 32 KB on the owner's card is harmless (`chkdsk /F` makes it
   FOUND.000).
+
+## ADR-047 — Pocketwatch's own brightness steps take bright3's place; the overlay module in the XMB
+
+- **Status:** Accepted (2026-10-20), owner (round 8): "I have some custom plugin for more
+  brightness - remove it, study it and adapt it into Pocketwatch"; "in the XMB, when I change the
+  brightness, no slider is shown"; the performance overlay "looks terrible, not understandable".
+- **Context:** the plugin is `bright3.prx` (VSH, GAME, POPS lines) with `bright3.ini`: a list of
+  backlight levels 0-100 ("28 40 50 60 70 80 90" on the owner's card) that the SCREEN button goes
+  through instead of the system's four. Learnt from its settings file and the system calls it
+  imports only (the display's brightness setter, a start-module handler); no code of it is taken
+  (it has no licence).
+- **Decision:** Settings → Sound and Display → Brightness Boost gains **Own Steps**: a tap of
+  SCREEN (released within 600 ms) is the next of `perf.txt`'s `levels` (default 20 30 40 50 60 70
+  85 100; the owner's card: bright3's list and 100), round; a long press stays the system's
+  (the screen off); whatever the system sets (the charger, a wake, impose's own step) the step's
+  level is put back; the indicator says "5/8 70%". A change while SCREEN is pressed is not counted
+  as another plugin's fight (rapid taps had looked like one). The overlay module also gets a VSH
+  line (on while the indicator is Home and Games, or a boost or the steps): in the XMB it shows only
+  the brightness (the XMB has its own volume bar) and keeps the boost or the steps; no numbers there.
+  bright3's three lines are turned off in the owner's PLUGINS.TXT (its files kept). The numbers in
+  games are short words on a black box; Home's overlay is a card: the frame rate big, then Frame,
+  Slowest, Processor, Free memory, Battery with their values.
+- **Alternatives considered:** keeping bright3 beside the boost (two plugins setting the backlight:
+  RISK-029); a hook in impose's SCREEN handling (a patch in the system's path for a list of
+  numbers); the XMB plugin drawing the indicator (it is at its 64 KB budget).
+- **Consequences:** the module runs in the XMB too (its thread at every vblank; hold START at
+  power-on starts with no plugins if it misbehaves); test PF4; PLUGINS.TXT's `pocketwatch_perf.prx`
+  lines are two (`hm_plugins_set` takes the runlevel).

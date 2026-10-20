@@ -56,7 +56,9 @@ The project's full workflow is imported here and applies to every session:
 - The overlay module also shows the volume and brightness indicator in games and keeps the
   brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all`,
   `boost = 0-100`, written by Home's Settings (Sound and Display), its PLUGINS.TXT line on while a
-  game needs one of them; Home shows the indicator and applies the boost itself.
+  game needs one of them; Home shows the indicator and applies the boost itself. Own Steps
+  (ADR-047, `steps = on`, `levels = ...`): SCREEN taps go through Pocketwatch's levels (bright3's
+  job, which is off now); the module also has a VSH line - in the XMB only the brightness.
 - Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,
   the firmware's netparam calls; `home net:` lines). Imports: never an `IMPORT_START` of a library
   PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs

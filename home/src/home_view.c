@@ -630,20 +630,24 @@ void hm_make_glow(unsigned int c, unsigned int *out)
         }
 }
 
-/* The performance overlay (ADR-043): Home's numbers at the top left, over everything. */
+/* The performance overlay (ADR-043): a card at the top left, over everything - the frame rate
+   big, each value under it with its name (the owner found two lines of numbers "terrible, not
+   understandable", 2026-10-20). */
 static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
-    int w = 0, n = v->perf[1] ? 2 : 1;
+    int w = 200, h = 34 + 15 * v->perf_n + 4, x = 6, y = 6, fw;
 
-    for (int i = 0; i < n; i++) {
-        int t = pw_text_width(ui->body, v->perf[i]);
+    g->rrect(g, x, y, w, h, 8, 0, C_BLACK, 232);
+    g->text(g, ui->title, x + 10, y + 25, v->perf_fps, 80, C_TEXT, 256);
+    fw = pw_text_width(ui->title, v->perf_fps);
+    g->text(g, ui->body, x + 14 + fw, y + 25, "FPS", 60, C_SUB, 256);
+    for (int i = 0; i < v->perf_n; i++) {
+        int ry = y + 34 + 15 * i + 10;
 
-        w = t > w ? t : w;
+        g->text(g, ui->body, x + 10, ry, v->perf_label[i] ? v->perf_label[i] : "", 96, C_SUB, 256);
+        hm_text_right(g, ui->body, x + w - 10, ry, v->perf_value[i] ? v->perf_value[i] : "", C_TEXT,
+                      256);
     }
-    w = hm_clampi(w + 12, 0, HM_W - 8);
-    g->rrect(g, 4, 4, w, 4 + 18 * n, 6, 0, C_BLACK, 190);
-    for (int i = 0; i < n; i++)
-        g->text(g, ui->body, 10, 19 + 18 * i, v->perf[i], w - 12, PW_RGB(255, 255, 255), 256);
 }
 
 /* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom middle, over
@@ -788,7 +792,7 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     else
         hm_draw_modern(g, ui, v);
     osd(g, ui, v);
-    if (v->perf[0])
+    if (v->perf_fps)
         perf_overlay(g, ui, v);
     if (a < 256) /* fading in, or out before a game starts */
         g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, 256 - a);

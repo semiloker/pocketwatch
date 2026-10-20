@@ -412,6 +412,11 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HS_BOOST_HALF] = {"hs_boost_half", "Brighter"},
     [PW_S_HS_BOOST_MAX] = {"hs_boost_max", "Maximum"},
     [PW_S_OSD_MUTED] = {"osd_muted", "Muted"},
+    [PW_S_HS_STEPS] = {"hs_steps", "Own Steps"},
+    [PW_S_PERF_FRAME] = {"perf_frame", "Frame"},
+    [PW_S_PERF_SLOWEST] = {"perf_slowest", "Slowest"},
+    [PW_S_PERF_CPU] = {"perf_cpu", "Processor"},
+    [PW_S_PERF_RAM] = {"perf_ram", "Free memory"},
 #endif
 };
 

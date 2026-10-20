@@ -415,6 +415,11 @@ enum {
     PW_S_HS_BOOST_HALF,
     PW_S_HS_BOOST_MAX,
     PW_S_OSD_MUTED,
+    PW_S_HS_STEPS,
+    PW_S_PERF_FRAME,
+    PW_S_PERF_SLOWEST,
+    PW_S_PERF_CPU,
+    PW_S_PERF_RAM,
     PW_S_COUNT
 };
 

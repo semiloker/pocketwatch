@@ -19,6 +19,27 @@ static int has(const char *s, const char *e, const char *path)
     return 0;
 }
 
+/* Is [s, e) a line of runlevel (its first field, spaces around it and case left out)? */
+static int of_level(const char *s, const char *e, const char *runlevel)
+{
+    int n = (int)strlen(runlevel), i = 0;
+
+    while (s < e && (*s == ' ' || *s == '\t'))
+        s++;
+    while (i < n && s + i < e && (s[i] | 0x20) == (runlevel[i] | 0x20))
+        i++;
+    if (i < n)
+        return 0;
+    for (s += n; s < e && (*s == ' ' || *s == '\t'); s++)
+        ;
+    return s < e && *s == ',';
+}
+
+static int is_line(const char *s, const char *e, const char *runlevel, const char *path)
+{
+    return has(s, e, path) && of_level(s, e, runlevel);
+}
+
 /* The last field of [s, e): "on" (1), "off" (0), else -1. */
 static int state(const char *s, const char *e)
 {
@@ -44,7 +65,8 @@ static int put(char *out, int cap, int n, const char *s, int len)
     return n + len;
 }
 
-int hm_plugins_set(const char *text, int len, const char *path, int on, char *out, int cap)
+int hm_plugins_set(const char *text, int len, const char *runlevel, const char *path, int on,
+                   char *out, int cap)
 {
     const char *p = text, *end = text + len;
     int n = 0, found = 0, crlf = 0;
@@ -56,7 +78,7 @@ int hm_plugins_set(const char *text, int len, const char *path, int on, char *ou
             e++;
         le = e > p && e[-1] == '\r' ? e - 1 : e;
         crlf |= le != e;
-        if (has(p, le, path) && !found) {
+        if (is_line(p, le, runlevel, path) && !found) {
             const char *c = le;
 
             while (c > p && c[-1] != ',')
@@ -71,14 +93,15 @@ int hm_plugins_set(const char *text, int len, const char *path, int on, char *ou
         p = e + 1;
     }
     if (!found && on) {
-        n = put(out, cap, n, "UMD, ", 5);
+        n = put(out, cap, n, runlevel, (int)strlen(runlevel));
+        n = put(out, cap, n, ", ", 2);
         n = put(out, cap, n, path, (int)strlen(path));
         n = put(out, cap, n, crlf ? ", on\r\n" : ", on\n", crlf ? 6 : 5);
     }
     return n;
 }
 
-int hm_plugins_get(const char *text, int len, const char *path)
+int hm_plugins_get(const char *text, int len, const char *runlevel, const char *path)
 {
     const char *p = text, *end = text + len;
 
@@ -88,7 +111,7 @@ int hm_plugins_get(const char *text, int len, const char *path)
         while (e < end && *e != '\n')
             e++;
         le = e > p && e[-1] == '\r' ? e - 1 : e;
-        if (has(p, le, path))
+        if (is_line(p, le, runlevel, path))
             return state(p, le) == 1 ? 1 : 0;
         p = e + 1;
     }

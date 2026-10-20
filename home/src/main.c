@@ -802,26 +802,38 @@ static void cal_texts(void)
 
 static pw_osd g_osd;
 static pw_bright g_bright;
+static pw_steps g_steps;
 
-static void av_frame(unsigned int now)
+static void av_frame(unsigned int now, unsigned int buttons)
 {
-    static unsigned int t_av;
-    static int level = -1, told;
+    static unsigned int t_av, t_screen;
+    static int level = -1, told, steps_set;
     static char text[32];
     const pw_perf_cfg *c = hs_perf_cfg();
-    int kind, set;
+    int kind, set, tap = 0, n = c->steps ? c->nlevels : 4;
 
-    if (g_s.screen_off || (c->osd == PW_OSD_OFF && c->boost == 0 && g_bright.set < 0)) {
+    if (g_s.screen_off ||
+        (c->osd == PW_OSD_OFF && c->boost == 0 && !c->steps && g_bright.set < 0)) {
         g_v.osd = 0;
         return;
     }
-    if (now - t_av >= AV_MS) {
+    if (buttons & PSP_CTRL_SCREEN) /* (a change of the owner's: no fight) */
+        t_screen = now;
+    if (c->steps) /* a tap: Pocketwatch's next step (ADR-047) */
+        tap = pw_steps_button(&g_steps, (buttons & PSP_CTRL_SCREEN) != 0, c->nlevels, now);
+    if (tap || now - t_av >= AV_MS) {
         hm_hw_av av;
 
         t_av = now;
         hm_hw_av_read(&av);
         level = av.level;
-        if ((set = pw_bright_step(&g_bright, av.level, c->boost, now)) > 0 &&
+        if (c->steps && !steps_set && av.level > 0) {
+            g_steps.cur = pw_steps_nearest(c, av.level);
+            steps_set = 1;
+        }
+        if ((set = pw_bright_step(&g_bright, av.level, c->boost,
+                                  c->steps ? c->levels[g_steps.cur % c->nlevels] : 0,
+                                  now - t_screen < 1000, now)) > 0 &&
             hm_hw_set_level(set) == 0)
             level = set;
         if (g_bright.fights >= PW_BRIGHT_FIGHTS && !told) {
@@ -829,7 +841,7 @@ static void av_frame(unsigned int now)
             told = 1;
         }
         if (c->osd != PW_OSD_OFF)
-            pw_osd_step(&g_osd, av.vol, av.mute, av.bright, now);
+            pw_osd_step(&g_osd, av.vol, av.mute, c->steps ? g_steps.cur : av.bright, now);
     }
     kind = c->osd != PW_OSD_OFF ? g_osd.kind : PW_OSD_NONE; /* (its words stay as it fades) */
     g_v.osd = !kind                       ? 0
@@ -847,7 +859,7 @@ static void av_frame(unsigned int now)
     } else if (kind == PW_OSD_BRIGHT) {
         g_v.osd_glyph = HM_ICON_SUN;
         g_v.osd_level = level < 0 ? 0 : (level > 100 ? 100 : level) * 256 / 100;
-        stbsp_snprintf(text, sizeof(text), "%d/4   %d%%", g_osd.bright + 1, level);
+        stbsp_snprintf(text, sizeof(text), "%d/%d   %d%%", g_osd.bright + 1, n, level);
         g_v.osd_text = text;
     }
 }
@@ -857,7 +869,7 @@ static void av_frame(unsigned int now)
 static struct {
     unsigned int t0, frames, cpu_us, ge_us, worst_ms, last;
 } g_perf;
-static char g_perf_line[2][96];
+static char g_perf_fps[8], g_perf_val[6][32];
 
 static void perf_frame(unsigned int now, unsigned int cpu_us, unsigned int ge_us)
 {
@@ -868,39 +880,40 @@ static void perf_frame(unsigned int now, unsigned int cpu_us, unsigned int ge_us
     g_perf.cpu_us += cpu_us;
     g_perf.ge_us += ge_us;
     if (!hm_cfg_get()->perf) {
-        g_v.perf[0] = g_v.perf[1] = 0;
+        g_v.perf_fps = 0;
         return;
     }
     if (now - g_perf.t0 >= 1000) {
         unsigned int ms = now - g_perf.t0, n = g_perf.frames ? g_perf.frames : 1;
-        struct mallinfo mi = mallinfo();
+        unsigned int free_kb = (unsigned int)sceKernelTotalFreeMemSize() >> 10;
         hm_battery b;
+        int k = 0;
 
         hm_hw_battery(&b);
-        stbsp_snprintf(g_perf_line[0], sizeof(g_perf_line[0]),
-                       "%u FPS  CPU %u.%u ms  GE %u.%u ms  max %u ms  %d/%d MHz",
-                       g_perf.frames * 1000 / ms, g_perf.cpu_us / n / 1000,
-                       g_perf.cpu_us / n % 1000 / 100, g_perf.ge_us / n / 1000,
-                       g_perf.ge_us / n % 1000 / 100, g_perf.worst_ms,
-                       scePowerGetCpuClockFrequencyInt(), scePowerGetBusClockFrequencyInt());
-        { /* (what the system does not give is left out) */
-            char *l = g_perf_line[1];
-            int k = stbsp_snprintf(l, sizeof(g_perf_line[1]), "RAM %u KB  heap %u/%u KB",
-                                   (unsigned int)sceKernelTotalFreeMemSize() >> 10,
-                                   (unsigned int)mi.uordblks >> 10, (unsigned int)mi.arena >> 10),
-                cap = (int)sizeof(g_perf_line[1]);
-
-            if (b.pct >= 0)
-                k += stbsp_snprintf(l + k, cap - k, "  BAT %d%%", b.pct);
-            if (b.pct >= 0 && b.ma != PW_BATT_UNKNOWN)
-                k += stbsp_snprintf(l + k, cap - k, " %d mA", b.ma);
-            if (b.mv > 0)
-                k += stbsp_snprintf(l + k, cap - k, " %d.%02d V", b.mv / 1000, b.mv % 1000 / 10);
-            if (b.temp > 0 && b.temp < 80)
-                stbsp_snprintf(l + k, cap - k, " %d C", b.temp);
-        }
-        g_v.perf[0] = g_perf_line[0];
-        g_v.perf[1] = g_perf_line[1];
+        stbsp_snprintf(g_perf_fps, sizeof(g_perf_fps), "%u", g_perf.frames * 1000 / ms);
+#define VAL(label, ...)                                                                            \
+    do {                                                                                           \
+        stbsp_snprintf(g_perf_val[k], sizeof(g_perf_val[k]), __VA_ARGS__);                         \
+        g_v.perf_label[k] = pw_tr(label);                                                          \
+        g_v.perf_value[k] = g_perf_val[k];                                                         \
+        k++;                                                                                       \
+    } while (0)
+        VAL(PW_S_PERF_FRAME, "%u.%u ms", g_perf.cpu_us / n / 1000, g_perf.cpu_us / n % 1000 / 100);
+        VAL(PW_S_PERF_SLOWEST, "%u ms", g_perf.worst_ms);
+        VAL(PW_S_PERF_CPU, "%d MHz", scePowerGetCpuClockFrequencyInt());
+        VAL(PW_S_PERF_RAM, "%u.%u MB", free_kb / 1024, free_kb % 1024 * 10 / 1024);
+        if (b.pct >= 0 && b.ma != PW_BATT_UNKNOWN) /* (what the system does not give: left out) */
+            VAL(PW_S_BATTERY, "%d%%   %d mA", b.pct, b.ma);
+        else if (b.pct >= 0)
+            VAL(PW_S_BATTERY, "%d%%", b.pct);
+        if (b.mv > 0 && b.temp > 0 && b.temp < 80)
+            VAL(PW_S_BAT_VOLTAGE,
+                "%d.%02d V   %d \xC2\xB0"
+                "C",
+                b.mv / 1000, b.mv % 1000 / 10, b.temp);
+#undef VAL
+        g_v.perf_n = k;
+        g_v.perf_fps = g_perf_fps;
         memset(&g_perf, 0, sizeof(g_perf));
         g_perf.t0 = g_perf.last = now;
     }
@@ -2208,9 +2221,9 @@ int main(void)
             g_s.kb_saved = 0;
             t_rows = 0; /* the row shows the new name */
         }
-        net_poll(now); /* a network job's answer */
-        av_frame(now); /* the volume and brightness indicator, the boost */
-        cal_news(now); /* a calibration run ended */
+        net_poll(now);          /* a network job's answer */
+        av_frame(now, buttons); /* the volume and brightness indicator, the boost, the steps */
+        cal_news(now);          /* a calibration run ended */
         /* a page opened or a section changed: its rows now; whose saves are listed */
         if (g_v.depth != was_depth || g_v.tab != was_tab)
             t_rows = 0;

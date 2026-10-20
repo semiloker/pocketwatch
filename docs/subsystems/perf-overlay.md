@@ -36,6 +36,8 @@
 | `PRF-REQ-006` | With Volume and Brightness at Home and Games, the module shows in a game, for 1.5 s after a change of the volume, mute or the SCREEN button's step (read every 6th vblank), a black box with a white edge at the bottom middle: "VOL 18" / "MUTE" / "BRIGHT 3/4 92%" and a bar of 30 or 4 steps (ADR-045). | P1 | Implemented 2026-10-20; host tests `indicator_*` | tests, PF3 |
 | `PRF-REQ-007` | With Brightness Boost on, the module keeps the backlight at the system's level plus the boost's share of the way to 100 whenever the system changes it; the screen off stays off; another setting its own back 4 times within 400 ms of ours makes it give up (ADR-045). | P2 | Implemented 2026-10-20; host test `brightness_*` | tests, PF3 |
 | `PRF-REQ-008` | `perf.txt`: `mode = off|fps|full`, `osd = off|home|all`, `boost = 0-100` (missing: full, home, 0); the module's PLUGINS.TXT line is on while a game needs it (the numbers, the indicator in games, a boost) and off otherwise. | P1 | Implemented 2026-10-20; host test `perf_cfg_*`; PPSSPP checked (both files written) | tests, PF3 |
+| `PRF-REQ-009` | Own Steps (ADR-047): a tap of SCREEN goes to the next of `perf.txt`'s `levels` (round), a long press stays the system's; the step's level is put back whenever the system sets another; in games, the XMB and Home. | P1 | Implemented 2026-10-20; host test `brightness_steps_*` | tests, PF4 |
+| `PRF-REQ-010` | The module also loads in the XMB (a VSH line, on while the indicator is Home and Games, or a boost or the steps): there only the brightness indicator and the boost or steps, no numbers, no volume (the XMB's own bar). | P1 | Implemented 2026-10-20; host test `plugins_txt_keeps_the_module_s_umd_and_vsh_lines_apart` | tests, PF4 |
 | `PRF-NFR-001` | A game with the overlay on saves and loads states as without it (RISK-027). | P1 | RESEARCH REQUIRED | PF2 |
 
 ## C. Architecture and integration
@@ -85,6 +87,7 @@ picture's pixels read back). FPS mode: "60 FPS" only.
 | PRF-REQ-002..004 | PF1 | the overlay in the next game; the combo cycles it; Off removes it at the next game | PSP |
 | PRF-REQ-005, PRF-NFR-001 | PF1, PF2 | the game's frame rate the same with FPS on and off; save, load, Quit Game as without it | PSP |
 | PRF-REQ-006..008 | PF3 | the indicator on each press; the boost brighter, the screen-off and SCREEN still work; the line off again with everything off | PSP |
+| PRF-REQ-009, 010 | PF4 | SCREEN goes through the eight steps in the XMB, Home and a game, each shown; the XMB shows no numbers | PSP |
 
 ## H. Risks and decisions
 

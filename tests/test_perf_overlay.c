@@ -13,8 +13,8 @@ PW_TEST(perf_overlay_lines_leave_out_what_is_not_known)
     CHECK_EQ(pw_perf_lines(&s, PW_PERF_FPS, l), 1);
     CHECK_STR(l[0], "60 FPS");
     CHECK_EQ(pw_perf_lines(&s, PW_PERF_FULL, l), 2);
-    CHECK_STR(l[0], "60 FPS  CPU 43%  333/166 MHz  RAM 12345 KB free");
-    CHECK_STR(l[1], "BAT 83%  -224 mA  4.10 V  20 C  2:31 left");
+    CHECK_STR(l[0], "60 FPS  CPU 43%  333MHz  RAM 12.0MB");
+    CHECK_STR(l[1], "BAT 83%  -224mA  4.10V  20C  2:31");
     s.fps = -1;
     s.cpu_pct = s.free_kb = s.bat_ma = s.bat_mv = s.bat_temp = s.bat_min = PW_PERF_NA;
     s.cpu_mhz = 0;
@@ -55,21 +55,61 @@ PW_TEST(brightness_boost_follows_the_system_and_gives_up_on_a_fight)
     CHECK_EQ(pw_bright_boost(0, 100), 0); /* the screen off stays off */
     CHECK_EQ(pw_bright_boost(72, 0), 72);
     pw_bright_init(&b);
-    CHECK_EQ(pw_bright_step(&b, 60, 50, 1000), 80);   /* the system's 60: ours 80 */
-    CHECK_EQ(pw_bright_step(&b, 80, 50, 1100), -1);   /* ours holds */
-    CHECK_EQ(pw_bright_step(&b, 44, 50, 5000), 72);   /* SCREEN: the next step, boosted */
-    CHECK_EQ(pw_bright_step(&b, 0, 50, 9000), -1);    /* the screen off: left off */
-    CHECK_EQ(pw_bright_step(&b, 44, 50, 9500), 72);   /* and on again */
-    CHECK_EQ(pw_bright_step(&b, 72, 100, 9600), 100); /* the boost raised */
-    CHECK_EQ(pw_bright_step(&b, 100, 0, 9700), 44);   /* and off: the system's level back */
-    CHECK_EQ(pw_bright_step(&b, 44, 0, 9800), -1);
+    CHECK_EQ(pw_bright_step(&b, 60, 50, 0, 0, 1000), 80);   /* the system's 60: ours 80 */
+    CHECK_EQ(pw_bright_step(&b, 80, 50, 0, 0, 1100), -1);   /* ours holds */
+    CHECK_EQ(pw_bright_step(&b, 44, 50, 0, 0, 5000), 72);   /* SCREEN: the next step, boosted */
+    CHECK_EQ(pw_bright_step(&b, 0, 50, 0, 0, 9000), -1);    /* the screen off: left off */
+    CHECK_EQ(pw_bright_step(&b, 44, 50, 0, 0, 9500), 72);   /* and on again */
+    CHECK_EQ(pw_bright_step(&b, 72, 100, 0, 0, 9600), 100); /* the boost raised */
+    CHECK_EQ(pw_bright_step(&b, 100, 0, 0, 0, 9700), 44);   /* and off: the system's level back */
+    CHECK_EQ(pw_bright_step(&b, 44, 0, 0, 0, 9800), -1);
     CHECK_EQ(b.fights, 0);
     /* another plugin putting its level back at once, again and again: given up */
     pw_bright_init(&b);
     for (int i = 0; i < 2 * PW_BRIGHT_FIGHTS; i++)
-        pw_bright_step(&b, 60, 50, 20000 + 100u * i);
+        pw_bright_step(&b, 60, 50, 0, 0, 20000 + 100u * i);
     CHECK(b.fights >= PW_BRIGHT_FIGHTS);
-    CHECK_EQ(pw_bright_step(&b, 60, 50, 30000), -1);
+    CHECK_EQ(pw_bright_step(&b, 60, 50, 0, 0, 30000), -1);
+    /* the same put-backs while the owner presses SCREEN: no fight */
+    pw_bright_init(&b);
+    for (int i = 0; i < 2 * PW_BRIGHT_FIGHTS; i++)
+        pw_bright_step(&b, 60, 50, 0, 1, 20000 + 100u * i);
+    CHECK_EQ(b.fights, 0);
+}
+
+PW_TEST(brightness_steps_are_pocketwatchs_own_levels)
+{
+    static const char t[] = "steps = on\nlevels = 15 35 55 75 100\n";
+    pw_perf_cfg c;
+    pw_bright b;
+    pw_steps st = {0, 0, 0};
+
+    pw_perf_cfg_parse(t, (int)sizeof(t) - 1, &c);
+    CHECK_EQ(c.steps, 1);
+    CHECK_EQ(c.nlevels, 5);
+    CHECK_EQ(c.levels[4], 100);
+    pw_perf_cfg_parse("levels = 50 40\n", 15, &c); /* (not rising: the default ones) */
+    CHECK_EQ(c.steps, 0);
+    CHECK_EQ(c.nlevels, 8);
+    CHECK_EQ(c.levels[0], 20);
+    CHECK_EQ(pw_steps_nearest(&c, 72), 5); /* 70 */
+    /* a tap: the next step on release; a long press (the screen off): none */
+    CHECK_EQ(pw_steps_button(&st, 1, 8, 1000), 0);
+    CHECK_EQ(pw_steps_button(&st, 0, 8, 1200), 1);
+    CHECK_EQ(st.cur, 1);
+    pw_steps_button(&st, 1, 8, 2000);
+    CHECK_EQ(pw_steps_button(&st, 0, 8, 2000 + PW_STEPS_TAP_MS), 0);
+    st.cur = 7;
+    pw_steps_button(&st, 1, 8, 3000);
+    pw_steps_button(&st, 0, 8, 3100);
+    CHECK_EQ(st.cur, 0); /* round */
+    /* the step's level whatever the system sets; the screen off stays off */
+    pw_bright_init(&b);
+    CHECK_EQ(pw_bright_step(&b, 72, 0, 85, 0, 1000), 85);
+    CHECK_EQ(pw_bright_step(&b, 85, 0, 100, 1, 1100), 100); /* the next step */
+    CHECK_EQ(pw_bright_step(&b, 44, 0, 100, 1, 1200), 100); /* impose's own: ours again */
+    CHECK_EQ(pw_bright_step(&b, 0, 0, 100, 0, 5000), -1);
+    CHECK_EQ(pw_bright_step(&b, 100, 0, 0, 0, 6000), -1); /* steps off: the system's */
 }
 
 PW_TEST(indicator_shows_what_changed_for_a_while)
@@ -83,15 +123,17 @@ PW_TEST(indicator_shows_what_changed_for_a_while)
     CHECK_EQ(pw_osd_step(&o, 19, 0, 2, 1000), 1);
     CHECK_EQ(pw_osd_shown(&o, 1000 + PW_OSD_MS - 1), PW_OSD_VOLUME);
     CHECK_EQ(pw_osd_shown(&o, 1000 + PW_OSD_MS), PW_OSD_NONE);
-    pw_osd_text(&o, 72, t);
+    pw_osd_text(&o, 72, 4, t);
     CHECK_STR(t, "VOL 19");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 2, 3000), 1);
-    pw_osd_text(&o, 72, t);
+    pw_osd_text(&o, 72, 4, t);
     CHECK_STR(t, "MUTE");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5000), 1);
     CHECK_EQ(pw_osd_shown(&o, 5100), PW_OSD_BRIGHT);
-    pw_osd_text(&o, 92, t);
+    pw_osd_text(&o, 92, 4, t);
     CHECK_STR(t, "BRIGHT 4/4 92%");
+    pw_osd_text(&o, 92, 8, t);
+    CHECK_STR(t, "BRIGHT 4/8 92%");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5200), 0);
 }
 

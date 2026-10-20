@@ -227,7 +227,11 @@ typedef struct {
     /* A short note at the bottom ("Saved"), fading (0-256) */
     int toast;
     const char *toast_text;
-    const char *perf[2]; /* the performance overlay's lines (ADR-043), NULL: off */
+    /* The performance overlay (ADR-043): the frame rate big, then named values; perf_fps NULL:
+       off */
+    const char *perf_fps;
+    const char *perf_label[6], *perf_value[6];
+    int perf_n;
 
     /* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom while osd > 0 */
     int osd, osd_glyph, osd_level; /* 0-256 fading; its icon; the bar (0-256) */
