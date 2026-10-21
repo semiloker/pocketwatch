@@ -63,7 +63,8 @@ PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 #define XMB_ONCE  PW_DIR "xmb-once"     /* read by the XMB plugin (vsh/src/xboot.c) */
 #define PENDING   PW_DIR "boot-pending" /* the XMB plugin's crash guard: Home did come up */
 #define HOME_CFG  PW_DIR "home.txt"     /* Home's own settings (hcfg.h) */
-#define BROWSER   PW_DIR "browser.txt"  /* the browser's first page (a URL), if not the default */
+#define HOME_SELF "ms0:/PSP/GAME/PocketwatchHome/EBOOT.PBP" /* Home itself (deploy's copy) */
+#define BROWSER   PW_DIR "browser.txt" /* the browser's first page (a URL), if not the default */
 /* A search made for old browsers (plain HTTP; the PSP's browser has no modern TLS). PROPOSED. */
 #define BROWSER_HOME "http://frogfind.com/"
 #define STATS_MS     30000
@@ -1959,21 +1960,17 @@ static void popup_keys(unsigned int ev)
 }
 
 /* After USB: the card may have changed - everything read again. */
+/* After USB, Home starts again before it writes anything (ADR-048): the FAT driver still holds
+   the card's tables as they were before the computer changed them, and a user program may not drop
+   them (0x800200D1, 2026-10-21) - a write from them put seplugins/pocketwatch back and lost what
+   the PC wrote, twice, the second time the PRXs themselves. A start reboots the kernel and its FAT
+   driver with it; until then the card stays lent (nothing of Home's writes). */
 static void usb_end(void)
 {
     hm_usb_stop();
-    hm_hw_card_lent(0); /* the card is ours again */
-    usb_log();          /* what each step did, and the states the link went through */
-    g_s.usb = 0;
-    hm_pages_drop();
-    hm_library_rescan();
-    hm_pages_texts();
-    hm_library_count_free();
-    hm_library_pause(0);
-    hm_music_pause_tags(0);
-    open_tab(g_v.tab);
-    build_all();
-    g_s.snd = HM_SND_BACK;
+    hm_sound_end();
+    hm_launch_eboot(HOME_SELF, 0);
+    sceKernelExitGame(); /* (the start failed: the XMB - a reboot too) */
 }
 
 static void usb_begin(unsigned int now)
@@ -2349,9 +2346,10 @@ int main(void)
         if (g_s.launching >= 0 && now - g_s.t_fade >= FADE_MS)
             launch_now(&st, now);
     }
-    if (g_s.usb) {
+    if (g_s.usb) { /* (leaving in the middle of USB: nothing written, ADR-048) */
         hm_usb_stop();
-        usb_log();
+        sceKernelExitGame();
+        return 0;
     }
     if (g_s.screen_off) /* (never left dark) */
         hm_hw_backlight(1);

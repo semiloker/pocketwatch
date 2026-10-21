@@ -141,6 +141,15 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
   same day; previews `home-calibration.png`, `home-osd.png`; PPSSPP: the Wi-Fi search, the
   settings' files.
 
+## Device results 2026-10-21, round 9 (owner, build `b91f3e3`, `home.log`, chkdsk)
+
+- "Pocketwatch does not start with the console; in games neither the hub nor the overlay": the
+  card's `pocketwatch.prx` and `pocketwatch_xmb.prx` were broken - Home's write after USB came
+  from the stale FAT tables again, because ADR-046's cache drop is refused to a user program
+  (`cache dropped 800200D1`). VERIFIED by chkdsk ("first allocation unit is not valid", 5 lost
+  chains). Fixed: after USB Home starts again before any write (ADR-048). The card: `chkdsk /F`,
+  then a deploy.
+
 ## Device results 2026-10-20, round 8 (owner, build `f36f0f5`, spoken and `home.log`)
 
 - "The overlay and the indicator are still not seen in games": `pocketwatch_perf.prx` was lost
@@ -155,7 +164,8 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 
 ## Next actions (in order)
 
-0. **Owner (round 9):** PF4 (Own Steps in Home, the XMB, a game), PF1 and PF3 (the overlay and the
+0. **Owner (round 10, after `chkdsk /F` and a deploy):** HM32 first (USB: Home starts again
+   after it), then the round 9 list. **Round 9 (still):** PF4 (Own Steps in Home, the XMB, a game), PF1 and PF3 (the overlay and the
    indicator in a game), HM33 (Wi-Fi: make the connection), HM32 (USB, now with the new Home);
    send `home.log`. **Before (round 8):** deploy, then **turn the PSP off from Home's USB screen** (the old Home's
    exit from USB would undo the deploy once more); HM32 (USB), HM33 (Wi-Fi: make the home network's

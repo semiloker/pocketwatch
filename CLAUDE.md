@@ -64,7 +64,8 @@ The project's full workflow is imported here and applies to every session:
   PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs
   out of order" built Home's `sceNetInet` table over `sceNet`'s (0x8002013A); `make check` fails
   on a stub in two tables. Extra NIDs of an SDK library: `IMPORT_FUNC`s linked right after it
-  (`home/src/apctl_scan.S`). After USB Home drops the FAT driver's cache before writing (ADR-046).
+  (`home/src/apctl_scan.S`). After USB Home writes nothing and starts again (ADR-048): the FAT driver's stale tables
+  broke the card's PRXs once (a user program may not drop them, 0x800200D1).
 - Home keeps the clock (ADR-041): at its start, before any write, a lost clock (the kernel refuses
   it, or it reads before 2016) is set to the newest file time of 2016 or later; Settings → Date and
   Time → Set Time from Internet (SNTP on a thread); `home clock:` lines in `home.log`. Home's

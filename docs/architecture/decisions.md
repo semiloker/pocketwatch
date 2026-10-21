@@ -954,7 +954,8 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-046 — After USB, the FAT driver's cached tables are dropped before Home writes
 
-- **Status:** Accepted (2026-10-20), from the owner's round 7: "the overlay does not work in the
+- **Status:** Superseded by ADR-048 (2026-10-21: the call is refused to a user program). Accepted
+  2026-10-20, from the owner's round 7: "the overlay does not work in the
   game" - `pocketwatch_perf.prx` was not on the card.
 - **Context:** VERIFIED (the card, chkdsk, [log](../research/logs/2026-10-20-round7-home.log)): the
   deploy copied it (hash checked) while Home lent the card over USB; when USB ended Home appended
@@ -998,3 +999,24 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** the module runs in the XMB too (its thread at every vblank; hold START at
   power-on starts with no plugins if it misbehaves); test PF4; PLUGINS.TXT's `pocketwatch_perf.prx`
   lines are two (`hm_plugins_set` takes the runlevel).
+
+## ADR-048 — After USB, Home starts again before it writes anything
+
+- **Status:** Accepted (2026-10-21), from the owner's round 9: "Pocketwatch does not start with the
+  console, in games neither the hub nor the overlay".
+- **Context:** VERIFIED (`home.log`, chkdsk 2026-10-21): ADR-046's `sceIoDevctl("fatms0:",
+  0x0240D81E)` answered 0x800200D1 to Home (a user program; oslib and Custom Home called it from
+  kernel mode). So Home's line after USB was written from the stale tables once more: the folder
+  put back, `pocketwatch.prx` and `pocketwatch_xmb.prx` pointing at clusters the PC had freed
+  ("first allocation unit is not valid"), the PC's copies lost (5 chains, 384 KB) - the game plugin
+  and the XMB plugin no longer loaded (no hub, no start in Home). Not the PSP, not another plugin.
+- **Decision:** when USB ends Home writes nothing - no log line, no settings, no stamps - and starts
+  itself again (`hm_launch_eboot` of `PSP/GAME/PocketwatchHome/EBOOT.PBP`; the XMB if that fails):
+  the start reboots the kernel, its FAT driver with it, which reads the card afresh. Leaving Home
+  during USB writes nothing either. The card stays lent (Home's writers off) until then.
+- **Alternatives considered:** the same devctl in kernel mode through KUBridge (its effect on the
+  6.61 FAT driver is not documented; a third loss would cost the owner's card again); unassigning
+  `ms0:` (fails while a file is open).
+- **Consequences:** a few seconds' restart after every USB session; the USB line of its end is no
+  longer in `home.log` (its start's still is). The owner's card needs `chkdsk /F` and a deploy
+  once. HM32 again.

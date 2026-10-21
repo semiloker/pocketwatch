@@ -308,3 +308,13 @@ risk; close it with the evidence.
 - **Mitigation:** off by default; given up after 4 put-backs within 400 ms of ours (logged in Home:
   `home brightness:`), a change while SCREEN is pressed not counted; the screen off is never turned
   on. bright3 is turned off in the owner's PLUGINS.TXT since Own Steps took its place (ADR-047).
+
+## RISK-030 — Home writes to the card from the FAT driver's stale tables after USB
+
+- **Description:** while the PC has the card, the PSP's FAT driver keeps its cached copy of the
+  tables; a write by Home after USB puts a folder back from it - files the PC added or replaced are
+  lost or broken (2026-10-20 twice, 2026-10-21 the PRXs: the game and XMB plugins did not load).
+- **Likelihood M** (every USB session from Home) / **Impact H** (Pocketwatch stops loading; the
+  card needs `chkdsk /F`).
+- **Mitigation:** ADR-048: nothing written after USB, Home starts again (a kernel reboot); the
+  writers are off while the card is lent; HM32 checks it with a file copied in and chkdsk.
