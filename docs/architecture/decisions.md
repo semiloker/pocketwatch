@@ -992,7 +992,8 @@ decision was taken; the evidence column links the research behind it.
   the brightness (the XMB has its own volume bar) and keeps the boost or the steps; no numbers there.
   bright3's three lines are turned off in the owner's PLUGINS.TXT (its files kept). The numbers in
   games are short words on a black box; Home's overlay is a card: the frame rate big, then Frame,
-  Slowest, Processor, Free memory, Battery with their values.
+  Slowest, Processor, Free memory, Battery with their values. (The in-XMB part was withdrawn by
+  ADR-049: the module runs only in a real game, never in the XMB.)
 - **Alternatives considered:** keeping bright3 beside the boost (two plugins setting the backlight:
   RISK-029); a hook in impose's SCREEN handling (a patch in the system's path for a list of
   numbers); the XMB plugin drawing the indicator (it is at its 64 KB budget).
@@ -1020,3 +1021,33 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** a few seconds' restart after every USB session; the USB line of its end is no
   longer in `home.log` (its start's still is). The owner's card needs `chkdsk /F` and a deploy
   once. HM32 again.
+
+## ADR-049 — The overlay module runs only in a real game (never in the XMB or Home)
+
+- **Status:** Accepted (2026-10-21), from the owner's round 9: after the card was fixed and the
+  module finally loaded for real, "Pocketwatch does not start with the console; in games neither
+  the hub nor the overlay".
+- **Context:** VERIFIED (`home.log`, `boot.txt`, PPSSPP). The overlay was "never seen in games"
+  because its file kept being wiped by the FAT bug (ADR-048); once the card was repaired the module
+  loaded for the first time, at the XMB (its VSH line, ADR-047) and when Home launched. Its kernel
+  thread reads and writes the display framebuffer; during the XMB→Home boot handoff this crashed
+  Home before its first frame (`boot.txt`: Home start, then the guard's "Home did not start"; no
+  line in `home.log`). The same build of Home starts perfectly in PPSSPP, so the module, not Home's
+  code, was the cause. The console power-offs the owner also saw were the earlier corrupt-PRX phase
+  (ADR-048), fixed by `chkdsk /F`.
+- **Decision:** the module does nothing outside a real disc/ISO game: `module_start` checks
+  `is_disc_apitype(sceKernelInitApitype())` (the game plugin's own check, `core/game.c`) and starts
+  its thread only then - in Home and the XMB it loads but never touches the display, the controller
+  or the syscon, so it cannot affect boot. No VSH line (the XMB brightness indicator and in-XMB
+  steps are withdrawn); Home's Settings manage the one game (UMD) line. The thread also waits ~2 s
+  into a game before its first framebuffer write. Confirmed on the device by elimination: with the
+  module's lines off, the console boots Home reliably (round 9 follow-up).
+- **Alternatives considered:** detecting the XMB by module name at run time (what crashed was the
+  boot handoff, before any such check ran); a user-mode overlay (cannot write another process's
+  framebuffer); keeping the in-XMB brightness (not worth a kernel module in the boot path -
+  bright3, the owner's own plugin, remains the safe way to get XMB brightness).
+- **Consequences:** the overlay, the indicator and Own Steps work in games and in Home (Home draws
+  and applies them itself, no module); in the XMB there is no Pocketwatch brightness. The in-game
+  module is still experimental (never validated on the device); the apitype guard means its worst
+  case is one game misbehaving, never a boot that fails. Test PF1/PF3/PF4 in one game; the module's
+  lines stay off until the owner turns a feature on. RISK-031.

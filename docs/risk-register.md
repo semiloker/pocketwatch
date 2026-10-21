@@ -318,3 +318,15 @@ risk; close it with the evidence.
   card needs `chkdsk /F`).
 - **Mitigation:** ADR-048: nothing written after USB, Home starts again (a kernel reboot); the
   writers are off while the card is lent; HM32 checks it with a file copied in and chkdsk.
+
+## RISK-031 — The in-game overlay module writes to the framebuffer from a kernel thread
+
+- **Description:** the overlay module (perf/) is a kernel module whose thread writes into the
+  displayed framebuffer each vblank; it has never been validated in a real game on the device. In
+  the XMB/boot context it crashed Home's start (ADR-049, 2026-10-21).
+- **Likelihood M** (whenever a feature that loads it is on) / **Impact M** (a game that crashes or
+  a corrupt frame; no longer boot, since ADR-049 keeps it out of Home and the XMB).
+- **Mitigation:** ADR-049 - the module's thread runs only in a real disc/ISO game
+  (`is_disc_apitype`), never in Home or the XMB, so it cannot affect boot; a ~2 s grace period
+  before the first write; the framebuffer-size and internal-framebuffer guards; off by default. To
+  be validated in one game (PF1/PF4) before it is recommended.

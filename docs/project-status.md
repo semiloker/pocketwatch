@@ -149,6 +149,12 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
   (`cache dropped 800200D1`). VERIFIED by chkdsk ("first allocation unit is not valid", 5 lost
   chains). Fixed: after USB Home starts again before any write (ADR-048). The card: `chkdsk /F`,
   then a deploy.
+- **After the card was repaired, Home still did not start** (black screen, the guard fell to the
+  XMB): the now-valid overlay module loaded for the first time (its VSH line + when Home launched)
+  and its kernel thread crashed Home before its first frame. VERIFIED by elimination - the same
+  Home starts perfectly in PPSSPP, and with the module's lines off the console boots Home reliably
+  (owner confirmed 2026-10-21). Fixed (ADR-049): the module runs only in a real game, never in Home
+  or the XMB.
 
 ## Device results 2026-10-20, round 8 (owner, build `f36f0f5`, spoken and `home.log`)
 
@@ -164,8 +170,10 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
 
 ## Next actions (in order)
 
-0. **Owner (round 10, after `chkdsk /F` and a deploy):** HM32 first (USB: Home starts again
-   after it), then the round 9 list. **Round 9 (still):** PF4 (Own Steps in Home, the XMB, a game), PF1 and PF3 (the overlay and the
+0. **Owner (round 10, build with ADR-049):** boot the console a few times - it must always reach
+   Home (the module can no longer touch boot). Then, to try the in-game overlay safely: Settings →
+   Pocketwatch → Overlay in Games → Full, start ONE game, check it, Quit. bright3 stays off; for XMB
+   brightness the owner can re-enable bright3 (its own plugin). **Earlier (still open):** PF4 (Own Steps in Home and a game), PF1 and PF3 (the overlay and the
    indicator in a game), HM33 (Wi-Fi: make the connection), HM32 (USB, now with the new Home);
    send `home.log`. **Before (round 8):** deploy, then **turn the PSP off from Home's USB screen** (the old Home's
    exit from USB would undo the deploy once more); HM32 (USB), HM33 (Wi-Fi: make the home network's

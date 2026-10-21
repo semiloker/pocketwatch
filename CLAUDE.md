@@ -58,7 +58,10 @@ The project's full workflow is imported here and applies to every session:
   `boost = 0-100`, written by Home's Settings (Sound and Display), its PLUGINS.TXT line on while a
   game needs one of them; Home shows the indicator and applies the boost itself. Own Steps
   (ADR-047, `steps = on`, `levels = ...`): SCREEN taps go through Pocketwatch's levels (bright3's
-  job, which is off now); the module also has a VSH line - in the XMB only the brightness.
+  job, which is off now). The module runs ONLY in a real disc/ISO game (ADR-049:
+  `is_disc_apitype` in `module_start`) - never in Home or the XMB, so it cannot affect boot; one
+  game (UMD) line, no VSH line. In-game it is still experimental; validate in one game before
+  trusting it. For XMB brightness there is no Pocketwatch option - bright3 remains the safe way.
 - Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,
   the firmware's netparam calls; `home net:` lines). Imports: never an `IMPORT_START` of a library
   PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs

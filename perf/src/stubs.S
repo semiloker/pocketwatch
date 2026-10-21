@@ -29,8 +29,8 @@
 	IMPORT_START "sceCtrl_driver",0x00010000
 	IMPORT_FUNC  "sceCtrl_driver",0x3A622550,sceCtrlPeekBufferPositive
 
-	IMPORT_START "LoadCoreForKernel",0x00010000
-	IMPORT_FUNC  "LoadCoreForKernel",0xCF8A41B1,sceKernelFindModuleByName
+	IMPORT_START "InitForKernel",0x00010000
+	IMPORT_FUNC  "InitForKernel",0x7A2333AD,sceKernelInitApitype
 
 	IMPORT_START "sceImpose_driver",0x00010000
 	IMPORT_FUNC  "sceImpose_driver",0x531C9778,sceImposeGetParam

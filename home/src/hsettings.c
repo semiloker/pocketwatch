@@ -723,9 +723,10 @@ static char g_plugins[2][PLUGINS_SIZE];
    brightness indicator, the boost - Home uses the last two too. The module's line in PLUGINS.TXT
    is on while a game needs it: the numbers, the indicator in games, a boost. */
 static pw_perf_cfg g_pc;
-static int g_pc_read, g_pc_line, g_pc_vsh; /* read; the module's game line, XMB line are on */
+static int g_pc_read, g_pc_line; /* read; the module's game line is on */
 
 static int pc_write(const pw_perf_cfg *c);
+static int pc_line(const char *runlevel, int on);
 
 const pw_perf_cfg *hs_perf_cfg(void)
 {
@@ -736,15 +737,16 @@ const pw_perf_cfg *hs_perf_cfg(void)
 
         pw_perf_cfg_parse(t, m > 0 ? m : 0, &g_pc);
         g_pc_line = n > 0 && hm_plugins_get(g_plugins[0], n, "UMD", PERF_PRX) == 1;
-        g_pc_vsh = n > 0 && hm_plugins_get(g_plugins[0], n, "VSH", PERF_PRX) == 1;
         if (!g_pc_line) /* (not loaded: no numbers in games, whatever the file says) */
             g_pc.mode = PW_PERF_OFF;
         g_pc_read = 1;
-        { /* the module's lines as the settings want them (the XMB's since ADR-047): once */
+        /* an old VSH line (ADR-047, before the module became games-only) turned off once */
+        if (n > 0 && hm_plugins_get(g_plugins[0], n, "VSH", PERF_PRX) == 1)
+            pc_line("VSH", 0);
+        { /* the module's one line (games) as the settings want it: once */
             int bright = g_pc.boost > 0 || g_pc.steps;
 
-            if (g_pc_line != (g_pc.mode != PW_PERF_OFF || g_pc.osd == PW_OSD_ALL || bright) ||
-                g_pc_vsh != (g_pc.osd == PW_OSD_ALL || bright))
+            if (g_pc_line != (g_pc.mode != PW_PERF_OFF || g_pc.osd == PW_OSD_ALL || bright))
                 pc_write(&g_pc);
         }
     }
@@ -767,8 +769,7 @@ static int pc_write(const pw_perf_cfg *c)
                                                                                 "all"};
     char t[192];
     int bright = c->boost > 0 || c->steps,
-        line = c->mode != PW_PERF_OFF || c->osd == PW_OSD_ALL || bright, /* games */
-        vsh = c->osd == PW_OSD_ALL || bright, /* the XMB: the brightness only */
+        line = c->mode != PW_PERF_OFF || c->osd == PW_OSD_ALL || bright, /* games only (ADR-049) */
         k = stbsp_snprintf(t, sizeof(t), "mode = %s\nosd = %s\nboost = %d\nsteps = %s\nlevels =",
                            mode[c->mode % 3], osd[c->osd % 3], c->boost, c->steps ? "on" : "off");
 
@@ -780,9 +781,6 @@ static int pc_write(const pw_perf_cfg *c)
     if (line != g_pc_line && pc_line("UMD", line) < 0)
         return -1;
     g_pc_line = line;
-    if (vsh != g_pc_vsh && pc_line("VSH", vsh) < 0)
-        return -1;
-    g_pc_vsh = vsh;
     g_pc = *c;
     return 0;
 }
