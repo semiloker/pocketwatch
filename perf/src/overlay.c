@@ -406,6 +406,24 @@ void pw_perf_box(void *fb, int stride, int fmt, int w, int h, int x, int y, int 
     box(fb, stride, fmt, w, h, x, y, bw, bh, 0);
 }
 
+void pw_fbset_add(pw_fbset *s, unsigned int fb, int w, int f)
+{
+    if (!fb)
+        return;
+    for (int i = 0; i < s->n; i++)
+        if (s->fb[i] == fb) {
+            s->w[i] = w;
+            s->f[i] = f;
+            return;
+        }
+    s->fb[s->next] = fb;
+    s->w[s->next] = w;
+    s->f[s->next] = f;
+    s->next = (s->next + 1) % PW_FB_MAX;
+    if (s->n < PW_FB_MAX)
+        s->n++;
+}
+
 void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
                  int n)
 {

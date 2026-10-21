@@ -118,6 +118,22 @@ int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
    o->bright of steps (the system's four, or Pocketwatch's). */
 void pw_osd_text(const pw_osd *o, int level, int steps, char out[PW_PERF_COLS + 1]);
 
+/* ---- the game's display framebuffers ----
+
+   The game cycles through two or three buffers (double/triple buffering) and shows them in turn;
+   writing the overlay into only one makes it appear every other frame - the flicker the owner saw.
+   The module remembers the buffers it has shown and draws into all of them, so whichever is on
+   screen carries the overlay. */
+#define PW_FB_MAX 4
+typedef struct {
+    unsigned int fb[PW_FB_MAX];
+    int w[PW_FB_MAX], f[PW_FB_MAX]; /* each one's line width (pixels) and pixel format */
+    int n;                          /* distinct buffers kept */
+    int next;                       /* where the next new one goes (the oldest is dropped) */
+} pw_fbset;
+/* Remember a shown framebuffer; an address already kept has its width/format refreshed. */
+void pw_fbset_add(pw_fbset *s, unsigned int fb, int w, int f);
+
 /* The indicator in a game's frame: a black box with a white edge at the bottom middle, label in
    it and a bar of n steps, k of them lit (format, clip: pw_perf_draw's). */
 #define PW_OSD_W 280

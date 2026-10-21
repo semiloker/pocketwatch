@@ -177,3 +177,36 @@ PW_TEST(indicator_box_is_drawn_inside_the_frame)
     CHECK_EQ(fb[(y0 - 1) * 480 + x0], 0x55555555u);        /* above it: untouched */
     CHECK_EQ(fb[(y0 + 10) * 480 + x0 + 265], 0xFF404040u); /* the last step: not lit */
 }
+
+PW_TEST(fbset_keeps_distinct_buffers_and_drops_the_oldest)
+{
+    pw_fbset s;
+    int has_old = 0, has_new = 0;
+
+    memset(&s, 0, sizeof(s));
+    pw_fbset_add(&s, 0x04000000, 512, 3);
+    pw_fbset_add(&s, 0x04088000, 512, 3);
+    pw_fbset_add(&s, 0x04000000, 512, 3); /* the same one again: not counted twice */
+    CHECK_EQ(s.n, 2);
+    pw_fbset_add(&s, 0, 512, 3); /* a null address is ignored */
+    CHECK_EQ(s.n, 2);
+    pw_fbset_add(&s, 0x1, 480, 0);
+    pw_fbset_add(&s, 0x2, 480, 0);
+    CHECK_EQ(s.n, PW_FB_MAX);      /* four distinct */
+    pw_fbset_add(&s, 0x3, 480, 0); /* a fifth: the oldest (0x04000000) drops */
+    CHECK_EQ(s.n, PW_FB_MAX);
+    for (int i = 0; i < s.n; i++) {
+        if (s.fb[i] == 0x04000000)
+            has_old = 1;
+        if (s.fb[i] == 0x3)
+            has_new = 1;
+    }
+    CHECK_EQ(has_old, 0);
+    CHECK_EQ(has_new, 1);
+    pw_fbset_add(&s, 0x2, 1024, 1); /* an address already kept: its width/format refreshed */
+    for (int i = 0; i < s.n; i++)
+        if (s.fb[i] == 0x2) {
+            CHECK_EQ(s.w[i], 1024);
+            CHECK_EQ(s.f[i], 1);
+        }
+}

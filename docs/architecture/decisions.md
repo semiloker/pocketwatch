@@ -1050,4 +1050,6 @@ decision was taken; the evidence column links the research behind it.
   and applies them itself, no module); in the XMB there is no Pocketwatch brightness. The in-game
   module is still experimental (never validated on the device); the apitype guard means its worst
   case is one game misbehaving, never a boot that fails. Test PF1/PF3/PF4 in one game; the module's
-  lines stay off until the owner turns a feature on. RISK-031.
+  lines stay off until the owner turns a feature on. RISK-031. The overlay draws into every
+  framebuffer the game shows (`pw_fbset`), not one: the PSP double-buffers, so a single-buffer
+  write appeared every other frame - the flicker the owner saw (2026-10-21, PRF-REQ-011).
