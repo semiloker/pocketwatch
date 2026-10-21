@@ -4,21 +4,25 @@
 #include "overlay.h"
 #include "pwtest.h"
 
-PW_TEST(perf_overlay_lines_leave_out_what_is_not_known)
+PW_TEST(perf_overlay_rows_are_a_labelled_card_and_leave_out_the_unknown)
 {
     pw_perf_stats s = {60, 43, 333, 166, 12345, 83, -224, 4105, 20, 151};
-    char l[2][PW_PERF_COLS + 1];
+    char l[PW_PERF_ROWS][PW_PERF_COLS + 1];
 
-    CHECK_EQ(pw_perf_lines(&s, PW_PERF_OFF, l), 0);
-    CHECK_EQ(pw_perf_lines(&s, PW_PERF_FPS, l), 1);
+    CHECK_EQ(pw_perf_rows(&s, PW_PERF_OFF, l), 0);
+    CHECK_EQ(pw_perf_rows(&s, PW_PERF_FPS, l), 1);
     CHECK_STR(l[0], "60 FPS");
-    CHECK_EQ(pw_perf_lines(&s, PW_PERF_FULL, l), 2);
-    CHECK_STR(l[0], "60 FPS  CPU 43%  333MHz  RAM 12.0MB");
-    CHECK_STR(l[1], "BAT 83%  -224mA  4.10V  20C  2:31");
+    CHECK_EQ(pw_perf_rows(&s, PW_PERF_FULL, l), 6); /* a short row each */
+    CHECK_STR(l[0], "60 FPS");
+    CHECK_STR(l[1], "CPU 43%");
+    CHECK_STR(l[2], "333 MHz");
+    CHECK_STR(l[3], "RAM 12.0M");
+    CHECK_STR(l[4], "BAT 83% -224");
+    CHECK_STR(l[5], "4.10V 20C");
     s.fps = -1;
     s.cpu_pct = s.free_kb = s.bat_ma = s.bat_mv = s.bat_temp = s.bat_min = PW_PERF_NA;
     s.cpu_mhz = 0;
-    pw_perf_lines(&s, PW_PERF_FULL, l);
+    CHECK_EQ(pw_perf_rows(&s, PW_PERF_FULL, l), 2); /* only FPS (unknown) and BAT% left */
     CHECK_STR(l[0], "-- FPS");
     CHECK_STR(l[1], "BAT 83%");
     CHECK_EQ(pw_perf_next(PW_PERF_OFF), PW_PERF_FPS);

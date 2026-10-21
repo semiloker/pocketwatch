@@ -67,7 +67,7 @@ static SceUID g_thread = -1;
 
 static int g_mode = PW_PERF_FULL;
 static pw_perf_cfg g_cfg;
-static pw_perf_mask g_mask[2], g_osd_mask;
+static pw_perf_mask g_mask[PW_PERF_ROWS], g_osd_mask;
 static int g_lines;
 
 static SceUID g_idle[2]; /* the idle threads: what they ran is the CPU left over */
@@ -126,9 +126,9 @@ static unsigned long long idle_us(void)
 
 static void lines(const pw_perf_stats *s)
 {
-    char l[2][PW_PERF_COLS + 1];
+    char l[PW_PERF_ROWS][PW_PERF_COLS + 1];
 
-    g_lines = pw_perf_lines(s, g_mode, l);
+    g_lines = pw_perf_rows(s, g_mode, l);
     for (int i = 0; i < g_lines; i++)
         pw_perf_render(l[i], &g_mask[i]);
 }
@@ -192,16 +192,18 @@ static void osd_draw(void *top, int bufw, int fmt, unsigned int now, int hub)
         pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright + 1, steps_n());
 }
 
-/* The numbers on a black box: the owner could not read them over a game's picture. */
+/* A narrow card at the top left, a labelled row each (like Home's overlay): compact, not a wide
+   banner (the owner, 2026-10-21). */
+#define ROW_PITCH 9
 static void lines_draw(void *top, int bufw, int fmt)
 {
     int w = 0;
 
     for (int i = 0; i < g_lines; i++)
         w = g_mask[i].w > w ? g_mask[i].w : w;
-    pw_perf_box(top, bufw, fmt, SCREEN_W, SCREEN_H, 2, 2, w + 6, g_lines * 11 + 4);
+    pw_perf_box(top, bufw, fmt, SCREEN_W, SCREEN_H, 3, 3, w + 6, g_lines * ROW_PITCH + 5);
     for (int i = 0; i < g_lines; i++)
-        pw_perf_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, 5, 4 + i * 11, &g_mask[i]);
+        pw_perf_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, 6, 5 + i * ROW_PITCH, &g_mask[i]);
 }
 
 static int perf_thread(SceSize args, void *argp)

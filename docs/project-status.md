@@ -155,11 +155,13 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
   Home starts perfectly in PPSSPP, and with the module's lines off the console boots Home reliably
   (owner confirmed 2026-10-21). Fixed (ADR-049): the module runs only in a real game, never in Home
   or the XMB.
-- With the module on in a game the owner found the overlay "terrible" and "flickers constantly",
-  the indicator not shown in-game. The flicker is the PSP's double-buffering - the overlay now goes
-  into every framebuffer the game shows (PRF-REQ-011), not one. The in-game look (an 8x8 font drawn
-  pixel-by-pixel into the game's frame) and whether the flicker is gone are RESEARCH REQUIRED (not
-  reproducible off the device); Home's own overlay is the reliable one.
+- With the module on in a game the owner found the overlay "terrible", "flickers constantly", too
+  big, and the indicator not shown in-game. The flicker is the PSP's double-buffering - the overlay
+  now goes into every framebuffer the game shows (PRF-REQ-011), not one. The overlay is a compact
+  vertical card with a labelled row each ("60 FPS", "CPU 43%", ...) like Home's, rounded, about
+  half the old width (host render in scratchpad). The 8x8 font cannot match Home's (it is drawn
+  pixel-by-pixel into the game's frame, no GE); whether the flicker is gone is RESEARCH REQUIRED
+  (not reproducible off the device). Home's own overlay stays the reliable one.
 
 ## Device results 2026-10-20, round 8 (owner, build `f36f0f5`, spoken and `home.log`)
 

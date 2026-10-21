@@ -12,7 +12,8 @@
 enum { PW_PERF_OFF, PW_PERF_FPS, PW_PERF_FULL };
 
 #define PW_PERF_NA   (-32768) /* a value not known */
-#define PW_PERF_COLS 40       /* characters on a line (the longest is about 36) */
+#define PW_PERF_COLS 18       /* characters on a row of the card (short labels) */
+#define PW_PERF_ROWS 6        /* rows of the card at most */
 
 typedef struct {
     int fps;              /* frames the game showed in the last second */
@@ -22,9 +23,9 @@ typedef struct {
     int bat_pct, bat_ma, bat_mv, bat_temp, bat_min; /* the battery: %, mA, mV, C, minutes left */
 } pw_perf_stats;
 
-/* The lines for mode (PW_PERF_FPS: one, PW_PERF_FULL: two): how many. Unknown values are left
-   out. */
-int pw_perf_lines(const pw_perf_stats *s, int mode, char lines[2][PW_PERF_COLS + 1]);
+/* The card's rows for mode (FPS: one; Full: a short labelled row each, like Home's overlay -
+   "60 FPS", "CPU 43%", "333 MHz", ...): how many. Unknown values are left out. */
+int pw_perf_rows(const pw_perf_stats *s, int mode, char rows[PW_PERF_ROWS][PW_PERF_COLS + 1]);
 
 /* A line's pixels, made once a second (pw_perf_render) and written into every frame
    (pw_perf_draw): its letters and their black outline, a bit each - finding the outline is what

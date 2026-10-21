@@ -43,68 +43,73 @@ static void put_cents(line *l, int v)
     put_int(l, v % 100);
 }
 
-/* The owner found the first lines "terrible, not understandable" (2026-10-20): short words, the
-   game's numbers first, the battery under them. */
-int pw_perf_lines(const pw_perf_stats *s, int mode, char lines[2][PW_PERF_COLS + 1])
+/* A short labelled row per value, like Home's overlay (the owner wanted the in-game overlay to
+   look like the menu's): "60 FPS", "CPU 43%", ... - a narrow vertical card, not one wide line. */
+int pw_perf_rows(const pw_perf_stats *s, int mode, char rows[PW_PERF_ROWS][PW_PERF_COLS + 1])
 {
-    line a = {lines[0], 0}, b = {lines[1], 0};
+    int n = 0;
 
-    lines[0][0] = lines[1][0] = 0;
+    for (int i = 0; i < PW_PERF_ROWS; i++)
+        rows[i][0] = 0;
     if (mode == PW_PERF_OFF)
         return 0;
-    if (s->fps >= 0) {
-        put_int(&a, s->fps);
-        put(&a, " FPS");
-    } else {
-        put(&a, "-- FPS"); /* the game showed no new frame (or always the same one) */
+    {
+        line a = {rows[n++], 0};
+
+        if (s->fps >= 0) {
+            put_int(&a, s->fps);
+            put(&a, " FPS");
+        } else {
+            put(&a, "-- FPS"); /* the game showed no new frame (or always the same one) */
+        }
     }
     if (mode == PW_PERF_FPS)
         return 1;
-    if (s->cpu_pct != PW_PERF_NA) {
-        put(&a, "  CPU ");
+    if (s->cpu_pct != PW_PERF_NA && n < PW_PERF_ROWS) {
+        line a = {rows[n++], 0};
+
+        put(&a, "CPU ");
         put_int(&a, s->cpu_pct);
         put(&a, "%");
     }
-    if (s->cpu_mhz > 0) {
-        put(&a, "  ");
+    if (s->cpu_mhz > 0 && n < PW_PERF_ROWS) {
+        line a = {rows[n++], 0};
+
         put_int(&a, s->cpu_mhz);
-        put(&a, "MHz");
+        put(&a, " MHz");
     }
-    if (s->free_kb != PW_PERF_NA) { /* free user memory, MB with a tenth */
-        put(&a, "  RAM ");
+    if (s->free_kb != PW_PERF_NA && n < PW_PERF_ROWS) {
+        line a = {rows[n++], 0}; /* free user memory, MB with a tenth */
+
+        put(&a, "RAM ");
         put_int(&a, s->free_kb / 1024);
         put(&a, ".");
         put_int(&a, s->free_kb % 1024 * 10 / 1024);
-        put(&a, "MB");
+        put(&a, "M");
     }
-    put(&b, "BAT");
-    if (s->bat_pct != PW_PERF_NA) {
-        put(&b, " ");
-        put_int(&b, s->bat_pct);
-        put(&b, "%");
+    if (s->bat_pct != PW_PERF_NA && n < PW_PERF_ROWS) {
+        line a = {rows[n++], 0};
+
+        put(&a, "BAT ");
+        put_int(&a, s->bat_pct);
+        put(&a, "%");
+        if (s->bat_ma != PW_PERF_NA) {
+            put(&a, " ");
+            put_int(&a, s->bat_ma);
+        }
     }
-    if (s->bat_ma != PW_PERF_NA) {
-        put(&b, "  ");
-        put_int(&b, s->bat_ma);
-        put(&b, "mA");
+    if (s->bat_mv != PW_PERF_NA && n < PW_PERF_ROWS) {
+        line a = {rows[n++], 0};
+
+        put_cents(&a, s->bat_mv / 10);
+        put(&a, "V");
+        if (s->bat_temp != PW_PERF_NA) {
+            put(&a, " ");
+            put_int(&a, s->bat_temp);
+            put(&a, "C");
+        }
     }
-    if (s->bat_mv != PW_PERF_NA) {
-        put(&b, "  ");
-        put_cents(&b, s->bat_mv / 10);
-        put(&b, "V");
-    }
-    if (s->bat_temp != PW_PERF_NA) {
-        put(&b, "  ");
-        put_int(&b, s->bat_temp);
-        put(&b, "C");
-    }
-    if (s->bat_min != PW_PERF_NA && s->bat_min > 0) {
-        put(&b, "  ");
-        put_int(&b, s->bat_min / 60);
-        put(&b, s->bat_min % 60 < 10 ? ":0" : ":");
-        put_int(&b, s->bat_min % 60);
-    }
-    return 2;
+    return n;
 }
 
 /* ---- drawing ---- */
@@ -401,9 +406,21 @@ static void box(void *fb, int stride, int fmt, int w, int h, int x0, int y0, int
             dot(fb, stride, fmt, x, y, colour);
 }
 
+/* A black box with softened corners (a small 2 px bevel), echoing Home's rounded card. */
 void pw_perf_box(void *fb, int stride, int fmt, int w, int h, int x, int y, int bw, int bh)
 {
-    box(fb, stride, fmt, w, h, x, y, bw, bh, 0);
+    for (int ry = 0; ry < bh; ry++) {
+        int ey = ry < bh - 1 - ry ? ry : bh - 1 - ry;
+
+        for (int rx = 0; rx < bw; rx++) {
+            int ex = rx < bw - 1 - rx ? rx : bw - 1 - rx;
+
+            if (ex + ey < 2) /* the corner triangle: leave the game showing through */
+                continue;
+            if (x + rx >= 0 && x + rx < w && y + ry >= 0 && y + ry < h)
+                dot(fb, stride, fmt, x + rx, y + ry, 0);
+        }
+    }
 }
 
 void pw_fbset_add(pw_fbset *s, unsigned int fb, int w, int f)
