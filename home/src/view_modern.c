@@ -254,6 +254,73 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
         button_pill(g, ui, p, SEL_X, PLAY_Y, v->play_label, a);
 }
 
+/* The Modern landing dashboard (ADR-050): a Resume hero for the chosen game, a status card
+   (clock, battery) beside it, the library as a strip below. Nav is the carousel's (left / right
+   choose a game, Enter plays). Classic and Minimal keep the plain carousel. */
+static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
+                 const hm_page *pg, int a)
+{
+    int top = 42 + g_perf_pad, hh = 122, hx = 14, hw = 300, sx = hx + 300 + 8,
+        sw = HM_W - (hx + 300 + 8) - 14, sel = hm_clampi(pg->sel, 0, pg->count - 1);
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+    const hm_tile *t;
+
+    if (pg->count <= 0) {
+        empty_text(g, ui, p, pg, 140, a);
+        return;
+    }
+    t = &pg->tiles[sel];
+
+    /* the Resume hero: the chosen game's art, its title, line and Play */
+    g->rrect(g, hx, top, hw, hh, 14, 0, p->card, a * p->card_a / 256);
+    if (t->icon)
+        hm_tile_draw(g, t->icon, hx + 12, top + 30, 112, 62, a);
+    else
+        game_card(g, ui, t, hx + 12, top + 30, 112, 62, a);
+    g->text(g, ui->big, hx + 136, top + 42, t->title ? t->title : "", hw - 150, p->text, a);
+    if (t->meta)
+        g->text(g, ui->body, hx + 136, top + 62, t->meta, hw - 150, p->sub, a);
+    if (v->play_label)
+        button_pill(g, ui, p, hx + 136, top + 82, v->play_label, a);
+
+    /* the status card: the clock, the battery */
+    g->rrect(g, sx, top, sw, hh, 14, 0, p->card, a * p->card_a / 256);
+    if (v->clock && v->clock[0])
+        hm_text_center(g, ui->title, sx + sw / 2, top + 42, v->clock, sw - 16, p->text, a);
+    if (v->battery >= 0) {
+        int bx = sx + 16, bw = sw - 32, by = top + 74;
+        unsigned int c = v->charging        ? PW_RGB(110, 220, 120)
+                         : v->battery <= 15 ? PW_RGB(240, 90, 80)
+                                            : acc;
+        char pct[12];
+
+        stbsp_snprintf(pct, sizeof(pct), "%d%%%s", hm_clampi(v->battery, 0, 100),
+                       v->charging ? " +" : "");
+        hm_text_center(g, ui->body, sx + sw / 2, by, pct, sw - 20, c, a);
+        g->rrect(g, bx, by + 8, bw, 6, 3, 0, p->knob, a * 200 / 256);
+        g->rrect(g, bx, by + 8, bw * hm_clampi(v->battery, 0, 100) / 100, 6, 3, 0, c, a);
+    }
+
+    /* the library strip: every game, the chosen one lifted and ringed */
+    {
+        int tw = 76, th = 42, gap = 10, y = top + hh + 26, vis = (HM_W - 2 * hx + gap) / (tw + gap),
+            first = hm_clampi(sel - vis / 2, 0, pg->count > vis ? pg->count - vis : 0);
+
+        g->text(g, ui->body, hx, y - 10, v->tab_names[HM_TAB_GAMES], 200, p->sub, a);
+        for (int i = first; i < pg->count && i < first + vis; i++) {
+            int x = hx + (i - first) * (tw + gap), on = i == sel;
+            const hm_tile *gt = &pg->tiles[i];
+
+            if (on)
+                g->rrect(g, x - 3, y - 3, tw + 6, th + 6, 9, PW_FX(2), p->text, a);
+            if (gt->icon)
+                hm_tile_draw(g, gt->icon, x, y, tw, th, a * (on ? 256 : 200) / 256);
+            else
+                game_card(g, ui, gt, x, y, tw, th, a * (on ? 256 : 200) / 256);
+        }
+    }
+}
+
 /* ---- grids: the photos of an album, the albums ---- */
 
 /* The top row on screen (1/256 rows) for a grid of cols with show whole rows: the chosen row
@@ -678,7 +745,10 @@ static void page(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
 {
     switch (pg->layout) {
     case HM_PAGE_GAMES:
-        games(g, ui, p, v, pg, a);
+        if (pg->is_dash)
+            dash(g, ui, p, v, pg, a);
+        else
+            games(g, ui, p, v, pg, a);
         break;
     case HM_PAGE_PHOTOS:
         photos(g, ui, p, pg, a);

@@ -950,6 +950,8 @@ void hm_page_build(hm_view *v, int d, hm_page_id id, const hm_page_env *env)
     switch (id.id) {
     case P_GAMES:
         games(p);
+        if (v->style == HM_STYLE_MODERN && d == 0) /* Modern's landing dashboard (ADR-050) */
+            p->is_dash = 1;
         break;
     case P_GAME:
         game_page(p, id.arg);

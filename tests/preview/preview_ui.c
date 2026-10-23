@@ -411,6 +411,7 @@ static void home_previews(const pw_image *sky_img)
         root.tiles = games;
         root.count = 5;
         root.empty = "No games in ms0:/ISO";
+        root.is_dash = g_style == HM_STYLE_MODERN; /* Modern's landing dashboard (ADR-050) */
         v.page[0] = root;
         hshot(&v, "home-games");
         v.page[0].sel = 1;

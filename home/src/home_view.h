@@ -156,6 +156,7 @@ typedef struct {
     const hm_row *opt;
     int opt_n, opt_sel, opt_pos, opt_focus, opt_focus_pos;
     int is_settings; /* the settings root: Modern draws it as two panes */
+    int is_dash;     /* the games root: Modern draws it as a dashboard */
 } hm_page;
 
 typedef struct {
