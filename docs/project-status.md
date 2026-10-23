@@ -187,8 +187,10 @@ screenshots), each tried in PPSSPP, none touching boot or the plugins:
 - **Stage 3 (done):** the settings are two panes in Modern - a sidebar of categories on the left,
   the chosen category's options (switches, choices) on the right, the focused pane highlighted
   (`draw_settings` view_modern.c, `settings_keys` main.c). Classic and Minimal keep the drill-down.
-- **Next, in order:** the coloured card tiles; the HOME panel as a control centre (toggles,
-  brightness/volume sliders).
+- **Stage 4 (done):** a game with no ICON0 gets a coloured card with its initial in Modern (a
+  deterministic hue per title, `game_card`); the Games row reads as colourful cards on the dark
+  sky. Games with real art keep it; Classic and Minimal keep the plain disc card.
+- **Next:** the HOME panel as a control centre (toggles, brightness/volume sliders).
 
 All on `feature/psp-xmb-overhaul`, verified in PPSSPP only; owner review on the device pending.
 

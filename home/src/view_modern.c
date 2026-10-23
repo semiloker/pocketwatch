@@ -191,6 +191,32 @@ static void empty_text(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm
         hm_text_center(g, ui->title, HM_W / 2, y, pg->empty, HM_W - 40, p->sub, a);
 }
 
+/* A game with no ICON0 gets a coloured card with its initial, a deterministic hue per title, so
+   the row reads as colourful cards on the dark sky (ADR-050). Games with real art keep it. */
+static void game_card(hm_gfx *g, const hm_ui *ui, const hm_tile *t, int x, int y, int w, int h,
+                      int a)
+{
+    static const unsigned int pal[] = {
+        PW_RGB(90, 104, 220),  PW_RGB(40, 160, 160), PW_RGB(150, 92, 206), PW_RGB(206, 86, 120),
+        PW_RGB(210, 150, 60),  PW_RGB(72, 170, 110), PW_RGB(60, 150, 205), PW_RGB(205, 110, 70),
+        PW_RGB(120, 120, 210), PW_RGB(190, 90, 170),
+    };
+    unsigned int hsh = 2166136261u;
+    const char *s = t->title;
+    int r = h > 40 ? 10 : 6, off = h >= 100 ? 14 : h >= 50 ? 9 : 6;
+    char ini[2];
+
+    for (const char *q = s; q && *q; q++)
+        hsh = (hsh ^ (unsigned char)*q) * 16777619u;
+    g->rrect(g, x, y, w, h, r, 0, pal[hsh % (sizeof(pal) / sizeof(pal[0]))], a);
+    g->rrect(g, x, y, w, h / 2, r, 0, C_TEXT, a * 22 / 256); /* lit from above: a card */
+    while (s && *s == ' ')
+        s++;
+    ini[0] = s && *s ? (*s >= 'a' && *s <= 'z' ? (char)(*s - 32) : *s) : '?';
+    ini[1] = 0;
+    hm_text_center(g, ui->big, x + w / 2, y + h / 2 + off, ini, w, C_TEXT, a);
+}
+
 static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
                   const hm_page *pg, int a)
 {
@@ -201,7 +227,7 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
         return;
     }
     for (int i = 0; i < pg->count; i++) {
-        int t = i * 256 - pg->selpos, x, w, h, ta;
+        int t = i * 256 - pg->selpos, x, w, h, ta, tile_a;
 
         if (t <= -256)
             continue;
@@ -209,7 +235,11 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
         if (x >= HM_W)
             break;
         ta = ta * a / 256;
-        hm_tile_draw(g, pg->tiles[i].icon, x, ROW_TOP, w, h, ta * (t > 128 ? 200 : 256) / 256);
+        tile_a = ta * (t > 128 ? 200 : 256) / 256;
+        if (pg->tiles[i].icon)
+            hm_tile_draw(g, pg->tiles[i].icon, x, ROW_TOP, w, h, tile_a);
+        else
+            game_card(g, ui, &pg->tiles[i], x, ROW_TOP, w, h, tile_a);
         if (pg->tiles[i].fav)
             hm_fav_star(g, x, ROW_TOP, w, ta);
         if (t > -128 && t < 128) /* the focus ring, fading as the row moves */

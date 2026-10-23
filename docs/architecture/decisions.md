@@ -1074,9 +1074,12 @@ decision was taken; the evidence column links the research behind it.
   Wi-Fi/Calibration, left/Back returns to the sidebar, left/right change a choice (`settings_keys`,
   main.c; the page carries the options in `hm_page.opt`, built by `build_cat_opts`, pages.c).
   Classic and Minimal keep the drill-down (the sidebar row opens a page of its own), so only Modern
-  reads the new `hm_page.is_settings` flag. Later stages, in order: the coloured card tiles; the
-  HOME panel as a control centre (toggles, brightness/volume sliders). Each is a Modern-style
-  refinement, never a change that can affect boot or the plugins.
+  reads the new `hm_page.is_settings` flag. Stage 4 (done): a game with no ICON0 gets a coloured
+  card with its initial in Modern - a deterministic hue per title (`game_card`, view_modern.c), so
+  the Games row reads as colourful cards on the dark sky; games with real art keep it, Classic and
+  Minimal keep the plain disc card. Later stage: the HOME panel as a control centre (toggles,
+  brightness/volume sliders). Each is a Modern-style refinement, never a change that can affect
+  boot or the plugins.
 - **Alternatives considered:** one big rewrite (untestable in steps, risky); bundling the look into
   a single preset theme value (deferred until the card/panel styling is done).
 - **Consequences:** `background = nebula` is selectable now (owner review in PPSSPP). The rest is
