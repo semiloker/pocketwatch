@@ -117,28 +117,36 @@ static void pills(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
 
 /* A page's name at the top of its content (a page opened from another): an arrow back and the
    name; a game's page shows its picture and line. Returns where the content starts. */
+/* The performance pill (home_view.c) sits on a second row at the top left; when it is on, the
+   content below starts this much lower so it is not covered (owner 2026-10-23). */
+static int g_perf_pad;
+
 static int header(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_page *pg, int a)
 {
+    int d = g_perf_pad;
+
     if (!pg->title)
-        return LIST_Y0;
+        return LIST_Y0 + d;
     if (pg->icon) {
-        hm_tile_draw(g, pg->icon, LIST_X0, 44, 96, 53, a);
-        g->text(g, ui->big, LIST_X0 + 110, 66, pg->title, LIST_X1 - LIST_X0 - 110, p->text, a);
+        hm_tile_draw(g, pg->icon, LIST_X0, 44 + d, 96, 53, a);
+        g->text(g, ui->big, LIST_X0 + 110, 66 + d, pg->title, LIST_X1 - LIST_X0 - 110, p->text, a);
         if (pg->sub)
-            g->text(g, ui->body, LIST_X0 + 110, 86, pg->sub, LIST_X1 - LIST_X0 - 110, p->sub, a);
-        return 106;
+            g->text(g, ui->body, LIST_X0 + 110, 86 + d, pg->sub, LIST_X1 - LIST_X0 - 110, p->sub,
+                    a);
+        return 106 + d;
     }
-    hm_chevron(g, LIST_X0 + 6, 56, -1, p->sub, a);
-    g->text(g, ui->title, LIST_X0 + 16, 61, pg->title, LIST_X1 - LIST_X0 - 16, p->text, a);
+    hm_chevron(g, LIST_X0 + 6, 56 + d, -1, p->sub, a);
+    g->text(g, ui->title, LIST_X0 + 16, 61 + d, pg->title, LIST_X1 - LIST_X0 - 16, p->text, a);
     if (pg->sub) { /* the name first: the line in what is left */
         int room = LIST_X1 - LIST_X0 - 16 - pw_text_width(ui->title, pg->title) - 20,
             sw = pw_text_width(ui->body, pg->sub);
 
         if (room > 60)
-            g->text(g, ui->body, LIST_X1 - (sw < room ? sw : room), 61, pg->sub, room, p->sub, a);
+            g->text(g, ui->body, LIST_X1 - (sw < room ? sw : room), 61 + d, pg->sub, room, p->sub,
+                    a);
     }
-    g->fill(g, LIST_X0, 68, LIST_X1 - LIST_X0, 1, p->text, a * 36 / 256);
-    return 72;
+    g->fill(g, LIST_X0, 68 + d, LIST_X1 - LIST_X0, 1, p->text, a * 36 / 256);
+    return 72 + d;
 }
 
 /* ---- Games: the row of icons, the chosen game's title, its line and Play ---- */
@@ -724,6 +732,7 @@ void hm_draw_modern(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     int a = hm_clampi(v->appear, 0, 256);
     hm_palette p;
 
+    g_perf_pad = v->perf_fps ? 22 : 0; /* room for the performance pill's row */
     hm_palette_of(ui, &p);
     if (v->viewer < 256) {
         if (p.shade || v->dim)

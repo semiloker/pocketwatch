@@ -1066,10 +1066,11 @@ decision was taken; the evidence column links the research behind it.
 - **Decision:** stage 1 (done) is the background: `hm_make_nebula` (home_view.c) draws a near-black
   sky, a deterministic star scatter and four gentle wave ribbons, computed once (the cheapest
   background, no per-frame cost); a new `background = nebula` option (hcfg), paired with a dark
-  theme (OLED). Later stages, in order: the performance overlay as a compact pill; the coloured card
-  tiles; the HOME panel as a control centre (toggles, brightness/volume sliders); settings with a
-  left sidebar. Each is a Modern-style refinement, never a change that can affect boot or the
-  plugins.
+  theme (OLED). Stage 2 (done): the performance overlay is a compact green pill on a second row at
+  the top left (the FPS and the frame time, a drawn dot between); Modern makes room below it when it
+  is on. Later stages, in order: the coloured card tiles; the HOME panel as a control centre
+  (toggles, brightness/volume sliders); settings with a left sidebar. Each is a Modern-style
+  refinement, never a change that can affect boot or the plugins.
 - **Alternatives considered:** one big rewrite (untestable in steps, risky); bundling the look into
   a single preset theme value (deferred until the card/panel styling is done).
 - **Consequences:** `background = nebula` is selectable now (owner review in PPSSPP). The rest is

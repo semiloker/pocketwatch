@@ -630,23 +630,27 @@ void hm_make_glow(unsigned int c, unsigned int *out)
         }
 }
 
-/* The performance overlay (ADR-043): a card at the top left, over everything - the frame rate
-   big, each value under it with its name (the owner found two lines of numbers "terrible, not
-   understandable", 2026-10-20). */
+/* The performance overlay (ADR-043): a compact pill at the top left, over everything - the frame
+   rate and the frame time, like the reference design (owner 2026-10-23). The detailed stats stay
+   in System (Battery, Memory Stick, About). */
 static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
-    int w = 200, h = 34 + 15 * v->perf_n + 4, x = 6, y = 6, fw;
+    const char *fps = v->perf_fps, *frame = v->perf_n > 0 ? v->perf_value[0] : 0;
+    unsigned int green = PW_RGB(122, 226, 150);
+    int x = 10, y = 38, h = 19, pad = 10, wfps, w, tx; /* a second row, below the section tabs */
 
-    g->rrect(g, x, y, w, h, 8, 0, C_BLACK, 232);
-    g->text(g, ui->title, x + 10, y + 25, v->perf_fps, 80, C_TEXT, 256);
-    fw = pw_text_width(ui->title, v->perf_fps);
-    g->text(g, ui->body, x + 14 + fw, y + 25, "FPS", 60, C_SUB, 256);
-    for (int i = 0; i < v->perf_n; i++) {
-        int ry = y + 34 + 15 * i + 10;
-
-        g->text(g, ui->body, x + 10, ry, v->perf_label[i] ? v->perf_label[i] : "", 96, C_SUB, 256);
-        hm_text_right(g, ui->body, x + w - 10, ry, v->perf_value[i] ? v->perf_value[i] : "", C_TEXT,
-                      256);
+    if (!fps)
+        return;
+    wfps = pw_text_width(ui->body, fps) + pw_text_width(ui->body, " FPS");
+    w = pad + wfps + (frame ? 12 + pw_text_width(ui->body, frame) : 0) + pad;
+    g->rrect(g, x, y, w, h, h / 2, 0, C_BLACK, 205);
+    tx = x + pad;
+    g->text(g, ui->body, tx, y + 13, fps, 0, green, 256);
+    g->text(g, ui->body, tx + pw_text_width(ui->body, fps), y + 13, " FPS", 0, green, 256);
+    tx += wfps;
+    if (frame) { /* a small dot, then the frame time (the font has no middle dot) */
+        g->fill(g, tx + 5, y + h / 2 - 1, 2, 2, green, 220);
+        g->text(g, ui->body, tx + 12, y + 13, frame, 0, green, 256);
     }
 }
 

@@ -229,8 +229,8 @@ typedef struct {
     const char *toast_text;
     /* The performance overlay (ADR-043): the frame rate big, then named values; perf_fps NULL:
        off */
-    const char *perf_fps;
-    const char *perf_label[6], *perf_value[6];
+    const char *perf_fps; /* the gate: non-NULL while the overlay is on; the FPS number */
+    const char *perf_label[6], *perf_value[6]; /* value[0] is the frame time; detailed stats */
     int perf_n;
 
     /* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom while osd > 0 */
