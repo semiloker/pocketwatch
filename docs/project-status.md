@@ -193,10 +193,11 @@ screenshots), each tried in PPSSPP, none touching boot or the plugins:
 - **Stage 5 (done):** the HOME panel is a control centre - each action a row with its icon in a
   tinted square (Close, USB, Exit to the XMB, Sleep, Restart, Turn Off), a battery bar at the
   bottom; a new Restart relaunches Home. Preview `home-panel` (all three styles).
-- **Stage 6 (done):** the Games section's root is a landing dashboard in Modern - a Resume hero
-  for the chosen game (art, title, line, Play), a status card (clock + battery bar), the library
-  as a strip of cards below; the carousel's nav is kept. Classic and Minimal keep the plain
-  carousel/list. `home-games` preview (Modern shows the dashboard).
+- **Stage 6 (done):** the Games section's root is a landing launcher in Modern - a Resume hero for
+  the most recent game (art, title, line, Play), a status card (clock + battery bar), and a row of
+  section tiles below (Games, Music, Photos, Settings, System; focus `opt_sel`, 0 hero / 1..5
+  tiles). The Games tile opens the full library (the plain carousel). Classic and Minimal keep the
+  plain carousel/list. `home-games` preview (Modern shows the launcher).
 - **Deferred (need the device):** the brightness/volume sliders and the Wi-Fi/CPU toggles the
   reference shows - they change hardware and the card was not connected this round.
 

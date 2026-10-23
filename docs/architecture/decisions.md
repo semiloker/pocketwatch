@@ -1082,13 +1082,16 @@ decision was taken; the evidence column links the research behind it.
   Off; `panel_glyph`), a battery bar across the bottom (`panel`, view_modern.c); Restart relaunches
   Home (`PANEL_RESTART`, main.c). The hardware sliders the reference shows (brightness, volume)
   and the Wi-Fi/CPU toggles are deferred: they change hardware and need a device test, and the card
-  was not connected this round. Stage 6 (done): the Games section's root is a landing dashboard in
-  Modern - a Resume hero for the chosen game (its art, title, line and Play), a status card beside
-  it (the clock and a battery bar), the library as a strip of cards below (`dash`, view_modern.c;
-  the carousel's nav is kept - left/right choose, Enter plays). The games root carries a new
-  `hm_page.is_dash` flag set only for Modern at depth 0 (`hm_page_build`, pages.c); Classic and
-  Minimal keep the plain carousel/list. Each stage is a Modern-style refinement, never a change
-  that can affect boot or the plugins.
+  was not connected this round. Stage 6 (done): the Games section's root is a landing launcher in
+  Modern - a Resume hero for the most recent game (its art, title, line and Play), a status card
+  beside it (the clock and a battery bar), and a row of section tiles below (Games, Music, Photos,
+  Settings, System) (`dash`, view_modern.c). Focus is `hm_page.opt_sel` (0 the hero, 1..5 the
+  tiles): on the hero Enter plays and Triangle opens its page; on a tile Enter opens that section
+  (the Games tile pushes the full library, the plain carousel at depth 1). The games root carries a
+  new `hm_page.is_dash` flag set only for Modern at depth 0 (`hm_page_build`, pages.c); `open_tab`
+  clears the two-pane/launcher focus so a section starts fresh. Classic and Minimal keep the plain
+  carousel/list. Each stage is a Modern-style refinement, never a change that can affect boot or
+  the plugins.
 - **Alternatives considered:** one big rewrite (untestable in steps, risky); bundling the look into
   a single preset theme value (deferred until the card/panel styling is done).
 - **Consequences:** `background = nebula` is selectable now (owner review in PPSSPP). The rest is

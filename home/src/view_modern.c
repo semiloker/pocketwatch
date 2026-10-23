@@ -254,41 +254,47 @@ static void games(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view
         button_pill(g, ui, p, SEL_X, PLAY_Y, v->play_label, a);
 }
 
-/* The Modern landing dashboard (ADR-050): a Resume hero for the chosen game, a status card
-   (clock, battery) beside it, the library as a strip below. Nav is the carousel's (left / right
-   choose a game, Enter plays). Classic and Minimal keep the plain carousel. */
+/* The Modern landing launcher (ADR-050): a Resume hero for the most recent game, a status card
+   (clock, battery) beside it, a row of section tiles below (Games, Music, Photos, Settings,
+   System). Focus is pg->opt_sel: 0 the hero, 1..5 the tiles. Classic and Minimal keep the plain
+   carousel/list. */
 static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
                  const hm_page *pg, int a)
 {
-    int top = 42 + g_perf_pad, hh = 122, hx = 14, hw = 300, sx = hx + 300 + 8,
-        sw = HM_W - (hx + 300 + 8) - 14, sel = hm_clampi(pg->sel, 0, pg->count - 1);
+    static const int sglyph[5] = {HM_ICON_GAMES, HM_ICON_MUSIC, HM_ICON_PHOTOS, PW_ICON_GEAR,
+                                  HM_ICON_SYSTEM};
+    static const int stab[5] = {HM_TAB_GAMES, HM_TAB_MUSIC, HM_TAB_PHOTOS, HM_TAB_SETTINGS,
+                                HM_TAB_SYSTEM};
+    int top = 42 + g_perf_pad, hh = 112, hx = 14, hw = 300, sx = hx + 300 + 8,
+        sw = HM_W - (hx + 300 + 8) - 14, focus = hm_clampi(pg->opt_sel, 0, 5);
     unsigned int acc = ui->accent ? ui->accent : C_ON;
-    const hm_tile *t;
+    const hm_tile *t = pg->count > 0 ? &pg->tiles[0] : 0;
 
-    if (pg->count <= 0) {
-        empty_text(g, ui, p, pg, 140, a);
-        return;
-    }
-    t = &pg->tiles[sel];
-
-    /* the Resume hero: the chosen game's art, its title, line and Play */
+    /* the Resume hero: the most recent game's art, its title, line and Play */
     g->rrect(g, hx, top, hw, hh, 14, 0, p->card, a * p->card_a / 256);
-    if (t->icon)
-        hm_tile_draw(g, t->icon, hx + 12, top + 30, 112, 62, a);
-    else
-        game_card(g, ui, t, hx + 12, top + 30, 112, 62, a);
-    g->text(g, ui->big, hx + 136, top + 42, t->title ? t->title : "", hw - 150, p->text, a);
-    if (t->meta)
-        g->text(g, ui->body, hx + 136, top + 62, t->meta, hw - 150, p->sub, a);
-    if (v->play_label)
-        button_pill(g, ui, p, hx + 136, top + 82, v->play_label, a);
+    if (focus == 0)
+        g->rrect(g, hx - 3, top - 3, hw + 6, hh + 6, 11, PW_FX(2), p->text, a);
+    if (t) {
+        if (t->icon)
+            hm_tile_draw(g, t->icon, hx + 12, top + 26, 112, 62, a);
+        else
+            game_card(g, ui, t, hx + 12, top + 26, 112, 62, a);
+        g->text(g, ui->big, hx + 136, top + 40, t->title ? t->title : "", hw - 150, p->text, a);
+        if (t->meta)
+            g->text(g, ui->body, hx + 136, top + 60, t->meta, hw - 150, p->sub, a);
+        if (v->play_label)
+            button_pill(g, ui, p, hx + 136, top + 80, v->play_label, a);
+    } else {
+        hm_text_center(g, ui->title, hx + hw / 2, top + hh / 2, pg->empty ? pg->empty : "", hw - 20,
+                       p->sub, a);
+    }
 
     /* the status card: the clock, the battery */
     g->rrect(g, sx, top, sw, hh, 14, 0, p->card, a * p->card_a / 256);
     if (v->clock && v->clock[0])
-        hm_text_center(g, ui->title, sx + sw / 2, top + 42, v->clock, sw - 16, p->text, a);
+        hm_text_center(g, ui->title, sx + sw / 2, top + 40, v->clock, sw - 16, p->text, a);
     if (v->battery >= 0) {
-        int bx = sx + 16, bw = sw - 32, by = top + 74;
+        int bx = sx + 16, bw = sw - 32, by = top + 70;
         unsigned int c = v->charging        ? PW_RGB(110, 220, 120)
                          : v->battery <= 15 ? PW_RGB(240, 90, 80)
                                             : acc;
@@ -301,22 +307,21 @@ static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
         g->rrect(g, bx, by + 8, bw * hm_clampi(v->battery, 0, 100) / 100, 6, 3, 0, c, a);
     }
 
-    /* the library strip: every game, the chosen one lifted and ringed */
+    /* the section tiles: Games, Music, Photos, Settings, System */
     {
-        int tw = 76, th = 42, gap = 10, y = top + hh + 26, vis = (HM_W - 2 * hx + gap) / (tw + gap),
-            first = hm_clampi(sel - vis / 2, 0, pg->count > vis ? pg->count - vis : 0);
+        int gap = 10, tw = (HM_W - 2 * hx - 4 * gap) / 5, y = top + hh + 12,
+            th = hm_clampi(HM_H - y - 24, 40, 60);
 
-        g->text(g, ui->body, hx, y - 10, v->tab_names[HM_TAB_GAMES], 200, p->sub, a);
-        for (int i = first; i < pg->count && i < first + vis; i++) {
-            int x = hx + (i - first) * (tw + gap), on = i == sel;
-            const hm_tile *gt = &pg->tiles[i];
+        for (int i = 0; i < 5; i++) {
+            int x = hx + i * (tw + gap), mid = x + tw / 2, on = focus == i + 1;
 
+            g->rrect(g, x, y, tw, th, 10, 0, on ? p->sel : p->card,
+                     on ? a * p->sel_a / 256 : a * p->card_a / 256);
             if (on)
-                g->rrect(g, x - 3, y - 3, tw + 6, th + 6, 9, PW_FX(2), p->text, a);
-            if (gt->icon)
-                hm_tile_draw(g, gt->icon, x, y, tw, th, a * (on ? 256 : 200) / 256);
-            else
-                game_card(g, ui, gt, x, y, tw, th, a * (on ? 256 : 200) / 256);
+                g->rrect(g, x - 3, y - 3, tw + 6, th + 6, 11, PW_FX(2), p->text, a);
+            g->icon(g, sglyph[i], mid, y + th / 2 - 6, 16, on ? p->ink : acc, a);
+            hm_text_center(g, ui->body, mid, y + th - 8, v->tab_names[stab[i]], tw - 6,
+                           on ? p->ink : p->sub, a);
         }
     }
 }

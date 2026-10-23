@@ -564,6 +564,9 @@ static void open_tab(int tab)
     g_stack[0].id = hm_page_root(tab);
     g_stack[0].arg = 0;
     hm_page_build(&g_v, 0, g_stack[0], &g_env);
+    g_v.page[0].opt_sel = g_v.page[0].opt_focus =
+        0; /* a fresh section: no stale two-pane/dash focus */
+    g_v.page[0].opt_pos = g_v.page[0].opt_focus_pos = 0;
     if (g_v.page[0].rows)
         first_row(0);
 }
@@ -1546,6 +1549,39 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
     }
     switch (id) {
     case P_GAMES:
+        if (p->is_dash) { /* the launcher: the Resume hero (focus 0), five section tiles (1..5) */
+            static const int stab[5] = {HM_TAB_GAMES, HM_TAB_MUSIC, HM_TAB_PHOTOS, HM_TAB_SETTINGS,
+                                        HM_TAB_SYSTEM};
+            int f = p->opt_sel;
+
+            if (f == 0) {
+                if (ev & (PSP_CTRL_DOWN | PSP_CTRL_RIGHT)) {
+                    p->opt_sel = 1;
+                    g_s.snd = HM_SND_MOVE;
+                } else if ((ev & g_enter) && p->count) {
+                    launch(0, 0, now); /* play the most recent game */
+                } else if ((ev & PSP_CTRL_TRIANGLE) && p->count) {
+                    push(P_GAME, 0);
+                    g_s.snd = HM_SND_OPEN;
+                }
+            } else if (ev & PSP_CTRL_UP) {
+                p->opt_sel = 0;
+                g_s.snd = HM_SND_MOVE;
+            } else if (ev & PSP_CTRL_LEFT) {
+                p->opt_sel = f > 1 ? f - 1 : 0;
+                g_s.snd = HM_SND_MOVE;
+            } else if (ev & PSP_CTRL_RIGHT) {
+                p->opt_sel = f < 5 ? f + 1 : 5;
+                g_s.snd = HM_SND_MOVE;
+            } else if (ev & g_enter) {
+                if (stab[f - 1] == HM_TAB_GAMES)
+                    push(P_GAMES, 0); /* the full library (depth 1: the plain carousel) */
+                else
+                    open_tab(stab[f - 1]);
+                g_s.snd = HM_SND_TAB;
+            }
+            break;
+        }
         p->sel = move_grid(p->sel, p->count, 1, ev, (unsigned int)back_one, (unsigned int)on_one);
         if ((ev & g_enter) && p->count) {
             launch(p->sel, 0, now);
