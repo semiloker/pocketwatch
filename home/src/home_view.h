@@ -149,6 +149,13 @@ typedef struct {
     int count, sel, selpos; /* selpos: the row's position (1/256, animated) */
     int grid_pos;           /* a grid's chosen row (1/256 rows, animated): how far it scrolled */
     const char *empty;      /* shown when there is nothing */
+
+    /* Settings two-pane (Modern, ADR-050): the page's rows are the left sidebar (categories);
+       opt is the right pane - the highlighted category's options (NULL for Wi-Fi / Calibration,
+       which open a page of their own). opt_focus: the right pane has the cursor. */
+    const hm_row *opt;
+    int opt_n, opt_sel, opt_pos, opt_focus, opt_focus_pos;
+    int is_settings; /* the settings root: Modern draws it as two panes */
 } hm_page;
 
 typedef struct {

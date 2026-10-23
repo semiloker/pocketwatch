@@ -664,6 +664,8 @@ static void cal_page(hm_page *p)
 
 /* ---- Settings ---- */
 
+static int build_cat_opts(int c);
+
 static void settings_page(hm_page *p)
 {
     rowbuf *b = &g_rows[P_SETTINGS];
@@ -700,9 +702,20 @@ static void settings_page(hm_page *p)
     p->layout = HM_PAGE_ROWS;
     p->rows = b->r;
     p->nrows = n;
+    p->is_settings = 1;
+    /* Modern's two-pane (ADR-050): the highlighted category's options are the right pane; Wi-Fi
+       and Calibration (rows past the categories) open a page of their own, so no right pane. */
+    p->opt = 0;
+    p->opt_n = 0;
+    if (p->row_sel >= 0 && p->row_sel < HS_CATS) {
+        p->opt = g_rows[P_SET_CAT].r;
+        p->opt_n = build_cat_opts(p->row_sel);
+    }
 }
 
-static void category_page(hm_page *p, int c)
+/* The option rows of a settings category into g_rows[P_SET_CAT]; how many. Shared by the
+   drill-down page (Classic, Minimal) and Modern's two-pane right pane (ADR-050). */
+static int build_cat_opts(int c)
 {
     static const int kinds[3] = {HM_ROW_HEADER, HM_ROW_CHOICE, HM_ROW_ACTION};
     rowbuf *b = &g_rows[P_SET_CAT];
@@ -722,10 +735,15 @@ static void category_page(hm_page *p, int c)
         cur = hs_current(idx[i]);
         r->swatch = hs_swatch(idx[i], cur);
     }
+    return n;
+}
+
+static void category_page(hm_page *p, int c)
+{
     p->layout = HM_PAGE_ROWS;
     p->title = hs_cat_label(c);
-    p->rows = b->r;
-    p->nrows = n;
+    p->rows = g_rows[P_SET_CAT].r;
+    p->nrows = build_cat_opts(c);
 }
 
 /* ---- System ---- */
@@ -916,7 +934,8 @@ void hm_page_build(hm_view *v, int d, hm_page_id id, const hm_page_env *env)
 {
     hm_page *p = &v->page[d];
     int row_sel = p->row_sel, row_pos = p->row_pos, sel = p->sel, selpos = p->selpos,
-        grid_pos = p->grid_pos;
+        grid_pos = p->grid_pos, opt_sel = p->opt_sel, opt_pos = p->opt_pos,
+        opt_focus = p->opt_focus, opt_focus_pos = p->opt_focus_pos;
 
     memset(p, 0, sizeof(*p));
     p->row_sel = row_sel;
@@ -924,6 +943,10 @@ void hm_page_build(hm_view *v, int d, hm_page_id id, const hm_page_env *env)
     p->sel = sel;
     p->selpos = selpos;
     p->grid_pos = grid_pos;
+    p->opt_sel = opt_sel;
+    p->opt_pos = opt_pos;
+    p->opt_focus = opt_focus;
+    p->opt_focus_pos = opt_focus_pos;
     switch (id.id) {
     case P_GAMES:
         games(p);

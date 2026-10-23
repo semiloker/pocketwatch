@@ -1257,6 +1257,63 @@ static void popup_open(int hs)
 }
 
 /* A setting changed (left / right, Enter, Classic's options): what depends on it. */
+static void after_setting(int r, int was_sort, int was_style);
+static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *start_usb);
+
+/* The two-pane settings (Modern, ADR-050): the sidebar is the categories (the page's rows), the
+   right pane the chosen category's options (p->opt). D-pad up / down move within the focused pane;
+   Enter / right enters the options (or opens Wi-Fi / Calibration); left / Back returns to the
+   sidebar; left / right change a choice. */
+static void settings_keys(unsigned int ev, unsigned int now, int *nickname, int *browser,
+                          int *start_usb)
+{
+    hm_page *p = &g_v.page[0];
+    int was = pw_config_get()->sort, style = style_now();
+
+    if (!p->opt_focus) {
+        if (ev & (PSP_CTRL_UP | PSP_CTRL_DOWN)) {
+            p->row_sel = hm_row_next(p->rows, p->nrows, p->row_sel, ev & PSP_CTRL_UP ? -1 : 1);
+            p->opt_sel = p->opt_pos = 0;
+            build_all();
+            g_s.snd = HM_SND_MOVE;
+        } else if (ev & (g_enter | PSP_CTRL_RIGHT)) {
+            if (p->opt_n > 0) {
+                p->opt_focus = 1;
+                p->opt_sel = hm_row_next(p->opt, p->opt_n, -1, 1);
+                g_s.snd = HM_SND_OPEN;
+            } else {
+                enter_row(p->row_sel, now, nickname, browser, start_usb); /* Wi-Fi / Calibration */
+            }
+        }
+    } else {
+        hm_page_id pid = {P_SET_CAT, 0};
+        hm_row_act a = hm_page_act(pid, p->opt_sel);
+
+        if (ev & (PSP_CTRL_UP | PSP_CTRL_DOWN)) {
+            p->opt_sel = hm_row_next(p->opt, p->opt_n, p->opt_sel, ev & PSP_CTRL_UP ? -1 : 1);
+            g_s.snd = HM_SND_MOVE;
+        } else if ((ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) && a.act == A_SETTING) {
+            after_setting(hs_step(a.arg, ev & PSP_CTRL_LEFT ? -1 : 1), was, style);
+            if (g_s.snd < 0)
+                g_s.snd = HM_SND_MOVE;
+        } else if (ev & (PSP_CTRL_LEFT | g_back)) {
+            p->opt_focus = 0;
+            g_s.snd = HM_SND_BACK;
+        } else if (ev & g_enter) {
+            if (a.act == A_SETTING) {
+                after_setting(hs_step(a.arg, 1), was, style);
+                if (g_s.snd < 0)
+                    g_s.snd = HM_SND_MOVE;
+            } else if (a.act == A_NICKNAME) {
+                *nickname = 1;
+            } else if (a.act == A_NET_TIME) {
+                net_start(HM_JOB_TIME, 0, 0, 0);
+                g_s.snd = HM_SND_OPEN;
+            }
+        }
+    }
+}
+
 static void after_setting(int r, int was_sort, int was_style)
 {
     if (r < 0) {
@@ -1462,6 +1519,10 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
             g_s.snd = HM_SND_TAB;
             return;
         }
+    }
+    if (id == P_SETTINGS && modern && depth == 0) { /* the two-pane settings (ADR-050) */
+        settings_keys(ev, now, nickname, browser, start_usb);
+        return;
     }
     if ((ev & PSP_CTRL_LEFT) && cl && depth > 0 && id != P_NOW) { /* the XMB: left goes back */
         pop();
@@ -2275,6 +2336,8 @@ int main(void)
             p->selpos = pw_ease(p->selpos, p->sel * 256, dt, tau, 6);
             p->row_pos = pw_ease(p->row_pos, p->row_sel * 256, dt, tau, 6);
             p->grid_pos = pw_ease(p->grid_pos, p->sel / cols * 256, dt, tau, 6);
+            p->opt_pos = pw_ease(p->opt_pos, p->opt_sel * 256, dt, tau, 6); /* settings two-pane */
+            p->opt_focus_pos = pw_ease(p->opt_focus_pos, p->opt_focus * 256, dt, tau, 6);
         }
         g_v.depth_pos = pw_ease(g_v.depth_pos, g_v.depth * 256, dt, tau * 3 / 2, 6);
         g_v.tab_pos = pw_ease(g_v.tab_pos, g_v.tab * 256, dt, tau, 6);

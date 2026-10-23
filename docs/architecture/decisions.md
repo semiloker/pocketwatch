@@ -1068,8 +1068,14 @@ decision was taken; the evidence column links the research behind it.
   background, no per-frame cost); a new `background = nebula` option (hcfg), paired with a dark
   theme (OLED). Stage 2 (done): the performance overlay is a compact green pill on a second row at
   the top left (the FPS and the frame time, a drawn dot between); Modern makes room below it when it
-  is on. Later stages, in order: the coloured card tiles; the HOME panel as a control centre
-  (toggles, brightness/volume sliders); settings with a left sidebar. Each is a Modern-style
+  is on. Stage 3 (done): the settings are two panes in Modern - a left sidebar of the categories,
+  the highlighted category's options on the right (`draw_settings`, view_modern.c); the focused
+  pane is highlighted, d-pad up/down move within it, Enter/right enters the options or opens
+  Wi-Fi/Calibration, left/Back returns to the sidebar, left/right change a choice (`settings_keys`,
+  main.c; the page carries the options in `hm_page.opt`, built by `build_cat_opts`, pages.c).
+  Classic and Minimal keep the drill-down (the sidebar row opens a page of its own), so only Modern
+  reads the new `hm_page.is_settings` flag. Later stages, in order: the coloured card tiles; the
+  HOME panel as a control centre (toggles, brightness/volume sliders). Each is a Modern-style
   refinement, never a change that can affect boot or the plugins.
 - **Alternatives considered:** one big rewrite (untestable in steps, risky); bundling the look into
   a single preset theme value (deferred until the card/panel styling is done).

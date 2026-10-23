@@ -175,6 +175,23 @@ the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms 
   numbers overlay "terrible, not understandable" - done (ADR-047): Own Steps, the module in the
   XMB, the overlay redrawn; bright3's lines off, its levels moved to `perf.txt`.
 
+## 2026-10-23: a new dark theme for Home, in stages (ADR-050)
+
+A new dark look for Home's Modern style, built in checkable stages (owner's request with reference
+screenshots), each tried in PPSSPP, none touching boot or the plugins:
+
+- **Stage 1 (done):** a near-black starry sky with gentle wave ribbons - `background = nebula`
+  (hcfg), computed once, no per-frame cost (`hm_make_nebula`, home_view.c).
+- **Stage 2 (done):** the performance overlay is a compact green pill on its own row at the top
+  left (FPS + frame time); Modern makes room below it when on.
+- **Stage 3 (done):** the settings are two panes in Modern - a sidebar of categories on the left,
+  the chosen category's options (switches, choices) on the right, the focused pane highlighted
+  (`draw_settings` view_modern.c, `settings_keys` main.c). Classic and Minimal keep the drill-down.
+- **Next, in order:** the coloured card tiles; the HOME panel as a control centre (toggles,
+  brightness/volume sliders).
+
+All on `feature/psp-xmb-overhaul`, verified in PPSSPP only; owner review on the device pending.
+
 ## Next actions (in order)
 
 0. **Owner (round 10, build with ADR-049):** boot the console a few times - it must always reach

@@ -600,6 +600,47 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *
     controls(g, ui, p, v, x + w / 2, 206, 1, a);
 }
 
+/* The two-pane settings (ADR-050): a sidebar of categories on the left, the chosen category's
+   options on the right; the focused pane is highlighted. */
+static void draw_settings(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
+                          const hm_page *pg, int a)
+{
+    unsigned int acc = ui->accent ? ui->accent : C_ON;
+    int top = LIST_Y0 + g_perf_pad, sbx = 12, sbw = 134, sbp = 32,
+        side = pg->opt_focus_pos < 128, /* the sidebar has the cursor */
+        show = (LIST_Y1 - top) / sbp,
+        first = hm_clampi(pg->row_pos - (show / 2) * 256, 0,
+                          pg->nrows > show ? (pg->nrows - show) * 256 : 0);
+    box b = {sbx + sbw + 14, LIST_X1, top, LIST_Y1, PITCH, 0};
+
+    for (int i = 0; i < pg->nrows; i++) {
+        const hm_row *r = &pg->rows[i];
+        int y = top + (i * 256 - first) * sbp / 256, mid = y + sbp / 2, on = i == pg->row_sel;
+
+        if (y <= top - sbp || y >= LIST_Y1)
+            continue;
+        if (on)
+            g->rrect(g, sbx, y + 2, sbw, sbp - 4, 10, 0, side ? p->sel : p->card,
+                     side ? a * p->sel_a / 256 : a * p->card_a * 3 / 5 / 256);
+        if (r->glyph) {
+            g->rrect(g, sbx + 8, mid - 10, 20, 20, 6, 0, hm_glyph_tint(r->glyph, acc), a);
+            g->icon(g, r->glyph, sbx + 18, mid, 13, C_TEXT, a);
+        }
+        g->text(g, ui->body, sbx + 34, mid + 5, r->label ? r->label : "", sbw - 40,
+                on && side ? p->ink : p->text, a);
+    }
+    if (pg->opt_n > 0) {
+        list(g, ui, p, pg->opt, pg->opt_n, side ? -1 : pg->opt_sel, side ? 0 : pg->opt_pos, b, a,
+             v->t_ms, -1, 0);
+    } else if (pg->row_sel >= 0 && pg->row_sel < pg->nrows) {
+        /* Wi-Fi / Calibration: a page of its own, opened from the sidebar */
+        const hm_row *r = &pg->rows[pg->row_sel];
+
+        hm_text_center(g, ui->body, (b.x0 + b.x1) / 2, b.y0 + 56, r->label ? r->label : "",
+                       b.x1 - b.x0, p->sub, a * 200 / 256);
+    }
+}
+
 /* ---- one page, wherever it is ---- */
 
 static void page(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *v,
@@ -624,16 +665,19 @@ static void page(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
     case HM_PAGE_NOW:
         now(g, ui, p, v, pg, a);
         break;
-    default: {
-        int y0 = header(g, ui, p, pg, a);
+    default:
+        if (pg->is_settings) {
+            draw_settings(g, ui, p, v, pg, a);
+        } else {
+            int y0 = header(g, ui, p, pg, a);
 
-        if (pg->nrows <= 0)
-            empty_text(g, ui, p, pg, 140, a);
-        else
-            list(g, ui, p, pg->rows, pg->nrows, pg->row_sel, pg->row_pos, box_of(pg, y0), a,
-                 v->t_ms, -1, 0);
+            if (pg->nrows <= 0)
+                empty_text(g, ui, p, pg, 140, a);
+            else
+                list(g, ui, p, pg->rows, pg->nrows, pg->row_sel, pg->row_pos, box_of(pg, y0), a,
+                     v->t_ms, -1, 0);
+        }
         break;
-    }
     }
 }
 
