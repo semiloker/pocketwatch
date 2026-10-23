@@ -190,7 +190,11 @@ screenshots), each tried in PPSSPP, none touching boot or the plugins:
 - **Stage 4 (done):** a game with no ICON0 gets a coloured card with its initial in Modern (a
   deterministic hue per title, `game_card`); the Games row reads as colourful cards on the dark
   sky. Games with real art keep it; Classic and Minimal keep the plain disc card.
-- **Next:** the HOME panel as a control centre (toggles, brightness/volume sliders).
+- **Stage 5 (done):** the HOME panel is a control centre - each action a row with its icon in a
+  tinted square (Close, USB, Exit to the XMB, Sleep, Restart, Turn Off), a battery bar at the
+  bottom; a new Restart relaunches Home. Preview `home-panel` (all three styles).
+- **Deferred (need the device):** the brightness/volume sliders and the Wi-Fi/CPU toggles the
+  reference shows - they change hardware and the card was not connected this round.
 
 All on `feature/psp-xmb-overhaul`, verified in PPSSPP only; owner review on the device pending.
 

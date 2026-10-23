@@ -715,21 +715,28 @@ static void page(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
 
 static void panel(hm_gfx *g, const hm_ui *ui, const hm_palette *pal, const hm_view *v)
 {
-    int pics = 0, wide = 0;
+    int pics = 0, wide = 0, glyphs = 0;
     /* a see-through theme's cards would vanish over the list: the dark card there */
     int solid = pal->card_a >= 128;
     unsigned int card = solid ? pal->card : C_CARD, off = solid ? pal->dim : C_DIM,
-                 sub = solid ? pal->sub : C_SUB;
+                 sub = solid ? pal->sub : C_SUB, acc = ui->accent ? ui->accent : C_ON;
 
     for (int i = 0; i < v->panel_count; i++) {
         pics |= v->panel_icons[i] != 0;
         wide |= v->panel_values[i] != 0;
+        glyphs |= v->panel_glyph[i] != 0;
     }
     {
         int p = hm_clampi(v->panel, 0, 256), n = v->panel_count, rh = pics ? 44 : PITCH,
-            w = pics || wide ? 400 : 260, hint = v->panel_hint ? 22 : 0, h = 40 + n * rh + 8 + hint,
+            batt = v->battery >= 0 ? 30 : 0,
+            w = pics || wide ? 400
+                : glyphs     ? 300
+                             : 260,
+            hint = v->panel_hint ? 22 : 0, h = 40 + n * rh + 8 + batt + hint,
             y0 = (HM_H - h) / 2 + (256 - p) * 12 / 256, x0 = (HM_W - w) / 2,
-            tx = x0 + (pics ? 96 : 22);
+            tx = x0 + (pics     ? 96
+                       : glyphs ? 50
+                                : 22);
 
         g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, p * 150 / 256);
         g->rrect(g, x0, y0, w, h, 16, 0, card, p * 240 / 256);
@@ -738,18 +745,37 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_palette *pal, const hm_vi
         g->rrect(g, x0 + 8, y0 + 38 + v->panel_pos * rh / 256, w - 16, rh - 4,
                  (rh - 4) / 2 < 12 ? (rh - 4) / 2 : 12, 0, pal->sel, p * pal->sel_a / 256);
         for (int i = 0; i < n; i++) {
-            int y = y0 + 38 + i * rh, base = y + rh / 2 + 4,
+            int y = y0 + 38 + i * rh, mid = y + rh / 2, base = mid + 5,
                 on = hm_near(i * 256 - v->panel_pos) > 128;
 
             if (v->panel_icons[i])
                 g->image(g, v->panel_icons[i], HM_ICON_W, HM_ICON_H, HM_ICON_W, x0 + 18, y + 4, 64,
                          36, p);
+            else if (v->panel_glyph[i]) { /* the action's icon in a tinted square */
+                g->rrect(g, x0 + 16, mid - 11, 22, 22, 6, 0, hm_glyph_tint(v->panel_glyph[i], acc),
+                         p);
+                g->icon(g, v->panel_glyph[i], x0 + 27, mid, 14, C_TEXT, p);
+            }
             if (v->panel_items[i])
                 g->text(g, ui->title, tx, base, v->panel_items[i],
-                        v->panel_values[i] ? 150 : w - 44, on ? pal->ink : off, p);
+                        v->panel_values[i] ? 150 : w - (tx - x0) - 22, on ? pal->ink : off, p);
             if (v->panel_values[i])
                 hm_text_right(g, ui->body, x0 + w - 22, base, v->panel_values[i],
                               on ? pal->ink2 : sub, p);
+        }
+        if (v->battery >= 0) { /* a battery bar at the bottom of the card */
+            int by = y0 + 38 + n * rh + 2, bw = w - 32;
+            unsigned int c = v->charging        ? PW_RGB(110, 220, 120)
+                             : v->battery <= 15 ? PW_RGB(240, 90, 80)
+                                                : acc;
+            char pct[12];
+
+            stbsp_snprintf(pct, sizeof(pct), "%d%%%s", hm_clampi(v->battery, 0, 100),
+                           v->charging ? " +" : "");
+            g->icon(g, HM_ICON_BATTERY, x0 + 22, by + 8, 12, sub, p);
+            hm_text_right(g, ui->body, x0 + w - 16, by + 12, pct, c, p);
+            g->rrect(g, x0 + 16, by + 20, bw, 5, 2, 0, pal->knob, p * 200 / 256);
+            g->rrect(g, x0 + 16, by + 20, bw * hm_clampi(v->battery, 0, 100) / 100, 5, 2, 0, c, p);
         }
         if (v->panel_hint) {
             int tw = pw_text_width(ui->body, v->panel_hint);

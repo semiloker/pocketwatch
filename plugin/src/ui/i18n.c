@@ -137,6 +137,7 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HM_CLOSE] = {"hm_close", "Close"},
     [PW_S_HM_SLEEP] = {"hm_sleep", "Sleep"},
     [PW_S_HM_POWER_OFF] = {"hm_power_off", "Turn Off"},
+    [PW_S_HM_RESTART] = {"hm_restart", "Restart"},
     [PW_S_HM_USB] = {"hm_usb", "USB Connection"},
     [PW_S_HM_USB_CABLE] = {"hm_usb_cable", "Connect the USB cable to a computer."},
     [PW_S_HM_USB_WAIT] = {"hm_usb_wait", "Connecting to the computer..."},

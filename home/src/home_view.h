@@ -204,6 +204,7 @@ typedef struct {
     const char *panel_items[HM_PANEL_MAX];
     const char *panel_values[HM_PANEL_MAX];        /* right-aligned, or NULL */
     const unsigned int *panel_icons[HM_PANEL_MAX]; /* HM_ICON_W x HM_ICON_H pictures, or NULL */
+    int panel_glyph[HM_PANEL_MAX]; /* HM_ICON_* / PW_ICON_* in a tinted square, or 0 */
     int panel_count;
     const char *panel_hint; /* bottom right, or NULL */
 

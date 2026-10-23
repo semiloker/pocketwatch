@@ -1077,9 +1077,13 @@ decision was taken; the evidence column links the research behind it.
   reads the new `hm_page.is_settings` flag. Stage 4 (done): a game with no ICON0 gets a coloured
   card with its initial in Modern - a deterministic hue per title (`game_card`, view_modern.c), so
   the Games row reads as colourful cards on the dark sky; games with real art keep it, Classic and
-  Minimal keep the plain disc card. Later stage: the HOME panel as a control centre (toggles,
-  brightness/volume sliders). Each is a Modern-style refinement, never a change that can affect
-  boot or the plugins.
+  Minimal keep the plain disc card. Stage 5 (done): the HOME panel is a control centre - each
+  action a row with its icon in a tinted square (Close, USB, Exit to the XMB, Sleep, Restart, Turn
+  Off; `panel_glyph`), a battery bar across the bottom (`panel`, view_modern.c); Restart relaunches
+  Home (`PANEL_RESTART`, main.c). The hardware sliders the reference shows (brightness, volume)
+  and the Wi-Fi/CPU toggles are deferred: they change hardware and need a device test, and the card
+  was not connected this round. Each stage is a Modern-style refinement, never a change that can
+  affect boot or the plugins.
 - **Alternatives considered:** one big rewrite (untestable in steps, risky); bundling the look into
   a single preset theme value (deferred until the card/panel styling is done).
 - **Consequences:** `background = nebula` is selectable now (owner review in PPSSPP). The rest is

@@ -148,6 +148,7 @@ enum {
     PW_S_HM_CLOSE,
     PW_S_HM_SLEEP,
     PW_S_HM_POWER_OFF,
+    PW_S_HM_RESTART,
     PW_S_HM_USB,
     PW_S_HM_USB_CABLE,
     PW_S_HM_USB_WAIT,

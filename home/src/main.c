@@ -240,7 +240,7 @@ static void usb_log(void)
 
 /* ---- the HOME panel (HOM-REQ-010) ---- */
 
-enum { PANEL_CLOSE, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_OFF, PANEL_ITEMS };
+enum { PANEL_CLOSE, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_RESTART, PANEL_OFF, PANEL_ITEMS };
 
 /* A picture's time in the slideshow by Settings -> Slideshow Speed: normal, fast, slow
    (INFERRED from the XMB's Photo Settings; its exact times are not documented). */
@@ -250,12 +250,20 @@ static void panel_home(hm_view *v)
 {
     memset(v->panel_values, 0, sizeof(v->panel_values));
     memset(v->panel_icons, 0, sizeof(v->panel_icons));
+    memset(v->panel_glyph, 0, sizeof(v->panel_glyph));
     v->panel_title = "Pocketwatch";
     v->panel_items[PANEL_CLOSE] = pw_tr(PW_S_HM_CLOSE);
     v->panel_items[PANEL_USB] = pw_tr(PW_S_HM_USB);
     v->panel_items[PANEL_XMB] = pw_tr(PW_S_HM_EXIT);
     v->panel_items[PANEL_SLEEP] = pw_tr(PW_S_HM_SLEEP);
+    v->panel_items[PANEL_RESTART] = pw_tr(PW_S_HM_RESTART);
     v->panel_items[PANEL_OFF] = pw_tr(PW_S_HM_POWER_OFF);
+    v->panel_glyph[PANEL_CLOSE] = HM_ICON_HOME;
+    v->panel_glyph[PANEL_USB] = HM_ICON_USB;
+    v->panel_glyph[PANEL_XMB] = HM_ICON_EXIT;
+    v->panel_glyph[PANEL_SLEEP] = HM_ICON_SLEEP;
+    v->panel_glyph[PANEL_RESTART] = HM_ICON_ROTATE;
+    v->panel_glyph[PANEL_OFF] = PW_ICON_QUIT;
     v->panel_count = PANEL_ITEMS;
     v->panel_hint = 0;
 }
@@ -1995,7 +2003,11 @@ static void panel_keys(unsigned int ev, int *start_usb)
             g_s.leave = 1;
         else if (g_v.panel_sel == PANEL_SLEEP)
             scePowerRequestSuspend();
-        else if (g_v.panel_sel == PANEL_OFF)
+        else if (g_v.panel_sel == PANEL_RESTART) { /* relaunch Home (same path as after USB) */
+            hm_sound_end();
+            hm_launch_eboot(HOME_SELF, 0);
+            sceKernelExitGame();
+        } else if (g_v.panel_sel == PANEL_OFF)
             scePowerRequestStandby();
         g_s.snd = HM_SND_OPEN;
     }

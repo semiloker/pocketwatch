@@ -124,6 +124,7 @@ hm_ps1 = PlayStation
 hm_close = Закрыть
 hm_sleep = Спящий режим
 hm_power_off = Выключить
+hm_restart = Перезапуск
 hm_usb = USB-соединение
 hm_usb_cable = Подключите USB-кабель к компьютеру.
 hm_usb_wait = Подключение к компьютеру...
