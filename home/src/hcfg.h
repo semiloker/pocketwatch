@@ -8,7 +8,16 @@
  * its 64 KB budget (RISK-022). Unknown keys and bad values are ignored. Portable.
  */
 
-enum { HM_BG_AUTO, HM_BG_SKY, HM_BG_GRADIENT, HM_BG_PLAIN, HM_BG_WALLPAPER, HM_BG_AURORA, HM_BGS };
+enum {
+    HM_BG_AUTO,
+    HM_BG_SKY,
+    HM_BG_GRADIENT,
+    HM_BG_PLAIN,
+    HM_BG_WALLPAPER,
+    HM_BG_AURORA,
+    HM_BG_NEBULA,
+    HM_BGS
+};
 enum { HM_MOTION_NORMAL, HM_MOTION_FAST, HM_MOTION_CALM, HM_MOTIONS };
 enum { HM_REPEAT_OFF, HM_REPEAT_ALL, HM_REPEAT_ONE };
 enum { HM_HOLD_OFF, HM_HOLD_MUSIC, HM_HOLD_ALWAYS }; /* HOLD turns the screen off: when */

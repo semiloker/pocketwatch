@@ -352,6 +352,8 @@ static void make_default_background(void)
     } else if (bg == HM_BG_AURORA) { /* the night: the lights drift over it */
         hm_make_plain(g_ui.accent, theme != HM_THEME_PAPER, g_gradient);
         g_aurora_shown = 1;
+    } else if (bg == HM_BG_NEBULA) { /* a starry night sky with wave ribbons */
+        hm_make_nebula(g_ui.accent, g_gradient);
     } else {
         hm_make_plain(g_ui.accent, theme != HM_THEME_PAPER, g_gradient);
     }

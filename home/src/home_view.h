@@ -269,6 +269,8 @@ void hm_make_pic1(const unsigned int *pic, int w, int h, unsigned int *out);
 void hm_make_gradient(unsigned int accent, unsigned int *out);
 /* A plain dark background lit by the accent from below (the OLED theme: black). */
 void hm_make_plain(unsigned int accent, int black, unsigned int *out);
+/* A starry night sky with wave ribbons low down (owner 2026-10-23). */
+void hm_make_nebula(unsigned int accent, unsigned int *out);
 /* One of the aurora's lights: a soft round glow of colour c (HM_GLOW x HM_GLOW, alpha on top). */
 void hm_make_glow(unsigned int c, unsigned int *out);
 /* The XMB's sky (a 60 x 34 month picture, or NULL for its plain blue-grey) stretched over it. */

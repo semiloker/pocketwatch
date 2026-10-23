@@ -1053,3 +1053,24 @@ decision was taken; the evidence column links the research behind it.
   lines stay off until the owner turns a feature on. RISK-031. The overlay draws into every
   framebuffer the game shows (`pw_fbset`), not one: the PSP double-buffers, so a single-buffer
   write appeared every other frame - the flicker the owner saw (2026-10-21, PRF-REQ-011).
+
+## ADR-050 — A new dark "Nebula" theme, built in stages
+
+- **Status:** Accepted (2026-10-23), from the owner's request (with reference screenshots): a new
+  dark theme for Home - a starry night sky with wave ribbons, card tiles, a compact performance
+  pill, a control-centre HOME panel (toggles and brightness/volume sliders) and settings with a
+  left sidebar and switches; "optimise the render, test on PPSSPP".
+- **Context:** much of this is close to Home's Modern style already (cards, section pills,
+  switches). A whole new look is a large, multi-step effort; it is built in stages, each checked in
+  PPSSPP, not in one change.
+- **Decision:** stage 1 (done) is the background: `hm_make_nebula` (home_view.c) draws a near-black
+  sky, a deterministic star scatter and four gentle wave ribbons, computed once (the cheapest
+  background, no per-frame cost); a new `background = nebula` option (hcfg), paired with a dark
+  theme (OLED). Later stages, in order: the performance overlay as a compact pill; the coloured card
+  tiles; the HOME panel as a control centre (toggles, brightness/volume sliders); settings with a
+  left sidebar. Each is a Modern-style refinement, never a change that can affect boot or the
+  plugins.
+- **Alternatives considered:** one big rewrite (untestable in steps, risky); bundling the look into
+  a single preset theme value (deferred until the card/panel styling is done).
+- **Consequences:** `background = nebula` is selectable now (owner review in PPSSPP). The rest is
+  tracked here and in [project-status](../project-status.md); never present an unbuilt stage as done.

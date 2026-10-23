@@ -877,6 +877,53 @@ void hm_make_plain(unsigned int accent, int black, unsigned int *out)
     pw_shape_disc(&c, PW_FX(380), PW_FX(-60), PW_FX(170), accent ? accent : C_ON, 40);
 }
 
+/* A starry night sky (owner 2026-10-23): a near-black sky with a scatter of stars, a soft accent
+   glow low down, and a few wave ribbons across the lower half. Computed once (the cheapest
+   background: no per-frame work). */
+void hm_make_nebula(unsigned int accent, unsigned int *out)
+{
+    pw_canvas c = {out, HM_W, HM_H, 512};
+    unsigned int acc = accent ? accent : C_ON, r = 0x9E3779B9u;
+
+    for (int y = 0; y < HM_H; y++) { /* the night: near-black above, a hint of deep blue below */
+        int t = y * 256 / HM_H;
+
+        pw_draw_fill(&c, 0, y, HM_W, 1,
+                     PW_RGB(hm_lerp(6, 8, t), hm_lerp(9, 13, t), hm_lerp(16, 28, t)));
+    }
+    pw_shape_disc(&c, PW_FX(150), PW_FX(255), PW_FX(230), acc, 9); /* soft lights under the waves */
+    pw_shape_disc(&c, PW_FX(410), PW_FX(300), PW_FX(180), acc, 6);
+    for (int i = 0; i < 150; i++) { /* stars: a deterministic scatter, fewer low down */
+        int x, y, b;
+
+        r = r * 1664525u + 1013904223u;
+        x = (int)((r >> 9) % HM_W);
+        r = r * 1664525u + 1013904223u;
+        y = (int)((r >> 9) % HM_H);
+        if (y > HM_H / 2 && ((r >> 5) & 1))
+            continue;
+        r = r * 1664525u + 1013904223u;
+        b = 90 + (int)((r >> 9) % 150);
+        pw_draw_blend(&c, x, y, 1, 1, PW_RGB(255, 255, 255), b);
+        if ((r >> 7) % 9 == 0) { /* a few brighter two-pixel stars */
+            pw_draw_blend(&c, x + 1, y, 1, 1, PW_RGB(255, 255, 255), b / 2);
+            pw_draw_blend(&c, x, y + 1, 1, 1, PW_RGB(255, 255, 255), b / 2);
+        }
+    }
+    for (int wv = 0; wv < 4; wv++) { /* wave ribbons low down: a gentle crest, a soft glow under */
+        int base = 190 + wv * 13, amp = 16 - wv * 3, period = 340 + wv * 60, phase = wv * 60,
+            crest = 110 - wv * 20;
+
+        for (int x = 0; x < HM_W; x++) {
+            int y = base + amp * isin((unsigned int)(x * 256 / period + phase)) / 256;
+
+            pw_draw_blend(&c, x, y, 1, 1, PW_RGB(228, 236, 255), crest);
+            pw_draw_blend(&c, x, y + 1, 1, 2, acc, crest / 3);
+            pw_draw_blend(&c, x, y + 3, 1, 5, acc, crest / 10);
+        }
+    }
+}
+
 void hm_make_sky(const pw_image *sky, unsigned int *out)
 {
     pw_canvas c = {out, HM_W, HM_H, 512};

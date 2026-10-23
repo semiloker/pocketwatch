@@ -14,8 +14,8 @@ static hm_cfg g_cfg = {0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0};
 const char *const hm_cfg_accent_names[HM_ACCENTS] = {"blue", "violet", "pink", "red",     "orange",
                                                      "gold", "green",  "teal", "graphite"};
 const char *const hm_cfg_theme_names[4] = {"dark", "glass", "oled", "paper"};
-const char *const hm_cfg_bg_names[HM_BGS] = {"auto",  "sky",       "gradient",
-                                             "plain", "wallpaper", "aurora"};
+const char *const hm_cfg_bg_names[HM_BGS] = {"auto",      "sky",    "gradient", "plain",
+                                             "wallpaper", "aurora", "nebula"};
 const char *const hm_cfg_motion_names[HM_MOTIONS] = {"normal", "fast", "calm"};
 const char *const hm_cfg_repeat_names[3] = {"off", "all", "one"};
 const char *const hm_cfg_hold_names[3] = {"off", "music", "always"};
