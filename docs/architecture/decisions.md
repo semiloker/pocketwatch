@@ -1085,8 +1085,9 @@ decision was taken; the evidence column links the research behind it.
   level Settings' Brightness row uses, ADR-045; Classic and Minimal show the level as text). The
   volume slider and the Wi-Fi/CPU toggles the reference shows are still deferred: the PSP has no safe
   user-mode volume setter, and the toggles need their own device-tested flows. Stage 6 (done): the Games section's root is a landing launcher in
-  Modern - a Resume hero for the most recent game (its art, title, line and Play), a status card
-  beside it (the clock and a battery bar), and a row of section tiles below (Games, Music, Photos,
+  Modern - a Resume hero for the most recently played game (`hm_page.hero`, the max `last` in the
+  library; its art, title, line and Play), a status card beside it (the clock, a battery bar and the
+  card's free space `hm_view.free_mb`), and a row of section tiles below (Games, Music, Photos,
   Settings, System) (`dash`, view_modern.c). Focus is `hm_page.opt_sel` (0 the hero, 1..5 the
   tiles): on the hero Enter plays and Triangle opens its page; on a tile Enter opens that section
   (the Games tile pushes the full library, the plain carousel at depth 1). The games root carries a

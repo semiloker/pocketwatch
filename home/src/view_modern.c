@@ -268,7 +268,7 @@ static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
     int top = 42 + g_perf_pad, hh = 112, hx = 14, hw = 300, sx = hx + 300 + 8,
         sw = HM_W - (hx + 300 + 8) - 14, focus = hm_clampi(pg->opt_sel, 0, 5);
     unsigned int acc = ui->accent ? ui->accent : C_ON;
-    const hm_tile *t = pg->count > 0 ? &pg->tiles[0] : 0;
+    const hm_tile *t = pg->count > 0 ? &pg->tiles[hm_clampi(pg->hero, 0, pg->count - 1)] : 0;
 
     /* the Resume hero: the most recent game's art, its title, line and Play */
     g->rrect(g, hx, top, hw, hh, 14, 0, p->card, a * p->card_a / 256);
@@ -305,6 +305,16 @@ static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
         hm_text_center(g, ui->body, sx + sw / 2, by, pct, sw - 20, c, a);
         g->rrect(g, bx, by + 8, bw, 6, 3, 0, p->knob, a * 200 / 256);
         g->rrect(g, bx, by + 8, bw * hm_clampi(v->battery, 0, 100) / 100, 6, 3, 0, c, a);
+    }
+    if (v->free_mb >= 0) { /* the card's free space */
+        char fs[24];
+
+        if (v->free_mb >= 1024)
+            stbsp_snprintf(fs, sizeof(fs), "%d.%d GB free", v->free_mb / 1024,
+                           (v->free_mb % 1024) * 10 / 1024);
+        else
+            stbsp_snprintf(fs, sizeof(fs), "%d MB free", v->free_mb);
+        hm_text_center(g, ui->body, sx + sw / 2, top + hh - 12, fs, sw - 12, p->sub, a);
     }
 
     /* the section tiles: Games, Music, Photos, Settings, System */

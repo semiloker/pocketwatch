@@ -157,6 +157,7 @@ typedef struct {
     int opt_n, opt_sel, opt_pos, opt_focus, opt_focus_pos;
     int is_settings; /* the settings root: Modern draws it as two panes */
     int is_dash;     /* the games root: Modern draws it as a dashboard */
+    int hero;        /* the launcher's Resume game: the most recently played tile */
 } hm_page;
 
 typedef struct {
@@ -166,6 +167,7 @@ typedef struct {
     const char *clock;
     int battery, charging; /* percent or -1 */
     int battery_pct;       /* show the percent beside the battery */
+    int free_mb;           /* the card's free space in MB, or -1 (the launcher's status card) */
 
     /* The open section's pages: page[0] its first, page[depth] the one shown; depth_pos follows
        depth (1/256 pages, animated): a page slides in from the right while the one before it

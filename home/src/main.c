@@ -1569,9 +1569,9 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
                     p->opt_sel = 1;
                     g_s.snd = HM_SND_MOVE;
                 } else if ((ev & g_enter) && p->count) {
-                    launch(0, 0, now); /* play the most recent game */
+                    launch(p->hero, 0, now); /* play the most recently played game */
                 } else if ((ev & PSP_CTRL_TRIANGLE) && p->count) {
-                    push(P_GAME, 0);
+                    push(P_GAME, p->hero);
                     g_s.snd = HM_SND_OPEN;
                 }
             } else if (ev & PSP_CTRL_UP) {
@@ -2367,6 +2367,7 @@ int main(void)
             hm_hw_battery(&b);
             g_v.battery = b.pct;
             g_v.charging = b.charging;
+            g_v.free_mb = hm_library_free_mb(); /* cached count, cheap to read */
         }
         {
             unsigned int t0 = sceKernelGetSystemTimeLow(), us;

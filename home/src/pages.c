@@ -127,6 +127,9 @@ void hm_pages_texts(void)
 
 static void games(hm_page *p)
 {
+    unsigned long long best = 0;
+    int hero = 0;
+
     for (int i = 0; i < hm_library_count(); i++) {
         hm_game *g = hm_library_game(i);
 
@@ -134,10 +137,15 @@ static void games(hm_page *p)
         g_game_tiles[i].meta = g->meta[0] ? g->meta : 0;
         g_game_tiles[i].icon = g->icon;
         g_game_tiles[i].fav = g->fav;
+        if (g->last > best) { /* the launcher's Resume: the most recently played */
+            best = g->last;
+            hero = i;
+        }
     }
     p->layout = HM_PAGE_GAMES;
     p->tiles = g_game_tiles;
     p->count = hm_library_count();
+    p->hero = hero;
     p->empty = pw_tr(PW_S_HM_NO_GAMES);
 }
 

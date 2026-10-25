@@ -395,6 +395,7 @@ static void home_previews(const pw_image *sky_img)
         v.clock = "10/18 14:05";
         v.battery = 83;
         v.battery_pct = 1;
+        v.free_mb = 29013;
         v.bg = cl ? pic1 : bg;
         v.bg_mix = 256;
         v.play_label = "Play";
@@ -790,6 +791,7 @@ static void home_previews(const pw_image *sky_img)
         v.clock = "10/18 14:05";
         v.battery = 83;
         v.battery_pct = 1;
+        v.free_mb = 29013;
         v.bg = theme == HM_THEME_PAPER ? plain : theme == HM_THEME_GLASS ? bg : grad;
         v.bg_mix = 256;
         v.appear = 256;
