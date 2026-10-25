@@ -299,6 +299,7 @@ hm_fav_on = Aggiunto ai preferiti
 hm_fav_off = Rimosso dai preferiti
 hs_sort_type = Per tipo
 hs_bg_aurora = Aurora
+hs_bg_nebula = Cielo notturno
 hs_enter = Tasto di conferma
 hs_btn_circle = Cerchio
 hs_btn_cross = Croce

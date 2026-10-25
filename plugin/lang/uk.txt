@@ -301,6 +301,7 @@ hm_fav_on = Додано до улюбленого
 hm_fav_off = Прибрано з улюбленого
 hs_sort_type = За типом
 hs_bg_aurora = Сяйво
+hs_bg_nebula = Нічне небо
 hs_enter = Кнопка введення
 hs_btn_circle = Коло
 hs_btn_cross = Хрест

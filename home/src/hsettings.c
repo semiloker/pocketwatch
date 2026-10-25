@@ -248,7 +248,8 @@ static int set_bg(int o)
 static void text_bg(int o, char *out, int cap)
 {
     static const int k[HM_BGS] = {PW_S_HS_BG_AUTO,  PW_S_HS_BG_SKY,    PW_S_HS_BG_GRADIENT,
-                                  PW_S_HS_BG_PLAIN, PW_S_HM_WALLPAPER, PW_S_HS_BG_AURORA};
+                                  PW_S_HS_BG_PLAIN, PW_S_HM_WALLPAPER, PW_S_HS_BG_AURORA,
+                                  PW_S_HS_BG_NEBULA};
 
     if (o == HM_BG_WALLPAPER && get_wallpaper())
         stbsp_snprintf(out, cap, "%s", g_wp_name);

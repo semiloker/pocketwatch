@@ -299,6 +299,7 @@ hm_fav_on = Zu Favoriten hinzugefügt
 hm_fav_off = Aus Favoriten entfernt
 hs_sort_type = Nach Art
 hs_bg_aurora = Polarlicht
+hs_bg_nebula = Nachthimmel
 hs_enter = Bestätigungstaste
 hs_btn_circle = Kreis
 hs_btn_cross = Kreuz

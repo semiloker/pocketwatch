@@ -299,6 +299,7 @@ hm_fav_on = Toegevoegd aan favorieten
 hm_fav_off = Verwijderd uit favorieten
 hs_sort_type = Op soort
 hs_bg_aurora = Noorderlicht
+hs_bg_nebula = Nachthemel
 hs_enter = Bevestigingsknop
 hs_btn_circle = Cirkel
 hs_btn_cross = Kruis
