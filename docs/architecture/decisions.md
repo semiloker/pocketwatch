@@ -1099,3 +1099,40 @@ decision was taken; the evidence column links the research behind it.
   a single preset theme value (deferred until the card/panel styling is done).
 - **Consequences:** `background = nebula` is selectable now (owner review in PPSSPP). The rest is
   tracked here and in [project-status](../project-status.md); never present an unbuilt stage as done.
+
+## ADR-051 — The in-game overlay never writes to a framebuffer it does not own
+
+- **Status:** Accepted (2026-10-25), from the owner's device report (build `fcab0aa`): HOME in a
+  game blurred then froze the console for good, needing a reboot; it happened with RemoteJoyLite
+  off too. See [m7-ingame-freeze](../research/m7-ingame-freeze.md).
+- **Context:** VERIFIED by inspection. The performance overlay (`perf/src/main.c`, a kernel thread,
+  ADR-043) drew the FPS/OSD every vblank onto whatever buffer was *displayed* when it differed from
+  the game's own (`top != game`) — intended to cover "the hub's frame". But the hub displays its
+  own framebuffer, in the plugin's kernel RAM, with a width/stride the overlay only guessed from
+  the display. Writing there is a kernel write into another module's memory; it faults, and a fault
+  in a kernel thread hangs the PSP. The blur (the hub's backdrop) rendered, then the overlay's next
+  vblank faulted on the hub's buffer. New since ADR-032, so HOME regressed after the overlay shipped.
+- **Decision:** the overlay only ever writes to the game's **own** buffers (the tracked
+  `pw_fbset`), and only while the game is the one on screen (`top == game`). When the hub — or any
+  overlay, such as RemoteJoyLite — owns the screen, the overlay draws nothing that frame. It never
+  touches a buffer it did not get from the game's own `sceDisplaySetFrameBuf`.
+- **Alternatives considered:** a shared "hub open" flag between the plugin and the perf module
+  (they are separate PRXs; no reliable shared signal); pausing the overlay thread during the hub
+  (same problem). Drawing only onto owned buffers needs no cross-module coordination.
+- **Consequences:** the FPS pill no longer shows over the Pocketwatch hub (a menu; it does not need
+  it), and the freeze is gone. Device test PF-FREEZE confirms HOME opens in several games with the
+  overlay on, with and without RemoteJoyLite. The overlay stays off on the owner's card until then.
+
+## ADR-052 — A start-up animation for Home
+
+- **Status:** Accepted (2026-10-25), from the owner's request ("add some animation when startup
+  console").
+- **Context:** Home faded in from black (`hm_view.appear`) but had no identity on boot.
+- **Decision:** a brief wordmark overlay drawn last in `hm_draw` (`hm_view.intro`, 0-256): the watch
+  mark in an accent square, "Pocketwatch" and the tagline "Pause. Save. Play." hold ~650 ms, then
+  fade out ~450 ms to the launcher. Any button skips to the fade-out. The reference time `t_boot` is
+  captured at the main loop's start, not `t_open` (which can reset mid-session). It is Home-only and
+  costs nothing after it ends (`intro == 0`).
+- **Consequences:** every Home start (cold boot or a relaunch) shows the ~1.1 s intro; it is
+  skippable. Preview `home-intro`. If relaunches (USB, Restart, return from a game) make it feel
+  repetitive, a cold-boot-only gate can be added later.

@@ -207,6 +207,30 @@ screenshots), each tried in PPSSPP, none touching boot or the plugins:
 
 All on `feature/psp-xmb-overhaul`, verified in PPSSPP only; owner review on the device pending.
 
+## 2026-10-25: device round 11 (owner) - in-game freeze, brightness, start-up animation
+
+Owner tested on the device ([m7-ingame-freeze](research/m7-ingame-freeze.md)):
+
+- **In-game HOME froze the console** (reboot needed); with RemoteJoyLite off it blurred then froze.
+  **Root cause (VERIFIED by inspection):** the performance overlay wrote the FPS onto the hub's own
+  framebuffer (a buffer in the plugin's kernel RAM it does not own) every vblank - a kernel fault
+  that hangs the PSP. **Fixed (ADR-051):** the overlay only writes to the game's own buffers, only
+  while the game is on screen. Overlay left **off** on the owner's card until the device test
+  (PF-FREEZE) confirms. **RemoteJoyLite and the overlay were switched off in the owner's PLUGINS.TXT
+  to isolate it.**
+- **Brightness had four levels, device has five.** Fixed: 0-4 everywhere (`BRIGHT_MAX`), the slider
+  and Settings choice scale to `hm_bright_max()`.
+- **Start-up animation (ADR-052):** a wordmark intro fading to the launcher, skippable. Preview
+  `home-intro`.
+- **Performance from `home.log`:** 1200x1200 ID3 album covers decode in ~1.2-2.5 s on the loader
+  thread (slow to *appear*, not a frame stall); a downscaled/`sceJpeg` decode is a separate backlog
+  task. The `slow:` frames are game launches and setting applies, not a per-frame regression
+  (steady 52-58 fps).
+
+**Next device test:** deploy, re-enable `Overlay in Games`, press HOME in several games (incl. a
+streaming one, then with RemoteJoyLite back on) - the hub must open every time; send
+`pocketwatch.log`.
+
 ## Next actions (in order)
 
 0. **Owner (round 10, build with ADR-049):** boot the console a few times - it must always reach

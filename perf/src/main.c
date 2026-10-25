@@ -294,27 +294,26 @@ static int perf_thread(SceSize args, void *argp)
             continue;
         if ((g_mode == PW_PERF_OFF || !g_lines) && pw_osd_shown(&g_osd, now) == PW_OSD_NONE)
             continue;
-        /* remember the game's buffers so the overlay goes into all of them (no flicker) */
-        if (game && gw >= SCREEN_W)
+        /* Which buffer is on screen now. When it is not the game's own buffer, the Pocketwatch hub
+           (or another overlay, e.g. RemoteJoyLite) owns the screen: the overlay must draw NOTHING
+           then. Writing to a framebuffer we do not own - the hub's, in kernel RAM - can fault and
+           hang the PSP (device: HOME in a game blurred then froze, needing a reboot). We only ever
+           touch the game's own buffers, and only while the game is the one being shown (ADR-051).
+         */
+        if (sceDisplayGetFrameBufferInternal(0, &top, &bufw, &fmt, PSP_DISPLAY_SETBUF_IMMEDIATE) <
+                0 ||
+            !top || top != game || bufw < SCREEN_W)
+            continue;
+        (void)fmt;
+        if (game &&
+            gw >= SCREEN_W) /* remember every game buffer: the overlay goes into all (no flicker) */
             pw_fbset_add(&g_fbs, (unsigned int)game, gw, gf);
-        /* the Pocketwatch hub's frame (priority 0, its own buffer) hides the game while it is
-           open: then draw only on it; otherwise draw into every game buffer */
-        if (sceDisplayGetFrameBufferInternal(0, &top, &bufw, &fmt, PSP_DISPLAY_SETBUF_IMMEDIATE) >=
-                0 &&
-            top && bufw >= SCREEN_W && top != game) {
-            void *t = (void *)((unsigned int)top | 0x40000000u);
+        for (int i = 0; i < g_fbs.n; i++) {
+            void *t = (void *)(g_fbs.fb[i] | 0x40000000u); /* uncached: nothing to write back */
 
             if (g_mode != PW_PERF_OFF && g_lines)
-                lines_draw(t, bufw, fmt);
-            osd_draw(t, bufw, fmt, now, 1);
-        } else {
-            for (int i = 0; i < g_fbs.n; i++) {
-                void *t = (void *)(g_fbs.fb[i] | 0x40000000u); /* uncached: nothing to write back */
-
-                if (g_mode != PW_PERF_OFF && g_lines)
-                    lines_draw(t, g_fbs.w[i], g_fbs.f[i]);
-                osd_draw(t, g_fbs.w[i], g_fbs.f[i], now, 0);
-            }
+                lines_draw(t, g_fbs.w[i], g_fbs.f[i]);
+            osd_draw(t, g_fbs.w[i], g_fbs.f[i], now, 0);
         }
     }
     return 0;
