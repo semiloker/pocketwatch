@@ -655,11 +655,16 @@ static int four(void)
 {
     return 4;
 }
+static int five(void)
+{
+    return 5;
+}
+#define BRIGHT_MAX 4 /* the PSP's backlight: five levels, 0-4 (device, PSP-3000) */
 static int get_bright(void)
 {
     int v = impose(0, IMPOSE_BRIGHTNESS, 0);
 
-    return v >= 0 && v < 4 ? v : -1;
+    return v >= 0 && v <= BRIGHT_MAX ? v : -1;
 }
 static int set_bright(int o)
 {
@@ -670,14 +675,18 @@ static void text_bright(int o, char *out, int cap)
     stbsp_snprintf(out, cap, "%d", o + 1);
 }
 
-/* The control centre's brightness slider (ADR-050): the same 0-3 system brightness as Settings. */
+/* The control centre's brightness slider (ADR-050): the same system brightness as Settings. */
 int hm_bright_get(void)
 {
     return get_bright();
 }
 int hm_bright_set(int level)
 {
-    return set_bright(level < 0 ? 0 : level > 3 ? 3 : level);
+    return set_bright(level < 0 ? 0 : level > BRIGHT_MAX ? BRIGHT_MAX : level);
+}
+int hm_bright_max(void)
+{
+    return BRIGHT_MAX;
 }
 static int get_avls(void)
 {
@@ -909,7 +918,7 @@ static const row k_rows[] = {
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_TIMER, 0, timer_count, get_timer, set_timer, text_timer},
     {HS_CAT_MEDIA, HS_CHOICE, PW_S_HS_SLIDESHOW, 0, three, get_slide, set_slide, text_slide},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
-    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, four, get_bright, set_bright, text_bright},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, five, get_bright, set_bright, text_bright},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BOOST, 0, four, get_boost, set_boost, text_boost},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_OSD, 0, three, get_osd, set_osd, text_osd},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},

@@ -269,9 +269,11 @@ static void panel_home(hm_view *v)
     v->panel_glyph[PANEL_SLEEP] = HM_ICON_SLEEP;
     v->panel_glyph[PANEL_RESTART] = HM_ICON_ROTATE;
     v->panel_glyph[PANEL_OFF] = PW_ICON_QUIT;
-    v->panel_slider[PANEL_BRIGHT] = bl >= 0 ? bl * 256 / 3 : -1; /* the four levels as a bar */
+    int bmax = hm_bright_max();
+
+    v->panel_slider[PANEL_BRIGHT] = bl >= 0 && bmax > 0 ? bl * 256 / bmax : -1;
     if (bl >= 0) { /* Classic and Minimal draw the level as text (no slider) */
-        stbsp_snprintf(blv, sizeof(blv), "%d/4", bl + 1);
+        stbsp_snprintf(blv, sizeof(blv), "%d/%d", bl + 1, bmax + 1);
         v->panel_values[PANEL_BRIGHT] = blv;
     }
     v->panel_count = PANEL_ITEMS;

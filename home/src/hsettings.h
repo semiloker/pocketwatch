@@ -67,6 +67,7 @@ int hs_sounds(void);
    centre's slider (ADR-050): read it (-1 if unknown), or set a clamped level (0 on success). */
 int hm_bright_get(void);
 int hm_bright_set(int level);
+int hm_bright_max(void); /* the top level (levels are 0..max) */
 
 /* Home's wallpaper (512 x 272 pixels as Home draws them): read it (0, or < 0 without one), or
    keep a new one made from the picture at path. */
