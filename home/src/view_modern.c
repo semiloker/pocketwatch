@@ -831,10 +831,22 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_palette *pal, const hm_vi
                          p);
                 g->icon(g, v->panel_glyph[i], x0 + 27, mid, 14, C_TEXT, p);
             }
-            if (v->panel_items[i])
-                g->text(g, ui->title, tx, base, v->panel_items[i],
-                        v->panel_values[i] ? 150 : w - (tx - x0) - 22, on ? pal->ink : off, p);
-            if (v->panel_values[i])
+            if (v->panel_items[i]) {
+                int lw = v->panel_slider[i] >= 0 ? w * 3 / 5 - (tx - x0) - 8
+                         : v->panel_values[i]    ? 150
+                                                 : w - (tx - x0) - 22;
+
+                g->text(g, ui->title, tx, base, v->panel_items[i], lw, on ? pal->ink : off, p);
+            }
+            if (v->panel_slider[i] >= 0) { /* a slider row (brightness): a bar with a knob */
+                int sbx = x0 + w * 3 / 5, sbw = x0 + w - 22 - sbx,
+                    fill = sbw * hm_clampi(v->panel_slider[i], 0, 256) / 256;
+                unsigned int c = on ? pal->ink : acc;
+
+                g->rrect(g, sbx, mid - 2, sbw, 4, 2, 0, pal->knob, p * 200 / 256);
+                g->rrect(g, sbx, mid - 2, fill, 4, 2, 0, c, p);
+                g->rrect(g, sbx + fill - 3, mid - 5, 6, 10, 3, 0, on ? pal->ink : C_TEXT, p);
+            } else if (v->panel_values[i])
                 hm_text_right(g, ui->body, x0 + w - 22, base, v->panel_values[i],
                               on ? pal->ink2 : sub, p);
         }

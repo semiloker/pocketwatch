@@ -198,8 +198,12 @@ screenshots), each tried in PPSSPP, none touching boot or the plugins:
   section tiles below (Games, Music, Photos, Settings, System; focus `opt_sel`, 0 hero / 1..5
   tiles). The Games tile opens the full library (the plain carousel). Classic and Minimal keep the
   plain carousel/list. `home-games` preview (Modern shows the launcher).
-- **Deferred (need the device):** the brightness/volume sliders and the Wi-Fi/CPU toggles the
-  reference shows - they change hardware and the card was not connected this round.
+- **Stage 7 (done):** the control centre gained a **brightness slider** (top row; left/right adjust
+  the 0-3 system backlight via `hm_bright_get`/`hm_bright_set`, the same level Settings' Brightness
+  row changes). The redundant Close row was dropped (Back/HOME closes). Device test pending: adjust
+  it in a game-free session and confirm the backlight changes and sticks (boost off).
+- **Deferred:** a volume slider (no safe user-mode volume setter on the PSP) and the Wi-Fi/CPU
+  toggles the reference shows (need their own device-tested flows).
 
 All on `feature/psp-xmb-overhaul`, verified in PPSSPP only; owner review on the device pending.
 

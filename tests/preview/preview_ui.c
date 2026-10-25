@@ -735,24 +735,29 @@ static void home_previews(const pw_image *sky_img)
         v.wave = 0;
         v.panel = 256;
         v.panel_title = "Pocketwatch";
-        v.panel_items[0] = "Close";
+        v.panel_items[0] = "Brightness";
         v.panel_items[1] = "USB Connection";
         v.panel_items[2] = "Exit to the XMB";
         v.panel_items[3] = "Sleep";
         v.panel_items[4] = "Restart";
         v.panel_items[5] = "Turn Off";
-        v.panel_glyph[0] = HM_ICON_HOME;
+        v.panel_glyph[0] = HM_ICON_SUN;
         v.panel_glyph[1] = HM_ICON_USB;
         v.panel_glyph[2] = HM_ICON_EXIT;
         v.panel_glyph[3] = HM_ICON_SLEEP;
         v.panel_glyph[4] = HM_ICON_ROTATE;
         v.panel_glyph[5] = PW_ICON_QUIT;
+        for (int i = 0; i < HM_PANEL_MAX; i++)
+            v.panel_slider[i] = -1;
+        v.panel_slider[0] = 2 * 256 / 3; /* brightness level 2 of 0..3 */
         v.panel_count = 6;
-        v.panel_sel = 2;
-        v.panel_pos = 2 * 256;
+        v.panel_sel = 0;
+        v.panel_pos = 0;
         hshot(&v, "home-panel");
         v.panel = 0;
         memset(v.panel_glyph, 0, sizeof(v.panel_glyph));
+        for (int i = 0; i < HM_PANEL_MAX; i++)
+            v.panel_slider[i] = -1;
         v.sheet = 256;
         v.sheet_busy = 1;
         v.sheet_title = "USB Connection";

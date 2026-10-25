@@ -240,7 +240,7 @@ static void usb_log(void)
 
 /* ---- the HOME panel (HOM-REQ-010) ---- */
 
-enum { PANEL_CLOSE, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_RESTART, PANEL_OFF, PANEL_ITEMS };
+enum { PANEL_BRIGHT, PANEL_USB, PANEL_XMB, PANEL_SLEEP, PANEL_RESTART, PANEL_OFF, PANEL_ITEMS };
 
 /* A picture's time in the slideshow by Settings -> Slideshow Speed: normal, fast, slow
    (INFERRED from the XMB's Photo Settings; its exact times are not documented). */
@@ -248,22 +248,32 @@ static const unsigned int k_slide_ms[3] = {5000, 3000, 10000};
 
 static void panel_home(hm_view *v)
 {
+    static char blv[8];
+    int bl = hm_bright_get();
+
     memset(v->panel_values, 0, sizeof(v->panel_values));
     memset(v->panel_icons, 0, sizeof(v->panel_icons));
     memset(v->panel_glyph, 0, sizeof(v->panel_glyph));
+    for (int i = 0; i < HM_PANEL_MAX; i++)
+        v->panel_slider[i] = -1;
     v->panel_title = "Pocketwatch";
-    v->panel_items[PANEL_CLOSE] = pw_tr(PW_S_HM_CLOSE);
+    v->panel_items[PANEL_BRIGHT] = pw_tr(PW_S_HM_ED_LIGHT); /* "Brightness" */
     v->panel_items[PANEL_USB] = pw_tr(PW_S_HM_USB);
     v->panel_items[PANEL_XMB] = pw_tr(PW_S_HM_EXIT);
     v->panel_items[PANEL_SLEEP] = pw_tr(PW_S_HM_SLEEP);
     v->panel_items[PANEL_RESTART] = pw_tr(PW_S_HM_RESTART);
     v->panel_items[PANEL_OFF] = pw_tr(PW_S_HM_POWER_OFF);
-    v->panel_glyph[PANEL_CLOSE] = HM_ICON_HOME;
+    v->panel_glyph[PANEL_BRIGHT] = HM_ICON_SUN;
     v->panel_glyph[PANEL_USB] = HM_ICON_USB;
     v->panel_glyph[PANEL_XMB] = HM_ICON_EXIT;
     v->panel_glyph[PANEL_SLEEP] = HM_ICON_SLEEP;
     v->panel_glyph[PANEL_RESTART] = HM_ICON_ROTATE;
     v->panel_glyph[PANEL_OFF] = PW_ICON_QUIT;
+    v->panel_slider[PANEL_BRIGHT] = bl >= 0 ? bl * 256 / 3 : -1; /* the four levels as a bar */
+    if (bl >= 0) { /* Classic and Minimal draw the level as text (no slider) */
+        stbsp_snprintf(blv, sizeof(blv), "%d/4", bl + 1);
+        v->panel_values[PANEL_BRIGHT] = blv;
+    }
     v->panel_count = PANEL_ITEMS;
     v->panel_hint = 0;
 }
@@ -2028,10 +2038,20 @@ static void panel_keys(unsigned int ev, int *start_usb)
     } else if (ev & PSP_CTRL_DOWN) {
         g_v.panel_sel = g_v.panel_sel < g_v.panel_count - 1 ? g_v.panel_sel + 1 : g_v.panel_sel;
         g_s.snd = HM_SND_MOVE;
+    } else if (g_v.panel_sel == PANEL_BRIGHT && (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT))) {
+        int bl = hm_bright_get(); /* the brightness slider: left / right, the panel stays open */
+
+        if (bl >= 0 && hm_bright_set(bl + (ev & PSP_CTRL_RIGHT ? 1 : -1)) == 0) {
+            int sel = g_v.panel_sel;
+
+            panel_home(&g_v); /* refresh the slider and the level text from the new brightness */
+            g_v.panel_sel = sel;
+            g_s.snd = HM_SND_MOVE;
+        }
     } else if (ev & (g_back | PSP_CTRL_HOME)) {
         g_s.panel_open = 0;
         g_s.snd = HM_SND_BACK;
-    } else if (ev & g_enter) {
+    } else if ((ev & g_enter) && g_v.panel_sel != PANEL_BRIGHT) {
         g_s.panel_open = 0;
         if (g_v.panel_sel == PANEL_USB)
             *start_usb = 1;

@@ -63,6 +63,11 @@ int hs_step(int i, int dir);
 /* Home's key sounds on (1) or off, as Settings has them (sounds.txt). */
 int hs_sounds(void);
 
+/* The system backlight brightness (0-3), as Settings' Brightness row has it, for the control
+   centre's slider (ADR-050): read it (-1 if unknown), or set a clamped level (0 on success). */
+int hm_bright_get(void);
+int hm_bright_set(int level);
+
 /* Home's wallpaper (512 x 272 pixels as Home draws them): read it (0, or < 0 without one), or
    keep a new one made from the picture at path. */
 int hs_wallpaper_load(unsigned int *out);

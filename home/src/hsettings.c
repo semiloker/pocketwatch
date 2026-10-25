@@ -668,6 +668,16 @@ static void text_bright(int o, char *out, int cap)
 {
     stbsp_snprintf(out, cap, "%d", o + 1);
 }
+
+/* The control centre's brightness slider (ADR-050): the same 0-3 system brightness as Settings. */
+int hm_bright_get(void)
+{
+    return get_bright();
+}
+int hm_bright_set(int level)
+{
+    return set_bright(level < 0 ? 0 : level > 3 ? 3 : level);
+}
 static int get_avls(void)
 {
     int v = impose(0, IMPOSE_AVLS, 0);

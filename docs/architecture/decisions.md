@@ -1080,9 +1080,11 @@ decision was taken; the evidence column links the research behind it.
   Minimal keep the plain disc card. Stage 5 (done): the HOME panel is a control centre - each
   action a row with its icon in a tinted square (Close, USB, Exit to the XMB, Sleep, Restart, Turn
   Off; `panel_glyph`), a battery bar across the bottom (`panel`, view_modern.c); Restart relaunches
-  Home (`PANEL_RESTART`, main.c). The hardware sliders the reference shows (brightness, volume)
-  and the Wi-Fi/CPU toggles are deferred: they change hardware and need a device test, and the card
-  was not connected this round. Stage 6 (done): the Games section's root is a landing launcher in
+  Home (`PANEL_RESTART`, main.c). A brightness slider is the top row (`PANEL_BRIGHT`, `panel_slider`;
+  left/right adjust the 0-3 system backlight through `hm_bright_get`/`hm_bright_set`, the same impose
+  level Settings' Brightness row uses, ADR-045; Classic and Minimal show the level as text). The
+  volume slider and the Wi-Fi/CPU toggles the reference shows are still deferred: the PSP has no safe
+  user-mode volume setter, and the toggles need their own device-tested flows. Stage 6 (done): the Games section's root is a landing launcher in
   Modern - a Resume hero for the most recent game (its art, title, line and Play), a status card
   beside it (the clock and a battery bar), and a row of section tiles below (Games, Music, Photos,
   Settings, System) (`dash`, view_modern.c). Focus is `hm_page.opt_sel` (0 the hero, 1..5 the
