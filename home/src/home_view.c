@@ -800,6 +800,17 @@ void hm_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         perf_overlay(g, ui, v);
     if (a < 256) /* fading in, or out before a game starts */
         g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, 256 - a);
+    if (v->intro > 0) { /* the start-up animation: the wordmark fading out to the launcher */
+        int ia = hm_clampi(v->intro, 0, 256), cy = HM_H / 2 - 8;
+        unsigned int acc = ui->accent ? ui->accent : C_ON;
+
+        g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, ia);
+        g->rrect(g, HM_W / 2 - 27, cy - 50, 54, 54, 16, 0, acc, ia);
+        g->icon(g, HM_ICON_CLOCK, HM_W / 2, cy - 23, 28, C_TEXT, ia);
+        hm_text_center(g, ui->big, HM_W / 2, cy + 22, "Pocketwatch", HM_W, C_TEXT, ia);
+        hm_text_center(g, ui->body, HM_W / 2, cy + 44, "Pause. Save. Play.", HM_W, C_SUB,
+                       ia * 200 / 256);
+    }
 }
 
 void hm_prefetch(hm_gfx *g, const hm_ui *ui, const hm_view *v)

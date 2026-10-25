@@ -66,17 +66,19 @@ PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 #define HOME_SELF "ms0:/PSP/GAME/PocketwatchHome/EBOOT.PBP" /* Home itself (deploy's copy) */
 #define BROWSER   PW_DIR "browser.txt" /* the browser's first page (a URL), if not the default */
 /* A search made for old browsers (plain HTTP; the PSP's browser has no modern TLS). PROPOSED. */
-#define BROWSER_HOME "http://frogfind.com/"
-#define STATS_MS     30000
-#define FADE_MS      250
-#define MIX_MS       300 /* a new background fades in */
-#define TOAST_MS     1800
-#define HOLD_MS      450 /* left / right held this long: seeking, not the next track */
-#define SEEK_EVERY   220
-#define SEEK_STEP    5    /* s */
-#define SEEK_TAP     10   /* s: one press of left / right */
-#define EDIT_SIDE    1600 /* an edited copy's longest side at most (memory) */
-#define REPEAT       (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_UP | PSP_CTRL_DOWN)
+#define BROWSER_HOME  "http://frogfind.com/"
+#define STATS_MS      30000
+#define FADE_MS       250
+#define MIX_MS        300 /* a new background fades in */
+#define INTRO_HOLD_MS 650 /* the start-up wordmark holds, then fades out over INTRO_FADE_MS */
+#define INTRO_FADE_MS 450
+#define TOAST_MS      1800
+#define HOLD_MS       450 /* left / right held this long: seeking, not the next track */
+#define SEEK_EVERY    220
+#define SEEK_STEP     5    /* s */
+#define SEEK_TAP      10   /* s: one press of left / right */
+#define EDIT_SIDE     1600 /* an edited copy's longest side at most (memory) */
+#define REPEAT        (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_UP | PSP_CTRL_DOWN)
 
 static hm_ui g_ui;
 static pw_font g_fonts[3];
@@ -2178,7 +2180,7 @@ int main(void)
 {
     pw_keys keys = {0, 0, 0};
     stats st;
-    unsigned int t_prev, t_rows = 0, t_status = 0;
+    unsigned int t_prev, t_rows = 0, t_status = 0, t_boot = 0;
     const unsigned int *shown = 0; /* the background drawn last */
     int up = 0, clock_was;
     char clock[24] = "";
@@ -2231,6 +2233,7 @@ int main(void)
     build_all();
     shown = g_gradient;
     g_s.t_open = t_prev = hm_hw_now_ms();
+    t_boot = g_s.t_open; /* the start-up animation's reference (ADR-052) */
     memset(&st, 0, sizeof(st));
     st.t0 = st.last = g_s.t_open;
     g_perf.t0 = g_s.t_open;
@@ -2457,6 +2460,17 @@ int main(void)
         g_v.t_ms = now;
         g_v.appear = g_s.launching >= 0 ? 256 - pw_ramp(now, g_s.t_fade, FADE_MS)
                                         : pw_ramp(now, g_s.t_open, FADE_MS);
+        { /* the start-up animation (ADR-052): the wordmark holds, then fades to the launcher;
+             any button skips straight to the fade-out */
+            unsigned int el = now - t_boot;
+
+            if (buttons && el < INTRO_HOLD_MS)
+                t_boot = now - INTRO_HOLD_MS, el = INTRO_HOLD_MS;
+            g_v.intro = el >= INTRO_HOLD_MS + INTRO_FADE_MS ? 0
+                        : el >= INTRO_HOLD_MS
+                            ? 256 - (int)(el - INTRO_HOLD_MS) * 256 / INTRO_FADE_MS
+                            : 256;
+        }
 
         /* the frame: the list, then - while the GE draws it - what the next frames may need */
         g_t_draw = sceKernelGetSystemTimeLow();

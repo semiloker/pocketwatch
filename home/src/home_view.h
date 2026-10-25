@@ -200,6 +200,7 @@ typedef struct {
     const char *hint_lr, *hint_ud;      /* the d-pad's left / right and up / down, or NULL */
     unsigned int t_ms;
     int appear; /* 0-256: the screen fading in, or out before a game starts */
+    int intro;  /* 0-256: the start-up overlay (the wordmark), fading out at boot */
 
     /* The HOME panel (HOM-REQ-010): over everything while panel > 0 (0-256, fading) */
     int panel, panel_sel, panel_pos;

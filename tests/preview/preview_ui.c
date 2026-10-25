@@ -415,6 +415,9 @@ static void home_previews(const pw_image *sky_img)
         root.is_dash = g_style == HM_STYLE_MODERN; /* Modern's landing dashboard (ADR-050) */
         v.page[0] = root;
         hshot(&v, "home-games");
+        v.intro = 230; /* the start-up animation (ADR-052), mid fade-out */
+        hshot(&v, "home-intro");
+        v.intro = 0;
         v.page[0].sel = 1;
         v.page[0].selpos = 128 + 64; /* gliding to the second game */
         v.bg = cl ? sky : grad;
