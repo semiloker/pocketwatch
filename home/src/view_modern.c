@@ -317,8 +317,11 @@ static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
         hm_text_center(g, ui->body, sx + sw / 2, top + hh - 12, fs, sw - 12, p->sub, a);
     }
 
-    /* the section tiles: Games, Music, Photos, Settings, System */
+    /* the section tiles: Games, Music, Photos, Settings, System, each its own colour */
     {
+        static const unsigned int stint[5] = {PW_RGB(80, 140, 230), PW_RGB(220, 92, 170),
+                                              PW_RGB(70, 182, 120), PW_RGB(220, 160, 70),
+                                              PW_RGB(80, 190, 210)};
         int gap = 10, tw = (HM_W - 2 * hx - 4 * gap) / 5, y = top + hh + 12,
             th = hm_clampi(HM_H - y - 24, 40, 60);
 
@@ -327,9 +330,10 @@ static void dash(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view 
 
             g->rrect(g, x, y, tw, th, 10, 0, on ? p->sel : p->card,
                      on ? a * p->sel_a / 256 : a * p->card_a / 256);
+            g->rrect(g, x, y, tw, 3, 2, 0, stint[i], a * (on ? 256 : 150) / 256); /* a colour cap */
             if (on)
                 g->rrect(g, x - 3, y - 3, tw + 6, th + 6, 11, PW_FX(2), p->text, a);
-            g->icon(g, sglyph[i], mid, y + th / 2 - 6, 16, on ? p->ink : acc, a);
+            g->icon(g, sglyph[i], mid, y + th / 2 - 6, 16, on ? p->ink : stint[i], a);
             hm_text_center(g, ui->body, mid, y + th - 8, v->tab_names[stab[i]], tw - 6,
                            on ? p->ink : p->sub, a);
         }
