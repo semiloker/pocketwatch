@@ -41,9 +41,23 @@ nothing. The FPS pill no longer shows over the hub (a menu does not need it), an
 write to a foreign buffer is gone. Mitigation already on the owner's card: `Overlay in Games` set
 off in PLUGINS.TXT until the fix is confirmed.
 
+**Round 11b (owner, same day):** the first fix drew only when `top == game`, which on the device
+made the overlay **invisible** — the owner's games display from a back buffer, so `top != game`
+during normal play as well, not only when the hub is open. The reliable signal is the **memory
+region**: a game framebuffer is in VRAM (`0x04000000-0x041FFFFF`); the hub's page is in a kernel
+partition. The overlay now tracks and draws onto **only VRAM buffers** (`is_vram`) and never reads
+the displayed buffer — the hub's page can never match, so it is never written.
+
+Also round 11b: with the overlay on, **quitting a game black-screened and powered the PSP off**.
+`module_stop` waited for the overlay thread with no timeout, but the thread blocks in
+`sceDisplayWaitVblankStart`; during the exit the display is torn down, vblank stops, the thread
+never ends, `module_stop` hangs the exit, and the firmware powers the PSP off. Fixed: `module_stop`
+waits ~120 ms then `sceKernelTerminateDeleteThread`.
+
 **Device test (pending, PF-FREEZE):** with the fixed `pocketwatch_perf.prx` and `Overlay in Games`
-on, press HOME in several games (Castlevania, a streaming game) — the hub must open every time; the
-FPS pill shows in the game, not on the hub. Re-enable RemoteJoyLite and repeat.
+on, press HOME in several games (Castlevania, a streaming game) — the hub must open every time, the
+FPS pill shows **in the game** (not on the hub), and **quitting to the XMB works** (no black
+screen/power-off). Re-enable RemoteJoyLite and repeat.
 
 ## 2. Performance from `home.log` (VERIFIED)
 

@@ -1112,16 +1112,26 @@ decision was taken; the evidence column links the research behind it.
   the display. Writing there is a kernel write into another module's memory; it faults, and a fault
   in a kernel thread hangs the PSP. The blur (the hub's backdrop) rendered, then the overlay's next
   vblank faulted on the hub's buffer. New since ADR-032, so HOME regressed after the overlay shipped.
-- **Decision:** the overlay only ever writes to the game's **own** buffers (the tracked
-  `pw_fbset`), and only while the game is the one on screen (`top == game`). When the hub — or any
-  overlay, such as RemoteJoyLite — owns the screen, the overlay draws nothing that frame. It never
-  touches a buffer it did not get from the game's own `sceDisplaySetFrameBuf`.
-- **Alternatives considered:** a shared "hub open" flag between the plugin and the perf module
-  (they are separate PRXs; no reliable shared signal); pausing the overlay thread during the hub
-  (same problem). Drawing only onto owned buffers needs no cross-module coordination.
-- **Consequences:** the FPS pill no longer shows over the Pocketwatch hub (a menu; it does not need
-  it), and the freeze is gone. Device test PF-FREEZE confirms HOME opens in several games with the
-  overlay on, with and without RemoteJoyLite. The overlay stays off on the owner's card until then.
+- **Decision (revised after round 11b):** the first attempt only drew when `top == game`; on the
+  device that made the overlay **invisible** (the owner's games display from a back buffer, so
+  `top != game` during normal play too). The reliable distinction is the **memory region**: a game
+  framebuffer is in VRAM (`0x04000000-0x041FFFFF`), while the hub's page is in a kernel partition
+  (`PW_MEM_PARTITION_SPARE`). So the overlay tracks and draws onto **only VRAM buffers** (`is_vram`,
+  `perf/src/main.c`) and never reads the displayed buffer at all; the hub's page can never match, so
+  it is never written. While the hub is open the game's buffers are off-screen, so the overlay shows
+  nothing but faults nothing.
+- **Exit power-off (same round):** with the overlay on, quitting a game black-screened and powered
+  the PSP off. `module_stop` waited for the thread with no timeout, but the thread blocks in
+  `sceDisplayWaitVblankStart`; while the game exits the display is torn down, vblank stops, the
+  thread never ends, the exit hangs and the PSP powers off. Fixed: `module_stop` waits briefly then
+  `sceKernelTerminateDeleteThread`.
+- **Alternatives considered:** `top == game` (invisible, above); a shared "hub open" flag between
+  the two PRXs (no reliable channel); pausing by frame activity (a one-frame race on open). The VRAM
+  region test needs no cross-module coordination and no displayed-buffer guesswork.
+- **Consequences:** the FPS pill shows in games again and never over the hub, the freeze and the
+  exit power-off are gone (games that render to RAM, not VRAM, would show no overlay — rare). Device
+  test PF-FREEZE: HOME opens in several games with the overlay on, quitting to the XMB works, with
+  and without RemoteJoyLite. The overlay stays off on the owner's card until that passes.
 
 ## ADR-052 — A start-up animation for Home
 

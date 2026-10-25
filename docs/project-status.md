@@ -227,9 +227,16 @@ Owner tested on the device ([m7-ingame-freeze](research/m7-ingame-freeze.md)):
   task. The `slow:` frames are game launches and setting applies, not a per-frame regression
   (steady 52-58 fps).
 
-**Next device test:** deploy, re-enable `Overlay in Games`, press HOME in several games (incl. a
-streaming one, then with RemoteJoyLite back on) - the hub must open every time; send
-`pocketwatch.log`.
+**Round 11b (same day):** with the fixed overlay on, (a) the overlay was **invisible** - the first
+fix's `top == game` test excluded normal play (games display from a back buffer). Now it draws onto
+**only VRAM buffers** (`is_vram`), the region that is the game's and never the hub's. (b) **Quitting
+a game black-screened and powered the PSP off** - `module_stop` hung on the vblank-blocked thread
+during the display tear-down; now it force-ends the thread after ~120 ms. Both in ADR-051.
+
+**Next device test (PF-FREEZE):** deploy, re-enable `Overlay in Games` (Full), press HOME in several
+games (incl. a streaming one, then with RemoteJoyLite back on) - the hub opens every time, the FPS
+pill shows in the game not on the hub, and **quitting to the XMB works** (no black screen/power
+off); send `pocketwatch.log`.
 
 ## Next actions (in order)
 

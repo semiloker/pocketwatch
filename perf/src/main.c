@@ -49,6 +49,15 @@ static int is_disc_apitype(int a)
            (a >= 0x110 && a <= 0x115);
 }
 
+/* A framebuffer in VRAM (the game's), not the hub's kernel-partition page. Any cache mirror
+   (0x04/0x44/0xA4) maps to the 2 MB at physical 0x04000000 (ADR-051). */
+static int is_vram(const void *p)
+{
+    unsigned int a = (unsigned int)p & 0x1FFFFFFF;
+
+    return a >= 0x04000000 && a < 0x04200000;
+}
+
 #define CFG               "ms0:/seplugins/pocketwatch/perf.txt"
 #define HOLD_MS           1000 /* L + R + SELECT held this long: the next mode */
 #define ELEC_S            10 /* the current: a command the syscon sends to the battery, so not often */
@@ -225,8 +234,8 @@ static int perf_thread(SceSize args, void *argp)
     s.cpu_pct = s.free_kb = s.bat_pct = s.bat_ma = s.bat_mv = s.bat_temp = s.bat_min = PW_PERF_NA;
     lines(&s);
     while (g_run) {
-        void *game = 0, *top = 0;
-        int bufw = 0, fmt = 0, gw = 0, gf = 0;
+        void *game = 0;
+        int gw = 0, gf = 0;
         unsigned int now;
         SceCtrlData pad;
 
@@ -294,19 +303,13 @@ static int perf_thread(SceSize args, void *argp)
             continue;
         if ((g_mode == PW_PERF_OFF || !g_lines) && pw_osd_shown(&g_osd, now) == PW_OSD_NONE)
             continue;
-        /* Which buffer is on screen now. When it is not the game's own buffer, the Pocketwatch hub
-           (or another overlay, e.g. RemoteJoyLite) owns the screen: the overlay must draw NOTHING
-           then. Writing to a framebuffer we do not own - the hub's, in kernel RAM - can fault and
-           hang the PSP (device: HOME in a game blurred then froze, needing a reboot). We only ever
-           touch the game's own buffers, and only while the game is the one being shown (ADR-051).
-         */
-        if (sceDisplayGetFrameBufferInternal(0, &top, &bufw, &fmt, PSP_DISPLAY_SETBUF_IMMEDIATE) <
-                0 ||
-            !top || top != game || bufw < SCREEN_W)
-            continue;
-        (void)fmt;
-        if (game &&
-            gw >= SCREEN_W) /* remember every game buffer: the overlay goes into all (no flicker) */
+        /* Only ever draw onto the game's own framebuffers, which live in VRAM
+           (0x04000000-0x041FFFFF). The Pocketwatch hub's page is in a kernel partition, so it never
+           matches and is never written: writing to a buffer we do not own faulted and hung the PSP
+           (device: HOME in a game blurred then froze; ADR-051). The displayed buffer is not used -
+           the overlay goes into every tracked game buffer (no flicker); while the hub is open those
+           are off-screen, so nothing shows but nothing faults. */
+        if (game && gw >= SCREEN_W && is_vram(game))
             pw_fbset_add(&g_fbs, (unsigned int)game, gw, gf);
         for (int i = 0; i < g_fbs.n; i++) {
             void *t = (void *)(g_fbs.fb[i] | 0x40000000u); /* uncached: nothing to write back */
@@ -338,7 +341,15 @@ int module_stop(SceSize args, void *argp)
     (void)args;
     (void)argp;
     g_run = 0;
-    if (g_thread >= 0)
-        sceKernelWaitThreadEnd(g_thread, 0);
+    if (g_thread >= 0) {
+        /* The thread may be blocked in sceDisplayWaitVblankStart while the game exits and the
+           display is torn down (vblank stops): waiting for it forever hung the exit and the PSP
+           powered off (device). Wait briefly, then force it to end. */
+        SceUInt timeout = 120000;
+
+        if (sceKernelWaitThreadEnd(g_thread, &timeout) < 0)
+            sceKernelTerminateDeleteThread(g_thread);
+        g_thread = -1;
+    }
     return 0;
 }
