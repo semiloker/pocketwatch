@@ -262,13 +262,16 @@ black screen/power-off); send `pocketwatch.log`.
 
 ## 2026-10-27: the UI round (owner: "the look, what is missing, artefacts, and the player")
 
-From the card's `home.log` (build `60171bf`, the owner's Modern / Glass / Aurora) and previews of
-every screen: the player's keys did not match what it drew (ADR-054); text placed by offsets
+From the card's `home.log` ([log](research/logs/2026-10-27-home-round12.log), builds up to
+`60171bf`, the owner's Modern / Glass / Aurora) and previews of every screen: the player's keys did not match what it drew (ADR-054); text placed by offsets
 tuned to the previews' font, rows of lists and grids under the hints, a photo's name under its
 buttons, cramped two-line rows, a see-through HOME panel (ADR-055); 90-120 ms first frames, a
 1.9 s game page and 95-116 ms settings frames, all waiting for the Memory Stick (ADR-055); and
 the system's pictures refused to Home (0x8001000D) - now read through the kernel (ADR-056).
-Verified on the host (146 tests, previews of every screen) and in PPSSPP (the GE path: music,
+The same log, VERIFIED on the device: the battery's calibration ran
+to the end (`measured 1849 mAh in 33601 s (100% to 1%)`, HM30); USB from Home connected every time
+(`start bus 0 (ours)`, HM32); a track starts in 37-64 ms (HM24); a 1200 x 1200 tag cover takes
+1.2-1.4 s to decode on the loader (slow to appear, no stall - backlog). Verified on the host (146 tests, previews of every screen) and in PPSSPP (the GE path: music,
 the player, settings, 59-60 fps); not yet on the PSP: HM35-HM37. Home builds with this
 machine's older PSPSDK as with the laptop's newer one (`union SceNetApctlInfo`).
 
