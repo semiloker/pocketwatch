@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-20. Update this file whenever a milestone, a blocker or the next action
+Last updated: 2026-10-27. Update this file whenever a milestone, a blocker or the next action
 changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 
 ## Where we are
@@ -260,9 +260,24 @@ displayed-buffer gate is removed (overlay writes every tracked VRAM buffer again
 in the game; HOME - the hub opens, no pill over it, no freeze; **Quit Game - the XMB comes up** (no
 black screen/power-off); send `pocketwatch.log`.
 
+## 2026-10-27: the UI round (owner: "the look, what is missing, artefacts, and the player")
+
+From the card's `home.log` (build `60171bf`, the owner's Modern / Glass / Aurora) and previews of
+every screen: the player's keys did not match what it drew (ADR-054); text placed by offsets
+tuned to the previews' font, rows of lists and grids under the hints, a photo's name under its
+buttons, cramped two-line rows, a see-through HOME panel (ADR-055); 90-120 ms first frames, a
+1.9 s game page and 95-116 ms settings frames, all waiting for the Memory Stick (ADR-055); and
+the system's pictures refused to Home (0x8001000D) - now read through the kernel (ADR-056).
+Verified on the host (146 tests, previews of every screen) and in PPSSPP (the GE path: music,
+the player, settings, 59-60 fps); not yet on the PSP: HM35-HM37. Home builds with this
+machine's older PSPSDK as with the laptop's newer one (`union SceNetApctlInfo`).
+
 ## Next actions (in order)
 
-0. **Owner (round 10, build with ADR-049):** boot the console a few times - it must always reach
+0. **Owner (2026-10-27, the UI round on the card):** HM35 (the player), HM36 (lists, text, the
+   settings' speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`,
+   `slow:`). Then PF-FREEZE above if not done.
+   **Before (round 10, build with ADR-049):** boot the console a few times - it must always reach
    Home (the module can no longer touch boot). Then, to try the in-game overlay safely: Settings →
    Pocketwatch → Overlay in Games → Full, start ONE game, check it, Quit. bright3 stays off; for XMB
    brightness the owner can re-enable bright3 (its own plugin). **Earlier (still open):** PF4 (Own Steps in Home and a game), PF1 and PF3 (the overlay and the

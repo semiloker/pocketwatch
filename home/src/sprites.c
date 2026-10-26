@@ -1,30 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "sprites.h"
 
-int hm_sprite_clip(hm_sprite *s, int w, int h)
+int hm_sprite_clip_rect(hm_sprite *s, int x0, int y0, int x1, int y1)
 {
     float du = s->x1 > s->x0 ? (s->u1 - s->u0) / (s->x1 - s->x0) : 0,
           dv = s->y1 > s->y0 ? (s->v1 - s->v0) / (s->y1 - s->y0) : 0;
 
-    if (s->x1 <= s->x0 || s->y1 <= s->y0 || s->x1 <= 0 || s->y1 <= 0 || s->x0 >= w || s->y0 >= h)
+    if (s->x1 <= s->x0 || s->y1 <= s->y0 || s->x1 <= x0 || s->y1 <= y0 || s->x0 >= x1 ||
+        s->y0 >= y1)
         return 0;
-    if (s->x0 < 0) {
-        s->u0 -= s->x0 * du;
-        s->x0 = 0;
+    if (s->x0 < x0) {
+        s->u0 += (x0 - s->x0) * du;
+        s->x0 = (float)x0;
     }
-    if (s->y0 < 0) {
-        s->v0 -= s->y0 * dv;
-        s->y0 = 0;
+    if (s->y0 < y0) {
+        s->v0 += (y0 - s->y0) * dv;
+        s->y0 = (float)y0;
     }
-    if (s->x1 > w) {
-        s->u1 -= (s->x1 - w) * du;
-        s->x1 = (float)w;
+    if (s->x1 > x1) {
+        s->u1 -= (s->x1 - x1) * du;
+        s->x1 = (float)x1;
     }
-    if (s->y1 > h) {
-        s->v1 -= (s->y1 - h) * dv;
-        s->y1 = (float)h;
+    if (s->y1 > y1) {
+        s->v1 -= (s->y1 - y1) * dv;
+        s->y1 = (float)y1;
     }
     return 1;
+}
+
+int hm_sprite_clip(hm_sprite *s, int w, int h)
+{
+    return hm_sprite_clip_rect(s, 0, 0, w, h);
 }
 
 int hm_rrect_radius(int w, int h, int r)

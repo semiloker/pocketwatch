@@ -17,6 +17,8 @@ typedef struct {
 
 /* Cut s to the w x h screen, moving its texture coordinates with it. 0 when nothing is left. */
 int hm_sprite_clip(hm_sprite *s, int w, int h);
+/* The same to the rectangle x0, y0 - x1, y1 (the end excluded). */
+int hm_sprite_clip_rect(hm_sprite *s, int x0, int y0, int x1, int y1);
 
 /* The stamp's side for radius r. */
 #define HM_STAMP_SIDE(r) (2 * (r) + 1)

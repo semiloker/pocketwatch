@@ -558,7 +558,7 @@ out:
 /* Connect through res->slot; the time from the internet while there. */
 static int job_test(hm_net_result *res)
 {
-    SceNetApctlInfo info;
+    union SceNetApctlInfo info; /* (the tag: older PSPSDKs have no typedef) */
     netData d;
     net_st st;
     int r;

@@ -38,6 +38,9 @@ enum {
 /* config.txt's style, the same values as the in-game menu's (ui/ui.h PW_STYLE_*) */
 enum { HM_STYLE_CLASSIC, HM_STYLE_MODERN, HM_STYLE_MINIMAL, HM_STYLES };
 
+/* What the player's keys can choose (Now Playing): the time bar, then its buttons left to right. */
+enum { HM_MU_BAR, HM_MU_SHUFFLE, HM_MU_PREV, HM_MU_PLAY, HM_MU_NEXT, HM_MU_REPEAT };
+
 #define HM_PANEL_MAX  8
 #define HM_POPUP_MAX  48
 #define HM_PHOTO_COLS 4 /* Modern's grid of photos: up / down move by a row */
@@ -191,7 +194,11 @@ typedef struct {
     int mu_shuffle;                              /* 0 / 1 */
     int mu_repeat;                               /* 0 off, 1 all, 2 one */
     int mu_seek;                                 /* -1, 1 while seeking back / on, else 0 */
-    const unsigned int *mu_cover;                /* HM_COVER x HM_COVER, or NULL */
+    int mu_focus;                 /* Now Playing: HM_MU_BAR or a button (HM_MU_*), -1 none */
+    int mu_btn_pos, mu_bar_t;     /* the focus gliding along the buttons (256 each); on the bar */
+    const char *mu_focus_text;    /* the chosen button's name: "Shuffle: On", "Next Track" */
+    const char *mu_now_label;     /* "Now Playing" (the way there from the tracks) */
+    const unsigned int *mu_cover; /* HM_COVER x HM_COVER, or NULL */
 
     const char *hint_enter, *hint_tabs; /* the bottom hints ("Play", "Section") */
     const char *hint_options;           /* Triangle, or NULL */

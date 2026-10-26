@@ -94,12 +94,14 @@ static void bind(const void *px, int w, int h, int stride, int linear)
     sceGuTexFilter(linear ? GU_LINEAR : GU_NEAREST, linear ? GU_LINEAR : GU_NEAREST);
 }
 
-/* One textured sprite, clipped to the screen. */
+static int g_cy0, g_cy1 = SCR_H; /* the rows drawn on (the clip operation) */
+
+/* One textured sprite, clipped to the screen (and the rows of a clip). */
 static void sprite(hm_sprite s, unsigned int color)
 {
     tvert *v;
 
-    if (!hm_sprite_clip(&s, SCR_W, SCR_H))
+    if (!hm_sprite_clip_rect(&s, 0, g_cy0, SCR_W, g_cy1))
         return;
     v = sceGuGetMemory(2 * sizeof(tvert));
     v[0] = (tvert){s.u0, s.v0, color, s.x0, s.y0, 0};
@@ -247,7 +249,7 @@ static void fill(hm_gfx *g, int x, int y, int w, int h, unsigned int color, int 
     hm_sprite s = {(float)x, (float)y, (float)(x + w), (float)(y + h), 0, 0, 0, 0};
 
     (void)g;
-    if (alpha <= 0 || !hm_sprite_clip(&s, SCR_W, SCR_H))
+    if (alpha <= 0 || !hm_sprite_clip_rect(&s, 0, g_cy0, SCR_W, g_cy1))
         return;
     texturing(0);
     v = sceGuGetMemory(2 * sizeof(cvert));
@@ -551,6 +553,15 @@ static void button(hm_gfx *g, int which, int cx, int cy, int size, unsigned int 
     glyph_draw(1, which, cx, cy, size, color, alpha);
 }
 
+/* The sprites are cut on the CPU (hm_sprite_clip_rect, texture coordinates moved with them), as
+   they are cut to the screen: no GE state to keep in step. */
+static void clip(hm_gfx *g, int y0, int y1)
+{
+    (void)g;
+    g_cy0 = y0 < 0 ? 0 : y0;
+    g_cy1 = y1 > SCR_H ? SCR_H : y1;
+}
+
 /* ---- frames ---- */
 
 int hm_gu_init(void)
@@ -564,6 +575,7 @@ int hm_gu_init(void)
     g_ops.icon = icon;
     g_ops.button = button;
     g_ops.warm = warm;
+    g_ops.clip = clip;
     for (int i = 0; i < 256; i++)
         g_clut[i] = (unsigned int)i << 24 | 0x00FFFFFF;
     sceKernelDcacheWritebackRange(g_clut, sizeof(g_clut));
@@ -621,6 +633,8 @@ hm_gfx *hm_gu_begin(void)
     g_textured = -1;
     g_warm_us = 0;
     g_made = 0;
+    g_cy0 = 0;
+    g_cy1 = SCR_H;
     sceGuStart(GU_DIRECT, g_list);
     state();
     return &g_ops;

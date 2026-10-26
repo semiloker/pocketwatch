@@ -91,6 +91,11 @@ int hm_hw_language(void);         /* PSP_SYSTEMPARAM_LANGUAGE_* */
 unsigned int hm_hw_free_mb(void); /* free space on ms0:, MB */
 
 int hm_hw_read_file(const char *path, void *buf, unsigned int cap); /* bytes or < 0 */
+/* The same in kernel mode (KUBridge): flash0 files the system refuses this user program
+   (0x8001000D on topmenu_icon.rco and 01-12_03g.bmp, home.log 2026-10-20..27) while the game
+   plugin reads them. The size, or bytes read; < 0 the error. */
+int hm_hw_kernel_size(const char *path);
+int hm_hw_kernel_read(const char *path, void *buf, unsigned int cap);
 /* A line (with its newline) at the end of seplugins/pocketwatch/home.log; from any thread.
    Dropped while the card is lent to the PC (hm_hw_card_lent: USB). */
 void hm_hw_log(const char *line);

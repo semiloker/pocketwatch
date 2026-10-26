@@ -177,6 +177,38 @@ void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size,
             alpha);
 }
 
+void hm_player(hm_gfx *g, pw_font *f, const hm_view *v, const hm_player_look *k, int cx, int y,
+               int a)
+{
+    int xs[5], pos = hm_clampi(v->mu_btn_pos - 256, 0, 4 * 256), i = pos / 256, fr = pos % 256, hx,
+               fa = v->mu_focus <= HM_MU_BAR ? 0 : a * (256 - hm_clampi(v->mu_bar_t, 0, 256)) / 256,
+               rr[5];
+
+    for (int b = 0; b < 5; b++) {
+        xs[b] = cx + (b - 2) * k->gap;
+        rr[b] = b == 2 && k->disc ? k->disc + 5 : k->icon / 2 + 9;
+    }
+    /* the focus: a ring gliding from button to button, gone while the bar is chosen */
+    if (fa > 0) {
+        int j = i < 4 ? i + 1 : 4, r = hm_lerp(rr[i], rr[j], fr);
+
+        hx = hm_lerp(xs[i], xs[j], fr);
+        g->rrect(g, hx - r, y - r, 2 * r, 2 * r, r, 0, k->hl, fa * k->hl_a / 256);
+        g->rrect(g, hx - r, y - r, 2 * r, 2 * r, r, PW_FX(2), k->ink, fa);
+    }
+    g->icon(g, HM_ICON_SHUFFLE, xs[0], y, k->icon, v->mu_shuffle ? k->acc : k->dim, a);
+    g->icon(g, HM_ICON_PREV, xs[1], y, k->icon, k->ink, a);
+    if (k->disc)
+        g->rrect(g, cx - k->disc, y - k->disc, 2 * k->disc, 2 * k->disc, k->disc, 0, k->acc, a);
+    g->icon(g, v->mu_state == 1 ? HM_ICON_PAUSE : HM_ICON_PLAY, cx + (v->mu_state == 1 ? 0 : 1), y,
+            k->play, k->disc ? C_TEXT : k->ink, a);
+    g->icon(g, HM_ICON_NEXT, xs[3], y, k->icon, k->ink, a);
+    g->icon(g, v->mu_repeat == 2 ? HM_ICON_REPEAT1 : HM_ICON_REPEAT, xs[4], y, k->icon,
+            v->mu_repeat ? k->acc : k->dim, a);
+    if (k->label_y && v->mu_focus_text)
+        hm_text_center(g, f, cx, k->label_y, v->mu_focus_text, 5 * k->gap, k->label, fa);
+}
+
 void hm_art_draw(hm_gfx *g, const pw_image *img, int cx, int cy, int alpha)
 {
     g->image(g, img->px, img->w, img->h, (img->w + 15) & ~15, cx - img->w / 2, cy - img->h / 2,
@@ -228,7 +260,7 @@ int hm_hints_right(hm_gfx *g, const hm_ui *ui, const hm_view *v, int x1, int y, 
             continue;
         x -= pw_text_width(ui->body, label[i]);
         g->text(g, ui->body, x, y, label[i], 0, color, alpha);
-        g->button(g, btn[i], x - 9, y - 4, 12, color, alpha);
+        g->button(g, btn[i], x - 9, y - pw_font_cap(ui->body) / 2, 12, color, alpha);
         x -= 26;
     }
     for (int i = 0; i < 2; i++) {
@@ -238,7 +270,8 @@ int hm_hints_right(hm_gfx *g, const hm_ui *ui, const hm_view *v, int x1, int y, 
             continue;
         x -= pw_text_width(ui->body, s);
         g->text(g, ui->body, x, y, s, 0, color, alpha);
-        g->icon(g, i ? HM_ICON_UD : HM_ICON_LR, x - 9, y - 4, 12, color, alpha);
+        g->icon(g, i ? HM_ICON_UD : HM_ICON_LR, x - 9, y - pw_font_cap(ui->body) / 2, 12, color,
+                alpha);
         x -= 26;
     }
     return x;
@@ -340,6 +373,10 @@ static int sh_warm(hm_gfx *g, pw_font *f, const char *s, int max_w)
 {
     return SH(g)->in->warm(SH(g)->in, f, s, max_w);
 }
+static void sh_clip(hm_gfx *g, int y0, int y1)
+{
+    SH(g)->in->clip(SH(g)->in, y0, y1);
+}
 
 hm_gfx *hm_shift_init(hm_shift *s, hm_gfx *in, int dx, int alpha)
 {
@@ -352,6 +389,7 @@ hm_gfx *hm_shift_init(hm_shift *s, hm_gfx *in, int dx, int alpha)
     s->ops.icon = sh_icon;
     s->ops.button = sh_button;
     s->ops.warm = sh_warm;
+    s->ops.clip = sh_clip;
     s->in = in;
     s->dx = dx;
     s->alpha = hm_clampi(alpha, 0, 256);
@@ -369,19 +407,23 @@ static void viewer(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         hm_draw_editor(g, ui, v);
         return;
     }
-    if (v->viewer_caption && v->caption > 0) {
-        int w = pw_text_width(ui->body, v->viewer_caption) + 28;
-
-        w = w > HM_W / 2 - 12 ? HM_W / 2 - 12 : w;
-        g->rrect(g, 12, HM_H - 36, w, 24, 12, 0, C_CARD, v->caption * 200 / 256);
-        g->text(g, ui->body, 26, HM_H - 20, v->viewer_caption, w - 28, C_TEXT, v->caption);
-    }
-    if (v->caption > 0) { /* what the buttons do, bottom right, on a pill of their own */
-        int w = 10, x;
+    if (v->caption > 0) { /* the name bottom left, what the buttons do bottom right */
+        int w = 10, x, room;
 
         for (int i = 0; i < 3; i++)
             if (label[i])
                 w += 15 + pw_text_width(ui->body, label[i]) + 12;
+        /* the name in what the buttons leave (it ran under them, 2026-10-27), else above them */
+        room = HM_W - 24 - (w > 10 ? w + 8 : 0);
+        if (v->viewer_caption) {
+            int cw = pw_text_width(ui->body, v->viewer_caption) + 28, up = cw > room,
+                cy = up ? HM_H - 64 : HM_H - 36;
+
+            cw = cw > (up ? HM_W - 24 : room) ? (up ? HM_W - 24 : room) : cw;
+            g->rrect(g, 12, cy, cw, 24, 12, 0, C_CARD, v->caption * 200 / 256);
+            g->text(g, ui->body, 26, hm_mid(ui->body, cy + 12), v->viewer_caption, cw - 28, C_TEXT,
+                    v->caption);
+        }
         if (w <= 10)
             return;
         x = HM_W - 12 - w + 10;
@@ -390,7 +432,8 @@ static void viewer(hm_gfx *g, const hm_ui *ui, const hm_view *v)
             if (!label[i])
                 continue;
             g->button(g, btn[i], x + 6, HM_H - 24, 12, C_TEXT, v->caption);
-            g->text(g, ui->body, x + 15, HM_H - 20, label[i], 0, C_TEXT, v->caption);
+            g->text(g, ui->body, x + 15, hm_mid(ui->body, HM_H - 24), label[i], 0, C_TEXT,
+                    v->caption);
             x += 15 + pw_text_width(ui->body, label[i]) + 12;
         }
     }
@@ -415,9 +458,9 @@ void hm_draw_editor(hm_gfx *g, const hm_ui *ui, const hm_view *v)
                 (v->ed_value ? pw_text_width(ui->body, v->ed_value) + 16 : 0) + 28;
 
         g->rrect(g, HM_W / 2 - w / 2, y - 50, w, 24, 12, 0, C_CARD, p * 215 / 256);
-        g->text(g, ui->title, HM_W / 2 - w / 2 + 14, y - 33, name, 0, C_TEXT, p);
+        g->text(g, ui->title, HM_W / 2 - w / 2 + 14, hm_mid(ui->title, y - 38), name, 0, C_TEXT, p);
         if (v->ed_value)
-            hm_text_right(g, ui->body, HM_W / 2 + w / 2 - 14, y - 34, v->ed_value,
+            hm_text_right(g, ui->body, HM_W / 2 + w / 2 - 14, hm_mid(ui->body, y - 38), v->ed_value,
                           hm_mix(acc, C_TEXT, 120), p);
     }
     if (v->ed_hint)
@@ -434,8 +477,8 @@ void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int ca
     w = pw_text_width(ui->body, v->toast_text) + 32;
     g->rrect(g, HM_W / 2 - w / 2, HM_H - 58 + (256 - a) * 8 / 256, w, 26, 13, 0, card,
              a * 230 / 256);
-    hm_text_center(g, ui->body, HM_W / 2, HM_H - 41 + (256 - a) * 8 / 256, v->toast_text, 0, text,
-                   a);
+    hm_text_center(g, ui->body, HM_W / 2, hm_mid(ui->body, HM_H - 45) + (256 - a) * 8 / 256,
+                   v->toast_text, 0, text, a);
 }
 
 /* ---- the keyboard (HOM-REQ-030) ---- */
@@ -465,7 +508,7 @@ static void kb_hint(hm_gfx *g, const hm_ui *ui, int *x, int btn, const char *key
                     const char *label, unsigned int color, int a)
 {
     if (btn >= 0) {
-        g->button(g, btn, *x + 5, 260, 10, color, a);
+        g->button(g, btn, *x + 5, 264 - pw_font_cap(ui->body) / 2, 10, color, a);
         *x += 14;
     } else {
         g->text(g, ui->body, *x, 264, keys, 0, color, a);
@@ -546,7 +589,7 @@ void hm_draw_keyboard(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_pal
                          256);
             if (kind == HM_KB_SHIFT && k->shift)
                 g->rrect(g, kx, y, kw, KB_H, 6, PW_FX(2), on ? p->ink : p->text, a);
-            hm_text_center(g, f, kx + kw / 2, y + KB_H / 2 + (f == ui->title ? 6 : 4), s, kw - 4,
+            hm_text_center(g, f, kx + kw / 2, hm_mid(f, y + KB_H / 2), s, kw - 4,
                            on ? p->ink : p->text, a);
         }
     /* what the other buttons do (the PSP's own keyboard: Square erases, Triangle a space) */
@@ -580,7 +623,8 @@ void hm_draw_keyboard(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_pal
             int ow = pw_text_width(ui->body, opt[i]) + 28, on = i == k->ask_sel;
 
             g->rrect(g, ox, 146, ow, 28, 14, 0, on ? p->sel : p->knob, a * (on ? 256 : 200) / 256);
-            hm_text_center(g, ui->body, ox + ow / 2, 164, opt[i], 0, on ? p->ink : p->text, a);
+            hm_text_center(g, ui->body, ox + ow / 2, hm_mid(ui->body, 160), opt[i], 0,
+                           on ? p->ink : p->text, a);
             ox += ow + 10;
         }
     }
@@ -645,12 +689,13 @@ static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     w = pad + wfps + (frame ? 12 + pw_text_width(ui->body, frame) : 0) + pad;
     g->rrect(g, x, y, w, h, h / 2, 0, C_BLACK, 205);
     tx = x + pad;
-    g->text(g, ui->body, tx, y + 13, fps, 0, green, 256);
-    g->text(g, ui->body, tx + pw_text_width(ui->body, fps), y + 13, " FPS", 0, green, 256);
+    g->text(g, ui->body, tx, hm_mid(ui->body, y + h / 2), fps, 0, green, 256);
+    g->text(g, ui->body, tx + pw_text_width(ui->body, fps), hm_mid(ui->body, y + h / 2), " FPS", 0,
+            green, 256);
     tx += wfps;
     if (frame) { /* a small dot, then the frame time (the font has no middle dot) */
         g->fill(g, tx + 5, y + h / 2 - 1, 2, 2, green, 220);
-        g->text(g, ui->body, tx + 12, y + 13, frame, 0, green, 256);
+        g->text(g, ui->body, tx + 12, hm_mid(ui->body, y + h / 2), frame, 0, green, 256);
     }
 }
 
@@ -672,7 +717,7 @@ static void osd(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     g->rrect(g, bx, y + h / 2 - 2, bw, 4, 2, 0, C_KNOB, a);
     if (lit > 0)
         g->rrect(g, bx, y + h / 2 - 2, lit, 4, 2, 0, acc, a);
-    hm_text_right(g, ui->body, x + w - 16, y + h / 2 + 5, v->osd_text, C_TEXT, a);
+    hm_text_right(g, ui->body, x + w - 16, hm_mid(ui->body, y + h / 2), v->osd_text, C_TEXT, a);
 }
 
 /* ---- the battery's calibration (BAT-REQ-011): a screen of its own ---- */
@@ -748,7 +793,7 @@ static void cal_draw(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
                       : done ? 150
                              : 110) /
                      256);
-        hm_text_center(g, ui->body, x + w / 2, 61, t, w - 8,
+        hm_text_center(g, ui->body, x + w / 2, hm_mid(ui->body, 57), t, w - 8,
                        now    ? C_TEXT
                        : done ? p->text
                               : p->sub,

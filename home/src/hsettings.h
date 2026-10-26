@@ -100,4 +100,9 @@ int hs_next(int i, int dir);
 #include "overlay.h"
 const pw_perf_cfg *hs_perf_cfg(void);
 
+/* The settings changed since: written to their files once the changes stop (a frame calls it),
+   at once with force (before USB, a game, sleep, power off, leaving). */
+void hs_save_pending(int force);
+void hs_home_changed(void); /* home.txt changed elsewhere (the player's shuffle and repeat) */
+
 #endif

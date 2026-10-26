@@ -398,3 +398,7 @@ perf_frame = Кадр
 perf_slowest = Самый долгий
 perf_cpu = Процессор
 perf_ram = Свободно памяти
+hm_prev_track = Предыдущий трек
+hm_next_track = Следующий трек
+hm_choose = Выбор
+hm_controls = Кнопки

@@ -1193,3 +1193,91 @@ decision was taken; the evidence column links the research behind it.
   **PF-FREEZE** (unchanged target): with the overlay on, HOME opens in several games, the FPS pill
   shows in the game (not the hub), and quitting to the XMB powers up the XMB with no black
   screen/power-off. **INFERRED until that device round confirms it.**
+
+## ADR-054 — Home's player: the keys move through what the screen shows
+
+- **Status:** Accepted (2026-10-27). Owner, after using the player on the PSP: the d-pad's keys
+  "all seem to do the same", the interface and the controls are hard to understand and "work
+  very badly".
+- **Context (code):** since 2026-10-20 left / right sought on every music page (the track list
+  too, where up / down choose a track) and up / down changed the track on Now Playing; the
+  player drew five buttons (shuffle, previous, play, next, repeat) that no key could choose, and
+  the track list's card drew three more that were only pictures. What the screen showed was not
+  what the keys did.
+- **Decision:** Now Playing has a focus, like every other screen of Home: the time bar or one of
+  the five buttons. Up / down go between the bar and the buttons; on the bar left / right seek (a
+  press 10 s, held 5 s steps); on the buttons left / right choose one; Enter presses the chosen
+  one (on the bar: pause). The chosen button sits in a ring that glides between them, its name and
+  state under the row ("Shuffle: On", "Repeat: All", "Next Track"), and the hints say what the
+  keys do now. The player opens on Play / Pause. START pauses on both music pages; Square and
+  Triangle stay shuffle and repeat on Now Playing. The track list: up / down choose, Enter plays,
+  Triangle opens Now Playing, Square stops; left / right do nothing there (Classic: back, as in the
+  XMB). The list's card shows a "Now Playing" button instead of controls it could not press. With
+  nothing playing, Now Playing offers only Play (the first track) and Back. All three styles
+  draw the same five buttons (`hm_player`, `home_view.c`).
+- **Alternatives considered:** the PSP's own player (left / right the tracks, held a seek) -
+  that is what the owner found unclear on 2026-10-20 (no way to seek seen); a control panel
+  opened with SELECT (the PSP player's) - one more mode to learn. The focus shows itself.
+- **Consequences:** previews `home-now-playing` (Next chosen), `home-now-no-cover` (the bar
+  chosen), each style; PPSSPP (the GE path, 59 fps): the ring, the names and the seek (0:05 to
+  0:17 with a press) - **VERIFIED in PPSSPP**, device test HM35.
+
+## ADR-055 — Text centred by the font, lists cut at their edges, no writes on a key press
+
+- **Status:** Accepted (2026-10-27). Owner: some text "higher, some lower, some not in the middle";
+  the previews of every screen (`make -C tests preview`) showed rows of lists and grids drawn
+  under the hints and over the header's line, a photo's name under its buttons, two-line rows
+  with 2-3 px between the lines; `home.log` (2026-10-20..27): a 90-120 ms frame at every start, a
+  1.9 s key press on a game's page, 95-116 ms frames while changing settings (55 fps, 100 late
+  frames in 30 s).
+- **Decision:**
+  - **Centring:** a line of text in a pill, a row, a button or a key has its baseline at the
+    box's middle plus half the font's capital height (`hm_mid`, `pw_font_cap`: H's top in the
+    scaled font), not at offsets tuned by eye to the previews' font (PPSSPP's Liberation Sans;
+    the PSP draws ltn0). The hints' button pictures sit on their words' middle the same way.
+    Two-line rows centre the pair by the fonts. Modern, Classic and the shared overlays (toast,
+    indicator, keyboard, editor, viewer, panel, sheet) use it.
+  - **Clip:** `hm_gfx` gains `clip(y0, y1)`: until `clip(0, HM_H)` only those rows are drawn. The
+    GE backend cuts its sprites on the CPU (`hm_sprite_clip_rect`, the texture coordinates moved
+    with the edge, as at the screen's edges - no GE state); the CPU backend draws into a
+    sub-canvas of those rows. Modern's lists, the settings' sidebar and the photo grids are cut
+    above the hints and under the header; their edge rows fade by their words, so no text is half
+    under the hints. Classic's option list ends above its hints.
+  - **No card I/O on a key press:** the settings' files (`home.txt`, `config.txt`) are written
+    800 ms after the last change (`hs_save_pending`), at once before USB, a game, sleep, power off
+    and leaving; a game's page counts its states in one pass over SAVEDATA (`hm_states_count`)
+    and leaves their pictures to the states' own page; PLUGINS.TXT and `perf.txt` are read at the
+    start, behind the start-up animation, not by the first frame.
+  - Also: the HOME panel darker behind it (Classic's band nearly opaque), Classic's panel shows
+    the brightness as a bar, the settings' sidebar 158 px (the names were cut), the launcher's long
+    game names on two lines, a photo's name above its buttons when they leave too little room.
+- **Alternatives considered:** a GE scissor (`sceGuScissor`) for the clip - GE state to keep in
+  step with the CPU renderer's previews, which would need their own clip anyway; drawing fewer
+  rows - a list that scrolls must show its edge rows going. A writer thread for the files - a
+  second thread on the Memory Stick for a write the user makes a few times a minute.
+- **Consequences:** host tests 146 (`sprites_clip_to_rows_cuts_top_and_bottom`); previews of every
+  screen; PPSSPP (GE): settings, music, the player at 59-60 fps. A change of a setting made just
+  before the battery is pulled is lost (the window is under a second). **INFERRED** until the
+  device shows it: the start's first frame and the settings' frames under 100 ms (HM36, `home.log`
+  `slow:`). `home.log` names the PSP font's capitals and the advance of U and l (the previews'
+  Liberation Sans has a wide U and l, PPSSPP's file - whether ltn0 does is RESEARCH REQUIRED, the
+  next log's `home font:` line).
+
+## ADR-056 — The system's pictures in Home: the kernel reads what the user open is refused
+
+- **Status:** Accepted (2026-10-27), RESEARCH REQUIRED until the device's `home.log` shows it.
+- **Context (VERIFIED by `home.log`, every start since 2026-10-20):** Home's `sceIoOpen` of
+  `flash0:/vsh/resource/topmenu_icon.rco` and `01-12_03g.bmp` returns 0x8001000D (EACCES) while
+  `system_plugin_fg.rco` opens, and the game plugin reads all three in kernel mode
+  (`plugin/src/gfx/assets.c`); so Classic in Home had 5 of its pictures, none of the XMB's
+  category icons and no sky. Why the user open is refused is not known (ARK-4's homebrew runlevel
+  loads no VSH plugin - `core/systemctrl/src/plugin.c` - so not a theme plugin; ARK-4's
+  systemctrl hooks no flash0 open - RESEARCH REQUIRED).
+- **Decision:** when the user open fails with anything but ENOENT, Home opens, sizes and reads the
+  file through `IoFileMgrForKernel` with KUBridge's `kuKernelCall` (`hm_hw_kernel_size` /
+  `hm_hw_kernel_read`, `hw.c`), as it already reads the syscon and sets the clock; read only,
+  flash0 only. `home art:` names each read and whether the kernel took it (`kernel ok` /
+  `kernel refused`).
+- **Alternatives considered:** copying the files to the Memory Stick (Sony's files on the card,
+  a copy per firmware); asking the game plugin for them (it is not loaded in Home).
+- **Consequences:** device test HM37: Classic's category icons and the month's sky in Home.

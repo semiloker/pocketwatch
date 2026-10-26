@@ -7,6 +7,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Pocketwatch Home: the player is driven by what it shows - up / down between the time bar and
+  its five buttons, left / right seek or choose a button (in a ring, its name under it), Enter
+  presses it; START pauses on the music pages.
 - In a game, HOME -> Screenshot saves the game's picture (without the menu) to
   PICTURE/<game ID>/: Pocketwatch Home shows it in the game's album, the XMB in Photo.
 - Pocketwatch Home: the console's Enter button (Cross or Circle) and Ad Hoc channel in Settings.
@@ -109,12 +112,20 @@ and versions follow [Semantic Versioning](https://semver.org/).
   and the T1 Memory Stick test.
 
 ### Changed
+- Pocketwatch Home: text sits in the middle of every pill, row and button (by the font itself);
+  lists, the settings' sidebar and the photo grids stop above the hints; the HOME panel darkens
+  what is behind it; the settings' categories are no longer cut; long game names wrap on the
+  launcher; settings are saved once you stop changing them, so stepping through them no longer
+  stutters; a game's page opens at once.
 - HOME opens the hub as it goes down, not when it is released, and the hub no longer reads the
   slots from the Memory Stick each time it opens.
 - Relicensed from MIT to GPL-3.0-or-later.
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- Pocketwatch Home: Classic's XMB icons and sky were missing in Home (the system refused the
+  files to Home; they are read through the kernel now).
+- Pocketwatch Home builds with the older PSPSDK too (`union SceNetApctlInfo`).
 - USB Connection in Pocketwatch Home still failed when RemoteJoyLite (or another plugin with a USB
   device) was on for games: Home now takes the port from it for the connection and gives it back
   afterwards, as the XMB does.

@@ -130,6 +130,20 @@ static void load_fonts(void)
     g_ui.title = &g_fonts[0];
     g_ui.body = &g_fonts[1];
     g_ui.big = &g_fonts[2];
+    if (ok) { /* the PSP's font, as Home draws it (the previews and PPSSPP have another one) */
+        char line[200];
+        int w[3], l[3], adv[3];
+        const char *probe = "Ul";
+
+        for (int i = 0; i < 2; i++)
+            adv[i] = pw_font_glyph_metrics(&g_fonts[0], (unsigned char)probe[i], &w[i], &l[i]);
+        stbsp_snprintf(line, sizeof(line),
+                       "home font: %s rev %d, capitals %d / %d / %d px (title, body, big); title: "
+                       "U adv %d/64 w %d left %d, l adv %d/64 w %d left %d\n",
+                       FONT_PATH, pgf.revision, pw_font_cap(g_ui.title), pw_font_cap(g_ui.body),
+                       pw_font_cap(g_ui.big), adv[0], w[0], l[0], adv[1], w[1], l[1]);
+        hm_hw_log(line);
+    }
 }
 
 /* ---- the frame rate (HOM-NFR-001): home.log, so a slow screen shows in numbers ---- */
@@ -388,12 +402,12 @@ done:
 
 /* A whole flash0 file into the heap; what each read did goes to home.log (the PSP's first run
    read 5 of 11 pictures and no sky, 2026-10-19). */
-static char g_art_reads[240];
+static char g_art_reads[320];
 
 static unsigned char *read_whole(const char *path, unsigned int *len)
 {
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
-    int size = fd >= 0 ? (int)sceIoLseek32(fd, 0, PSP_SEEK_END) : fd, got = 0;
+    int size = fd >= 0 ? (int)sceIoLseek32(fd, 0, PSP_SEEK_END) : fd, got = 0, ksize = 0;
     unsigned char *buf = size > 0 && size <= 512 * 1024 ? malloc((size_t)size) : 0;
     const char *name = strrchr(path, '/');
     int n = (int)strlen(g_art_reads);
@@ -407,11 +421,31 @@ static unsigned char *read_whole(const char *path, unsigned int *len)
     }
     if (fd >= 0)
         sceIoClose(fd);
-    stbsp_snprintf(g_art_reads + n, (int)sizeof(g_art_reads) - n, " %s %X%s",
-                   name ? name + 1 : path, (unsigned int)size,
+    /* refused to this program (0x8001000D: topmenu_icon.rco, the sky; the game plugin reads
+       them): the kernel reads it */
+    if (fd < 0 && fd != (int)0x80010002) {
+        ksize = hm_hw_kernel_size(path);
+        if (ksize > 0 && ksize <= 512 * 1024 && (buf = malloc((size_t)ksize)) != 0 &&
+            (got = hm_hw_kernel_read(path, buf, (unsigned int)ksize)) != ksize) {
+            free(buf);
+            buf = 0;
+        }
+        if (buf)
+            size = ksize;
+    }
+    stbsp_snprintf(g_art_reads + n, (int)sizeof(g_art_reads) - n, " %s %X", name ? name + 1 : path,
+                   (unsigned int)fd >= 0x80000000u ? (unsigned int)fd : (unsigned int)size);
+    n = (int)strlen(g_art_reads);
+    stbsp_snprintf(g_art_reads + n, (int)sizeof(g_art_reads) - n, "%s%s",
+                   ksize ? (buf ? " kernel ok" : " kernel refused") : "",
                    buf       ? ""
                    : got < 0 ? " read failed"
                              : " not taken");
+    if (ksize && !buf) {
+        n = (int)strlen(g_art_reads);
+        stbsp_snprintf(g_art_reads + n, (int)sizeof(g_art_reads) - n, " %X",
+                       (unsigned int)(got < 0 ? got : ksize));
+    }
     *len = buf ? (unsigned int)size : 0;
     return buf;
 }
@@ -420,7 +454,7 @@ static void load_art(void)
 {
     unsigned int t0 = sceKernelGetSystemTimeLow(), mask = 0;
     int colour, sky = hm_hw_sky_index(&colour), found, items = 0;
-    char line[400];
+    char line[480];
     const pw_image *all[HM_TABS + 5];
 
     found = hm_art_load(&g_art, read_whole, RES_PATH "topmenu_icon.rco",
@@ -508,6 +542,7 @@ static void texts(hm_view *v)
     v->tab_names[HM_TAB_SYSTEM] = pw_tr(PW_S_HM_SYSTEM);
     v->play_label = pw_tr(PW_S_HM_PLAY);
     v->hint_tabs = pw_tr(PW_S_HM_SECTION);
+    v->mu_now_label = pw_tr(PW_S_HM_NOW);
 }
 
 /* Every page of the stack again (their rows and tiles), and every section's first rows. */
@@ -549,6 +584,8 @@ static void first_row(int d)
 }
 
 /* A page opened over the one shown. */
+static void now_opened(void);
+
 static void push(int id, int arg)
 {
     int d = g_v.depth + 1;
@@ -557,6 +594,8 @@ static void push(int id, int arg)
         return;
     g_stack[d].id = id;
     g_stack[d].arg = arg;
+    if (id == P_NOW)
+        now_opened();
     memset(&g_v.page[d], 0, sizeof(g_v.page[d]));
     hm_page_build(&g_v, d, g_stack[d], &g_env);
     first_row(d);
@@ -599,8 +638,9 @@ static struct {
     int launching, launch_slot, leave, usb, usb_state, popup, popup_row;
     int viewer, slideshow, photo; /* the photo shown whole (its index) */
     int confirm, confirm_arg;
-    int hold_dir; /* left / right held on a music page */
+    int hold_dir; /* left / right held on the player's time bar */
     unsigned int hold_t0, hold_last;
+    int mu_focus, mu_btn; /* Now Playing: MU_BAR or a button; the button last chosen */
     unsigned int t_fade, t_open, t_caption, t_slide, t_toast, t_usb;
     int editor, ed_dirty;
     hm_edit ed;
@@ -1462,9 +1502,11 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
         g_s.leave = 1;
         return 1;
     case A_SLEEP:
+        hs_save_pending(1);
         scePowerRequestSuspend();
         return 1;
     case A_OFF:
+        hs_save_pending(1);
         scePowerRequestStandby();
         return 1;
     case A_PLAY:
@@ -1487,27 +1529,104 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
     }
 }
 
-/* Left / right on a music page seek: a press SEEK_TAP at once, held a step every SEEK_EVERY; up /
-   down are the tracks. (A tap was the next track and only a hold sought: the owner found no way
-   to seek, 2026-10-20.) */
-static unsigned int music_keys(unsigned int ev, unsigned int buttons, unsigned int now)
+static void music_mode_toggle(int shuffle);
+
+static void now_opened(void) /* the player opens on Play / Pause */
+{
+    g_s.mu_focus = g_s.mu_btn = HM_MU_PLAY;
+}
+
+/* Now Playing: the keys move through what is on the screen - the time bar and the five buttons
+   under it (owner 2026-10-27: the d-pad's keys "all seem to do the same", the player was hard to
+   understand: left / right sought on every music page, up / down changed the track, and the
+   buttons drawn could not be chosen). Up / down: the bar or the buttons; left / right: seek on
+   the bar (a press SEEK_TAP, held a step every SEEK_EVERY), else the next button; Enter presses
+   the chosen one (on the bar: pause). */
+static unsigned int now_keys(unsigned int ev, unsigned int buttons, unsigned int now)
 {
     unsigned int lr = PSP_CTRL_LEFT | PSP_CTRL_RIGHT;
+    int f = g_s.mu_focus;
 
-    if (ev & lr) {
+    if ((ev & PSP_CTRL_UP) && f != HM_MU_BAR) {
+        g_s.mu_focus = HM_MU_BAR;
+        g_s.snd = HM_SND_MOVE;
+    } else if ((ev & PSP_CTRL_DOWN) && f == HM_MU_BAR) {
+        g_s.mu_focus = g_s.mu_btn;
+        g_s.snd = HM_SND_MOVE;
+    } else if (f == HM_MU_BAR && (ev & lr)) {
         g_s.hold_dir = ev & PSP_CTRL_LEFT ? -1 : 1;
         g_s.hold_t0 = g_s.hold_last = now;
         hm_music_seek(g_s.hold_dir * SEEK_TAP);
-    } else if (g_s.hold_dir && (buttons & lr)) {
+    } else if (f != HM_MU_BAR && (ev & lr)) {
+        int to = f + (ev & PSP_CTRL_LEFT ? -1 : 1);
+
+        to = to < HM_MU_SHUFFLE ? HM_MU_SHUFFLE : to > HM_MU_REPEAT ? HM_MU_REPEAT : to;
+
+        if (to != f)
+            g_s.mu_focus = g_s.mu_btn = to, g_s.snd = HM_SND_MOVE;
+    } else if (ev & g_enter) {
+        if (hm_music_current() < 0) { /* nothing yet: the first track (the hint says Play) */
+            if (hm_music_count() > 0)
+                hm_music_play(0), g_s.snd = HM_SND_OPEN;
+        } else if (f == HM_MU_BAR || f == HM_MU_PLAY)
+            hm_music_toggle(), g_s.snd = HM_SND_OPEN;
+        else if (f == HM_MU_PREV || f == HM_MU_NEXT)
+            hm_music_skip(f == HM_MU_PREV ? -1 : 1), g_s.snd = HM_SND_MOVE;
+        else
+            music_mode_toggle(f == HM_MU_SHUFFLE);
+    }
+    if (f == HM_MU_BAR && g_s.hold_dir && (buttons & lr)) {
         if (now - g_s.hold_t0 >= HOLD_MS && now - g_s.hold_last >= SEEK_EVERY) {
             hm_music_seek(g_s.hold_dir * SEEK_STEP);
             g_s.hold_last = now;
         }
-    } else {
+    } else if (!(ev & lr)) {
         g_s.hold_dir = 0;
     }
     g_v.mu_seek = g_s.hold_dir;
-    return ev & ~lr;
+    return ev & ~(lr | PSP_CTRL_UP | PSP_CTRL_DOWN | g_enter);
+}
+
+/* The player's words for what is chosen: "Shuffle: On", "Repeat: All", "Next Track"... */
+static void now_texts(void)
+{
+    static char text[48];
+    const hm_cfg *c = hm_cfg_get();
+    int playing = hm_music_current() >= 0 && !hm_music_paused();
+
+    switch (g_s.mu_focus) {
+    case HM_MU_SHUFFLE:
+        stbsp_snprintf(text, sizeof(text), "%s: %s", pw_tr(PW_S_HS_SHUFFLE),
+                       pw_tr(c->shuffle ? PW_S_ON : PW_S_OFF));
+        break;
+    case HM_MU_REPEAT:
+        stbsp_snprintf(text, sizeof(text), "%s: %s", pw_tr(PW_S_HS_REPEAT),
+                       pw_tr(c->repeat == 2   ? PW_S_HS_REPEAT_ONE
+                             : c->repeat == 1 ? PW_S_HS_REPEAT_ALL
+                                              : PW_S_OFF));
+        break;
+    case HM_MU_PREV:
+    case HM_MU_NEXT:
+        stbsp_snprintf(text, sizeof(text), "%s",
+                       pw_tr(g_s.mu_focus == HM_MU_PREV ? PW_S_HM_PREV_TRACK : PW_S_HM_NEXT_TRACK));
+        break;
+    case HM_MU_PLAY:
+        stbsp_snprintf(text, sizeof(text), "%s", pw_tr(playing ? PW_S_HM_PAUSE : PW_S_HM_PLAY));
+        break;
+    default:
+        text[0] = 0;
+    }
+    if (hm_music_current() < 0) { /* no player drawn: only the way to start one */
+        g_v.hint_enter = hm_music_count() > 0 ? pw_tr(PW_S_HM_PLAY) : 0;
+        return;
+    }
+    g_v.mu_focus = g_s.mu_focus;
+    g_v.mu_focus_text = text[0] ? text : 0;
+    g_v.hint_enter = g_s.mu_focus == HM_MU_BAR || g_s.mu_focus == HM_MU_PLAY
+                         ? pw_tr(playing ? PW_S_HM_PAUSE : PW_S_HM_PLAY)
+                         : pw_tr(PW_S_OK);
+    g_v.hint_lr = pw_tr(g_s.mu_focus == HM_MU_BAR ? PW_S_HM_SEEK : PW_S_HM_CHOOSE);
+    g_v.hint_ud = pw_tr(g_s.mu_focus == HM_MU_BAR ? PW_S_HM_CONTROLS : PW_S_HM_SEEK);
 }
 
 static void music_mode_toggle(int shuffle)
@@ -1518,7 +1637,7 @@ static void music_mode_toggle(int shuffle)
         c->shuffle = !c->shuffle;
     else
         c->repeat = (c->repeat + 1) % 3;
-    hm_cfg_save(HOME_CFG);
+    hs_home_changed(); /* (written once the presses stop) */
     hm_music_mode(c->shuffle, c->repeat);
     g_s.snd = HM_SND_MOVE;
 }
@@ -1554,8 +1673,13 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
         g_s.snd = HM_SND_BACK;
         return;
     }
-    if ((id == P_MUSIC && !cl) || id == P_NOW)
-        ev = music_keys(ev, buttons, now);
+    if ((id == P_MUSIC || id == P_NOW) && (ev & PSP_CTRL_START) && hm_music_count()) {
+        hm_music_toggle(); /* START: pause or play on both music pages */
+        g_s.snd = HM_SND_OPEN;
+        return;
+    }
+    if (id == P_NOW)
+        ev = now_keys(ev, buttons, now);
     if ((ev & g_back) && depth > 0) {
         pop();
         g_s.snd = HM_SND_BACK;
@@ -1654,17 +1778,11 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
             g_s.snd = HM_SND_OPEN;
         }
         break;
-    case P_NOW:
-        if (ev & g_enter)
-            hm_music_toggle(), g_s.snd = HM_SND_OPEN;
-        else if (ev & PSP_CTRL_SQUARE)
+    case P_NOW: /* (the d-pad and Enter: now_keys) the shortcuts of the two ends */
+        if (ev & PSP_CTRL_SQUARE)
             music_mode_toggle(1);
         else if (ev & PSP_CTRL_TRIANGLE)
             music_mode_toggle(0);
-        else if (ev & PSP_CTRL_UP)
-            hm_music_skip(-1), g_s.snd = HM_SND_MOVE;
-        else if (ev & PSP_CTRL_DOWN)
-            hm_music_skip(1), g_s.snd = HM_SND_MOVE;
         break;
     default: /* the rows */
         if (ev & PSP_CTRL_UP)
@@ -1788,6 +1906,8 @@ static void page_hints(void)
         a = hm_page_act(g_stack[g_v.depth], p->row_sel);
     g_v.hint_enter = g_v.hint_options = g_v.hint_square = 0;
     g_v.hint_lr = g_v.hint_ud = 0;
+    g_v.mu_focus = -1; /* (the player's focus: now_texts) */
+    g_v.mu_focus_text = 0;
     g_v.hint_back = g_v.depth > 0 ? pw_tr(PW_S_BACK) : 0;
     switch (id) {
     case P_GAMES:
@@ -1818,7 +1938,6 @@ static void page_hints(void)
                                  : pw_tr(PW_S_HM_PLAY);
         g_v.hint_options = hm_music_count() ? pw_tr(PW_S_HM_NOW) : 0;
         g_v.hint_square = hm_music_current() >= 0 ? pw_tr(PW_S_HM_STOP) : 0;
-        g_v.hint_lr = hm_music_current() >= 0 && !classic() ? pw_tr(PW_S_HM_SEEK) : 0;
         break;
     case P_CAL: {
         hm_battery b;
@@ -1828,12 +1947,7 @@ static void page_hints(void)
         break;
     }
     case P_NOW:
-        g_v.hint_enter = hm_music_current() >= 0 && !hm_music_paused() ? pw_tr(PW_S_HM_PAUSE)
-                                                                       : pw_tr(PW_S_HM_PLAY);
-        g_v.hint_square = pw_tr(PW_S_HS_SHUFFLE);
-        g_v.hint_options = pw_tr(PW_S_HS_REPEAT);
-        g_v.hint_lr = hm_music_current() >= 0 ? pw_tr(PW_S_HM_SEEK) : 0;
-        g_v.hint_ud = pw_tr(PW_S_HM_TRACK);
+        now_texts();
         break;
     default:
         if (a.act == A_OPEN || a.act == A_USB || a.act == A_BROWSER)
@@ -2057,6 +2171,7 @@ static void panel_keys(unsigned int ev, int *start_usb)
         g_s.snd = HM_SND_BACK;
     } else if ((ev & g_enter) && g_v.panel_sel != PANEL_BRIGHT) {
         g_s.panel_open = 0;
+        hs_save_pending(1); /* (the settings' files before USB, sleep, a restart, leaving) */
         if (g_v.panel_sel == PANEL_USB)
             *start_usb = 1;
         else if (g_v.panel_sel == PANEL_XMB)
@@ -2110,7 +2225,8 @@ static void usb_end(void)
 
 static void usb_begin(unsigned int now)
 {
-    hm_music_stop(); /* the loader, the tags and the music leave the card first */
+    hs_save_pending(1); /* the settings written while the card is still ours */
+    hm_music_stop();    /* the loader, the tags and the music leave the card first */
     hm_music_pause_tags(1);
     hm_library_pause(1);
     g_s.usb = 1;
@@ -2127,6 +2243,7 @@ static void launch_now(stats *st, unsigned int now)
     hm_game *gm = hm_library_game(g_s.launching);
 
     stats_write(st, now, "before a game");
+    hs_save_pending(1);
     hm_music_stop();
     hm_sound_end();
     if (g_s.launch_slot > 0 && hm_states_continue(gm->id, g_s.launch_slot) < 0)
@@ -2209,6 +2326,9 @@ int main(void)
     g_env.saves_game = -1;
     g_env.net = &g_net;
     pw_bright_init(&g_bright);
+    /* PLUGINS.TXT and perf.txt now, behind the start: read by the first frame's indicator they
+       made it 90-120 ms long at every start (home.log 2026-10-20..27, "p0 keys 92") */
+    (void)hs_perf_cfg();
     hm_sound_init();
     hm_sound_enable(hs_sounds());
     load_art();
@@ -2264,6 +2384,7 @@ int main(void)
             hm_music_stop();
             if (g_s.screen_off)
                 hm_hw_backlight(1), g_s.screen_off = 0;
+            hs_save_pending(1);
             scePowerRequestSuspend();
         }
         /* HOLD: the screen off (while music plays, or always), the CPU slower; nothing drawn */
@@ -2354,6 +2475,8 @@ int main(void)
             g_s.kb_saved = 0;
             t_rows = 0; /* the row shows the new name */
         }
+        if (!g_s.usb)           /* (never while the card is the PC's) */
+            hs_save_pending(0); /* the settings' files, once the changes stop */
         net_poll(now);          /* a network job's answer */
         av_frame(now, buttons); /* the volume and brightness indicator, the boost, the steps */
         cal_news(now);          /* a calibration run ended */
@@ -2414,6 +2537,9 @@ int main(void)
             p->opt_focus_pos = pw_ease(p->opt_focus_pos, p->opt_focus * 256, dt, tau, 6);
         }
         g_v.depth_pos = pw_ease(g_v.depth_pos, g_v.depth * 256, dt, tau * 3 / 2, 6);
+        g_v.mu_btn_pos = pw_ease(g_v.mu_btn_pos ? g_v.mu_btn_pos : g_s.mu_btn * 256,
+                                 g_s.mu_btn * 256, dt, tau, 6);
+        g_v.mu_bar_t = pw_ease(g_v.mu_bar_t, g_s.mu_focus == HM_MU_BAR ? 256 : 0, dt, tau, 6);
         g_v.tab_pos = pw_ease(g_v.tab_pos, g_v.tab * 256, dt, tau, 6);
         g_v.panel = pw_ease(g_v.panel, g_s.panel_open ? 256 : 0, dt, tau, 6);
         g_v.panel_pos = pw_ease(g_v.panel_pos, g_v.panel_sel * 256, dt, tau, 6);
@@ -2503,6 +2629,7 @@ int main(void)
     }
     if (g_s.screen_off) /* (never left dark) */
         hm_hw_backlight(1);
+    hs_save_pending(1);
     stats_write(&st, hm_hw_now_ms(), "leaving");
     hm_sound_end();
     hm_hw_touch(XMB_ONCE); /* leaving Home means the XMB, even when Home is the start screen */

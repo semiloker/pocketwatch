@@ -39,6 +39,9 @@ struct hm_gfx {
     /* Prepare the text as text() would draw it, for a later frame: within a time budget; 1 when
        it is ready (the CPU backend: always). */
     int (*warm)(hm_gfx *g, pw_font *f, const char *s, int max_w);
+    /* What follows draws only on the rows y0 to y1 - 1 (a list cut at its edges, not under the
+       hints or the header); clip(g, 0, HM_H) draws everywhere again. Not for backdrop / wave. */
+    void (*clip)(hm_gfx *g, int y0, int y1);
 };
 
 #endif

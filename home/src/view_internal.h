@@ -42,6 +42,14 @@ static inline int hm_lerp(int a, int b, int t) /* t 0-256 */
 }
 
 /* 256 at p = 0 (the cursor), 0 one step (256) or more away. */
+/* The baseline that centres a line of f's text on cy: by the font's capitals (pw_font_cap), so
+   text sits in the middle of its pill, row or button whatever the font (the offsets tuned by eye
+   to the previews' font put some words higher and some lower on the PSP, 2026-10-27). */
+static inline int hm_mid(pw_font *f, int cy)
+{
+    return cy + (pw_font_cap(f) + 1) / 2;
+}
+
 static inline int hm_near(int p)
 {
     return p >= 256 || p <= -256 ? 0 : 256 - (p < 0 ? -p : p);
@@ -80,6 +88,21 @@ void hm_tile_draw(hm_gfx *g, const unsigned int *icon, int x, int y, int w, int 
 void hm_fav_star(hm_gfx *g, int x, int y, int w, int alpha);
 /* A track's cover, or a dark card with a note. */
 void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size, int r, int alpha);
+
+/* The player's five buttons (shuffle, previous, play, next, repeat), gap apart around cx at y;
+   the chosen one (v->mu_focus) in a ring that glides between them, its name under the row. */
+typedef struct {
+    int gap;                    /* between the buttons' centres */
+    int icon, play;             /* the four icons' size, play's */
+    int disc;                   /* play's disc (radius), 0 none */
+    unsigned int ink, dim, acc; /* the icons; shuffle / repeat when off; on, and the disc */
+    unsigned int hl;            /* the ring's fill */
+    int hl_a;
+    int label_y; /* the chosen one's name (a baseline), 0 none */
+    unsigned int label;
+} hm_player_look;
+void hm_player(hm_gfx *g, pw_font *f, const hm_view *v, const hm_player_look *k, int cx, int y,
+               int a);
 /* The system's picture (art->btn) of a button or the drawn glyph, centred. */
 void hm_button_pic(hm_gfx *g, const hm_ui *ui, int which, int cx, int cy, int size,
                    unsigned int color, int alpha);

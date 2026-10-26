@@ -422,6 +422,10 @@ enum {
     PW_S_PERF_SLOWEST,
     PW_S_PERF_CPU,
     PW_S_PERF_RAM,
+    PW_S_HM_PREV_TRACK,
+    PW_S_HM_NEXT_TRACK,
+    PW_S_HM_CHOOSE,
+    PW_S_HM_CONTROLS,
     PW_S_COUNT
 };
 

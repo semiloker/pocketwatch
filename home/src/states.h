@@ -18,6 +18,9 @@ typedef struct {
 
 /* The states of the game with this disc ID, newest first. Returns how many. */
 int hm_states_list(const char *disc_id, hm_state *out);
+/* How many there are, without their pictures: one pass over SAVEDATA (a game's page shows the
+   count; listing them whole there - five lookups and a PNG each - held a key 1.9 s, 2026-10-27). */
+int hm_states_count(const char *disc_id);
 void hm_states_free(hm_state *s, int n);
 
 /* Ask the game plugin to load that slot once the game runs. 0 when written. */

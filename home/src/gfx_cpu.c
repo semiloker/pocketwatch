@@ -7,20 +7,29 @@
 #include "ui/shapes.h"
 #include "ui/xmbbg.h"
 
+/* What is drawn on: the canvas, or during a clip its rows from oy on (every y less oy). */
 static pw_canvas *canvas(hm_gfx *g)
 {
-    return ((hm_gfx_cpu *)g)->c;
+    hm_gfx_cpu *c = (hm_gfx_cpu *)g;
+
+    return c->clipped ? &c->rows : c->c;
+}
+
+static int oy(hm_gfx *g)
+{
+    return ((hm_gfx_cpu *)g)->clipped ? ((hm_gfx_cpu *)g)->oy : 0;
 }
 
 static void fill(hm_gfx *g, int x, int y, int w, int h, unsigned int color, int alpha)
 {
-    pw_draw_blend(canvas(g), x, y, w, h, color, alpha);
+    pw_draw_blend(canvas(g), x, y - oy(g), w, h, color, alpha);
 }
 
 static void rrect(hm_gfx *g, int x, int y, int w, int h, int r, int line, unsigned int color,
                   int alpha)
 {
-    pw_shape_rrect(canvas(g), PW_FX(x), PW_FX(y), PW_FX(w), PW_FX(h), PW_FX(r), line, color, alpha);
+    pw_shape_rrect(canvas(g), PW_FX(x), PW_FX(y - oy(g)), PW_FX(w), PW_FX(h), PW_FX(r), line, color,
+                   alpha);
 }
 
 static void image(hm_gfx *g, const unsigned int *px, int w, int h, int stride, int x, int y, int dw,
@@ -33,7 +42,7 @@ static void image(hm_gfx *g, const unsigned int *px, int w, int h, int stride, i
             memcpy(packed + r * w, px + r * stride, (size_t)w * 4);
         px = packed;
     }
-    pw_draw_image_scaled(canvas(g), px, w, h, x, y, dw, dh, alpha);
+    pw_draw_image_scaled(canvas(g), px, w, h, x, y - oy(g), dw, dh, alpha);
     free(packed);
 }
 
@@ -61,19 +70,19 @@ static void text(hm_gfx *g, pw_font *f, int x, int y, const char *s, int max_w, 
                  int alpha)
 {
     if (max_w > 0)
-        pw_text_draw_fit(canvas(g), f, x, y, s, max_w, color, alpha, 0);
+        pw_text_draw_fit(canvas(g), f, x, y - oy(g), s, max_w, color, alpha, 0);
     else
-        pw_text_draw(canvas(g), f, x, y, s, color, alpha, 0);
+        pw_text_draw(canvas(g), f, x, y - oy(g), s, color, alpha, 0);
 }
 
 static void icon(hm_gfx *g, int which, int cx, int cy, int size, unsigned int color, int alpha)
 {
-    hm_icon_draw(canvas(g), which, cx, cy, size, color, alpha);
+    hm_icon_draw(canvas(g), which, cx, cy - oy(g), size, color, alpha);
 }
 
 static void button(hm_gfx *g, int which, int cx, int cy, int size, unsigned int color, int alpha)
 {
-    pw_button_draw(canvas(g), which, cx, cy, size, color, alpha);
+    pw_button_draw(canvas(g), which, cx, cy - oy(g), size, color, alpha);
 }
 
 static int warm(hm_gfx *g, pw_font *f, const char *s, int max_w)
@@ -83,6 +92,19 @@ static int warm(hm_gfx *g, pw_font *f, const char *s, int max_w)
     (void)s;
     (void)max_w;
     return 1; /* nothing to prepare: the CPU draws text as it goes */
+}
+
+static void clip(hm_gfx *g, int y0, int y1)
+{
+    hm_gfx_cpu *c = (hm_gfx_cpu *)g;
+
+    y0 = y0 < 0 ? 0 : y0 > c->c->h ? c->c->h : y0;
+    y1 = y1 > c->c->h ? c->c->h : y1 < y0 ? y0 : y1;
+    c->clipped = y0 > 0 || y1 < c->c->h;
+    c->oy = y0;
+    c->rows = *c->c;
+    c->rows.px = c->c->px + y0 * c->c->stride;
+    c->rows.h = y1 - y0;
 }
 
 void hm_gfx_cpu_init(hm_gfx_cpu *g, pw_canvas *c)
@@ -96,5 +118,7 @@ void hm_gfx_cpu_init(hm_gfx_cpu *g, pw_canvas *c)
     g->ops.icon = icon;
     g->ops.button = button;
     g->ops.warm = warm;
+    g->ops.clip = clip;
     g->c = c;
+    g->clipped = 0;
 }

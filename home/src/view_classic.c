@@ -296,8 +296,8 @@ static void items(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page *p
                   C_TEXT, ta);
             stext(g, ui->body, TEXT_X + shift, y + 15, line, TEXT_MAX, C_TEXT, ta * 210 / 256);
         } else { /* (one near the top: short of the clock) */
-            stext(g, ui->title, TEXT_X + shift, y + 5, r->label, y < 40 ? 290 - TEXT_X : TEXT_MAX,
-                  C_TEXT, ta);
+            stext(g, ui->title, TEXT_X + shift, hm_mid(ui->title, y), r->label,
+                  y < 40 ? 290 - TEXT_X : TEXT_MAX, C_TEXT, ta);
         }
         if (r->bar >= 0 && near > 0) { /* the most played, the track's time: a thin bar */
             int bw = 160;
@@ -326,25 +326,25 @@ static void options(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page 
         const hm_row *r = &pg->rows[i];
         int y = SEL_Y + (i * 256 - pg->row_pos) * OPT_PITCH / 256, on = i == pg->row_sel, ra;
 
-        if (y < 30 || y > 252)
+        if (y < 30 || y > 240) /* (gone before the hints: it read under them, 2026-10-27) */
             continue;
         ra = oa *
              hm_clampi(y < 56    ? (y - 30) * 256 / 26
-                       : y > 226 ? (252 - y) * 256 / 26
+                       : y > 214 ? (240 - y) * 256 / 26
                                  : 256,
                        0, 256) /
              256;
         if (r->kind == HM_ROW_HEADER || r->kind == HM_ROW_NOTE) {
-            stext(g, ui->body, OPT_TEXT + slide, y + 4, r->label, OPT_X1 - OPT_TEXT, C_TEXT,
-                  ra * 170 / 256);
+            stext(g, ui->body, OPT_TEXT + slide, hm_mid(ui->body, y), r->label, OPT_X1 - OPT_TEXT,
+                  C_TEXT, ra * 170 / 256);
             continue;
         }
-        stext(g, ui->title, OPT_TEXT + slide, y + 5, r->label, r->value ? 220 : OPT_X1 - OPT_TEXT,
-              C_TEXT, ra * (on ? 256 : 190) / 256);
+        stext(g, ui->title, OPT_TEXT + slide, hm_mid(ui->title, y), r->label,
+              r->value ? 220 : OPT_X1 - OPT_TEXT, C_TEXT, ra * (on ? 256 : 190) / 256);
         if (r->value && va > 0) {
             int x1 = OPT_X1 + slide - (r->kind == HM_ROW_LINK ? 12 : 0);
 
-            stext_right(g, ui->body, x1, y + 4, r->value, C_TEXT,
+            stext_right(g, ui->body, x1, hm_mid(ui->body, y), r->value, C_TEXT,
                         ra * (on ? 256 : 170) / 256 * va / 256);
             if (r->swatch)
                 g->rrect(g, x1 - pw_text_width(ui->body, r->value) - 14, y - 4, 9, 9, 2, 0,
@@ -375,8 +375,8 @@ static void popup(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         if (sw)
             g->rrect(g, x0 + 20, y - 5, 10, 10, 2, 0, v->popup_swatch[k],
                      p * (k == v->popup_sel ? 256 : 160) / 256);
-        stext(g, ui->title, x0 + 20 + sw, y + 5, v->popup_items[k], POP_W - 30 - sw, C_TEXT,
-              p * (k == v->popup_sel ? 256 : 160) / 256);
+        stext(g, ui->title, x0 + 20 + sw, hm_mid(ui->title, y), v->popup_items[k], POP_W - 30 - sw,
+              C_TEXT, p * (k == v->popup_sel ? 256 : 160) / 256);
     }
     hints(g, ui, v->hint_enter, v->hint_back, 0, 0, 0, p);
 }
@@ -400,10 +400,11 @@ static void menu(hm_gfx *g, const hm_ui *ui, const hm_page *pg, int t)
 
         if (y < 44 || y > HM_H - 26 || r->kind == HM_ROW_HEADER)
             continue;
-        stext(g, ui->title, x0 + 20, y + 5, r->label, MENU_W - 40 - (r->value ? 30 : 0), C_TEXT,
-              ra);
+        stext(g, ui->title, x0 + 20, hm_mid(ui->title, y), r->label,
+              MENU_W - 40 - (r->value ? 30 : 0), C_TEXT, ra);
         if (r->value)
-            stext_right(g, ui->body, x0 + MENU_W - 16, y + 4, r->value, C_TEXT, ra * 200 / 256);
+            stext_right(g, ui->body, x0 + MENU_W - 16, hm_mid(ui->body, y), r->value, C_TEXT,
+                        ra * 200 / 256);
     }
 }
 
@@ -422,20 +423,24 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page *pg,
         stext(g, ui->body, x, 122, v->mu_artist, w, C_TEXT, a * 220 / 256);
     if (v->mu_album)
         stext(g, ui->body, x, 138, v->mu_album, w, C_TEXT, a * 170 / 256);
-    g->fill(g, x, 156, w, 2, C_TEXT, a * 70 / 256);
-    if (v->mu_bar >= 0)
-        g->fill(g, x, 156, w * hm_clampi(v->mu_bar, 0, 256) / 256, 2, C_TEXT, a);
-    if (v->mu_time)
-        stext(g, ui->body, x, 174, v->mu_time, 0, C_TEXT, a * 220 / 256);
-    stext_right(g, ui->body, x + w, 174, v->mu_length, C_TEXT, a * 220 / 256);
-    g->icon(g, HM_ICON_PREV, x + w / 2 - 44, 196, 14, C_TEXT,
-            a * (v->mu_seek < 0 ? 256 : 200) / 256);
-    g->icon(g, v->mu_state == 1 ? HM_ICON_PAUSE : HM_ICON_PLAY, x + w / 2, 196, 18, C_TEXT, a);
-    g->icon(g, HM_ICON_NEXT, x + w / 2 + 44, 196, 14, C_TEXT,
-            a * (v->mu_seek > 0 ? 256 : 200) / 256);
-    g->icon(g, HM_ICON_SHUFFLE, x + 8, 196, 14, C_TEXT, a * (v->mu_shuffle ? 256 : 90) / 256);
-    g->icon(g, v->mu_repeat == 2 ? HM_ICON_REPEAT1 : HM_ICON_REPEAT, x + w - 8, 196, 14, C_TEXT,
-            a * (v->mu_repeat ? 256 : 90) / 256);
+    { /* the time: a line, thicker with a knob while it is chosen (left / right seek it) */
+        int f = v->mu_focus >= 0 ? v->mu_bar_t : 0, th = 2 + 2 * f / 256,
+            k = w * hm_clampi(v->mu_bar < 0 ? 0 : v->mu_bar, 0, 256) / 256;
+        /* off shuffle / repeat: grey on the XMB's sky (they were white at a third) */
+        hm_player_look look = {62,     14,     18, 0,   C_TEXT, PW_RGB(150, 160, 182),
+                               C_TEXT, C_TEXT, 46, 230, C_TEXT};
+
+        g->fill(g, x, 157 - th / 2, w, th, C_TEXT, a * 70 / 256);
+        if (v->mu_bar >= 0) {
+            g->fill(g, x, 157 - th / 2, k, th, C_TEXT, a);
+            if (f > 0)
+                g->rrect(g, x + k - 5, 152, 10, 10, 5, 0, C_TEXT, a * f / 256);
+        }
+        if (v->mu_time)
+            stext(g, ui->body, x, 176, v->mu_time, 0, C_TEXT, a * 220 / 256);
+        stext_right(g, ui->body, x + w, 176, v->mu_length, C_TEXT, a * 220 / 256);
+        hm_player(g, ui->body, v, &look, x + w / 2, 200, a);
+    }
 }
 
 /* ---- the hints: centred at the bottom, the system's button pictures ---- */
@@ -456,10 +461,11 @@ static void hints(hm_gfx *g, const hm_ui *ui, const char *enter, const char *bac
     for (int i = 0; i < 6; i++) {
         if (!label[i])
             continue;
-        if (i >= 4)
-            g->icon(g, i == 4 ? HM_ICON_LR : HM_ICON_UD, x + 6, 256, 12, C_TEXT, a);
+        if (i >= 4) /* (the pictures on the words' middle) */
+            g->icon(g, i == 4 ? HM_ICON_LR : HM_ICON_UD, x + 6, 260 - pw_font_cap(ui->body) / 2, 12,
+                    C_TEXT, a);
         else
-            hm_button_pic(g, ui, btn[i], x + 6, 256, 12, C_TEXT, a);
+            hm_button_pic(g, ui, btn[i], x + 6, 260 - pw_font_cap(ui->body) / 2, 12, C_TEXT, a);
         stext(g, ui->body, x + 14, 260, label[i], 0, C_TEXT, a);
         x += 14 + pw_text_width(ui->body, label[i]) + 16;
     }
@@ -479,8 +485,9 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         int p = hm_clampi(v->panel, 0, 256), n = v->panel_count, rh = pics ? 44 : 24,
             h = 36 + n * rh + 10, top = (HM_H - h) / 2 - 6, tx = pics ? 140 : 96;
 
-        g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, p * 150 / 256);
-        g->fill(g, 0, top, HM_W, h, C_BLACK, p * 120 / 256);
+        /* darker than it was (the page's words read through the items, 2026-10-27) */
+        g->fill(g, 0, 0, HM_W, HM_H, C_BLACK, p * 170 / 256);
+        g->fill(g, 0, top, HM_W, h, C_BLACK, p * 215 / 256);
         g->fill(g, 40, top, HM_W - 80, 1, C_TEXT, p);
         g->fill(g, 40, top + h, HM_W - 80, 1, C_TEXT, p);
         if (v->panel_title)
@@ -488,13 +495,21 @@ static void panel(hm_gfx *g, const hm_ui *ui, const hm_view *v)
         g->fill(g, 60, top + 34 + v->panel_pos * rh / 256, HM_W - 120, rh - 2,
                 PW_RGB(0xCF, 0xCF, 0xCF), p * 90 / 256);
         for (int i = 0; i < n; i++) {
-            int y = top + 34 + i * rh, base = y + rh / 2 + 4,
+            int y = top + 34 + i * rh, base = hm_mid(ui->title, y + rh / 2 - 1),
                 vw = v->panel_values[i] ? pw_text_width(ui->body, v->panel_values[i]) + 14 : 0;
 
             if (v->panel_icons[i])
                 g->image(g, v->panel_icons[i], HM_ICON_W, HM_ICON_H, HM_ICON_W, 62, y + 3, 68, 38,
                          p);
-            if (!pics && !wide) {
+            if (!pics && !wide && v->panel_slider[i] >= 0) { /* brightness: its name and a bar */
+                int bx = HM_W / 2 + 40, bw = 110,
+                    k = bw * hm_clampi(v->panel_slider[i], 0, 256) / 256;
+
+                stext_right(g, ui->title, HM_W / 2 + 24, base, v->panel_items[i], C_TEXT, p);
+                g->fill(g, bx, base - 5, bw, 2, C_TEXT, p * 90 / 256);
+                g->fill(g, bx, base - 5, k, 2, C_TEXT, p);
+                g->fill(g, bx + k - 1, base - 9, 3, 10, C_TEXT, p);
+            } else if (!pics && !wide) {
                 stext_center(g, ui->title, HM_W / 2, base, v->panel_items[i], HM_W - 140, C_TEXT,
                              p);
             } else if (pics && v->panel_values[i]) { /* a state: its name, its time under it */

@@ -92,3 +92,21 @@ PW_TEST(sprites_clip_moves_the_texture_with_the_edge)
     CHECK_EQ(hm_sprite_clip(&s, 480, 272), 0);
     CHECK_EQ(hm_rrect_radius(18, 10, 12), 5);
 }
+
+/* The clip operation (a list cut above the hints, under the header): the rows of the GE's sprites
+   go with their texture, as at the screen's edges. */
+PW_TEST(sprites_clip_to_rows_cuts_top_and_bottom)
+{
+    hm_sprite s = {10, 40, 110, 80, 0, 0, 50, 20}; /* a half scale: 2 px a texel */
+
+    CHECK_EQ(hm_sprite_clip_rect(&s, 0, 50, 480, 70), 1);
+    CHECK(s.y0 == 50 && s.v0 == 5 && s.y1 == 70 && s.v1 == 15);
+    CHECK(s.x0 == 10 && s.u0 == 0 && s.x1 == 110 && s.u1 == 50);
+    s = (hm_sprite){10, 251, 110, 270, 0, 0, 1, 1}; /* wholly under the hints: nothing */
+    CHECK_EQ(hm_sprite_clip_rect(&s, 0, 44, 480, 251), 0);
+    s = (hm_sprite){10, 250, 110, 270, 0, 0, 1, 1}; /* its first row is still in */
+    CHECK_EQ(hm_sprite_clip_rect(&s, 0, 44, 480, 251), 1);
+    CHECK(s.y1 == 251);
+    s = (hm_sprite){10, 20, 110, 44, 0, 0, 1, 1}; /* ends where the rows start: nothing */
+    CHECK_EQ(hm_sprite_clip_rect(&s, 0, 44, 480, 251), 0);
+}

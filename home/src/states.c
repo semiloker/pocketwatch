@@ -75,6 +75,36 @@ int hm_states_list(const char *disc_id, hm_state *out)
     return n;
 }
 
+int hm_states_count(const char *disc_id)
+{
+    SceUID d = sceIoDopen("ms0:/PSP/SAVEDATA");
+    SceIoDirent e;
+    char want[24];
+    int n = 0, len;
+
+    if (d < 0)
+        return 0;
+    len = stbsp_snprintf(want, sizeof(want), "PW%s", disc_id);
+    memset(&e, 0, sizeof(e));
+    while (sceIoDread(d, &e) > 0) {
+        const char *s = e.d_name;
+
+        if (FIO_S_ISDIR(e.d_stat.st_mode) && strncmp(s, want, (size_t)len) == 0 && s[len] >= '0' &&
+            s[len] <= '9' && s[len + 1] >= '0' && s[len + 1] <= '9' && s[len + 2] == 0) {
+            int slot = (s[len] - '0') * 10 + (s[len + 1] - '0');
+            char file[96];
+            SceIoStat st;
+
+            stbsp_snprintf(file, sizeof(file), SAVEDATA "%s/STATE.BIN", s);
+            if (slot >= 1 && slot <= HM_STATES_MAX && sceIoGetstat(file, &st) >= 0)
+                n++;
+        }
+        memset(&e, 0, sizeof(e));
+    }
+    sceIoDclose(d);
+    return n;
+}
+
 void hm_states_free(hm_state *s, int n)
 {
     for (int i = 0; i < n; i++) {

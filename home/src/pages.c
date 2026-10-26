@@ -41,6 +41,7 @@ static hm_tile g_photo_tiles[HM_PHOTOS_MAX];
 static int g_album_list[HM_PHOTOS_MAX], g_album_n, g_album_of = -1;
 static hm_state g_states[HM_STATES_MAX];
 static int g_nstates, g_states_of = -1;
+static int g_count, g_count_of = -1; /* a game's page: how many states (hm_states_count) */
 static hm_tile g_state_tiles[HM_STATES_MAX];
 static char g_state_names[HM_STATES_MAX][40];
 static hm_save g_saves[HM_SAVES_MAX];
@@ -223,10 +224,15 @@ static void game_page(hm_page *p, int gi)
     r = add(b, &n, pw_tr(PW_S_HM_PLAY), 0, HM_ROW_ACTION, A_PLAY, gi);
     r->glyph = HM_ICON_PLAY;
     if (is_psp_game(g)) {
-        if (g_states_of != gi)
-            hm_pages_states(gi);
-        stbsp_snprintf(val(b, n), VAL, "%d", g_nstates);
-        r = add(b, &n, pw_tr(PW_S_HM_STATES_PAGE), g_nstates ? val(b, n) : 0, HM_ROW_LINK, A_OPEN,
+        int k;
+
+        if (g_count_of != gi) { /* (counted once: the page is built again every second) */
+            g_count = g_states_of == gi ? g_nstates : hm_states_count(g->id);
+            g_count_of = gi;
+        }
+        k = g_states_of == gi ? g_nstates : g_count; /* (a state deleted since) */
+        stbsp_snprintf(val(b, n), VAL, "%d", k);
+        r = add(b, &n, pw_tr(PW_S_HM_STATES_PAGE), k ? val(b, n) : 0, HM_ROW_LINK, A_OPEN,
                 P_STATES);
         r->glyph = PW_ICON_SAVE;
         r = add(b, &n, pw_tr(PW_S_HM_SAVED_DATA), 0, HM_ROW_LINK, A_OPEN, P_SAVES);
@@ -1057,6 +1063,7 @@ void hm_pages_drop(void)
     hm_states_free(g_states, g_nstates);
     g_nstates = 0;
     g_states_of = -1;
+    g_count_of = -1;
     hm_library_pause(1);
     for (int i = 0; i < g_nsaves; i++) {
         free(g_save_pics[i].icon);

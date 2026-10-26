@@ -850,6 +850,49 @@ int hm_hw_read_file(const char *path, void *buf, unsigned int cap)
     return n;
 }
 
+/* IoFileMgrForKernel, not randomized on 6.61 (tools/nids/allowlist.tsv: the game plugin imports
+   them; sceIoLseek32 is the pre-6.x NID ARK-4's core uses). */
+#define NID_K_OPEN    0x109F50BC
+#define NID_K_LSEEK32 0x68963324
+#define NID_K_READ    0x6A638D83
+#define NID_K_CLOSE   0x810C4BC3
+
+static int kio(unsigned int nid, unsigned int a0, unsigned int a1, unsigned int a2)
+{
+    void *f = (void *)sctrlHENFindFunction("sceIOFileManager", "IoFileMgrForKernel", nid);
+    struct hm_kcall a;
+
+    if (!f)
+        return (int)0x80020001; /* (no such function) */
+    memset(&a, 0, sizeof(a));
+    a.arg[0] = a0;
+    a.arg[1] = a1;
+    a.arg[2] = a2;
+    return kuKernelCall(f, &a) < 0 ? (int)0x80020001 : (int)a.ret1;
+}
+
+int hm_hw_kernel_size(const char *path)
+{
+    int fd = kio(NID_K_OPEN, (unsigned int)path, PSP_O_RDONLY, 0), n;
+
+    if (fd < 0)
+        return fd;
+    n = kio(NID_K_LSEEK32, (unsigned int)fd, 0, PSP_SEEK_END);
+    kio(NID_K_CLOSE, (unsigned int)fd, 0, 0);
+    return n;
+}
+
+int hm_hw_kernel_read(const char *path, void *buf, unsigned int cap)
+{
+    int fd = kio(NID_K_OPEN, (unsigned int)path, PSP_O_RDONLY, 0), n;
+
+    if (fd < 0)
+        return fd;
+    n = kio(NID_K_READ, (unsigned int)fd, (unsigned int)buf, cap);
+    kio(NID_K_CLOSE, (unsigned int)fd, 0, 0);
+    return n;
+}
+
 void hm_hw_card_lent(int lent)
 {
     g_card_lent = lent;

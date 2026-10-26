@@ -79,10 +79,45 @@ static void on_off(int o, char *out, int cap)
     stbsp_snprintf(out, cap, "%s", pw_tr(o ? PW_S_ON : PW_S_OFF));
 }
 
+/* The settings' files are written once the changes stop (SAVE_MS after the last), not at each
+   press: a write is 50-100 ms of the Memory Stick, and stepping through a choice made one long
+   frame per step (home.log 2026-10-27: Settings at 55 fps, 100 late frames in 30 s).
+   hs_save_pending writes them; with force before USB, a game, sleep, power off and leaving. */
+#define SAVE_MS 800
+
+static int g_dirty_cfg, g_dirty_home;
+static unsigned int g_dirty_t;
+
+static unsigned int now_ms(void)
+{
+    return sceKernelGetSystemTimeLow() / 1000;
+}
+
+void hs_save_pending(int force)
+{
+    if (!g_dirty_cfg && !g_dirty_home)
+        return;
+    if (!force && now_ms() - g_dirty_t < SAVE_MS)
+        return;
+    if (g_dirty_cfg && pw_config_save(DIR "config.txt") < 0)
+        hm_hw_log("home settings: config.txt not written\n");
+    if (g_dirty_home && hm_cfg_save(HOME_CFG) < 0)
+        hm_hw_log("home settings: home.txt not written\n");
+    g_dirty_cfg = g_dirty_home = 0;
+}
+
+void hs_home_changed(void)
+{
+    g_dirty_home = 1;
+    g_dirty_t = now_ms();
+}
+
 /* Pocketwatch: config.txt */
 static int save_config(void)
 {
-    return pw_config_save(DIR "config.txt") < 0 ? -1 : 0;
+    g_dirty_cfg = 1;
+    g_dirty_t = now_ms();
+    return 0;
 }
 
 static int get_start(void)
@@ -188,7 +223,9 @@ void hs_set_skies(const unsigned int colours[12])
 
 static int save_home(int r)
 {
-    return hm_cfg_save(HOME_CFG) < 0 ? -1 : r;
+    g_dirty_home = 1;
+    g_dirty_t = now_ms();
+    return r;
 }
 
 static int theme_count(void)
