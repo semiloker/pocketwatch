@@ -65,7 +65,8 @@ static int is_vram(const void *p)
 #define OTHERS            0x0000F0F8u /* the d-pad, the face buttons, START: none of them with the combo */
 #define SCREEN_W          480
 #define SCREEN_H          272
-#define AV_EVERY          6 /* vblanks between readings of the volume and the brightness (100 ms) */
+#define FRAME_US          15000 /* the draw loop's pace (~one frame); see perf_thread */
+#define AV_EVERY          6 /* loops between readings of the volume and the brightness (~100 ms) */
 #define GRACE_MS          2000 /* no drawing for the game's first seconds (its display is settling) */
 #define IMPOSE_VOLUME     0x1 /* pspimpose_driver.h */
 #define IMPOSE_BRIGHTNESS 0x2
@@ -239,7 +240,16 @@ static int perf_thread(SceSize args, void *argp)
         unsigned int now;
         SceCtrlData pad;
 
-        sceDisplayWaitVblankStart();
+        /* Pace by the thread manager, not sceDisplayWaitVblankStart: a thread blocked in the
+           display driver cannot be stopped while the game is quitting (the driver is torn down for
+           the reboot to the XMB), so it outlived module_stop, ran in unloaded memory and the PSP
+           black-screened and powered off (device, ADR-053). Every other Pocketwatch thread paces on
+           sceKernelDelayThread for the same reason (plugin/src/core/main.c module_stop: "no thread
+           of ours may outlive this function"). ~one frame; g_run is re-checked right after so a
+           stop never reaches another display call. */
+        sceKernelDelayThread(FRAME_US);
+        if (!g_run)
+            break;
         now = now_ms();
         memset(&pad, 0, sizeof(pad));
         sceCtrlPeekBufferPositive(&pad, 1);
@@ -303,29 +313,16 @@ static int perf_thread(SceSize args, void *argp)
             continue;
         if ((g_mode == PW_PERF_OFF || !g_lines) && pw_osd_shown(&g_osd, now) == PW_OSD_NONE)
             continue;
-        /* Track the game's own framebuffers, which live in VRAM (0x04000000-0x041FFFFF). The hub's
-           page is in a kernel partition, so it is never one of these - writing to a buffer we do
-           not own faulted and hung the PSP (device: HOME in a game blurred then froze; ADR-051). */
+        /* Draw onto the game's own framebuffers, which live in VRAM (0x04000000-0x041FFFFF), and
+           onto every one it shows (double/triple buffered) so the overlay never flickers. The hub's
+           page is in a kernel partition, so it is never one of these: writing to a buffer we do not
+           own faulted and hung the PSP (device: HOME in a game blurred then froze; ADR-051). The
+           displayed buffer is deliberately NOT read to gate drawing -
+           sceDisplayGetFrameBufferInternal did not return a usable address here and left the
+           overlay invisible (device rounds 11a, 11c, ADR-053); while the hub is open the game's
+           buffers are off-screen, so the overlay shows nothing but faults nothing. */
         if (game && gw >= SCREEN_W && is_vram(game))
             pw_fbset_add(&g_fbs, (unsigned int)game, gw, gf);
-        /* Draw only while a VRAM buffer is the one on screen - i.e. the game itself. When the hub
-           owns the screen its page is in a kernel partition (not VRAM), and while a game is
-           quitting the display is being torn down for the reboot to the XMB: in both cases the
-           overlay must touch no VRAM. Drawing into the game's buffers during that quit-reboot
-           corrupted it and the PSP black-screened and powered off (device, ADR-051). The displayed
-           buffer is only read here, never written, and its region - not its exact address - is the
-           test: the game displays from a back buffer, so it rarely equals the draw buffer but is
-           always in VRAM (testing for equality hid the overlay during normal play, device round
-           11b). */
-        {
-            void *disp = 0;
-            int dw = 0, df = 0;
-
-            if (sceDisplayGetFrameBufferInternal(0, &disp, &dw, &df, PSP_DISPLAY_SETBUF_IMMEDIATE) <
-                    0 ||
-                !is_vram(disp))
-                continue;
-        }
         for (int i = 0; i < g_fbs.n; i++) {
             void *t = (void *)(g_fbs.fb[i] | 0x40000000u); /* uncached: nothing to write back */
 
@@ -357,16 +354,16 @@ int module_stop(SceSize args, void *argp)
     (void)argp;
     g_run = 0;
     if (g_thread >= 0) {
-        /* Signal and wait, bounded. The draw loop checks g_run every vblank and returns, so this is
-           quick while vblank runs. If the game is already tearing the display down the thread is
-           blocked in sceDisplayWaitVblankStart - harmless: it draws nothing (it only draws while a
-           VRAM buffer is on screen, ADR-051) and the reboot that follows discards it. We do not
-           force-terminate a thread inside a kernel display call: that did not stop the exit
-           power-off and is itself unsafe (device). */
+        /* No thread of ours may outlive this (the kernel unloads the module on the game's exit; a
+           thread left in unloaded memory faults the reboot and the PSP powers off - ADR-053, and
+           plugin/src/core/main.c). The draw loop paces on sceKernelDelayThread and re-checks g_run,
+           so it ends within ~one frame; if it somehow does not, terminate it - safe now that it is
+           never inside a display syscall. Same shape as the plugin's own threads. */
         SceUInt timeout = 120000;
 
-        if (sceKernelWaitThreadEnd(g_thread, &timeout) >= 0)
-            sceKernelDeleteThread(g_thread);
+        if (sceKernelWaitThreadEnd(g_thread, &timeout) < 0)
+            sceKernelTerminateThread(g_thread);
+        sceKernelDeleteThread(g_thread);
         g_thread = -1;
     }
     return 0;

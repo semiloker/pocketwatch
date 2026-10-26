@@ -68,18 +68,50 @@ into — corrupting it, so the reboot fails and the firmware powers off. `module
 hook (its terminate did nothing to the power-off; the writes happen in the draw loop, and
 force-terminating a thread inside `sceDisplayWaitVblankStart` is itself unsafe).
 
-Fix (ADR-053): the overlay draws only while a **VRAM buffer is the one on screen**. Each vblank it
-reads the displayed buffer (`sceDisplayGetFrameBufferInternal`, read only) and skips all drawing
-unless `is_vram(displayed)`. While the hub owns the screen (kernel-partition page) and while the
-display is torn down for a reboot, nothing is written — the quit-reboot writes stop. The region, not
-the exact address, is the test (the game displays from a back buffer; `top == game` hid the overlay,
-round 11b). `module_stop` no longer force-terminates: it signals `g_run = 0` and waits, bounded; a
-thread left blocked in the vblank wait draws nothing and the reboot discards it.
+Fix attempted (ADR-053, first version): draw only while a **VRAM buffer is the one on screen** —
+read the displayed buffer each vblank (`sceDisplayGetFrameBufferInternal`) and skip drawing unless
+`is_vram(displayed)`; `module_stop` no longer force-terminates. **Both parts were wrong — see round
+11d.**
 
-**Device test (pending, PF-FREEZE):** with the fixed `pocketwatch_perf.prx` and `Overlay in Games`
-on, press HOME in several games (Castlevania, a streaming game) — the hub must open every time, the
-FPS pill shows **in the game** (not on the hub), and **quitting to the XMB works** (the XMB comes
-up, no black screen/power-off). Re-enable RemoteJoyLite and repeat.
+## 1d. The real root cause — the thread blocks in the display driver (VERIFIED, round 11d)
+
+**Round 11d (owner, 2026-10-26, log attached):** the round-11c build **still** black-screened and
+powered off on quit, and the overlay was now **invisible** in game. Two findings from
+`pocketwatch.log` and the code falsify the round-11c theory:
+
+- **The power-off is independent of drawing.** The last logged session ran the 11c build, whose
+  overlay drew nothing (the displayed-buffer gate always skipped) — `cpu: hub ... PocketwatchPerf
+  0%` — and it **still** powered off on quit. So the cause is not a framebuffer write during the
+  reboot (the round-11c theory). Every quit ends at `shell: quit: the game's exit callback was
+  invoked (0x00000000)` with all eight IPL seeds present (not the seed hang, m2-speed), then the
+  reboot dies.
+- **Reading the displayed buffer hides the overlay.** `sceDisplayGetFrameBufferInternal` did not
+  return an address that passed `is_vram` on this device, so the gate skipped every frame. The
+  overlay was visible only in round 11b, the one build that did **not** read the displayed buffer;
+  it vanished in 11a and 11c, the two that did.
+
+**Root cause (VERIFIED, log + code):** the overlay thread paced on `sceDisplayWaitVblankStart`, a
+display-driver call, and is the only Pocketwatch thread that blocks in a driver (the shell, main and
+probe threads all block in `sceKernelDelayThread`). On the game's exit the kernel unloads the module
+(`module_stop` runs — the game plugin's does, and ARK unloads them together), but the overlay thread
+is stuck inside the display driver as that driver is torn down for the reboot, so it cannot be woken
+and **outlives `module_stop`**. The plugin's own `module_stop` names this exact hazard
+(`plugin/src/core/main.c`: "No thread of ours may outlive this function: a thread left running in
+unloaded memory hangs the exit"). A kernel thread alive when `reboot.bin` reloads the kernel → fault
+→ power off. This is why the ADR-051/11c `module_stop` edits (terminate, then no-terminate) changed
+nothing: the thread is unstoppable while it sits in the display driver either way.
+
+**Fix (ADR-053, corrected):** the overlay thread **paces on `sceKernelDelayThread` (~15 ms), never
+`sceDisplayWaitVblankStart`**, and re-checks `g_run` right after the delay — the same shape as every
+other Pocketwatch thread. It is then never blocked in a driver, so `module_stop` ends it within a
+frame, before the reboot. The displayed-buffer gate is removed: the overlay writes onto every
+tracked VRAM buffer (ADR-051), visible in play and off-screen while the hub is open. FPS still comes
+from counting buffer flips, which a 15 ms loop catches.
+
+**Device test (pending, PF-FREEZE):** with the corrected `pocketwatch_perf.prx` and `Overlay in
+Games` on, launch a game — the FPS pill shows **in the game**; press HOME — the hub opens, no pill
+over it, no freeze; **Quit Game — the XMB comes up** (no black screen/power-off). RemoteJoyLite has
+been removed from the card, so test as-is.
 
 ## 2. Performance from `home.log` (VERIFIED)
 

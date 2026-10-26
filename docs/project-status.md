@@ -240,13 +240,25 @@ buffer **every vblank regardless of what is on screen**, so while quitting (hub 
 rebooting to the XMB) the perf thread keeps writing VRAM that `reboot.bin` is loading into. **Fixed
 (ADR-053):** draw only while a VRAM buffer is the one *on screen* (read the displayed buffer,
 `is_vram`); nothing is written while the hub owns the screen or the display is torn down.
-`module_stop` no longer force-terminates (unsafe, and it was not the cause). Deployed to the card
-(`pocketwatch_perf.prx` 15922 bytes).
+`module_stop` no longer force-terminates. **Both parts of this fix were wrong (round 11d).**
 
-**Next device test (PF-FREEZE):** `Overlay in Games` is on (Full). Press HOME in several games (incl.
-a streaming one, then with RemoteJoyLite back on) - the hub opens every time, the FPS pill shows in
-the game not on the hub, and **quitting to the XMB works** (the XMB comes up, no black screen/power
-off); send `pocketwatch.log`.
+**Round 11d (2026-10-26, log attached) - real root cause VERIFIED:** the 11c build still powered off
+on quit, and its overlay was invisible. The log shows the power-off is **independent of drawing** -
+the 11c build drew nothing (`PocketwatchPerf 0%` CPU) yet still powered off - so it is not a
+framebuffer write. Cause: the overlay **thread** paced on `sceDisplayWaitVblankStart` (a display
+driver call) and is the only Pocketwatch thread that blocks in a driver. On quit the kernel unloads
+the module, but the thread is stuck in the display driver as it is torn down for the reboot, so it
+**outlives `module_stop`** - a thread in unloaded memory faults the reboot (`plugin/src/core/main.c`:
+"no thread of ours may outlive this function"). That is why the `module_stop` edits changed nothing.
+And `sceDisplayGetFrameBufferInternal` returned no usable address here, which is why the 11c gate hid
+the overlay. **Fixed (ADR-053, corrected):** the thread paces on `sceKernelDelayThread` (~15 ms) and
+re-checks `g_run` - never blocked in a driver, so `module_stop` ends it within a frame; the
+displayed-buffer gate is removed (overlay writes every tracked VRAM buffer again). Deployed
+(`pocketwatch_perf.prx` 15898 bytes). RemoteJoyLite removed from the card at the owner's request.
+
+**Next device test (PF-FREEZE):** `Overlay in Games` is on (Full). Launch a game - the FPS pill shows
+in the game; HOME - the hub opens, no pill over it, no freeze; **Quit Game - the XMB comes up** (no
+black screen/power-off); send `pocketwatch.log`.
 
 ## Next actions (in order)
 
