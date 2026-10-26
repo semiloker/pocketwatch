@@ -1102,9 +1102,13 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-051 — The in-game overlay never writes to a framebuffer it does not own
 
-- **Status:** Accepted (2026-10-25), from the owner's device report (build `fcab0aa`): HOME in a
-  game blurred then froze the console for good, needing a reboot; it happened with RemoteJoyLite
-  off too. See [m7-ingame-freeze](../research/m7-ingame-freeze.md).
+- **Status:** Accepted (2026-10-25); the drawing gate and the exit-power-off fix below are
+  **superseded by [ADR-053](#adr-053--the-in-game-overlay-draws-only-while-the-game-is-on-screen)**
+  (device round 11c: the `module_stop` terminate did not stop the power-off, and the overlay now
+  reads the displayed buffer again to gate on its region). The freeze root cause here still holds.
+  From the owner's device report (build `fcab0aa`): HOME in a game blurred then froze the console
+  for good, needing a reboot; it happened with RemoteJoyLite off too. See
+  [m7-ingame-freeze](../research/m7-ingame-freeze.md).
 - **Context:** VERIFIED by inspection. The performance overlay (`perf/src/main.c`, a kernel thread,
   ADR-043) drew the FPS/OSD every vblank onto whatever buffer was *displayed* when it differed from
   the game's own (`top != game`) — intended to cover "the hub's frame". But the hub displays its
@@ -1146,3 +1150,40 @@ decision was taken; the evidence column links the research behind it.
 - **Consequences:** every Home start (cold boot or a relaunch) shows the ~1.1 s intro; it is
   skippable. Preview `home-intro`. If relaunches (USB, Restart, return from a game) make it feel
   repetitive, a cold-boot-only gate can be added later.
+
+## ADR-053 — The in-game overlay draws only while the game is on screen
+
+- **Status:** Accepted (2026-10-26), supersedes the drawing gate and the exit-power-off fix of
+  [ADR-051](#adr-051--the-in-game-overlay-never-writes-to-a-framebuffer-it-does-not-own). From the
+  owner's device report: the overlay now shows in games and HOME no longer freezes (ADR-051's VRAM
+  filter worked), but quitting a game to the XMB still **black-screened and powered the PSP off** —
+  the `module_stop` fix did not help. See [m7-ingame-freeze](../research/m7-ingame-freeze.md),
+  round 11c.
+- **Context (root cause, INFERRED — device test pending):** ADR-051 made the overlay draw onto
+  **every** tracked VRAM game buffer **every vblank regardless of what is on screen**, so that the
+  overlay was ready when the game returned. But quitting runs with the hub on screen and the game
+  tearing its display down to reboot to the XMB (`sctrlKernelExitVSH` / the game's exit callback,
+  `plugin/src/shell/shell.c` `quit_game`); throughout that window the perf thread keeps writing the
+  game's VRAM, which `reboot.bin` is loading into — corrupting it, so the reboot fails and the
+  firmware powers the PSP off. The evidence that `module_stop` is the wrong hook: adding a timeout +
+  `sceKernelTerminateDeleteThread` there (ADR-051) did **not** stop the power-off; the writes happen
+  in the draw loop around it, and force-terminating a thread inside `sceDisplayWaitVblankStart` is
+  itself unsafe.
+- **Decision:** the overlay draws only while a **VRAM buffer is the one on screen** — i.e. the game
+  itself. Each vblank it reads the displayed buffer (`sceDisplayGetFrameBufferInternal`, read only,
+  never written) and skips all drawing unless that buffer is in VRAM (`is_vram`). While the hub owns
+  the screen (its page is in a kernel partition) and while the display is being torn down for a
+  reboot, nothing is written. The test is the **region, not the exact address**: the game displays
+  from a back buffer, so the displayed buffer rarely equals the draw buffer but is always in VRAM —
+  testing for equality (`top == game`) hid the overlay during normal play (ADR-051 round 11b).
+  `module_stop` no longer force-terminates: it signals `g_run = 0` and waits (bounded); a thread
+  left blocked in the vblank wait draws nothing and the reboot discards it.
+- **Alternatives considered:** a module exit callback (`sceKernelRegisterExitCallback`, as
+  `home/src/hw.c`) to stop the thread before reboot — more machinery and uncertain delivery to a
+  kernel plugin on this exit path; keeping `module_stop`'s terminate — already shown not to work.
+  The displayed-region gate needs no new thread and removes the dangerous writes directly.
+- **Consequences:** the overlay still shows in games (displayed buffer is VRAM during play) and
+  shows nothing over the hub or during a quit, so the quit-reboot writes stop. Device test
+  **PF-FREEZE** (unchanged target): with the overlay on, HOME opens in several games, the FPS pill
+  shows in the game (not the hub), and quitting to the XMB powers up the XMB with no black
+  screen/power-off — with and without RemoteJoyLite.

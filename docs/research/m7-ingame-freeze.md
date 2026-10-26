@@ -54,10 +54,32 @@ Also round 11b: with the overlay on, **quitting a game black-screened and powere
 never ends, `module_stop` hangs the exit, and the firmware powers the PSP off. Fixed: `module_stop`
 waits ~120 ms then `sceKernelTerminateDeleteThread`.
 
+**Round 11c (owner, 2026-10-26):** the VRAM filter worked — the overlay **shows in games and HOME
+no longer freezes**. But quitting a game to the XMB **still** black-screened and powered the PSP
+off, so the round 11b `module_stop` fix (timeout + `sceKernelTerminateDeleteThread`) did **not**
+address it.
+
+Root cause (INFERRED, device test pending): round 11b made the overlay draw onto **every** tracked
+VRAM buffer **every vblank regardless of what is on screen** (so it is ready when the game returns).
+Quitting runs with the hub on screen and the game tearing its display down to reboot to the XMB
+(`plugin/src/shell/shell.c` `quit_game` → the game's exit callback or `sctrlKernelExitVSH`);
+throughout that window the perf thread keeps writing the game's VRAM — which `reboot.bin` loads
+into — corrupting it, so the reboot fails and the firmware powers off. `module_stop` is the wrong
+hook (its terminate did nothing to the power-off; the writes happen in the draw loop, and
+force-terminating a thread inside `sceDisplayWaitVblankStart` is itself unsafe).
+
+Fix (ADR-053): the overlay draws only while a **VRAM buffer is the one on screen**. Each vblank it
+reads the displayed buffer (`sceDisplayGetFrameBufferInternal`, read only) and skips all drawing
+unless `is_vram(displayed)`. While the hub owns the screen (kernel-partition page) and while the
+display is torn down for a reboot, nothing is written — the quit-reboot writes stop. The region, not
+the exact address, is the test (the game displays from a back buffer; `top == game` hid the overlay,
+round 11b). `module_stop` no longer force-terminates: it signals `g_run = 0` and waits, bounded; a
+thread left blocked in the vblank wait draws nothing and the reboot discards it.
+
 **Device test (pending, PF-FREEZE):** with the fixed `pocketwatch_perf.prx` and `Overlay in Games`
 on, press HOME in several games (Castlevania, a streaming game) — the hub must open every time, the
-FPS pill shows **in the game** (not on the hub), and **quitting to the XMB works** (no black
-screen/power-off). Re-enable RemoteJoyLite and repeat.
+FPS pill shows **in the game** (not on the hub), and **quitting to the XMB works** (the XMB comes
+up, no black screen/power-off). Re-enable RemoteJoyLite and repeat.
 
 ## 2. Performance from `home.log` (VERIFIED)
 

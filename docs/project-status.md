@@ -233,9 +233,19 @@ fix's `top == game` test excluded normal play (games display from a back buffer)
 a game black-screened and powered the PSP off** - `module_stop` hung on the vblank-blocked thread
 during the display tear-down; now it force-ends the thread after ~120 ms. Both in ADR-051.
 
-**Next device test (PF-FREEZE):** deploy, re-enable `Overlay in Games` (Full), press HOME in several
-games (incl. a streaming one, then with RemoteJoyLite back on) - the hub opens every time, the FPS
-pill shows in the game not on the hub, and **quitting to the XMB works** (no black screen/power
+**Round 11c (2026-10-26):** the VRAM filter worked - the overlay **shows in games and HOME no longer
+freezes**. But **quitting a game to the XMB still black-screened and powered the PSP off**; the 11b
+`module_stop` terminate did nothing. Root cause (INFERRED, test pending): 11b drew onto every VRAM
+buffer **every vblank regardless of what is on screen**, so while quitting (hub on screen, game
+rebooting to the XMB) the perf thread keeps writing VRAM that `reboot.bin` is loading into. **Fixed
+(ADR-053):** draw only while a VRAM buffer is the one *on screen* (read the displayed buffer,
+`is_vram`); nothing is written while the hub owns the screen or the display is torn down.
+`module_stop` no longer force-terminates (unsafe, and it was not the cause). Deployed to the card
+(`pocketwatch_perf.prx` 15922 bytes).
+
+**Next device test (PF-FREEZE):** `Overlay in Games` is on (Full). Press HOME in several games (incl.
+a streaming one, then with RemoteJoyLite back on) - the hub opens every time, the FPS pill shows in
+the game not on the hub, and **quitting to the XMB works** (the XMB comes up, no black screen/power
 off); send `pocketwatch.log`.
 
 ## Next actions (in order)
