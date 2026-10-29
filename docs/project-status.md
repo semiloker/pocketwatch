@@ -286,6 +286,22 @@ one pressed flashes. Host previews in each style; the PPSSPP check of the GE pat
 completed (its keyboard input arrived late or twice), so the device round is the first run on
 the GE: test HM38.
 
+## Device results 2026-10-29, round 12 (owner, build `f6de885`, `home.log`)
+
+- **HM38 passed:** the keys and the seek (#5 VERIFIED: `home music: seek to 13 s, frame 497 of
+  10164 (1152 a frame): 0`).
+- **HM39 failed:** the Adjust tools did not visibly change the photo (Filters, Crop did); each
+  editor key 83-114 ms (`slow: [.. p9 keys 85 ..]`). Cause: steps too small for their scales, and
+  each step remade the canvas' picture. Fixed (#10, ADR-062): steps of 10 one sees, the picture
+  kept between steps.
+- **HM34 / PF3 failed:** the bar stopped at 4/5 while the fifth step was brighter, then 1/5.
+  Cause: impose's step does not tell the fourth and fifth apart. Fixed (#6, ADR-061): every bar
+  follows the backlight's level. And the owner meant the bar in the **in-game menu** (the hub),
+  which had none: added (#9, UI-REQ-018), the volume bar's look stood up at the left. The real
+  XMB's bar (Everywhere, #7) stays as an option (owner's choice).
+- **X2 not run:** `probe/probe.log` has only its first line, no dumps - the XMB did not start with
+  the probe (hold L at power-on).
+
 ## 2026-10-29 (later): issues #5-#8 - the seek, the brightness, the photo editor
 
 From now on every fix starts as a GitHub issue assigned to the owner, and its commit names it
@@ -310,7 +326,11 @@ All four are built, host-tested (152 tests) and previewed; none is confirmed on 
 
 ## Next actions (in order)
 
-0. **Owner (2026-10-29, later):** HM38 (the keys and now the seek, #5), HM39 (the photo editor,
+0. **Owner (2026-10-29, round 13):** HM39 again (each press shows, #10), HM34 and PF3 (the
+   level, the fifth step too, #6), H19 (the bar in the in-game menu, each style, #9), then
+   PF-FREEZE and only after it PF5; X2 (hold L at power-on, Triangle on games). Send `home.log`.
+   **Round 12 (2026-10-29):** HM38 passed; HM39, HM34, PF3 failed (fixed above).
+   **Before (2026-10-29, later):** HM38 (the keys and now the seek, #5), HM39 (the photo editor,
    #8), HM34 and PF3 (five brightness steps, the vertical bar, #6, #7), then PF-FREEZE, and only
    after it PF5 (the bar in the XMB). X2 below still waits. Send `home.log`.
    **Before (2026-10-29):** HM38 (the player's fixed keys), HM36 (lists, text, the settings'

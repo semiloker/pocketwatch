@@ -253,12 +253,14 @@ void pw_modern_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const c
     }
 }
 
-/* A pill on the right edge, filled from the bottom, that swells a little at each change. */
+/* A pill on the right edge, filled from the bottom, that swells a little at each change; the
+   brightness's on the left edge with a sun (#9). */
 void pw_modern_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {
-    int a = v->alpha, bump = v->flash * 3 / 256, w = 22 + 2 * bump, h = 136 + 2 * bump,
-        x = SCREEN_W - 26 - w / 2, y = 68 - bump, cx = x + w / 2, top = y + 14, bottom = y + h - 36,
-        level = bottom - (bottom - top) * v->shown / (PW_VOLUME_MAX * 256);
+    int sun = v->max > PW_VOLUME_MAX, max = sun ? v->max : PW_VOLUME_MAX, a = v->alpha,
+        bump = v->flash * 3 / 256, w = 22 + 2 * bump, h = 136 + 2 * bump,
+        x = sun ? 26 - w / 2 : SCREEN_W - 26 - w / 2, y = 68 - bump, cx = x + w / 2, top = y + 14,
+        bottom = y + h - 36, level = bottom - (bottom - top) * v->shown / (max * 256);
 
     (void)ui;
     if (a <= 0)
@@ -268,5 +270,8 @@ void pw_modern_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
     if (v->shown > 0)
         pw_shape_capsule(c, PW_FX(cx), PW_FX(level), PW_FX(cx), PW_FX(bottom), PW_FX(3),
                          v->muted ? C_SUB : C_TEXT, a);
-    pw_view_speaker(c, cx - 8, y + h - 28, v->muted, C_TEXT, a);
+    if (sun)
+        pw_view_sun(c, cx, y + h - 20, C_TEXT, a);
+    else
+        pw_view_speaker(c, cx - 8, y + h - 28, v->muted, C_TEXT, a);
 }

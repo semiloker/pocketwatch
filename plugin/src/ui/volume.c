@@ -14,9 +14,9 @@ void pw_volume_reset(pw_volume *v)
 int pw_volume_update(pw_volume *v, int level, int muted, int pressed, unsigned int now_ms)
 {
     unsigned int since;
-    int dt;
+    int dt, top = v->max > 0 ? v->max : PW_VOLUME_MAX;
 
-    level = level < 0 ? 0 : level > PW_VOLUME_MAX ? PW_VOLUME_MAX : level;
+    level = level < 0 ? 0 : level > top ? top : level;
     muted = muted != 0;
     if (!v->known) { /* the menu just opened: nothing changed yet */
         v->known = 1;

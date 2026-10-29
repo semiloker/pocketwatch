@@ -111,7 +111,7 @@ int pw_steps_button(pw_steps *s, int held, int n, unsigned int now_ms);
 enum { PW_OSD_NONE, PW_OSD_VOLUME, PW_OSD_BRIGHT };
 #define PW_OSD_MS 1500 /* shown this long after the last change */
 typedef struct {
-    int vol, mute, bright; /* as last read (-1 not known) */
+    int vol, mute, bright; /* as last read (-1 not known); bright: the backlight's level, 1-100 */
     int kind;              /* PW_OSD_*: what changed last */
     unsigned int t;        /* when */
     int primed;            /* (the first reading only remembered) */
@@ -121,8 +121,9 @@ int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms);
 /* What to show now: the kind within PW_OSD_MS of its change, else PW_OSD_NONE. */
 int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
 /* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", or the brightness
-   bar's step "3/5" - o->bright of steps (the system's PW_BRIGHT_STEPS, or Pocketwatch's). */
-void pw_osd_text(const pw_osd *o, int steps, char out[PW_PERF_COLS + 1]);
+   bar's level "72". The level, not the system's step: impose's step reads the same at the
+   PSP-3000's fourth and fifth (device, 2026-10-29, #6), the backlight's level changes at each. */
+void pw_osd_text(const pw_osd *o, char out[PW_PERF_COLS + 1]);
 
 /* ---- the game's display framebuffers ----
 
@@ -148,11 +149,13 @@ void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask
                  int n);
 
 /* The brightness as a vertical bar at the left (#7, ADR-059), the shape of Home's: a black box
-   with a white edge, its step ("3/5") at the top, n steps from the bottom up with k of them lit,
-   a sun under them; the volume keeps the box at the bottom (format, clip: pw_perf_draw's). */
-#define PW_VBAR_X 10
-#define PW_VBAR_W 34
-#define PW_VBAR_H 150
+   with a white edge, its level ("72") at the top, n steps from the bottom up with k of them lit
+   (PW_VBAR_STEPS of 5 %), a sun under them; the volume keeps the box at the bottom (format, clip:
+   pw_perf_draw's). */
+#define PW_VBAR_STEPS 20
+#define PW_VBAR_X     10
+#define PW_VBAR_W     34
+#define PW_VBAR_H     150
 void pw_osd_draw_vbar(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
                       int n);
 

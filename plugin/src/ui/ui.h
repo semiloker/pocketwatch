@@ -28,6 +28,7 @@ typedef struct {
     pw_keys keys;
     unsigned int t_tick;
     pw_volume volume;      /* the volume bar over every screen (ui/volume.h) */
+    pw_volume bright;      /* the brightness bar, at the left (#9) */
     unsigned int vol_held; /* the volume buttons held at the last look */
 } pw_ui;
 

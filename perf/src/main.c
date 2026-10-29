@@ -161,11 +161,6 @@ static int g_steps_set;         /* the first step taken from the level */
 static int g_level = -1;        /* the backlight's level as last read */
 static unsigned int g_t_screen; /* SCREEN held last (a change of the owner's) */
 
-static int steps_n(void)
-{
-    return g_cfg.steps ? g_cfg.nlevels : PW_BRIGHT_STEPS;
-}
-
 static void av_step(unsigned int now)
 {
     int level = 0, unk = 0, set, fixed = 0;
@@ -186,13 +181,14 @@ static void av_step(unsigned int now)
         g_level = set;
     }
     if (g_cfg.osd == PW_OSD_EVERY || (g_cfg.osd == PW_OSD_ALL && !g_xmb)) {
-        int bright = g_cfg.steps ? g_steps.cur : sceImposeGetParam(IMPOSE_BRIGHTNESS);
+        /* the backlight's level (#6); the screen off (0) is no change of it */
+        int bright = g_level > 0 ? g_level : g_osd.bright;
 
         if (pw_osd_step(&g_osd, sceImposeGetParam(IMPOSE_VOLUME), sceImposeGetParam(IMPOSE_MUTE),
                         bright, now)) {
             char t[PW_PERF_COLS + 1];
 
-            pw_osd_text(&g_osd, steps_n(), t);
+            pw_osd_text(&g_osd, t);
             pw_perf_render(t, &g_osd_mask);
         }
     }
@@ -208,8 +204,8 @@ static void osd_draw(void *top, int bufw, int fmt, unsigned int now, int hub)
         pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
                     g_osd.mute == 1 ? 0 : g_osd.vol, 30);
     else if (kind == PW_OSD_BRIGHT)
-        pw_osd_draw_vbar(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright + 1,
-                         steps_n());
+        pw_osd_draw_vbar(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
+                         (g_osd.bright * PW_VBAR_STEPS + 50) / 100, PW_VBAR_STEPS);
 }
 
 /* A narrow card at the top left, a labelled row each (like Home's overlay): compact, not a wide

@@ -376,7 +376,7 @@ int pw_osd_shown(const pw_osd *o, unsigned int now_ms)
     return o->kind != PW_OSD_NONE && now_ms - o->t < PW_OSD_MS ? o->kind : PW_OSD_NONE;
 }
 
-void pw_osd_text(const pw_osd *o, int steps, char out[PW_PERF_COLS + 1])
+void pw_osd_text(const pw_osd *o, char out[PW_PERF_COLS + 1])
 {
     line l = {out, 0};
 
@@ -387,9 +387,7 @@ void pw_osd_text(const pw_osd *o, int steps, char out[PW_PERF_COLS + 1])
         put(&l, "VOL ");
         put_int(&l, o->vol < 0 ? 0 : o->vol);
     } else if (o->kind == PW_OSD_BRIGHT) { /* the vertical bar's top: the sun says what it is */
-        put_int(&l, o->bright < 0 ? 0 : o->bright + 1);
-        put(&l, "/");
-        put_int(&l, steps);
+        put_int(&l, o->bright < 0 ? 0 : o->bright); /* (as the volume's: the number) */
     }
 }
 

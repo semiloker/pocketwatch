@@ -648,7 +648,9 @@ static struct {
     hm_edit ed;
     unsigned int *ed_src, *ed_bg, *ed_thumb; /* the picture fitted to the screen; the editor's
                                                 screen drawn; the looks' thumbnail */
-    int ed_w, ed_h;
+    unsigned int *ed_frame, *ed_orig; /* the canvas' picture as turned and cropped; as it is */
+    int ed_w, ed_h, ed_fw, ed_fh, ed_ow, ed_oh;
+    int ed_geom;             /* the Crop tab's values ed_frame was made for, -1 none */
     int ed_sel[HM_EDT_TABS]; /* each tab's tool as it was left */
     int ed_compare;          /* Square held: the picture as it is */
     unsigned int t_discard;  /* Back with changes: when it said a second press discards them */
@@ -885,7 +887,7 @@ static void av_frame(unsigned int now, unsigned int buttons)
     static int told, steps_set;
     static char text[32];
     const pw_perf_cfg *c = hs_perf_cfg();
-    int kind, set, tap = 0, n = c->steps ? c->nlevels : hm_bright_max() + 1;
+    int kind, set, tap = 0, lv;
 
     if (g_s.screen_off ||
         (c->osd == PW_OSD_OFF && c->boost == 0 && !c->steps && g_bright.set < 0)) {
@@ -905,16 +907,18 @@ static void av_frame(unsigned int now, unsigned int buttons)
             g_steps.cur = pw_steps_nearest(c, av.level);
             steps_set = 1;
         }
+        lv = av.level;
         if ((set = pw_bright_step(&g_bright, av.level, c->boost,
                                   c->steps ? c->levels[g_steps.cur % c->nlevels] : 0,
-                                  now - t_screen < 1000, now)) > 0)
-            hm_hw_set_level(set);
+                                  now - t_screen < 1000, now)) > 0 &&
+            hm_hw_set_level(set) == 0)
+            lv = set;
         if (g_bright.fights >= PW_BRIGHT_FIGHTS && !told) {
             hm_hw_log("home brightness: another plugin sets its level back: the boost gave up\n");
             told = 1;
         }
-        if (c->osd != PW_OSD_OFF)
-            pw_osd_step(&g_osd, av.vol, av.mute, c->steps ? g_steps.cur : av.bright, now);
+        if (c->osd != PW_OSD_OFF) /* the backlight's level (#6); the screen off is no change */
+            pw_osd_step(&g_osd, av.vol, av.mute, lv > 0 ? lv : g_osd.bright, now);
     }
     kind = c->osd != PW_OSD_OFF ? g_osd.kind : PW_OSD_NONE; /* (its words stay as it fades) */
     g_v.osd = !kind                       ? 0
@@ -930,10 +934,11 @@ static void av_frame(unsigned int now, unsigned int buttons)
             stbsp_snprintf(text, sizeof(text), "%d", g_osd.vol);
         g_v.osd_text = text;
     } else if (kind == PW_OSD_BRIGHT) {
-        g_v.osd_glyph = HM_ICON_SUN; /* a vertical bar at the left (#7) */
-        g_v.osd_step = g_osd.bright + 1;
-        g_v.osd_steps = n;
-        stbsp_snprintf(text, sizeof(text), "%d/%d", g_osd.bright + 1, n);
+        int pct = g_osd.bright < 0 ? 0 : g_osd.bright > 100 ? 100 : g_osd.bright;
+
+        g_v.osd_glyph = HM_ICON_SUN; /* a vertical bar at the left (#7), by the level (#6) */
+        g_v.osd_level = pct * 256 / 100;
+        stbsp_snprintf(text, sizeof(text), "%d", pct); /* (as the volume: the number) */
         g_v.osd_text = text;
     }
 }
@@ -1152,13 +1157,25 @@ static void editor_texts(void)
 }
 
 /* The editor's screen (hm_edit_compose: the picture in its canvas, the looks' thumbnails) as the
-   background. */
+   background. The canvas' picture is made again only when the Crop tab changed it (#10). */
 static void editor_preview(void)
 {
+    int geom = g_s.ed.rotate | g_s.ed.mirror << 2 | g_s.ed.aspect << 3;
+
     if (!g_s.ed_src || !g_s.ed_bg)
         return;
-    hm_edit_compose(&g_s.ed, g_s.ed_src, g_s.ed_w, g_s.ed_h, g_s.ed_thumb, HM_ED_THUMBW,
-                    HM_ED_THUMBH, g_v.ed_tab, g_s.ed_compare, g_s.ed_bg, g_s.ed_hist);
+    if (geom != g_s.ed_geom || !g_s.ed_frame) {
+        free(g_s.ed_frame);
+        g_s.ed_frame =
+            hm_edit_frame(&g_s.ed, g_s.ed_src, g_s.ed_w, g_s.ed_h, &g_s.ed_fw, &g_s.ed_fh);
+        g_s.ed_geom = g_s.ed_frame ? geom : -1;
+    }
+    if (g_s.ed_compare)
+        hm_edit_compose(&g_s.ed, g_s.ed_orig, g_s.ed_ow, g_s.ed_oh, g_s.ed_thumb, HM_ED_THUMBW,
+                        HM_ED_THUMBH, g_v.ed_tab, 1, g_s.ed_bg, g_s.ed_hist);
+    else
+        hm_edit_compose(&g_s.ed, g_s.ed_frame, g_s.ed_fw, g_s.ed_fh, g_s.ed_thumb, HM_ED_THUMBW,
+                        HM_ED_THUMBH, g_v.ed_tab, 0, g_s.ed_bg, g_s.ed_hist);
     hm_gu_written(g_s.ed_bg, 512 * HM_H * 4);
     hm_gu_upload_bg(2, g_s.ed_bg); /* (the default background's slot, given back after) */
 }
@@ -1168,7 +1185,9 @@ static void editor_close(void)
     free(g_s.ed_src);
     free(g_s.ed_bg);
     free(g_s.ed_thumb);
-    g_s.ed_src = g_s.ed_bg = g_s.ed_thumb = 0;
+    free(g_s.ed_frame);
+    free(g_s.ed_orig);
+    g_s.ed_src = g_s.ed_bg = g_s.ed_thumb = g_s.ed_frame = g_s.ed_orig = 0;
     g_s.editor = 0;
     make_default_background(); /* its slot again */
 }
@@ -1233,6 +1252,9 @@ static int editor_open(void)
     g_s.ed_h = fh;
     g_s.ed_thumb = editor_thumb(g_s.ed_src, fw, fh); /* (none: the looks without pictures) */
     hm_edit_init(&g_s.ed);
+    g_s.ed_orig = hm_edit_frame(&g_s.ed, g_s.ed_src, fw, fh, &g_s.ed_ow, &g_s.ed_oh); /* Compare */
+    g_s.ed_frame = 0;
+    g_s.ed_geom = -1;
     memset(g_s.ed_sel, 0, sizeof(g_s.ed_sel));
     g_s.ed_compare = 0;
     g_s.t_discard = 0;

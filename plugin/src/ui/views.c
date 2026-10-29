@@ -454,6 +454,19 @@ void pw_view_speaker(pw_canvas *c, int x, int y, int muted, unsigned int color, 
 #define VOL_BAR_H    24
 #define VOL_BAR_Y    (SCREEN_H - VOL_BAR_H - 12)
 
+void pw_view_sun(pw_canvas *c, int cx, int cy, unsigned int color, int alpha)
+{
+    static const signed char k[8][2] = {{0, -7}, {5, -5}, {7, 0},  {5, 5},
+                                        {0, 7},  {-5, 5}, {-7, 0}, {-5, -5}};
+
+    pw_shape_disc(c, PW_FX(cx), PW_FX(cy), PW_FX(3), color, alpha);
+    for (int i = 0; i < 8; i++) /* eight short rays */
+        pw_shape_capsule(c, PW_FX(cx + k[i][0] * 5 / 7), PW_FX(cy + k[i][1] * 5 / 7),
+                         PW_FX(cx + k[i][0]), PW_FX(cy + k[i][1]), PW_FX(1), color, alpha);
+}
+
+#define BRIGHT_STEPS 20 /* the brightness bar: a step of 5 % */
+
 void pw_view_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {
     if (ui->style == PW_STYLE_MODERN) {
@@ -464,29 +477,36 @@ void pw_view_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
         pw_minimal_volume(c, ui, v);
         return;
     }
-    int a = v->alpha, pitch = VOL_STEP_W + VOL_STEP_GAP,
-        w = PW_VOLUME_MAX * pitch - VOL_STEP_GAP + 44, x = (SCREEN_W - w) / 2, sx = x + 34,
-        sy = VOL_BAR_Y + (VOL_BAR_H - VOL_STEP_H) / 2, full = v->shown / 256, part = v->shown % 256,
-        on = v->muted ? 110 : 235;
+    /* the brightness (#9): the same strip stood up at the left, 20 steps, a sun under them */
+    int up = v->max > PW_VOLUME_MAX, n = up ? BRIGHT_STEPS : PW_VOLUME_MAX,
+        s = up ? v->shown * BRIGHT_STEPS / v->max : v->shown, a = v->alpha,
+        pitch = VOL_STEP_W + VOL_STEP_GAP, len = n * pitch - VOL_STEP_GAP + 44,
+        x = up ? 10 : (SCREEN_W - len) / 2, y = up ? (SCREEN_H - len) / 2 : VOL_BAR_Y,
+        full = s / 256, part = s % 256, on = v->muted ? 110 : 235,
+        flash = v->up ? (up ? (v->level * BRIGHT_STEPS + 99) / v->max : v->level) - 1
+                      : (up ? v->level * BRIGHT_STEPS / v->max : v->level);
 
     if (a <= 0)
         return;
-    pw_shape_rrect(c, PW_FX(x), PW_FX(VOL_BAR_Y), PW_FX(w), PW_FX(VOL_BAR_H), PW_FX(4), 0,
-                   PW_RGB(0, 0, 0), a * 150 / 256);
-    pw_view_speaker(c, x + 10, VOL_BAR_Y + 4, v->muted, PW_C_TEXT, a);
-    for (int i = 0; i < PW_VOLUME_MAX; i++) { /* the steps; the one being reached fills in */
-        int fill = i < full ? 256 : i == full ? part : 0;
+    pw_shape_rrect(c, PW_FX(x), PW_FX(y), PW_FX(up ? VOL_BAR_H : len), PW_FX(up ? len : VOL_BAR_H),
+                   PW_FX(4), 0, PW_RGB(0, 0, 0), a * 150 / 256);
+    if (up)
+        pw_view_sun(c, x + VOL_BAR_H / 2, y + len - 18, PW_C_TEXT, a);
+    else
+        pw_view_speaker(c, x + 10, VOL_BAR_Y + 4, v->muted, PW_C_TEXT, a);
+    for (int i = 0; i < n; i++) { /* the steps; the one being reached fills in */
+        int fill = i < full    ? 256
+                   : i == full ? part
+                               : 0,
+            rx = up ? x + (VOL_BAR_H - VOL_STEP_H) / 2 : x + 34 + i * pitch,
+            ry = up ? y + len - 34 - i * pitch - VOL_STEP_W : y + (VOL_BAR_H - VOL_STEP_H) / 2,
+            rw = up ? VOL_STEP_H : VOL_STEP_W, rh = up ? VOL_STEP_W : VOL_STEP_H;
 
-        pw_draw_blend(c, sx + i * pitch, sy, VOL_STEP_W, VOL_STEP_H, PW_C_TEXT, a * 55 / 256);
+        pw_draw_blend(c, rx, ry, rw, rh, PW_C_TEXT, a * 55 / 256);
         if (fill)
-            pw_draw_blend(c, sx + i * pitch, sy, VOL_STEP_W, VOL_STEP_H, PW_C_TEXT,
-                          a * on / 256 * fill / 256);
-    }
-    if (v->flash && !v->muted) { /* the step that just changed glows a moment */
-        int i = v->up ? v->level - 1 : v->level;
-
-        if (i >= 0 && i < PW_VOLUME_MAX)
-            pw_draw_blend(c, sx + i * pitch - 1, sy - 2, VOL_STEP_W + 2, VOL_STEP_H + 4, PW_C_TEXT,
-                          a * v->flash / 512);
+            pw_draw_blend(c, rx, ry, rw, rh, PW_C_TEXT, a * on / 256 * fill / 256);
+        if (v->flash && !v->muted && i == flash) /* the step that just changed glows a moment */
+            pw_draw_blend(c, rx - 1 - !up, ry - 1 - up, rw + 2 + 2 * !up, rh + 2 + 2 * up,
+                          PW_C_TEXT, a * v->flash / 512);
     }
 }

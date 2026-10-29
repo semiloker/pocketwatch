@@ -14,7 +14,7 @@ static int run(pw_volume *v, int level, int muted, unsigned int t0, unsigned int
 
 PW_TEST(volume_first_reading_shows_nothing)
 {
-    pw_volume v;
+    pw_volume v = {0};
 
     pw_volume_reset(&v);
     CHECK_EQ(pw_volume_update(&v, 12, 0, 0, 1000), 0);
@@ -25,7 +25,7 @@ PW_TEST(volume_first_reading_shows_nothing)
 
 PW_TEST(volume_change_shows_glides_and_fades)
 {
-    pw_volume v;
+    pw_volume v = {0};
 
     pw_volume_reset(&v);
     pw_volume_update(&v, 10, 0, 0, 0);
@@ -49,7 +49,7 @@ PW_TEST(volume_change_shows_glides_and_fades)
 
 PW_TEST(volume_press_at_the_end_and_mute_show_it)
 {
-    pw_volume v;
+    pw_volume v = {0};
 
     pw_volume_reset(&v);
     pw_volume_update(&v, PW_VOLUME_MAX, 0, 0, 0);
@@ -60,4 +60,18 @@ PW_TEST(volume_press_at_the_end_and_mute_show_it)
     CHECK_EQ(v.muted, 1);
     CHECK_EQ(pw_volume_update(&v, 3, 1, 0, 3032), 1);
     CHECK_EQ(v.up, 0);
+}
+
+PW_TEST(brightness_bar_is_the_volume_bar_on_a_scale_of_100)
+{
+    pw_volume v = {0};
+
+    v.max = PW_BRIGHT_MAX;
+    pw_volume_reset(&v);
+    CHECK_EQ(pw_volume_update(&v, 44, 0, 0, 1000), 0); /* the first reading: nothing */
+    CHECK_EQ(run(&v, 100, 0, 1016, 2000), 1);          /* the fifth step (#6): its own level */
+    CHECK_EQ(v.level, 100);                            /* not cut at the volume's 30 */
+    CHECK(v.shown > 90 * 256 && v.alpha == 256);
+    CHECK_EQ(run(&v, 150, 0, 2016, 2100), 1);
+    CHECK_EQ(v.level, PW_BRIGHT_MAX); /* (cut at its own top) */
 }

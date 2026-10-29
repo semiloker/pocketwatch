@@ -129,21 +129,19 @@ PW_TEST(indicator_shows_what_changed_for_a_while)
     CHECK_EQ(pw_osd_step(&o, 19, 0, 2, 1000), 1);
     CHECK_EQ(pw_osd_shown(&o, 1000 + PW_OSD_MS - 1), PW_OSD_VOLUME);
     CHECK_EQ(pw_osd_shown(&o, 1000 + PW_OSD_MS), PW_OSD_NONE);
-    pw_osd_text(&o, 4, t);
+    pw_osd_text(&o, t);
     CHECK_STR(t, "VOL 19");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 2, 3000), 1);
-    pw_osd_text(&o, 4, t);
+    pw_osd_text(&o, t);
     CHECK_STR(t, "MUTE");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5000), 1);
     CHECK_EQ(pw_osd_shown(&o, 5100), PW_OSD_BRIGHT);
-    pw_osd_text(&o, PW_BRIGHT_STEPS, t);
-    CHECK_STR(t, "4/5"); /* the system's five steps (#6), not four: the bar's top */
-    pw_osd_text(&o, 8, t);
-    CHECK_STR(t, "4/8");
+    pw_osd_text(&o, t);
+    CHECK_STR(t, "3"); /* the level (#6) as given */
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5200), 0);
-    CHECK_EQ(pw_osd_step(&o, 19, 1, 4, 5300), 1); /* the fifth step (ARK-4: on battery too) */
-    pw_osd_text(&o, PW_BRIGHT_STEPS, t);
-    CHECK_STR(t, "5/5");
+    CHECK_EQ(pw_osd_step(&o, 19, 1, 100, 5300), 1); /* the fifth step: its own level */
+    pw_osd_text(&o, t);
+    CHECK_STR(t, "100");
 }
 
 PW_TEST(perf_overlay_draws_white_letters_in_a_black_outline_in_every_format)

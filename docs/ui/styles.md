@@ -82,6 +82,13 @@ filling in. Modern: a pill on the right edge, filled from the bottom, that swell
 each change. Minimal: a line above the hints and the number (`--` when muted). Previews:
 `hub-volume.png`, `hub-volume-muted.png` per style.
 
+## The brightness bar (UI-REQ-018)
+
+The volume bar's object (`pw_volume`) on a scale of 100 (`max`), fed with the backlight's level
+(`sceDisplayGetBrightness`) every frame; the views draw it upright at the left with a sun:
+Classic the dark strip with 20 steps, Modern the pill on the left edge, Minimal an upright line
+with the number above it (ADR-061). Previews: `hub-bright.png` per style.
+
 ## Adding a style
 
 Add a `PW_STYLE_*` value and its name in `core/config.c`, a `views_<name>.c` implementing the seven

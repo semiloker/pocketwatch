@@ -223,20 +223,27 @@ PW_TEST(photo_edit_histogram_counts_brightness)
 
 PW_TEST(photo_edit_screen_fits_the_picture_into_the_canvas_and_shows_the_looks)
 {
-    static unsigned int bg[512 * HM_ED_SH], src[160 * 120], thumb[46 * 30];
+    static unsigned int bg[512 * HM_ED_SH], src[160 * 120], thumb[HM_ED_THUMBW * HM_ED_THUMBH];
     unsigned char hist[HM_HIST_BINS];
+    unsigned int *frame;
     hm_edit e;
-    int mid = (HM_ED_CY + HM_ED_CH / 2) * 512 + HM_ED_SW / 2;
+    int fw, fh, mid = (HM_ED_CY + HM_ED_CH / 2) * 512 + HM_ED_SW / 2;
 
     fill(src, 160 * 120, PW_RGB(200, 60, 40));
-    fill(thumb, 46 * 30, PW_RGB(200, 60, 40));
+    fill(thumb, HM_ED_THUMBW * HM_ED_THUMBH, PW_RGB(200, 60, 40));
     hm_edit_init(&e);
-    CHECK_EQ(hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_ADJUST, 0, bg, hist), 0);
+    frame = hm_edit_frame(&e, src, 160, 120, &fw, &fh);
+    CHECK(frame && fw <= HM_ED_CW && fh <= HM_ED_CH && fh == HM_ED_CH - 8);
+    CHECK_EQ(hm_edit_compose(&e, frame, fw, fh, thumb, HM_ED_THUMBW, HM_ED_THUMBH, HM_EDT_ADJUST, 0,
+                             bg, hist),
+             0);
     CHECK(bg[mid] == PW_RGB(200, 60, 40));                     /* the picture in the canvas */
     CHECK(bg[(HM_ED_CY + 2) * 512 + 4] == HM_ED_DARK);         /* beside it: the background */
     CHECK(bg[HM_ED_STRIP * 512 + HM_ED_SW / 2] == HM_ED_DARK); /* Adjust: no thumbnails */
-    e.filter = HM_FL_MONO;
-    hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_FILTERS, 0, bg, hist);
+    CHECK_EQ(hist[99 >> 2], 255);                              /* (its brightness: 99 of 255) */
+    e.filter = HM_FL_MONO; /* the same frame: only the colours change (#10) */
+    hm_edit_compose(&e, frame, fw, fh, thumb, HM_ED_THUMBW, HM_ED_THUMBH, HM_EDT_FILTERS, 0, bg,
+                    hist);
     CHECK(R(bg[mid]) == G(bg[mid])); /* the look applied */
     {
         int x0 = hm_edit_strip_x(HM_FILTERS, HM_ED_TPITCH, HM_FL_NONE),
@@ -246,9 +253,46 @@ PW_TEST(photo_edit_screen_fits_the_picture_into_the_canvas_and_shows_the_looks)
         CHECK(a == PW_RGB(200, 60, 40));     /* Original's thumbnail as it is */
         CHECK(R(b) == G(b) && G(b) == B(b)); /* Mono's grey */
     }
-    hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_FILTERS, 1, bg, hist); /* compare */
+    hm_edit_compose(&e, frame, fw, fh, thumb, HM_ED_THUMBW, HM_ED_THUMBH, HM_EDT_FILTERS, 1, bg,
+                    hist); /* compare */
     CHECK(bg[mid] == PW_RGB(200, 60, 40));
+    free(frame);
     e.rotate = 1; /* a portrait now: narrower in the canvas */
-    hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_CROP, 0, bg, hist);
+    frame = hm_edit_frame(&e, src, 160, 120, &fw, &fh);
+    CHECK(frame && fw < fh);
+    hm_edit_compose(&e, frame, fw, fh, thumb, HM_ED_THUMBW, HM_ED_THUMBH, HM_EDT_CROP, 0, bg, hist);
     CHECK(bg[mid - 100] == HM_ED_DARK);
+    free(frame);
+    CHECK_EQ(
+        hm_edit_compose(&e, 0, 0, 0, thumb, HM_ED_THUMBW, HM_ED_THUMBH, HM_EDT_CROP, 0, bg, hist),
+        -1); /* no frame: dark */
+}
+
+PW_TEST(photo_edit_one_press_is_a_step_one_sees)
+{
+    /* a press of each Adjust tool moves a mid tone by a visible amount (#10: +5 of the old scales
+       moved some by a level or two) */
+    static const struct {
+        int adj, from, at_least;
+    } k[] = {{HM_ADJ_EXPOSURE, 128, 8}, {HM_ADJ_CONTRAST, 200, 4}, {HM_ADJ_HIGHLIGHTS, 220, 5},
+             {HM_ADJ_SHADOWS, 40, 5},   {HM_ADJ_WARMTH, 128, 5},   {HM_ADJ_TINT, 128, 5}};
+    hm_edit e;
+
+    for (unsigned int i = 0; i < sizeof(k) / sizeof(k[0]); i++) {
+        unsigned int p, q;
+        int d;
+
+        hm_edit_init(&e);
+        q = PW_RGB(k[i].from, k[i].from, k[i].from);
+        hm_edit_step(&e, HM_EDT_ADJUST, k[i].adj, 1);
+        p = one(&e, q);
+        d = R(p) - R(q) > G(q) - G(p) ? R(p) - R(q) : G(q) - G(p);
+        if (d < 0)
+            d = -d;
+        CHECK(d >= k[i].at_least);
+    }
+    hm_edit_init(&e); /* exposure's whites stay white */
+    e.adj[HM_ADJ_EXPOSURE] = 100;
+    CHECK_EQ(R(one(&e, PW_RGB(255, 255, 255))), 255);
+    CHECK(R(one(&e, PW_RGB(128, 128, 128))) > 190);
 }

@@ -1359,7 +1359,9 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-059 — The brightness is a vertical bar at the left; with Everywhere the overlay module shows it in the XMB
 
-- **Status:** Accepted (2026-10-29), [issue #7](https://github.com/semiloker/pocketwatch/issues/7).
+- **Status:** Accepted (2026-10-29), [issue #7](https://github.com/semiloker/pocketwatch/issues/7);
+  its step counter superseded by
+  [ADR-061](#adr-061--the-brightness-bars-follow-the-backlights-level-the-in-game-menu-has-its-own).
   Supersedes, for the brightness bar only and only while the owner turns it on, the "no VSH line"
   of [ADR-049](#adr-049--the-overlay-module-runs-only-in-a-real-game-never-in-the-xmb-or-home).
 - **Context (owner, 2026-10-29):** "in the XMB and in games, add the same brightness bar, but on
@@ -1404,7 +1406,9 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-060 — The photo editor is laid out as a professional editor
 
-- **Status:** Accepted (2026-10-29), [issue #8](https://github.com/semiloker/pocketwatch/issues/8).
+- **Status:** Accepted (2026-10-29), [issue #8](https://github.com/semiloker/pocketwatch/issues/8);
+  its step and scales superseded by
+  [ADR-062](#adr-062--the-editors-steps-are-ones-the-eye-sees-and-a-step-only-recolours).
   Supersedes the editor of
   [ADR-036](#adr-036--home-does-its-own-saved-data-music-player-and-photo-albums-and-editor).
 - **Context (owner, 2026-10-29):** "rework the full photo edit to a real professional style".
@@ -1445,3 +1449,62 @@ decision was taken; the evidence column links the research behind it.
   old "Filter" and key hint dropped). Previews `home-editor`, `home-editor-compare`,
   `home-editor-filters`, `home-editor-crop` in each style. HOM-REQ-040; device test HM39. The
   speed of a change on the PSP is not measured yet (HM39 asks).
+
+## ADR-061 — The brightness bars follow the backlight's level; the in-game menu has its own
+
+- **Status:** Accepted (2026-10-29), [#6](https://github.com/semiloker/pocketwatch/issues/6),
+  [#9](https://github.com/semiloker/pocketwatch/issues/9). Supersedes the step counter ("3/5")
+  of [ADR-059](#adr-059--the-brightness-is-a-vertical-bar-at-the-left-with-everywhere-the-overlay-module-shows-it-in-the-xmb).
+- **Context (owner, 2026-10-29, HM34 / PF3 on the PSP):** the bar climbed to 4/5 and stopped; the
+  next SCREEN press made the screen brighter with the bar still at 4/5, the press after showed 1/5.
+  So impose's brightness step reads the same at the PSP-3000's fourth and fifth levels (INFERRED
+  from the report; the fifth exists because ARK-4 lifts `scePowerGetBacklightMaximum` to 4). And:
+  "I asked for it on the left and vertical in the XMB menu when a game is launched; in the menu it
+  needs to look more like the sound volume bar" - the in-game menu (the hub), which the overlay
+  module never draws over (ADR-051), had no brightness bar at all.
+- **Decision:**
+  - **The level, not the step:** every brightness bar shows the backlight's level 0-100
+    (`sceDisplayGetBrightness`, which changes at each step, the fifth too) as a number ("72", as
+    the volume shows "18") and a fill: Home a continuous bar in the vertical pill (the volume
+    pill stood up), the overlay module 20 steps of 5 %. The screen going off (level 0) is no
+    change. With the boost or Own Steps the level shown is the one set.
+  - **The in-game menu:** its volume bar (`pw_volume`, `pw_view_volume` in each style) gets a
+    scale (`max`): the brightness bar is the same object on a scale of 100, fed from the
+    backlight every frame, drawn upright at the left with a sun - Classic the strip of steps (20),
+    Modern the pill mirrored to the left edge, Minimal an upright line and the number.
+- **Alternatives considered:** learning the five levels' values as they appear (the first press
+  after a start would show nothing sure); a separate drawer for the brightness in the hub (the
+  game plugin's debug build has 1.8 KB left; sharing the volume bar's code cost 1.3 KB).
+- **Consequences:** `ui/volume.{c,h}` (`max`, `PW_BRIGHT_MAX`), `ui/ui.c` (`bright_tick`),
+  `ui/views*.c`, `perf/src/overlay.c` (`pw_osd_text` gives the level), Home's `osd_bright`.
+  Previews `hub-bright` (each style), `home-osd`. The game plugin's debug build now has 588
+  bytes of kernel RAM left (RISK-005). Device tests H19 (the menu), HM34, PF3.
+
+## ADR-062 — The editor's steps are ones the eye sees, and a step only recolours
+
+- **Status:** Accepted (2026-10-29), [#10](https://github.com/semiloker/pocketwatch/issues/10).
+  Supersedes the step of 5 and the scales of
+  [ADR-060](#adr-060--the-photo-editor-is-laid-out-as-a-professional-editor).
+- **Context (owner, HM39 on the PSP):** the Adjust tools - light, colour, vignette, sharpen - did
+  not visibly change the photo; Filters and Crop did. `home.log`: 83-114 ms per key in the editor.
+  **Cause (VERIFIED on the host):** the edit reaches the picture (an experiment: vignette 40
+  darkens the canvas' corner from `A05A78` to `65384B`), but a press of 5 on ADR-060's scales
+  moved a mid tone by one to four levels in 255 (exposure +5 about 3 %, highlights +5 about one
+  level, vignette +5 7/256 at the corner), so a few presses showed nothing, each 85 ms late;
+  Filters and Crop are whole changes. And every step remade the canvas' picture: the full
+  480 x 272 turned, cropped and scaled again before its colours.
+- **Decision:** steps of 10; scales on which a press is a step one sees and 100 a strong edit:
+  exposure in stops (up to 2.5 brighter with a soft shoulder that keeps white white, 1.7 darker),
+  contrast a slope of 1 + 4 % a point up, highlights and shadows up to 128 levels over their
+  whole half, saturation 3 % a point, vibrance twice ADR-060's, warmth 70 and tint 60 levels at
+  100, the vignette to black corners, sharpening 1.5x the edge at 100. The looks re-tuned to the
+  new scales. The canvas' picture (`hm_edit_frame`: turned, cropped, fitted) is kept between
+  steps and remade only when the Crop tab changes; a step copies it into the screen buffer and
+  recolours it there (`hm_edit_compose`), Compare uses one made once at the start.
+- **Alternatives considered:** acceleration while a key is held (keeps fine steps but the first
+  presses still show nothing); a smaller preview (the canvas is already 1.8x smaller than the
+  screen picture).
+- **Consequences:** `photo_edit.c` (`make_tables`, `hm_edit_frame`, `hm_edit_compose`), `main.c`
+  (`ed_frame`, `ed_orig`, `ed_geom`); host test `photo_edit_one_press_is_a_step_one_sees`. HM39
+  again: each press changes the photo, and the editor's `slow:` entries in `home.log` should be
+  gone (RESEARCH REQUIRED: the step's time on the PSP).

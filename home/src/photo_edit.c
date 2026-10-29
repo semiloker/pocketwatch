@@ -126,13 +126,13 @@ typedef struct {
 
 static const look k_looks[HM_FILTERS] = {
     [HM_FL_NONE] = {0},
-    [HM_FL_MONO] = {.contrast = 10, .grey = 256},
-    [HM_FL_SEPIA] = {.contrast = 5, .grey = 256, .sepia = 256, .lift = 10},
-    [HM_FL_VIVID] = {.contrast = 20, .sat = 35, .vib = 40, .shadows = 10},
+    [HM_FL_MONO] = {.contrast = 8, .grey = 256},
+    [HM_FL_SEPIA] = {.contrast = 4, .grey = 256, .sepia = 256, .lift = 10},
+    [HM_FL_VIVID] = {.contrast = 12, .sat = 25, .vib = 30, .shadows = 10},
     [HM_FL_FADE] = {.contrast = -25, .sat = -30, .highlights = -15, .lift = 28},
-    [HM_FL_COOL] = {.warmth = -45, .tint = -5, .sat = -10, .highlights = 5},
-    [HM_FL_NOIR] = {.contrast = 55, .exposure = -10, .shadows = -20, .grey = 256},
-    [HM_FL_RETRO] = {.warmth = 35, .sat = -35, .contrast = -10, .lift = 22, .highlights = -10},
+    [HM_FL_COOL] = {.warmth = -30, .tint = -5, .sat = -10, .highlights = 5},
+    [HM_FL_NOIR] = {.contrast = 35, .exposure = -10, .shadows = -20, .grey = 256},
+    [HM_FL_RETRO] = {.warmth = 25, .sat = -35, .contrast = -10, .lift = 22, .highlights = -10},
 };
 
 /* What is the same for every pixel, as tables: each channel's tone curve (exposure, contrast,
@@ -145,42 +145,48 @@ typedef struct {
     int plain;      /* nothing per pixel but the tables */
 } tables;
 
-/* The squared distance from the middle, as a weight 0..127 over half the range. */
-static int ease_sq(int d, int half)
+/* 256 x 2^(n / d), n >= 0, to an eighth of a stop. */
+static int pow2_q8(int n, int d)
 {
-    return d <= 0 ? 0 : d * d * 127 / (half * half);
+    static const short k8[8] = {256, 279, 304, 332, 362, 395, 431, 470};
+    int e8 = n * 8 / d;
+
+    return k8[e8 & 7] << (e8 >> 3);
 }
 
+/* The scales (ADR-060, #10): a press of 10 is a step one sees - about a sixth of a stop of
+   exposure, 6 % more contrast, a twelfth of the way for highlights and shadows - and 100 a strong
+   one; the curve's ends stay where they are (no clipped whites from exposure). */
 static void make_tables(const hm_edit *e, tables *t)
 {
     const look *k = &k_looks[e->filter >= 0 && e->filter < HM_FILTERS ? e->filter : 0];
     int s = e->filter == HM_FL_NONE ? 0 : clampi(e->strength, 0, 100);
-    int ex = e->adj[HM_ADJ_EXPOSURE] + k->exposure * s / 100,
-        co = e->adj[HM_ADJ_CONTRAST] + k->contrast * s / 100,
-        hi = e->adj[HM_ADJ_HIGHLIGHTS] + k->highlights * s / 100,
-        sh = e->adj[HM_ADJ_SHADOWS] + k->shadows * s / 100,
-        sa = e->adj[HM_ADJ_SATURATION] + k->sat * s / 100,
-        vi = e->adj[HM_ADJ_VIBRANCE] + k->vib * s / 100,
-        wa = (e->adj[HM_ADJ_WARMTH] + k->warmth * s / 100) * 40 / 100,
-        ti = (e->adj[HM_ADJ_TINT] + k->tint * s / 100) * 30 / 100, grey = k->grey * s / 100,
-        sep = k->sepia * s / 100, lift = k->lift * s / 100;
-    int gain = ex >= 0 ? 256 + ex * 256 / 100 : 256 + ex * 128 / 100, /* 2x .. 0.5x: a stop */
-        contrast = co >= 0 ? 256 + co * 2 : 256 + co * 192 / 100;
+    int ex = clampi(e->adj[HM_ADJ_EXPOSURE] + k->exposure * s / 100, -100, 100),
+        co = clampi(e->adj[HM_ADJ_CONTRAST] + k->contrast * s / 100, -100, 100),
+        hi = clampi(e->adj[HM_ADJ_HIGHLIGHTS] + k->highlights * s / 100, -100, 100),
+        sh = clampi(e->adj[HM_ADJ_SHADOWS] + k->shadows * s / 100, -100, 100),
+        sa = clampi(e->adj[HM_ADJ_SATURATION] + k->sat * s / 100, -100, 100),
+        vi = clampi(e->adj[HM_ADJ_VIBRANCE] + k->vib * s / 100, -100, 100),
+        wa = clampi(e->adj[HM_ADJ_WARMTH] + k->warmth * s / 100, -100, 100) * 70 / 100,
+        ti = clampi(e->adj[HM_ADJ_TINT] + k->tint * s / 100, -100, 100) * 60 / 100,
+        grey = k->grey * s / 100, sep = k->sepia * s / 100, lift = k->lift * s / 100;
+    /* exposure: up to 2.5 stops brighter (rolled off towards white), 1.7 darker */
+    int gain = ex >= 0 ? pow2_q8(ex, 40) : 65536 / pow2_q8(-ex, 60),
+        contrast = co >= 0 ? 256 + co * 4 : 256 + co * 2;
 
-    sa = clampi(sa, -100, 100);
-    t->sat = sa >= 0 ? 256 + sa * 2 : 256 + sa * 256 / 100;
+    t->sat = sa >= 0 ? 256 + sa * 3 : 256 + sa * 256 / 100;
     t->sat = t->sat * (256 - grey) >> 8;
     for (int m = 0; m < 256; m++) /* vibrance: most for the dull colours, none for the vivid */
-        t->vib[m] = (short)((vi * 2 * (255 - m) / 255) * (256 - grey) >> 8);
+        t->vib[m] = (short)((vi * 4 * (255 - m) / 255) * (256 - grey) >> 8);
     t->plain = t->sat == 256 && vi == 0;
     for (int i = 0; i < 256; i++) {
-        int v = i * gain >> 8;
+        int v = gain >= 256 ? 255 * i * gain / (255 * 256 + (gain - 256) * i) : i * gain >> 8;
 
         v = 128 + (v - 128) * contrast / 256;
-        if (v > 128)
-            v += hi * ease_sq(v - 128, 127) / 200; /* the bright half */
-        else
-            v += sh * ease_sq(128 - v, 128) / 200; /* the dark half */
+        if (v > 128) /* the bright half, more towards white */
+            v += hi * 128 * (v - 128) / (100 * 127);
+        else /* the dark half, more towards black */
+            v += sh * 128 * (128 - v) / (100 * 128);
         v = clamp8(v);
         v = lift + v * (255 - lift) / 255;
         t->r[i] = (unsigned char)clamp8(v + wa + ti / 2 + (38 * sep >> 8));
@@ -193,7 +199,7 @@ static void make_tables(const hm_edit *e, tables *t)
 static int sharpen(unsigned int *px, int w, int h, int stride, int amount)
 {
     unsigned int *prev, *cur;
-    int k = amount * 160 / 100; /* /256 of the difference added */
+    int k = amount * 384 / 100; /* /256 of the difference added: 1.5x at 100 */
 
     if (k <= 0 || w < 3 || h < 3)
         return 0;
@@ -230,14 +236,14 @@ int hm_edit_colours(const hm_edit *e, unsigned int *px, int w, int h, int stride
     tables t;
     /* the vignette: darker towards the corners, by the squared distance (1/64 of the corner's), as
        a table */
-    int vig = clampi(e->adj[HM_ADJ_VIGNETTE], 0, 100) * 150 / 100, cx = w / 2, cy = h / 2;
+    int vig = clampi(e->adj[HM_ADJ_VIGNETTE], 0, 100) * 256 / 100, cx = w / 2, cy = h / 2;
     long long norm = (long long)cx * cx + (long long)cy * cy;
     unsigned int inv = norm > 0 ? (unsigned int)((64ull << 16) / (unsigned long long)norm) : 0;
     int shade[65];
 
     make_tables(e, &t);
     for (int k = 0; k <= 64; k++)
-        shade[k] = 256 - vig * (k > 16 ? (k - 16) * (k - 16) : 0) / (48 * 48);
+        shade[k] = 256 - vig * (k > 8 ? (k - 8) * (k - 8) : 0) / (56 * 56); /* 100: black corners */
     for (int y = 0; y < h; y++) {
         unsigned int *row = px + y * stride;
         long long dy = (long long)(y - cy) * (y - cy);
@@ -418,52 +424,54 @@ unsigned int *hm_edit_fit(const unsigned int *src, int w, int h, int fw, int fh,
     return out;
 }
 
-int hm_edit_compose(const hm_edit *e, const unsigned int *src, int w, int h,
+unsigned int *hm_edit_frame(const hm_edit *e, const unsigned int *src, int w, int h, int *fw,
+                            int *fh)
+{
+    unsigned int *t, *fit;
+    int ow, oh, x, y, cw, ch;
+
+    t = hm_edit_turn(src, w, h, e->rotate, e->mirror, &ow, &oh);
+    if (!t)
+        return 0;
+    hm_edit_crop(ow, oh, e->aspect, &x, &y, &cw, &ch);
+    if (cw != ow || ch != oh)
+        hm_edit_crop_in_place(t, ow, x, y, cw, ch);
+    fit = hm_edit_fit(t, cw, ch, HM_ED_CW - 16, HM_ED_CH - 8, fw, fh);
+    free(t);
+    return fit;
+}
+
+int hm_edit_compose(const hm_edit *e, const unsigned int *frame, int fw, int fh,
                     const unsigned int *thumb, int tw, int th, int tab, int original,
                     unsigned int *bg, unsigned char hist[HM_HIST_BINS])
 {
     pw_canvas c = {bg, HM_ED_SW, HM_ED_SH, 512};
-    hm_edit none;
-    unsigned int *t, *fit;
-    int ow, oh, x, y, cw, ch, fw, fh, r = 0;
+    unsigned int *at;
+    int r = 0;
 
     pw_draw_fill(&c, 0, 0, HM_ED_SW, HM_ED_SH, HM_ED_DARK);
     memset(hist, 0, HM_HIST_BINS);
-    hm_edit_init(&none);
-    if (original)
-        e = &none;
-    t = hm_edit_turn(src, w, h, e->rotate, e->mirror, &ow, &oh);
-    if (!t)
+    if (!frame || fw <= 0 || fh <= 0 || fw > HM_ED_CW || fh > HM_ED_CH)
         return -1;
-    hm_edit_crop(ow, oh, e->aspect, &x, &y, &cw, &ch);
-    hm_edit_crop_in_place(t, ow, x, y, cw, ch);
-    fit = hm_edit_fit(t, cw, ch, HM_ED_CW - 16, HM_ED_CH - 8, &fw, &fh);
-    free(t);
-    if (!fit)
-        return -1;
-    if (hm_edit_colours(e, fit, fw, fh, fw) < 0)
+    /* the picture into the canvas, then its colours there (rows of 512): no copy of it per step */
+    at = bg + (HM_ED_CY + (HM_ED_CH - fh) / 2) * 512 + HM_ED_CX + (HM_ED_CW - fw) / 2;
+    for (int y = 0; y < fh; y++)
+        memcpy(at + y * 512, frame + y * fw, (size_t)fw * 4);
+    if (!original && hm_edit_colours(e, at, fw, fh, 512) < 0)
         r = -1;
-    hm_edit_histogram(fit, fw, fh, fw, hist);
-    pw_draw_image_scaled(&c, fit, fw, fh, HM_ED_CX + (HM_ED_CW - fw) / 2,
-                         HM_ED_CY + (HM_ED_CH - fh) / 2, fw, fh, 256);
-    free(fit);
+    hm_edit_histogram(at, fw, fh, 512, hist);
     if (tab == HM_EDT_FILTERS && thumb && tw > 0 && th > 0) { /* each look on the thumbnail */
-        unsigned int *one = malloc((size_t)tw * (size_t)th * 4);
-
-        for (int i = 0; one && i < HM_FILTERS; i++) {
+        for (int i = 0; i < HM_FILTERS; i++) {
+            unsigned int *dst = bg + (HM_ED_STRIP - th / 2) * 512 +
+                                hm_edit_strip_x(HM_FILTERS, HM_ED_TPITCH, i) - tw / 2;
             hm_edit k;
 
             hm_edit_init(&k);
             k.filter = i;
-            memcpy(one, thumb, (size_t)tw * (size_t)th * 4);
-            hm_edit_colours(&k, one, tw, th, tw);
-            pw_draw_image_scaled(&c, one, tw, th,
-                                 hm_edit_strip_x(HM_FILTERS, HM_ED_TPITCH, i) - HM_ED_THUMBW / 2,
-                                 HM_ED_STRIP - HM_ED_THUMBH / 2, HM_ED_THUMBW, HM_ED_THUMBH, 256);
+            for (int y = 0; y < th; y++)
+                memcpy(dst + y * 512, thumb + y * tw, (size_t)tw * 4);
+            hm_edit_colours(&k, dst, tw, th, 512);
         }
-        if (!one)
-            r = -1;
-        free(one);
     }
     return r;
 }

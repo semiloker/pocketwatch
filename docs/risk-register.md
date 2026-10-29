@@ -81,6 +81,9 @@ risk; close it with the evidence.
   screen, and the strings only the XMB shows left the game build: release 175 KB loaded, under the
   old budgets again. The game keeps only the play-time counter (P9 block). The XMB plugin has its
   own budget (56 KB file / 64 KB loaded).
+  2026-10-29: the in-game menu's brightness bar (ADR-061, 1.3 KB) leaves the game plugin 3.3 KB
+  of its release budget and **588 bytes** of the debug one (196,020 of 196,608 loaded): the next
+  feature in the game plugin needs room made first.
 
 ## RISK-006 — Cross-boot load into a different environment
 

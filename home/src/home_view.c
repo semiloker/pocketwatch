@@ -848,20 +848,19 @@ static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     }
 }
 
-/* The brightness: a vertical pill at the left, its step on top, the steps lit from the bottom,
-   the sun under them - the shape the overlay module draws in games and the XMB (#7, ADR-059). */
+/* The brightness: the volume's pill stood up at the left (#7) - its level on top, the bar filled
+   from the bottom by the backlight's level (#6), the sun under it; the overlay module draws the
+   same shape in games and the XMB (ADR-059). */
 static void osd_bright(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a, unsigned int acc)
 {
     int w = 34, h = 150, x = 10, y = (HM_H - h) / 2, cx = x + w / 2, top = y + 32, bot = y + h - 34,
-        n = hm_clampi(v->osd_steps, 1, 16), k = hm_clampi(v->osd_step, 0, n), sw = 10;
+        lit = (bot - top) * hm_clampi(v->osd_level, 0, 256) / 256;
 
     g->rrect(g, x, y, w, h, w / 2, 0, C_BLACK, a * 215 / 256);
-    hm_text_center(g, ui->body, cx, hm_mid(ui->body, y + 18), v->osd_text, w - 4, C_TEXT, a);
-    for (int i = 0; i < n; i++) { /* step i from the bottom */
-        int y1 = bot - i * (bot - top) / n, y2 = bot - (i + 1) * (bot - top) / n + 2;
-
-        g->rrect(g, cx - sw / 2, y2, sw, y1 - y2, 3, 0, i < k ? acc : C_KNOB, a);
-    }
+    hm_text_center(g, ui->body, cx, hm_mid(ui->body, y + 18), v->osd_text, w - 2, C_TEXT, a);
+    g->rrect(g, cx - 2, top, 4, bot - top, 2, 0, C_KNOB, a);
+    if (lit > 0)
+        g->rrect(g, cx - 2, bot - lit, 4, lit, 2, 0, acc, a);
     g->icon(g, HM_ICON_SUN, cx, y + h - 18, 16, C_TEXT, a);
 }
 

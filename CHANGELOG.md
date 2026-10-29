@@ -18,12 +18,19 @@ and versions follow [Semantic Versioning](https://semver.org/).
   Before, up and right (and down and left) could do the same, depending on what was chosen.
 
 ### Added
+- Pocketwatch's in-game menu shows a brightness bar at the left, upright, drawn like that style's
+  volume bar with a sun (#9).
 - The brightness is a vertical bar at the left - its step on top, the steps lit from the bottom,
   a sun - in Home and in games; the volume keeps its pill at the bottom (#7).
 - Volume and Brightness → Everywhere: the brightness bar in the XMB too, drawn by the overlay
   module, which does nothing else there (#7, ADR-059; test it after PF-FREEZE).
 
 ### Fixed
+- The brightness bars follow the backlight's real level (a number, as the volume's): the
+  system's step reads the same at the fourth and fifth levels, so the bar stopped at 4/5 (#6).
+- Pocketwatch Home's photo editor: each press of an Adjust tool now visibly changes the photo
+  (steps of 10 on stronger scales; before, a few presses changed it by a level or two), and a step
+  no longer remakes the turned and scaled picture, only its colours (#10).
 - Pocketwatch Home's player: holding left / right no longer jumps 10 s every tenth of a second.
 - Pocketwatch Home's player: left / right seek on from the new time; the track no longer starts
   again from 0:00 (with Repeat: All it skipped to the next one). Seeking uses the MP3 library's

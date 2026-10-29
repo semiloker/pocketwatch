@@ -583,11 +583,10 @@ static void home_previews(const pw_image *sky_img)
             hshot(&v, "home-calibration");
             v.cal = 0;
             v.depth = v.depth_pos = 0;
-            v.osd = 256; /* the brightness: vertical at the left (#7) */
+            v.osd = 256; /* the brightness: vertical at the left (#7), by its level (#6) */
             v.osd_glyph = HM_ICON_SUN;
-            v.osd_step = 3;
-            v.osd_steps = 5;
-            v.osd_text = "3/5";
+            v.osd_level = 72 * 256 / 100;
+            v.osd_text = "72";
             hshot(&v, "home-osd");
             v.osd_glyph = HM_ICON_SPEAKER; /* the volume: the pill at the bottom */
             v.osd_level = 18 * 256 / 30;
@@ -642,7 +641,8 @@ static void home_previews(const pw_image *sky_img)
                 HM_ICON_VIGNETTE, HM_ICON_SHARPEN};
             static const int crop_glyph[HM_CROPS] = {HM_ICON_ROTATE, HM_ICON_FLIP, HM_ICON_CROP};
             hm_edit e;
-            int tw = 0, th = 0, cw = HM_H * HM_ED_THUMBW / HM_ED_THUMBH;
+            int tw = 0, th = 0, cw = HM_H * HM_ED_THUMBW / HM_ED_THUMBH, fw = 0, fh = 0;
+            unsigned int *frame;
 
             for (int y = 0; y < HM_H; y++)
                 memcpy(src + y * HM_W, photo + y * 512, HM_W * 4);
@@ -670,7 +670,9 @@ static void home_previews(const pw_image *sky_img)
             v.ed_tabs[2] = "Crop";
             v.ed_hist = hist;
             /* Adjust: Highlights -30 */
-            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_ADJUST, 0, edbg, hist);
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_ADJUST, 0, edbg, hist);
+            free(frame);
             v.bg = edbg;
             v.ed_tab = HM_EDT_ADJUST;
             v.ed_count = HM_ADJS;
@@ -685,14 +687,18 @@ static void home_previews(const pw_image *sky_img)
             v.ed_one_sided = 0;
             hshot(&v, "home-editor");
             /* Compare: Square held */
-            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_ADJUST, 1, edbg, hist);
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_ADJUST, 1, edbg, hist);
+            free(frame);
             v.ed_compare = 1;
             hshot(&v, "home-editor-compare");
             v.ed_compare = 0;
             /* Filters: Noir at 80 */
             e.filter = HM_FL_NOIR;
             e.strength = 80;
-            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_FILTERS, 0, edbg, hist);
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_FILTERS, 0, edbg, hist);
+            free(frame);
             v.ed_tab = HM_EDT_FILTERS;
             v.ed_count = HM_FILTERS;
             v.ed_glyphs = 0;
@@ -706,7 +712,9 @@ static void home_previews(const pw_image *sky_img)
             hshot(&v, "home-editor-filters");
             /* Crop: 16:9 */
             e.aspect = HM_AR_16_9;
-            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_CROP, 0, edbg, hist);
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_CROP, 0, edbg, hist);
+            free(frame);
             v.ed_tab = HM_EDT_CROP;
             v.ed_count = HM_CROPS;
             v.ed_glyphs = crop_glyph;
@@ -1028,7 +1036,7 @@ int main(void)
         save("hub-moving");
         {
             /* the volume bar while a step fills in, and muted */
-            pw_volume vol = {1, 1, 18, 0, 17 * 256 + 160, 256, 200, 1, 0, 0};
+            pw_volume vol = {1, 1, 18, 0, 17 * 256 + 160, 256, 200, 1, 0, 0, 0};
 
             c = begin(1500);
             pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
@@ -1043,6 +1051,15 @@ int main(void)
             pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
             pw_view_volume(&c, &ui, &vol);
             save("hub-volume-muted");
+        }
+        { /* the brightness bar (#9): the volume bar upright at the left, a sun */
+            pw_volume br = {1, 1, 72, 0, 72 * 256, 256, 0, 1, 0, 0, PW_BRIGHT_MAX};
+
+            c = begin(1500);
+            pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
+            pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
+            pw_view_volume(&c, &ui, &br);
+            save("hub-bright");
         }
         rows[2].enabled = 0;
         rows[2].desc = pw_tr(PW_S_NO_SAVED_STATE);

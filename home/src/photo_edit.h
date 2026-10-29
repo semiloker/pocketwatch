@@ -48,7 +48,7 @@ enum { HM_CROP_ROTATE, HM_CROP_MIRROR, HM_CROP_ASPECT, HM_CROPS };
 enum { HM_AR_ORIGINAL, HM_AR_SQUARE, HM_AR_4_3, HM_AR_3_2, HM_AR_16_9, HM_ARS };
 
 #define HM_ADJ_MAX  100 /* the sliders: -100..100; the vignette and sharpening 0..100 */
-#define HM_ADJ_STEP 5   /* a press of up / down */
+#define HM_ADJ_STEP 10  /* a press of up / down: a step one sees (#10) */
 #define HM_STR_STEP 10  /* a filter's strength, 0..100 */
 
 typedef struct {
@@ -121,11 +121,18 @@ static inline int hm_edit_strip_x(int n, int pitch, int i)
     return HM_ED_SW / 2 - n * pitch / 2 + i * pitch + pitch / 2;
 }
 
-/* The screen behind the editor's controls into bg (HM_ED_SW x HM_ED_SH, rows of 512): dark, the
-   picture src (w x h, fitted to the screen) turned, cropped and fitted into the canvas with its
-   colours - or as it is, when original - and in the Filters tab each look on thumb (tw x th)
-   along the strip. hist: the canvas' histogram. 0, or -1 without memory (bg then dark). */
-int hm_edit_compose(const hm_edit *e, const unsigned int *src, int w, int h,
+/* The picture as the canvas shows it: src (w x h, fitted to the screen) turned, cropped and fitted
+   into the canvas - what changes only with the Crop tab, so the caller keeps it between steps
+   (#10: remaking it at each step was most of a step's 85 ms). *fw x *fh, its width as stride;
+   free() it. NULL without memory. */
+unsigned int *hm_edit_frame(const hm_edit *e, const unsigned int *src, int w, int h, int *fw,
+                            int *fh);
+
+/* The screen behind the editor's controls into bg (HM_ED_SW x HM_ED_SH, rows of 512): dark, frame
+   (hm_edit_frame's, fw x fh) centred in the canvas with the edit's colours - as it is when
+   original - and in the Filters tab each look on thumb (tw x th: HM_ED_THUMBW x HM_ED_THUMBH)
+   along the strip. hist: the shown picture's histogram. 0, or -1 (no frame: bg dark). */
+int hm_edit_compose(const hm_edit *e, const unsigned int *frame, int fw, int fh,
                     const unsigned int *thumb, int tw, int th, int tab, int original,
                     unsigned int *bg, unsigned char hist[HM_HIST_BINS]);
 

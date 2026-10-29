@@ -6,7 +6,9 @@
  * The volume bar over our screens (UI-REQ-016): the system's own bar does not show over our
  * screen, so a change of the volume or of the mute, or a volume button pressed at either end,
  * shows ours. The level glides to the new value by time; the bar fades out a moment after the last
- * change. Portable: the menu feeds it the system's values every frame.
+ * change. Portable: the menu feeds it the system's values every frame. The brightness bar is the
+ * same thing on a scale of 100 (max), the backlight's level (UI-REQ-022, #9): the views draw it
+ * upright at the left with a sun.
  */
 
 #define PW_VOLUME_MAX 30 /* sceImposeGetParam(PSP_IMPOSE_MAIN_VOLUME) runs 0..30 */
@@ -26,7 +28,10 @@ typedef struct {
     int up;                /* the last change went up */
     unsigned int t_change; /* ms of the last change or press */
     unsigned int t_last;   /* ms of the last update */
+    int max; /* the scale's top: 0 = PW_VOLUME_MAX (the volume); the brightness: 100 */
 } pw_volume;
+
+#define PW_BRIGHT_MAX 100 /* the brightness bar's max: sceDisplayGetBrightness's level */
 
 void pw_volume_reset(pw_volume *v); /* the next reading is the first again */
 
