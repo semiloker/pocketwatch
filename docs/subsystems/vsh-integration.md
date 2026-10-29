@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Area code | `VSH` |
-| Status | In progress (M7): variant B chosen ([ADR-020](../architecture/decisions.md#adr-020--continue-from-a-state-through-the-games-options-menu)); the GAME side (VSH-REQ-003) implemented 2026-10-17, device test V1 pending; the XMB plugin exists for the Settings entry (VSH-REQ-006, [ADR-021](../architecture/decisions.md#adr-021--the-xmb-entry-is-a-user-mode-vsh-plugin-chained-after-ark-4s-xmbctrl), device test X1 pending), the game's △ menu entry not started; depends on the cross-boot load (T3/T6, not yet run on the device) |
+| Status | In progress (M7): variant B chosen ([ADR-020](../architecture/decisions.md#adr-020--continue-from-a-state-through-the-games-options-menu)); the GAME side (VSH-REQ-003) implemented 2026-10-17, device test V1 pending; the XMB plugin exists for the Settings entry (VSH-REQ-006, [ADR-021](../architecture/decisions.md#adr-021--the-xmb-entry-is-a-user-mode-vsh-plugin-chained-after-ark-4s-xmbctrl), device test X1 pending), the game's △ menu entry in research (2026-10-29: [m7-xmb-context-menu](../research/m7-xmb-context-menu.md), device probe X2); depends on the cross-boot load (T3/T6, not yet run on the device) |
 | Code | GAME side: `continue.txt` in [`states_ui.c`](../../plugin/src/complications/states/states_ui.c), the start-up hook in [`shell.c`](../../plugin/src/shell/shell.c); XMB plugin: [`vsh/`](../../vsh/) (`pocketwatch_xmb.prx`, VSH runlevel, user mode): [`xmb.c`](../../vsh/src/xmb.c) the patches, [`xsettings.c`](../../vsh/src/xsettings.c) the rows over the game side's `core/config.c` and `ui/i18n.c` |
 
 ## A. Overview
@@ -116,6 +116,12 @@ The GAME-side start-up load (VSH-REQ-003) is shared by all three.
 4. VSH side (RESEARCH REQUIRED first): the XMB's △ menu call sites in 6.61's `vsh_module` and
    how xmbctrl already patches them; how the context menu knows the selected game's path; then a
    VSH PRX with chained hooks, the slot list and the launch; device tests with ARK's menus.
+   **2026-10-29, the owner kept variant B** over a Save States page next to Play Time (which
+   would reuse the device-verified page hooks). Started: what is known and what is open is in
+   [m7-xmb-context-menu](../research/m7-xmb-context-menu.md). The device probe
+   [`tools/xmbprobe/`](../../tools/xmbprobe/main.c) logs vsh_module's `OnXmbContextMenu` calls
+   and dumps vsh_module and game_plugin_module (test X2). The design follows its results, as an
+   ADR, before any code in pocketwatch_xmb.prx.
 
 ## G-H. Testing, risks
 

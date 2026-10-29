@@ -8,6 +8,8 @@ vsh/exports.c
 vsh/build/
 perf/exports.c
 perf/build/
+tools/xmbprobe/build/
+tools/xmbprobe/exports.c
 home/build/
 home/EBOOT.PBP
 home/PARAM.SFO

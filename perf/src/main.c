@@ -7,10 +7,12 @@
  * game without it runs as before. One thread: at every vblank it writes into the frame the PSP
  * shows next (the hub's own while the hub is open, else the game's); every 6th it reads the
  * volume and the brightness; once a second it measures. It writes nothing to the card; it reads
- * perf.txt once. It runs ONLY in a real disc/ISO game (sceKernelInitApitype, like the game plugin,
- * core/game.c): in Home and the XMB the module loads but its thread never starts, so it cannot
- * touch the display during boot - an earlier VSH line ran it in the XMB and its framebuffer writes
- * crashed Home's start (ADR-049, 2026-10-21).
+ * perf.txt once. It runs in a real disc/ISO game (sceKernelInitApitype, like the game plugin,
+ * core/game.c) and, with the indicator set to Everywhere, in the XMB (ADR-059): there it only
+ * shows the brightness bar - no numbers, no boost or steps, nothing before XMB_GRACE_MS, so it is
+ * asleep through the boot's handoff to Home, where ADR-049's thread (then blocked in the display
+ * driver, ADR-053) crashed Home's start. Home itself never loads a VSH line (ARK-4: VSH is an
+ * apitype from 0x200; Home, its launcher, is a homebrew).
  */
 #include <pspctrl.h>
 #include <pspdisplay.h>
@@ -68,12 +70,14 @@ static int is_vram(const void *p)
 #define FRAME_US          15000 /* the draw loop's pace (~one frame); see perf_thread */
 #define AV_EVERY          6 /* loops between readings of the volume and the brightness (~100 ms) */
 #define GRACE_MS          2000 /* no drawing for the game's first seconds (its display is settling) */
-#define IMPOSE_VOLUME     0x1 /* pspimpose_driver.h */
+#define XMB_GRACE_MS      5000 /* the XMB: asleep through the boot's handoff to Home (ADR-059) */
+#define IMPOSE_VOLUME     0x1  /* pspimpose_driver.h */
 #define IMPOSE_BRIGHTNESS 0x2
 #define IMPOSE_MUTE       0x8
 
 static volatile int g_run = 1;
 static SceUID g_thread = -1;
+static int g_xmb; /* in the XMB (ARK-4's VSH runlevel): the brightness bar only (ADR-059) */
 
 static int g_mode = PW_PERF_FULL;
 static pw_perf_cfg g_cfg;
@@ -98,6 +102,10 @@ static void read_mode(void)
         sceIoClose(fd);
     pw_perf_cfg_parse(t, n > 0 ? n : 0, &g_cfg);
     g_mode = g_cfg.mode;
+    if (g_xmb) { /* the XMB: the bar only; its brightness stays the system's (ADR-059) */
+        g_mode = PW_PERF_OFF;
+        g_cfg.boost = g_cfg.steps = 0;
+    }
 }
 
 static void find_idle(void)
@@ -148,15 +156,11 @@ static void lines(const pw_perf_stats *s)
 static pw_osd g_osd;
 static pw_bright g_bright;
 static pw_steps g_steps;
-static pw_fbset g_fbs;          /* the game's display buffers: the overlay goes into all of them */
-static int g_steps_set;         /* the first step taken from the level */
-static int g_level = -1;        /* the backlight's level as last read */
-static unsigned int g_t_screen; /* SCREEN held last (a change of the owner's) */
-
-static int steps_n(void)
-{
-    return g_cfg.steps ? g_cfg.nlevels : 4;
-}
+static pw_fbset g_fbs;   /* the game's display buffers: the overlay goes into all of them */
+static int g_steps_set;  /* the first step taken from the level */
+static int g_level = -1; /* the backlight's level as last read */
+static int g_bright_n = PW_BRIGHT_STEPS; /* the brightness bar's steps (#11) */
+static unsigned int g_t_screen;          /* SCREEN held last (a change of the owner's) */
 
 static void av_step(unsigned int now)
 {
@@ -177,29 +181,31 @@ static void av_step(unsigned int now)
         sceDisplaySetBrightness(set, unk);
         g_level = set;
     }
-    if (g_cfg.osd == PW_OSD_ALL) {
-        int bright = g_cfg.steps ? g_steps.cur : sceImposeGetParam(IMPOSE_BRIGHTNESS);
+    if (g_cfg.osd == PW_OSD_EVERY || (g_cfg.osd == PW_OSD_ALL && !g_xmb)) {
+        /* the step of the backlight's level (#6, #11); the screen off (0) is no change of it */
+        int bright = g_level > 0 ? pw_osd_bright(&g_cfg, g_level, &g_bright_n) : g_osd.bright;
 
         if (pw_osd_step(&g_osd, sceImposeGetParam(IMPOSE_VOLUME), sceImposeGetParam(IMPOSE_MUTE),
                         bright, now)) {
             char t[PW_PERF_COLS + 1];
 
-            pw_osd_text(&g_osd, g_level, steps_n(), t);
+            pw_osd_text(&g_osd, t);
             pw_perf_render(t, &g_osd_mask);
         }
     }
 }
 
-/* hub: the hub's frame is shown - it has its own volume bar */
+/* hub: the hub's frame is shown - it has its own volume bar; so has the XMB. The brightness is a
+   vertical bar at the left (#7). */
 static void osd_draw(void *top, int bufw, int fmt, unsigned int now, int hub)
 {
     int kind = pw_osd_shown(&g_osd, now);
 
-    if (kind == PW_OSD_VOLUME && !hub)
+    if (kind == PW_OSD_VOLUME && !hub && !g_xmb)
         pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
                     g_osd.mute == 1 ? 0 : g_osd.vol, 30);
     else if (kind == PW_OSD_BRIGHT)
-        pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright + 1, steps_n());
+        pw_osd_draw_vbar(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright, g_bright_n);
 }
 
 /* A narrow card at the top left, a labelled row each (like Home's overlay): compact, not a wide
@@ -226,7 +232,15 @@ static int perf_thread(SceSize args, void *argp)
 
     (void)args;
     (void)argp;
+    /* The XMB: asleep through the boot's handoff to Home - not even the file read before - and
+       only in a delay, never in a driver, so module_stop ends it at once (ADR-053, ADR-059). */
+    while (g_xmb && g_run && now_ms() - t0 < XMB_GRACE_MS)
+        sceKernelDelayThread(50 * 1000);
+    if (!g_run)
+        return 0;
     read_mode();
+    if (g_xmb && g_cfg.osd != PW_OSD_EVERY)
+        return 0;
     pw_bright_init(&g_bright);
     find_idle();
     idle0 = idle_us();
@@ -260,10 +274,10 @@ static int perf_thread(SceSize args, void *argp)
             pw_steps_button(&g_steps, (pad.Buttons & PSP_CTRL_SCREEN) != 0, g_cfg.nlevels, now))
             av_step(now);
         else if (++vblanks % AV_EVERY == 0 &&
-                 (g_cfg.boost > 0 || g_cfg.steps || g_cfg.osd == PW_OSD_ALL))
+                 (g_cfg.boost > 0 || g_cfg.steps || g_cfg.osd >= PW_OSD_ALL))
             av_step(now);
-        /* L + R + SELECT held a second, nothing else: the next mode (once per hold) */
-        if ((pad.Buttons & COMBO) == COMBO && !(pad.Buttons & OTHERS)) {
+        /* L + R + SELECT held a second, nothing else: the next mode (once per hold; games only) */
+        if (!g_xmb && (pad.Buttons & COMBO) == COMBO && !(pad.Buttons & OTHERS)) {
             if (!t_hold)
                 t_hold = now;
             else if (!held && now - t_hold >= HOLD_MS) {
@@ -280,12 +294,15 @@ static int perf_thread(SceSize args, void *argp)
             flips++;
             last = game;
         }
-        if (now - t_sec >= 1000) {
+        if (!g_xmb && now - t_sec >= 1000) { /* (the numbers: games only) */
             unsigned long long wall = sceKernelGetSystemTimeWide(), idle = idle_us();
 
             s.fps = flips > 0 ? flips * 1000 / (int)(now - t_sec) : -1;
-            s.cpu_pct = g_nidle && wall > wall0 ? 100 - (int)((idle - idle0) * 100 / (wall - wall0))
-                                                : PW_PERF_NA;
+            /* a second's microseconds fit 32 bits: no 64-bit division (its helper alone was
+               1.3 KB of the module's 16 KB) */
+            unsigned int di = (unsigned int)(idle - idle0), dw = (unsigned int)(wall - wall0);
+
+            s.cpu_pct = g_nidle && dw >= 100 ? 100 - (int)(di / (dw / 100)) : PW_PERF_NA;
             s.cpu_mhz = scePowerGetCpuClockFrequency();
             s.bus_mhz = scePowerGetBusClockFrequency();
             s.free_kb = (int)(sceKernelPartitionTotalFreeMemSize(2) >> 10);
@@ -309,7 +326,7 @@ static int perf_thread(SceSize args, void *argp)
             idle0 = idle;
             wall0 = wall;
         }
-        if (now - t0 < GRACE_MS) /* let the game set up its display first */
+        if (now - t0 < GRACE_MS) /* let the game set up its display first (the XMB: done above) */
             continue;
         if ((g_mode == PW_PERF_OFF || !g_lines) && pw_osd_shown(&g_osd, now) == PW_OSD_NONE)
             continue;
@@ -338,10 +355,16 @@ int module_start(SceSize args, void *argp)
 {
     (void)args;
     (void)argp;
-    /* Only in a real game: in Home and the XMB the thread never runs, so it cannot touch the
-       display during boot (ADR-049). */
-    if (!is_disc_apitype(sceKernelInitApitype()))
-        return 0;
+    /* A real game, or the XMB (ARK-4's VSH runlevel: an apitype from 0x200, ADR-059); in Home
+       (a homebrew) the thread never runs. In the XMB the thread ends at once unless the indicator
+       is Everywhere (perf.txt). */
+    {
+        int a = sceKernelInitApitype();
+
+        if (!is_disc_apitype(a) && a < 0x200)
+            return 0;
+        g_xmb = a >= 0x200;
+    }
     g_thread = sceKernelCreateThread("PocketwatchPerf", perf_thread, 0x10, 0x2000, 0, 0);
     if (g_thread >= 0)
         sceKernelStartThread(g_thread, 0, 0);

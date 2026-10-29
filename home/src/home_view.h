@@ -19,11 +19,12 @@
  * host renders previews of it.
  */
 
-#define HM_W      480
-#define HM_H      272
-#define HM_ICON_W 144
-#define HM_ICON_H 80
-#define HM_COVER  128 /* a track's cover: HM_COVER x HM_COVER */
+#define HM_W            480
+#define HM_H            272
+#define HM_ICON_W       144
+#define HM_ICON_H       80
+#define HM_COVER        128     /* a track's cover: HM_COVER x HM_COVER */
+#define HM_ED_NO_SLIDER (-1000) /* the editor's tool is a choice, not a slider */
 
 enum {
     HM_TAB_GAMES,
@@ -38,8 +39,8 @@ enum {
 /* config.txt's style, the same values as the in-game menu's (ui/ui.h PW_STYLE_*) */
 enum { HM_STYLE_CLASSIC, HM_STYLE_MODERN, HM_STYLE_MINIMAL, HM_STYLES };
 
-/* What the player's keys can choose (Now Playing): the time bar, then its buttons left to right. */
-enum { HM_MU_BAR, HM_MU_SHUFFLE, HM_MU_PREV, HM_MU_PLAY, HM_MU_NEXT, HM_MU_REPEAT };
+/* The player's buttons (Now Playing), left to right. */
+enum { HM_MU_SHUFFLE, HM_MU_PREV, HM_MU_PLAY, HM_MU_NEXT, HM_MU_REPEAT };
 
 #define HM_PANEL_MAX  8
 #define HM_POPUP_MAX  48
@@ -194,9 +195,9 @@ typedef struct {
     int mu_shuffle;                              /* 0 / 1 */
     int mu_repeat;                               /* 0 off, 1 all, 2 one */
     int mu_seek;                                 /* -1, 1 while seeking back / on, else 0 */
-    int mu_focus;                 /* Now Playing: HM_MU_BAR or a button (HM_MU_*), -1 none */
-    int mu_btn_pos, mu_bar_t;     /* the focus gliding along the buttons (256 each); on the bar */
-    const char *mu_focus_text;    /* the chosen button's name: "Shuffle: On", "Next Track" */
+    int mu_flash;                 /* Now Playing: the button a key just worked (HM_MU_*), -1 */
+    int mu_flash_a;               /* its ring, fading out: 256 .. 0 */
+    const char *mu_flash_text;    /* what it did: "Shuffle: On", "Next Track" */
     const char *mu_now_label;     /* "Now Playing" (the way there from the tracks) */
     const unsigned int *mu_cover; /* HM_COVER x HM_COVER, or NULL */
 
@@ -230,13 +231,22 @@ typedef struct {
     const char *viewer_caption, *viewer_slideshow, *viewer_wallpaper; /* Triangle, Square */
     const char *viewer_edit;                                          /* Enter: edit, or NULL */
 
-    /* The photo editor (HOM-REQ-026): its tools along the bottom, the chosen one's value */
-    int editor;               /* 0-256 while open */
-    const char *ed_tools[12]; /* the tools' names */
-    const int *ed_glyphs;     /* their icons */
-    int ed_count, ed_sel, ed_pos;
-    const char *ed_value; /* the chosen tool's value ("+2", "Sepia") */
-    const char *ed_hint;  /* what up / down do */
+    /* The photo editor (HOM-REQ-040, ADR-060): hm_edit_compose's screen is the background (the
+       picture in its canvas, the looks' thumbnails); over it the top bar, the histogram, the
+       chosen tool's name, value and slider (or its choices), the tab's strip and the tabs */
+    int editor;                     /* 0-256 while open */
+    int ed_tab;                     /* HM_EDT_* */
+    int ed_count, ed_sel, ed_pos;   /* the strip's items; the chosen one; eased, x256 */
+    const int *ed_glyphs;           /* the strip's icons; NULL: the looks' thumbnails */
+    unsigned int ed_set;            /* bit i: item i changed (a dot under it) */
+    const char *ed_name, *ed_value; /* the chosen tool's name and value ("+20", "Noir") */
+    int ed_slider;                  /* its value, -100..100, or HM_ED_NO_SLIDER */
+    int ed_one_sided;               /* the slider starts at its left end (0..100) */
+    int ed_choices, ed_choice;      /* no slider: how many choices, the one taken */
+    int ed_compare;                 /* the picture as it is shown (Square held) */
+    const unsigned char *ed_hist;   /* the canvas' histogram (photo_edit.h's bins), or NULL */
+    const char *ed_title, *ed_cancel, *ed_save, *ed_compare_text, *ed_reset_text, *ed_badge;
+    const char *ed_tabs[3]; /* Adjust, Filters, Crop */
 
     /* A message card over everything while sheet > 0 (USB, a question) */
     int sheet, sheet_busy; /* busy: dots turn (t_ms) */
@@ -253,9 +263,14 @@ typedef struct {
     const char *perf_label[6], *perf_value[6]; /* value[0] is the frame time; detailed stats */
     int perf_n;
 
-    /* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom while osd > 0 */
-    int osd, osd_glyph, osd_level; /* 0-256 fading; its icon; the bar (0-256) */
-    const char *osd_text;          /* "18", "Muted", "3/4  92%" */
+    /* The volume and brightness indicator (HOM-REQ-034): while osd > 0, the volume a pill at the
+       bottom, the brightness (osd_glyph HM_ICON_SUN) the in-game menu's bar at the left in each
+       style (#7, #11) */
+    int osd, osd_glyph,
+        osd_level;        /* 0-256 fading; its icon; the bar (0-256; the brightness glides) */
+    const char *osd_text; /* "18", "Muted", the brightness step "3" */
+    int osd_step, osd_steps, osd_up; /* the brightness: step k of n; the last change went up */
+    int osd_flash; /* 0-256: it just changed (Modern swells, Classic's step glows) */
 
     const hm_calview *cal; /* the calibration's screen (a HM_PAGE_CAL page), or NULL */
 

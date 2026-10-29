@@ -9,6 +9,22 @@ A pocket watch is a precision instrument you carry everywhere. In watchmaking, e
 feature beyond telling the time is called a *complication*. Pocketwatch follows the same
 idea: one plugin, a growing set of complications.
 
+## Screenshots
+
+Pocketwatch Home, the home screen that comes with Pocketwatch, captured in PPSSPP with demo
+content ([where the pictures come from](docs/assets/screenshots/README.md)):
+
+| | |
+|---|---|
+| ![Music with the track playing](docs/assets/screenshots/home-music.png) | ![Now Playing](docs/assets/screenshots/home-player.png) |
+| Music (Modern style) | Now Playing |
+| ![An album of photos](docs/assets/screenshots/home-photos.png) | ![The photo editor](docs/assets/screenshots/home-editor.png) |
+| Photos | The photo editor |
+| ![Settings](docs/assets/screenshots/home-settings.png) | ![Classic style](docs/assets/screenshots/home-classic.png) |
+| Settings | Classic style, after the XMB |
+| ![Minimal style](docs/assets/screenshots/home-minimal.png) | |
+| Minimal style | |
+
 ## Complications
 
 | Complication | Status | What it does |

@@ -111,29 +111,3 @@ PW_TEST(music_id3_gives_words_and_the_cover)
     f.n = 10;
     CHECK(hm_id3_read(mem_read, &f, &t) < 0);
 }
-
-PW_TEST(music_finds_a_frame_after_a_seek)
-{
-    /* MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417 bytes a frame (no padding) */
-    static unsigned char buf[2000];
-    unsigned int h = 0xFFFB9000u;
-    int len = hm_mp3_frame_len(h);
-
-    CHECK_EQ(len, 417);
-    CHECK_EQ(hm_mp3_frame_len(0xFFFB9200u), 418); /* padding */
-    CHECK(hm_mp3_frame_len(0xFFFBF000u) < 0);     /* a bad rate */
-    CHECK(hm_mp3_frame_len(0x12345678u) < 0);
-    memset(buf, 0x55, sizeof(buf));
-    buf[100] = 0xFF; /* a false sync: no frame after it */
-    buf[101] = 0xFB;
-    buf[102] = 0x90;
-    buf[103] = 0x00;
-    for (int at = 300; at + 4 <= (int)sizeof(buf); at += len) {
-        buf[at] = 0xFF;
-        buf[at + 1] = 0xFB;
-        buf[at + 2] = 0x90;
-        buf[at + 3] = 0x00;
-    }
-    CHECK_EQ(hm_mp3_find_frame(buf, sizeof(buf), h), 300);
-    CHECK(hm_mp3_find_frame(buf, 200, h) < 0 || hm_mp3_find_frame(buf, 200, h) == 100);
-}

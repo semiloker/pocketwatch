@@ -46,7 +46,8 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 Branch overview of the XMB overhaul (audit, what the platform allows, status): [psp-xmb-overhaul](psp-xmb-overhaul/README.md).
 
 UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual references](ui/references.md), [customization architecture](ui/customization.md),
-[concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md).
+[concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md),
+[screenshots of Home in PPSSPP](assets/screenshots/README.md).
 
 ## Research notes
 
@@ -57,6 +58,7 @@ UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual refere
 - [m7-clock](research/m7-clock.md): why the PSP forgets the date after weeks unused, and how Home puts it back - the card's last time, then the internet's (2026-10-20)
 - [m7-battery-calibration](research/m7-battery-calibration.md): what the battery's gauge says, and Pocketwatch's own measurement of the capacity (2026-10-20)
 - [m7-perf-overlay](research/m7-perf-overlay.md): a performance overlay over Home and in games, as a kernel module of its own (2026-10-20)
+- [m7-xmb-context-menu](research/m7-xmb-context-menu.md): where a game's △ menu comes from, for "Continue from Save State" (M7 variant B; probe built, test X2 pending, 2026-10-29)
 - [m7-wifi](research/m7-wifi.md): why Home's network never came up (its own import table), and Wi-Fi connections made from Home (2026-10-20)
 
 | Note | Question | Status |

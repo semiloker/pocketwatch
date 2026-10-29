@@ -89,8 +89,9 @@ void hm_fav_star(hm_gfx *g, int x, int y, int w, int alpha);
 /* A track's cover, or a dark card with a note. */
 void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size, int r, int alpha);
 
-/* The player's five buttons (shuffle, previous, play, next, repeat), gap apart around cx at y;
-   the chosen one (v->mu_focus) in a ring that glides between them, its name under the row. */
+/* The player's five buttons (shuffle, previous, play, next, repeat), gap apart around cx at y,
+   each one's key under it (they never change, ADR-057); the one a key just worked (v->mu_flash)
+   in a fading ring, what it did in place of the keys meanwhile. */
 typedef struct {
     int gap;                    /* between the buttons' centres */
     int icon, play;             /* the four icons' size, play's */
@@ -98,10 +99,10 @@ typedef struct {
     unsigned int ink, dim, acc; /* the icons; shuffle / repeat when off; on, and the disc */
     unsigned int hl;            /* the ring's fill */
     int hl_a;
-    int label_y; /* the chosen one's name (a baseline), 0 none */
+    int label_y; /* the keys' row and what a key did (a baseline), 0 none */
     unsigned int label;
 } hm_player_look;
-void hm_player(hm_gfx *g, pw_font *f, const hm_view *v, const hm_player_look *k, int cx, int y,
+void hm_player(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_player_look *k, int cx, int y,
                int a);
 /* The system's picture (art->btn) of a button or the drawn glyph, centred. */
 void hm_button_pic(hm_gfx *g, const hm_ui *ui, int which, int cx, int cy, int size,

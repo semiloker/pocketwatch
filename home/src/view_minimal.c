@@ -185,8 +185,8 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *
         hm_text_center(g, ui->title, HM_W / 2, 126, v->mu_artist, HM_W - 80, p->sub, a);
     if (v->mu_album)
         hm_text_center(g, ui->body, HM_W / 2, 142, v->mu_album, HM_W - 80, p->sub, a * 180 / 256);
-    { /* a thin line for the time, thicker with a knob while chosen */
-        int f = v->mu_focus >= 0 ? v->mu_bar_t : 0, th = 1 + 2 * f / 256,
+    { /* a thin line for the time, thicker with a knob while left / right seek it */
+        int f = v->mu_seek ? 256 : 0, th = 1 + 2 * f / 256,
             k = w * hm_clampi(v->mu_bar < 0 ? 0 : v->mu_bar, 0, 256) / 256;
         hm_player_look look = {48, 12, 14, 0, p->text, p->dim, acc, p->text, 26, 236, p->sub};
 
@@ -199,7 +199,7 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *
         if (v->mu_time)
             g->text(g, ui->body, x0, 181, v->mu_time, 0, p->sub, a);
         hm_text_right(g, ui->body, x0 + w, 181, v->mu_length, p->sub, a);
-        hm_player(g, ui->body, v, &look, HM_W / 2, 208, a);
+        hm_player(g, ui, v, &look, HM_W / 2, 208, a);
     }
 }
 

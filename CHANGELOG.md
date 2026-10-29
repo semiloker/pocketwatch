@@ -6,6 +6,48 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-10-29
+
+### Changed
+- Pocketwatch Home's photo editor, reworked in a professional layout (#8): the picture in its own
+  canvas with a histogram, a top bar with Cancel and Save a Copy, three tabs (Adjust, Filters,
+  Crop) between L and R, a ruler slider with the value, hold Square to compare with the original,
+  Triangle resets a tool. New tools: exposure, highlights, shadows, vibrance, tint, sharpening, the
+  aspect ratio; filters with thumbnails and a strength; sliders from -100 to 100.
+- Pocketwatch Home's player: every key does one thing, always. Left / right seek (held: on in
+  steps), up / down the previous / next track, Enter play / pause, Square shuffle, Triangle
+  repeat. Each button shows its key under it, and the one you press lights up with what it did.
+  Before, up and right (and down and left) could do the same, depending on what was chosen.
+
+- The brightness bars fill by the SCREEN button's step: the first of five fills a fifth of the
+  bar, the fifth all of it (before, the first filled 44 %, the backlight's level). Pocketwatch
+  Home draws the in-game menu's brightness bar, in each style (#11).
+
+### Added
+- Screenshots of Pocketwatch Home in the README, taken in PPSSPP with demo content (#12).
+- Pocketwatch's in-game menu shows a brightness bar at the left, upright, drawn like that style's
+  volume bar with a sun (#9).
+- The brightness is a vertical bar at the left - its step on top, the steps lit from the bottom,
+  a sun - in Home and in games; the volume keeps its pill at the bottom (#7).
+- Volume and Brightness → Everywhere: the brightness bar in the XMB too, drawn by the overlay
+  module, which does nothing else there (#7, ADR-059; test it after PF-FREEZE).
+
+### Fixed
+- The brightness bars follow every step, the fifth too: the system's step reads the same at
+  the fourth and fifth levels, so the bar stopped at 4/5 (#6).
+- Pocketwatch Home's photo editor: each press of an Adjust tool now visibly changes the photo
+  (steps of 10 on stronger scales; before, a few presses changed it by a level or two), and a step
+  no longer remakes the turned and scaled picture, only its colours (#10).
+- Pocketwatch Home's player: holding left / right no longer jumps 10 s every tenth of a second.
+- Pocketwatch Home's player: left / right seek on from the new time; the track no longer starts
+  again from 0:00 (with Repeat: All it skipped to the next one). Seeking uses the MP3 library's
+  own call (#5). An MPEG-2 MP3 (16-24 kHz) shows its real length, not twice it.
+- The volume and brightness indicator counts the PSP's five brightness steps, not four ("4/4"
+  at the fourth): in Home and in games (#6).
+- `scripts\deploy.cmd` finds PLUGINS.TXT lines that end in CRLF (the file after an editor saved
+  it): it reported them as missing, and `-Enable` / `-ProbeOff` would have added a second line
+  instead of changing the first. It now also appends in the file's own line endings.
+
 ## [0.1.0-alpha.1] - 2026-10-29
 
 The first pre-release, tested on one PSP-3000 with ARK-4 on 6.61. The release's notes
@@ -162,5 +204,6 @@ The first pre-release, tested on one PSP-3000 with ARK-4 on 6.61. The release's 
 - Quitting after a fast save hung on a black screen: the IPL's seeds are put back after every
   touch-and-go suspend.
 
-[Unreleased]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.1...HEAD
+[Unreleased]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.2...HEAD
+[0.1.0-alpha.2]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/semiloker/pocketwatch/releases/tag/v0.1.0-alpha.1

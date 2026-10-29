@@ -258,6 +258,61 @@ void hm_icon_draw(pw_canvas *c, int icon, int cx, int cy, int size, unsigned int
         pw_shape_triangle(c, x + S(-15), y + S(20), x + S(15), y + S(20), x, y + S(6), color,
                           alpha);
         break;
+    case HM_ICON_UP:
+    case HM_ICON_DOWN: {
+        int d = icon == HM_ICON_UP ? -1 : 1;
+
+        pw_shape_triangle(c, x + S(-24), y + S(-12 * d), x + S(24), y + S(-12 * d), x,
+                          y + S(24 * d), color, alpha);
+        break;
+    }
+    case HM_ICON_EXPOSURE:
+        pw_shape_ring(c, x, y, S(24), t * 2 / 3, 0, color, alpha);
+        pw_shape_capsule(c, x + S(-15), y + S(-6), x + S(-3), y + S(-6), t / 2, color, alpha);
+        pw_shape_capsule(c, x + S(-9), y + S(-12), x + S(-9), y + S(0), t / 2, color, alpha);
+        pw_shape_capsule(c, x + S(3), y + S(8), x + S(15), y + S(8), t / 2, color, alpha);
+        break;
+    case HM_ICON_HIGHLIGHTS:
+    case HM_ICON_SHADOWS: { /* the half as a fan of triangles: the upper or the lower */
+        static const signed char k[9][2] = {{-64, 0},  {-59, -24}, {-45, -45}, {-24, -59}, {0, -64},
+                                            {24, -59}, {45, -45},  {59, -24},  {64, 0}};
+        int d = icon == HM_ICON_HIGHLIGHTS ? 1 : -1, r = S(22);
+
+        pw_shape_ring(c, x, y, S(24), t * 2 / 3, 0, color, alpha);
+        for (int i = 0; i < 8; i++)
+            pw_shape_triangle(c, x, y, x + k[i][0] * r / 64, y + d * k[i][1] * r / 64,
+                              x + k[i + 1][0] * r / 64, y + d * k[i + 1][1] * r / 64, color, alpha);
+        break;
+    }
+    case HM_ICON_VIBRANCE:
+        pw_shape_disc(c, x + S(-5), y + S(10), S(13), color, alpha);
+        pw_shape_triangle(c, x + S(-16), y + S(4), x + S(6), y + S(4), x + S(-5), y + S(-20), color,
+                          alpha);
+        pw_shape_capsule(c, x + S(18), y + S(-24), x + S(18), y + S(-8), t / 2, color, alpha);
+        pw_shape_capsule(c, x + S(10), y + S(-16), x + S(26), y + S(-16), t / 2, color, alpha);
+        break;
+    case HM_ICON_TINT:
+        pw_shape_disc(c, x + S(-8), y, S(16), color, alpha);
+        pw_shape_ring(c, x + S(9), y, S(16), t * 2 / 3, 0, color, alpha);
+        break;
+    case HM_ICON_SHARPEN:
+        pw_shape_triangle(c, x + S(-18), y, x + S(18), y, x, y + S(-26), color, alpha);
+        pw_shape_triangle(c, x + S(-18), y, x + S(18), y, x, y + S(26), color, alpha * 150 / 256);
+        break;
+    case HM_ICON_WARMTH:
+        pw_shape_disc(c, x, y + S(14), S(10), color, alpha);
+        pw_shape_capsule(c, x, y + S(-22), x, y + S(10), t * 3 / 2, color, alpha);
+        pw_shape_capsule(c, x + S(10), y + S(-16), x + S(18), y + S(-16), t / 3, color, alpha);
+        pw_shape_capsule(c, x + S(10), y + S(-6), x + S(18), y + S(-6), t / 3, color, alpha);
+        break;
+    case HM_ICON_CROP: {
+        static const signed char a[] = {-14, -26, -14, 14, 26, 14},
+                                 b[] = {-26, -14, 14, -14, 14, 26};
+
+        path(c, x, y, size, a, 3, t * 2 / 3, color, alpha);
+        path(c, x, y, size, b, 3, t * 2 / 3, color, alpha);
+        break;
+    }
     case HM_ICON_LR:
     case HM_ICON_UD: { /* (x, y swapped for up / down) */
         int v = icon == HM_ICON_UD;

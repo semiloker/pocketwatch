@@ -54,6 +54,8 @@ To uninstall, delete the two lines from `PLUGINS.TXT`, then the `seplugins/pocke
 - The Internet Browser in Home fails to open (error `0x800200D9`).
 - ARK-4's L+R+START+DOWN combo turned the PSP off once instead of opening ARK-4's menu. Whether
   Pocketwatch causes this has not been tested yet.
+- The brightness bar counts the PSP-3000's five steps (its backlight levels 44, 60, 72, 84 and
+  ARK-4's fifth). On another model it may show the wrong step.
 - Not supported: the PSP-1000 for save states (it has too little RAM) and CFWs other than ARK-4.
 
 ## Report a problem

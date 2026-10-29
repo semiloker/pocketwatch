@@ -6,7 +6,9 @@
  * The volume bar over our screens (UI-REQ-016): the system's own bar does not show over our
  * screen, so a change of the volume or of the mute, or a volume button pressed at either end,
  * shows ours. The level glides to the new value by time; the bar fades out a moment after the last
- * change. Portable: the menu feeds it the system's values every frame.
+ * change. Portable: the menu feeds it the system's values every frame. The brightness bar is the
+ * same thing on a scale of the SCREEN button's steps (max), the step of the backlight's level
+ * (UI-REQ-022, #9, #11): the views draw it upright at the left with a sun.
  */
 
 #define PW_VOLUME_MAX 30 /* sceImposeGetParam(PSP_IMPOSE_MAIN_VOLUME) runs 0..30 */
@@ -26,7 +28,19 @@ typedef struct {
     int up;                /* the last change went up */
     unsigned int t_change; /* ms of the last change or press */
     unsigned int t_last;   /* ms of the last update */
+    int max; /* the scale's top: 0 = PW_VOLUME_MAX (the volume); the brightness: PW_BRIGHT_STEPS */
 } pw_volume;
+
+/* The SCREEN button's steps (#11): a brightness bar fills by the step, k of PW_BRIGHT_STEPS, not by
+   the backlight's level (the first step is 44 of 100). The PSP-3000's firmware levels are 44 60 72
+   84 (BetterBright's README: the "OEM" levels of the 3000/Go); ARK-4 makes
+   scePowerGetBacklightMaximum always 4 (core/compat/psp/syspatch.c), a fifth step brighter than
+   84. Impose's step reads the same at the fourth and fifth (#6), the level does not. */
+#define PW_BRIGHT_STEPS 5
+static inline int pw_backlight_step(int level) /* sceDisplayGetBrightness's level: the nearest */
+{
+    return 1 + (level >= 52) + (level >= 66) + (level >= 78) + (level > 84);
+}
 
 void pw_volume_reset(pw_volume *v); /* the next reading is the first again */
 

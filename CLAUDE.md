@@ -58,14 +58,22 @@ The project's full workflow is imported here and applies to every session:
   Pocketwatch → Overlay in Games writes that line and `perf.txt`; in a game L+R+SELECT held 1 s
   cycles Off / FPS / Full; deploy copies it. Home has its own overlay (`home.txt perf`).
 - The overlay module also shows the volume and brightness indicator in games and keeps the
-  brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all`,
+  brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all|everywhere`,
   `boost = 0-100`, written by Home's Settings (Sound and Display), its PLUGINS.TXT line on while a
   game needs one of them; Home shows the indicator and applies the boost itself. Own Steps
   (ADR-047, `steps = on`, `levels = ...`): SCREEN taps go through Pocketwatch's levels (bright3's
-  job, which is off now). The module runs ONLY in a real disc/ISO game (ADR-049:
-  `is_disc_apitype` in `module_start`) - never in Home or the XMB, so it cannot affect boot; one
-  game (UMD) line, no VSH line. In-game it is still experimental; validate in one game before
-  trusting it. For XMB brightness there is no Pocketwatch option - bright3 remains the safe way.
+  job, which is off now). The module runs in a real disc/ISO game (ADR-049: `is_disc_apitype` in
+  `module_start`) and, only with Volume and Brightness → Everywhere (`osd = everywhere`, its VSH
+  line), in the XMB, where it draws nothing but the brightness bar after sleeping 5 s (ADR-059);
+  never in Home. The brightness is a vertical bar at the left in Home, games, the XMB and the
+  in-game menu (there: the volume bar's `pw_volume` on a scale of the steps), the volume a pill
+  at the bottom; Home draws the in-game menu's bar in each style. Every brightness bar fills by
+  the SCREEN step, k of n, taken from the backlight's level (`sceDisplayGetBrightness` ->
+  `pw_backlight_step` in `ui/volume.h`: the nearest of the firmware's 44 60 72 84, above 84 the
+  fifth; Own Steps: `pw_osd_bright`), never from impose's step, which reads the same at the
+  PSP-3000's fourth and fifth (ADR-061, ADR-063).
+  In-game it is still experimental; validate in one game before trusting it; the XMB part only
+  after PF-FREEZE (test PF5).
 - Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,
   the firmware's netparam calls; `home net:` lines). Imports: never an `IMPORT_START` of a library
   PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs
@@ -90,6 +98,9 @@ The project's full workflow is imported here and applies to every session:
   with an RTC tick, valid 120 s), a start of Home that never showed a frame (`boot-pending`); hold
   START at power-on for no plugins at all. The XMB plugin is at its 64 KB budget.
 - Device test protocols for every feature: `docs/testing.md`.
+- `tools/xmbprobe/` is an M7 research tool (logs vsh_module's context-menu calls, dumps vsh_module and
+  game_plugin_module; `make -C tools/xmbprobe`, `scripts\deploy.cmd -Probe` / `-ProbeOff`): never built by
+  build.sh, never shipped; its dumps are Sony's code and never go into the repository.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
   State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Settings (style, fast
@@ -163,3 +174,10 @@ The project's full workflow is imported here and applies to every session:
   (third-party files keep their own SPDX line). Never copy code from PSPStates (no license) or intraFont (CC BY-SA).
 - One commit per substantial finished chunk (code + tests + docs together), not per micro-step
   (Conventional Commits). No `Co-Authored-By` or other AI attribution lines.
+- Issue first (owner, 2026-10-29): every fix, update or upgrade starts as a GitHub issue in
+  semiloker/pocketwatch (`gh issue create`: what the owner saw or asked, then the cause or plan once
+  known), and the commit that does the work names it - `Fixes #N` when it resolves the issue,
+  `Refs #N` for part of it (GitHub closes a `Fixes` issue when the commit reaches `main`). A comment
+  on the issue records the cause and what changed. Every issue and every pull request is assigned
+  to the owner (`--assignee semiloker`) and the owner is the reviewer of every pull request
+  (`--reviewer semiloker`). Details: `docs/AI_WORKFLOW.md` section 11.

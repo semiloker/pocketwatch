@@ -16,7 +16,7 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 | UI styles (ADR-019) | **Implemented, device review pending**: Classic (XMB, default), Modern, Minimal; XMB → Settings → Pocketwatch → Style | [styles](ui/styles.md), [testing guide](testing.md#settings-in-the-xmb-since-adr-024) ST5 |
 | Settings (CPL-REQ-006) | **Implemented, device tests pending**: Fast Save and Load, Clock and Battery, Style, Language; changed in the XMB (ADR-024), `config.txt` | [complications](subsystems/complications.md), [testing guide](testing.md#settings-in-the-xmb-since-adr-024) |
 | Guards (M3b) | **Implemented, device tests pending**: battery, USB, WLAN, highmem, Custom Home / PSPStates; redraw after a sleep | [game shell](subsystems/game-shell.md), [testing guide](testing.md#7-guards) |
-| Release preparation (M6) | **In progress**: pre-release `v0.1.0-alpha.1` published 2026-10-29 (CI zip with every part, install steps and known issues in `.github/release-notes.md`); release build switch, changelog, testing guide, [compatibility matrix](compat.md) prepared for the owner's 22 games; filling it and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
+| Release preparation (M6) | **In progress**: pre-releases `v0.1.0-alpha.1` and `v0.1.0-alpha.2` (PR #13: the player, the photo editor, the brightness bars; screenshots in the README) published 2026-10-29 (CI zip with every part, install steps and known issues in `.github/release-notes.md`); release build switch, changelog, testing guide, [compatibility matrix](compat.md) prepared for the owner's 22 games; filling it and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
 | XMB integration (M7) | **In progress**: variant B chosen (ADR-020); the GAME side (load a slot named in `continue.txt` once the game runs) implemented, device test V1 pending; the XMB plugin (`vsh/`, ADR-021) adds Settings → Pocketwatch with the XMB's own option list - builds and passes `make check`, device test X1 pending; the game's △ menu entry next | [vsh-integration](subsystems/vsh-integration.md) |
 | Battery (BAT), Play Time (PLT) | **Implemented, on `main` since PR #4 (2026-10-29):** XMB → Settings → Battery, XMB → Game → Play Time (ADR-024); play time counted in the game (first file written on the device); device tests B1, P1 pending | [overhaul](psp-xmb-overhaul/README.md), [battery](subsystems/battery.md), [playtime](subsystems/playtime.md) |
 | Pocketwatch Home (HOM) | **On `main` since PR #4 (2026-10-29)** (ADR-025, ADR-026): our own home screen in the Modern style - ISO/CSO, homebrew and PS1 games with their art, play time, states, battery, card. **The PSP starts in it instead of the XMB** (XMB → Settings → Pocketwatch → Start screen; VERIFIED on the device 2026-10-18, run 2). **Drawn by the GE since ADR-028** (the CPU version was "very laggy"); HOME opens Home's own panel; USB Connection inside Home (2026-10-19). First device numbers of the GE version: 45-49 fps, GE 11-13 ms (log 2026-10-19) - backgrounds moved to VRAM, stamps 8-bit, the free-space count off the loop (ADR-029/030), checked in PPSSPP. Settings, System Information, a game's states, Saved Data and Information, Music, Photos (slideshow, wallpaper), sorting, PSN EBOOTs, key sounds and the Internet Browser in Home (2026-10-19, [m7-xmb-inventory](research/m7-xmb-inventory.md)). Home's heap had left only 512 KB to the firmware (not 4 MB, HOM-NFR-002, fixed 2026-10-19 - the keyboard, Saved Data, music and the network may have failed on the PSP for it). Device round 2026-10-19 (`78e3690`, [log](research/logs/2026-10-19-home-hm10-run2.log)): the GE now 0.4-8.5 ms a frame, but a ~300 ms stall about every second (30-36 fps, 5-7 fps while changing settings) - the slow reads moved off the frame loop (ADR-031). Round 3 (`c3f3699`, [log](research/logs/2026-10-19-home-hm10-run3.log)): **59-60 fps, CPU about 1 ms a frame** (ADR-031 VERIFIED; left: one 209 ms first build of the Settings rows); USB in Home did not connect (fixed: activated once as ARK-4's menu, Connect Again by hand); the style setting did not change Home and Music, Photos, Play Time and Settings looked bad (owner) - answered: the three styles in Home, Classic as the XMB with the system's pictures (ADR-033), HM20-HM21. Round 4 (`b5cab03`, [log](research/logs/2026-10-19-home-round4.log)): USB in Home failed beside RemoteJoyLite (`80243001` / `80243006`; fixed, ADR-034); 5 of 11 system pictures and no sky in Home (the plugin reads them: now each read is logged); asked for: categories and pages that slide, themes, colours, the battery's percent, backgrounds, Home's own Saved Data, music covers and seeking, photo albums by game and an editor - done 2026-10-20 (ADR-035, ADR-036; PPSSPP 57-60 fps), HM22-HM25 | [home](subsystems/home.md), [m7-full-ui](research/m7-full-ui.md), [m7-boot-shell](research/m7-boot-shell.md) |
@@ -275,11 +275,81 @@ to the end (`measured 1849 mAh in 33601 s (100% to 1%)`, HM30); USB from Home co
 the player, settings, 59-60 fps); not yet on the PSP: HM35-HM37. Home builds with this
 machine's older PSPSDK as with the laptop's newer one (`union SceNetApctlInfo`).
 
+## 2026-10-29: the player's keys fixed (ADR-057)
+
+Owner, after HM35 on the PSP: "the up arrow and right arrow have the same function, the down
+arrow and left too". Cause (code): ADR-054's focus - up / down moved it between the time bar and
+the buttons, left / right sought on one and chose on the other - plus the d-pad's auto-repeat
+seeking 10 s every 100 ms while held. Now every key does one thing (left / right seek, up / down
+the track, Enter play / pause, Square shuffle, Triangle repeat), each button shows its key, the
+one pressed flashes. Host previews in each style; the PPSSPP check of the GE path was not
+completed (its keyboard input arrived late or twice), so the device round is the first run on
+the GE: test HM38.
+
+## 2026-10-29 (late): #11 - the brightness bar by the step, Home's like the in-game menu's
+
+Owner, after round 12's build: the in-game menu's brightness bar (Modern) is the look wanted,
+"do the same in the default menu" (Home, the start screen), and "1/5 is a 50 % fill". Cause: the
+bars filled by the backlight's level, and the PSP-3000's first step is 44 of 100 (its firmware
+levels 44 60 72 84, BetterBright's README; INFERRED for this PSP). Now (ADR-063): every bar fills
+by the SCREEN step, k of 5 (Own Steps: of its count), the step the nearest of those levels; Home
+draws the in-game menu's bar in each style; Home's stats line lists each level seen and its step
+(`home brightness: level=step ...`) so the next round checks the table. Host: 156 tests,
+previews `home-osd` / `hub-bright` in each style. Not yet on the PSP: HM34, PF3, H19.
+
+## Device results 2026-10-29, round 12 (owner, build `f6de885`, `home.log`)
+
+- **HM38 passed:** the keys and the seek (#5 VERIFIED: `home music: seek to 13 s, frame 497 of
+  10164 (1152 a frame): 0`).
+- **HM39 failed:** the Adjust tools did not visibly change the photo (Filters, Crop did); each
+  editor key 83-114 ms (`slow: [.. p9 keys 85 ..]`). Cause: steps too small for their scales, and
+  each step remade the canvas' picture. Fixed (#10, ADR-062): steps of 10 one sees, the picture
+  kept between steps.
+- **HM34 / PF3 failed:** the bar stopped at 4/5 while the fifth step was brighter, then 1/5.
+  Cause: impose's step does not tell the fourth and fifth apart. Fixed (#6, ADR-061): every bar
+  follows the backlight's level. And the owner meant the bar in the **in-game menu** (the hub),
+  which had none: added (#9, UI-REQ-018), the volume bar's look stood up at the left. The real
+  XMB's bar (Everywhere, #7) stays as an option (owner's choice).
+- **X2 not run:** `probe/probe.log` has only its first line, no dumps - the XMB did not start with
+  the probe (hold L at power-on).
+
+## 2026-10-29 (later): issues #5-#8 - the seek, the brightness, the photo editor
+
+From now on every fix starts as a GitHub issue assigned to the owner, and its commit names it
+(CLAUDE.md, AI_WORKFLOW section 11). The owner's round on the PSP (build `0d19dc6`, `home.log`):
+
+- **[#5](https://github.com/semiloker/pocketwatch/issues/5) Seek restarted the track** ("+10 s,
+  then 0:00"). VERIFIED cause: `repeat = one` on the card, and the seek's second decoder handle gave
+  no sound, which ended the track. Fixed (ADR-058): `sceMp3ResetPlayPositionByFrame` on the one
+  handle, a failed seek undone instead of ending the track, `home music: seek` lines. HM38.
+- **[#6](https://github.com/semiloker/pocketwatch/issues/6) The indicator said 4/4 with five
+  levels.** VERIFIED cause: ARK-4 makes the backlight's maximum always 4 (five steps); the
+  indicator kept four. Fixed: `PW_BRIGHT_STEPS`. HM34, PF3.
+- **[#7](https://github.com/semiloker/pocketwatch/issues/7) The brightness bar on the left,
+  vertical, in games and the XMB.** Done (ADR-059): one vertical bar in Home, games and the XMB;
+  Volume and Brightness → Everywhere turns on the overlay module's VSH line, and in the XMB the
+  module sleeps 5 s, then draws only the bar. PF5 only after PF-FREEZE.
+- **[#8](https://github.com/semiloker/pocketwatch/issues/8) The photo editor in a professional
+  style.** Done (ADR-060): canvas and histogram, top bar, Adjust / Filters / Crop tabs, ruler
+  slider, compare, reset; new tools. HM39.
+
+All four are built, host-tested (152 tests) and previewed; none is confirmed on the PSP yet.
+
 ## Next actions (in order)
 
-0. **Owner (2026-10-27, the UI round on the card):** HM35 (the player), HM36 (lists, text, the
-   settings' speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`,
-   `slow:`). Then PF-FREEZE above if not done.
+0. **Owner (2026-10-29, round 13):** HM39 again (each press shows, #10), HM34 and PF3 (a
+   fifth more at each step, the fifth full, Home's bar like the in-game menu's, #6, #11), H19
+   (the bar in the in-game menu, each style, #9, #11), then
+   PF-FREEZE and only after it PF5; X2 (hold L at power-on, Triangle on games). Send `home.log`.
+   **Round 12 (2026-10-29):** HM38 passed; HM39, HM34, PF3 failed (fixed above).
+   **Before (2026-10-29, later):** HM38 (the keys and now the seek, #5), HM39 (the photo editor,
+   #8), HM34 and PF3 (five brightness steps, the vertical bar, #6, #7), then PF-FREEZE, and only
+   after it PF5 (the bar in the XMB). X2 below still waits. Send `home.log`.
+   **Before (2026-10-29):** HM38 (the player's fixed keys), HM36 (lists, text, the settings'
+   speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`, `slow:`).
+   Then PF-FREEZE above if not done. **M7:** X2, the XMB probe (`scripts\deploy.cmd -Probe`, hold
+   L at power-on, △ on games; send the `probe` folder directly, it holds firmware code), then
+   `-ProbeOff` ([m7-xmb-context-menu](research/m7-xmb-context-menu.md)).
    **Before (round 10, build with ADR-049):** boot the console a few times - it must always reach
    Home (the module can no longer touch boot). Then, to try the in-game overlay safely: Settings →
    Pocketwatch → Overlay in Games → Full, start ONE game, check it, Quit. bright3 stays off; for XMB
@@ -305,8 +375,9 @@ machine's older PSPSDK as with the laptop's newer one (`union SceNetApctlInfo`).
    `pocketwatch.log`. Then the list below.
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
-2. **Dev, meanwhile:** M7 XMB side: research the 6.61 XMB's △ menu (call sites, how xmbctrl
-   chains, the selected item's path), then the VSH PRX ([vsh-integration](subsystems/vsh-integration.md#f-implementation-plan)).
+2. **Dev, meanwhile:** M7 XMB side: started 2026-10-29 - sources read (xmbctrl, Game Categories
+   Lite), the device probe built; after X2: disassemble the dumps, record the design as an ADR,
+   then the hook, the slot list and the launch ([vsh-integration](subsystems/vsh-integration.md#f-implementation-plan)).
 3. **Dev, after the results:** fix what they show; then, with the [compatibility
    matrix](compat.md) filled and the 100-cycle gate passed, the v0.1.0 tag. Release build: 94 % of its PRX
    budget (RISK-005).

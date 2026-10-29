@@ -684,7 +684,9 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-036 — Home does its own saved data, music player and photo albums and editor
 
-- **Status:** Accepted (2026-10-20), from the same round: Triangle → Saved Data showed "the
+- **Status:** Accepted (2026-10-20); its seeking superseded by
+  [ADR-058](#adr-058--the-player-seeks-with-the-mp3-librarys-own-call-on-one-handle), its editor by
+  [ADR-060](#adr-060--the-photo-editor-is-laid-out-as-a-professional-editor). From the same round: Triangle → Saved Data showed "the
   default PSP menu", not Pocketwatch's, and that menu "looks bad"; Music had no cover ("something
   instead of it") and no way to seek; Photos had no albums by game and nothing to edit with.
 - **Decision:**
@@ -1024,8 +1026,10 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-049 — The overlay module runs only in a real game (never in the XMB or Home)
 
-- **Status:** Accepted (2026-10-21), from the owner's round 9: after the card was fixed and the
-  module finally loaded for real, "Pocketwatch does not start with the console; in games neither
+- **Status:** Accepted (2026-10-21); its "no VSH line" superseded for the brightness bar by
+  [ADR-059](#adr-059--the-brightness-is-a-vertical-bar-at-the-left-with-everywhere-the-overlay-module-shows-it-in-the-xmb)
+  (only while the indicator is Everywhere). From the owner's round 9: after the card was fixed
+  and the module finally loaded for real, "Pocketwatch does not start with the console; in games neither
   the hub nor the overlay".
 - **Context:** VERIFIED (`home.log`, `boot.txt`, PPSSPP). The overlay was "never seen in games"
   because its file kept being wiped by the FAT bug (ADR-048); once the card was repaired the module
@@ -1196,7 +1200,8 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-054 — Home's player: the keys move through what the screen shows
 
-- **Status:** Accepted (2026-10-27). Owner, after using the player on the PSP: the d-pad's keys
+- **Status:** Superseded by [ADR-057](#adr-057--the-players-keys-are-fixed-each-button-shows-its-key)
+  (2026-10-29). Accepted 2026-10-27. Owner, after using the player on the PSP: the d-pad's keys
   "all seem to do the same", the interface and the controls are hard to understand and "work
   very badly".
 - **Context (code):** since 2026-10-20 left / right sought on every music page (the track list
@@ -1281,3 +1286,269 @@ decision was taken; the evidence column links the research behind it.
 - **Alternatives considered:** copying the files to the Memory Stick (Sony's files on the card,
   a copy per firmware); asking the game plugin for them (it is not loaded in Home).
 - **Consequences:** device test HM37: Classic's category icons and the month's sky in Home.
+
+## ADR-057 — The player's keys are fixed; each button shows its key
+
+- **Status:** Accepted (2026-10-29). Supersedes the keys of ADR-054.
+- **Context (owner, 2026-10-29, the player on the PSP):** "the up arrow and right arrow have the
+  same function, the down arrow and left too". **Cause (code):** ADR-054's focus. Up / down moved
+  it between the time bar and the buttons, and left / right sought on one and chose a button on
+  the other. So what a key did depended on an earlier key, and two keys could do the same thing.
+  Also, the d-pad's auto-repeat (every 100 ms after 400 ms) reached the seek, so a held left /
+  right sought 10 s every 100 ms instead of the planned 5 s steps.
+- **Decision:** Now Playing has no focus. Each key does one thing, always:
+
+  | Key | Does |
+  |---|---|
+  | ◄ / ► | seek 10 s back / on per press; held, 5 s every 220 ms after 450 ms |
+  | ▲ / ▼ | the track before / after (as ▲ / ▼ move in the track list); ▲ more than 3 s in: this track from its start |
+  | Enter | play / pause (nothing playing: the first track) |
+  | □ / △ | shuffle on / off; repeat off / all / one |
+  | START | play / pause (both music pages) |
+
+  Only presses count for the d-pad on this page (its repeats would also skip a track every
+  100 ms). Under the five buttons there is a row of their keys (□ ▲ Enter ▼ △, 16 px; at 12 px
+  Square read as Circle and the arrows as dots). The button a key works gets a ring for 0.8 s, and
+  what it did ("Next Track", "Repeat: All") replaces the key row meanwhile. The time bar shows its
+  knob while left / right seek. The hints: ◄► Seek, ▲▼ Track, Enter Play / Pause.
+- **Alternatives considered:** keeping ADR-054's focus and drawing it more clearly. The owner
+  found two models of focus unclear in a row (2026-10-20, 2026-10-27). The PSP's own player
+  (◄ / ► the tracks, held a seek): seeking hidden behind a hold was what the owner could not find
+  on 2026-10-20.
+- **Consequences:** `main.c now_keys`, `home_view.c hm_player`, new icons `HM_ICON_UP` /
+  `HM_ICON_DOWN`; the strings `hm_choose` and `hm_controls` dropped. Previews
+  `home-now-playing` (▼ just pressed), `home-now-no-cover` (seeking, the key row) in each style.
+  Device test HM38 replaces HM35.
+
+## ADR-058 — The player seeks with the MP3 library's own call, on one handle
+
+- **Status:** Accepted (2026-10-29), [issue #5](https://github.com/semiloker/pocketwatch/issues/5).
+  Supersedes the seeking of
+  [ADR-036](#adr-036--home-does-its-own-saved-data-music-player-and-photo-albums-and-editor).
+- **Context (owner, 2026-10-29, the player on the PSP):** left / right "shows +10 s, then goes back
+  to 0:00". **Cause:** VERIFIED from the owner's card and the code: `home.txt` has
+  `repeat = one`, and the time shown is the decoded samples, which only a track's start sets to 0.
+  So after the seek the track ended and repeat one started it again (with repeat all it would have
+  been the next track). ADR-036's seek reserved a **second** decoder handle at the frame's byte
+  while the first was still reserved, initialised it, released the first and decoded with the
+  second; the time showed +10 s (the second handle was made), then the next decode returned
+  nothing, which `play()` takes for the end of the file. Why the PSP's library gives no sound from
+  that second handle is not known (PPSSPP keeps the two handles apart and plays it); seeking had
+  never been run on the device before (HM24 pending).
+- **Decision:** seek with `sceMp3ResetPlayPositionByFrame(handle, frame)` on the one handle
+  (frame = the time x the rate / the samples a frame: 1152 for MPEG-1, 576 for MPEG-2 and 2.5,
+  from `sceMp3GetMaxOutputSample`). The library finds the frame's byte from the first frame's bit
+  rate and asks for the stream again from there (VERIFIED as a model only: PPSSPP's
+  `sceMp3ResetPlayPositionByFrame`, rebuilt from the real library's behaviour; the export is in
+  PSPSDK's `pspmp3.h`). A decode that gives nothing in the first four tries after a seek is not
+  the file's end: the player goes back once to the frame before the seek and logs it, so a seek
+  that fails costs the seek, never the track. `home.log` records the first seek of each track
+  (`home music: seek to N s, frame F of T (S a frame): 0`) and every refusal or failure. A track's
+  length uses the same samples a frame (an MPEG-2 file showed twice its length, INFERRED from the
+  formula).
+- **Alternatives considered:** the second handle released first, then reopened at the byte (one
+  handle at a time, but the same mid-file initialisation, whose failure is not understood); a
+  hand-written decoder (backlog S7). ADR-036 had rejected the library's call because "its
+  behaviour with the streamed input is not documented"; the device has now shown the reopening
+  fails, and PPSSPP's model shows the call re-asks for the stream from the new position.
+- **Consequences:** `home/src/music.c` (`seek_to`, `play`); the byte search after a seek
+  (`hm_mp3_find_frame`, `hm_mp3_frame_len`) and its host test are gone. On a variable bit rate
+  file the time after a seek is approximate (the library's own estimate). Device test HM38 with
+  `home.log`: a seek line ending in `0`, no "no sound after the seek" line, and the track going on
+  from the new time with repeat one.
+
+## ADR-059 — The brightness is a vertical bar at the left; with Everywhere the overlay module shows it in the XMB
+
+- **Status:** Accepted (2026-10-29), [issue #7](https://github.com/semiloker/pocketwatch/issues/7);
+  its step counter superseded by
+  [ADR-061](#adr-061--the-brightness-bars-follow-the-backlights-level-the-in-game-menu-has-its-own).
+  Supersedes, for the brightness bar only and only while the owner turns it on, the "no VSH line"
+  of [ADR-049](#adr-049--the-overlay-module-runs-only-in-a-real-game-never-in-the-xmb-or-home).
+- **Context (owner, 2026-10-29):** "in the XMB and in games, add the same brightness bar, but on
+  the left and vertical". In games the module showed the brightness in the volume's box at the
+  bottom middle; in the XMB nothing shows a brightness change (ADR-047's owner report too).
+  ADR-049 took the module out of the XMB after it crashed Home's start during the boot's handoff
+  from the XMB to Home. Since then ADR-053 found why the module's thread outlived its module at a
+  reboot: it was blocked in the display driver (`sceDisplayWaitVblankStart`) while the driver was
+  torn down; it now paces on `sceKernelDelayThread` (INFERRED: the same cause as ADR-049's crash,
+  which also came at a reboot - the handoff to Home - with the thread then in the same call).
+  ARK-4 loads a `VSH` line only when the apitype is 0x200 or more (VERIFIED: ARK-4
+  `core/systemctrl/src/plugin.c`, `isVshRunlevel`); Home is ARK-4's launcher, a homebrew (0x141),
+  so a VSH line never loads into Home.
+- **Decision:**
+  - **One bar, three places:** the brightness is a vertical pill at the left - its step ("3/5") on
+    top, the steps lit from the bottom, a sun under them - in Home (the GE, Home's accent), in
+    games and in the XMB (the module: black box, white edge, white and grey steps, our own 13 px
+    sun). The volume keeps its pill at the bottom middle (the XMB and the hub have their own
+    volume bar, so the module draws none there).
+  - **Everywhere:** Settings → Sound and Display → Volume and Brightness gets a fourth choice,
+    Everywhere (`perf.txt osd = everywhere`): Home and games as Home and Games, plus the XMB. Only
+    then does Home turn on the module's line `VSH, ms0:/seplugins/pocketwatch/pocketwatch_perf.prx`
+    (and off for any other choice; ADR-047's old line goes off as before).
+  - **In the XMB the module does the least:** its thread first sleeps 5 s in
+    `sceKernelDelayThread` (not even `perf.txt` is read before), so it is asleep through the
+    boot's handoff to Home and `module_stop` ends it at once; then it reads `perf.txt` and ends
+    unless the indicator is Everywhere; it never shows the numbers, never runs the L + R + SELECT
+    combo and never sets the backlight (no boost, no Own Steps: the XMB's brightness stays the
+    system's); it writes only the bar, into the XMB's own VRAM buffers (ADR-051).
+- **Alternatives considered:** the bar in pocketwatch_xmb.prx (the XMB plugin; 295 bytes left of
+  its 64 KB, RISK-022); a new VSH module of its own (the same framebuffer writes and boot path as
+  this one, and a third PLUGINS.TXT line); the bar in games only (the owner asked for the XMB
+  too).
+- **Consequences:** `perf/src/main.c` (`g_xmb`, `XMB_GRACE_MS`), `perf/src/overlay.c`
+  (`pw_osd_draw_vbar`, `pw_osd_text` gives "3/5"), `home/src/home_view.c` (`osd_bright`),
+  `home/src/hsettings.c` (the choice, the VSH line), the string `hs_osd_every`. The module's 64-bit
+  division went (its helper was 1.3 KB; the CPU share now divides a second's microseconds in
+  32 bits), so it is 14.9 KB with the bar. RISK-031 is back in the boot path while Everywhere is
+  on: device test PF5 only after PF-FREEZE passes; recovery: hold START at power-on, then any other
+  choice in Home's Settings (or the line `off` over USB). Previews `home-osd` (the bar),
+  `home-osd-volume`.
+
+## ADR-060 — The photo editor is laid out as a professional editor
+
+- **Status:** Accepted (2026-10-29), [issue #8](https://github.com/semiloker/pocketwatch/issues/8);
+  its step and scales superseded by
+  [ADR-062](#adr-062--the-editors-steps-are-ones-the-eye-sees-and-a-step-only-recolours).
+  Supersedes the editor of
+  [ADR-036](#adr-036--home-does-its-own-saved-data-music-player-and-photo-albums-and-editor).
+- **Context (owner, 2026-10-29):** "rework the full photo edit to a real professional style".
+  ADR-036's editor was one row of nine icons over the photo filling the screen, the chosen tool's
+  name and a value from -5 to 5, and a line of key hints: no view of the picture apart from the
+  controls, no way to compare, a filter all or nothing, five steps per slider.
+- **Decision:** the layout of the mobile editors people know (Lightroom, Snapseed), at 480 x 272:
+  - **Top bar:** Cancel (Back), "Edit Photo", Save a Copy (an accent pill with the Enter glyph;
+    START too).
+  - **Canvas:** the picture fitted into 480 x 150 under the bar on the editor's dark background,
+    a brightness histogram at its top right; hold Square to see the picture as it is ("Original").
+  - **Readout and slider:** the chosen tool's name and value ("+20") over a ruler with a tick
+    every tenth, the span from zero (the middle; the left end for one-sided tools) in the accent;
+    a choice (rotate, mirror, aspect) shows a dot per choice instead.
+  - **Three tabs** under it, L / R between them, each with its strip (left / right):
+    **Adjust** - Exposure (0.5x to 2x), Contrast, Highlights and Shadows (the bright or the dark
+    half of the tone curve only), Saturation, Vibrance (most for dull colours), Warmth, Tint,
+    Vignette, Sharpen (an unsharp mask of the four neighbours), -100..100 in steps of 5 (vignette
+    and sharpen 0..100), a dot under each changed tool; **Filters** - a thumbnail of each of the
+    eight looks, taken as soon as it is chosen, up / down its strength 0..100 (a look is a set of
+    Adjust values, a grey amount, a sepia tone and lifted blacks, scaled by the strength);
+    **Crop** - Rotate (quarter turns), Mirror, Aspect Ratio (Original, Square, 4:3, 3:2, 16:9,
+    centred, in the picture's orientation).
+  - Triangle resets the chosen tool; Back with changes asks for a second press within 2.5 s.
+  - The screen behind the controls (the canvas, the thumbnails) is drawn by the portable
+    `hm_edit_compose` into the background both renderers use; the controls are `hm_gfx` drawing
+    (`hm_draw_editor`), so the GE and the previews show the same. Integer only, a table per change,
+    no division per pixel; a change redraws the canvas (the picture scaled to the canvas first,
+    bilinear, then its colours), Save a Copy applies the same to the picture itself (at most
+    1600 px on its longest side, turned, cropped).
+- **Alternatives considered:** keeping the full-screen photo with the controls over it (the
+  controls then cover a third of the picture, and a canvas is what the reference editors show); a
+  curves editor (no room for its handles on 272 px, and the PSP has no touch); per-channel
+  histograms (three overlapping charts at 64 x 22 px read as noise).
+- **Consequences:** `home/src/photo_edit.c` (the model, the colours, crop, sharpen, histogram,
+  `hm_edit_compose`, `hm_edit_fit`), `home/src/home_view.c` (`hm_draw_editor`), `home/src/main.c`
+  (the editor's state and keys, the crop in Save a Copy), eight new icons, sixteen strings (the
+  old "Filter" and key hint dropped). Previews `home-editor`, `home-editor-compare`,
+  `home-editor-filters`, `home-editor-crop` in each style. HOM-REQ-040; device test HM39. The
+  speed of a change on the PSP is not measured yet (HM39 asks).
+
+## ADR-061 — The brightness bars follow the backlight's level; the in-game menu has its own
+
+- **Status:** Accepted (2026-10-29), [#6](https://github.com/semiloker/pocketwatch/issues/6),
+  [#9](https://github.com/semiloker/pocketwatch/issues/9). Supersedes the step counter ("3/5")
+  of [ADR-059](#adr-059--the-brightness-is-a-vertical-bar-at-the-left-with-everywhere-the-overlay-module-shows-it-in-the-xmb).
+  What the bars show (the level as a number and a fill) superseded by [ADR-063](#adr-063--the-brightness-bars-fill-by-the-screen-step-home-draws-the-in-game-menus-bar); the
+  level stays their source.
+- **Context (owner, 2026-10-29, HM34 / PF3 on the PSP):** the bar climbed to 4/5 and stopped; the
+  next SCREEN press made the screen brighter with the bar still at 4/5, the press after showed 1/5.
+  So impose's brightness step reads the same at the PSP-3000's fourth and fifth levels (INFERRED
+  from the report; the fifth exists because ARK-4 lifts `scePowerGetBacklightMaximum` to 4). And:
+  "I asked for it on the left and vertical in the XMB menu when a game is launched; in the menu it
+  needs to look more like the sound volume bar" - the in-game menu (the hub), which the overlay
+  module never draws over (ADR-051), had no brightness bar at all.
+- **Decision:**
+  - **The level, not the step:** every brightness bar shows the backlight's level 0-100
+    (`sceDisplayGetBrightness`, which changes at each step, the fifth too) as a number ("72", as
+    the volume shows "18") and a fill: Home a continuous bar in the vertical pill (the volume
+    pill stood up), the overlay module 20 steps of 5 %. The screen going off (level 0) is no
+    change. With the boost or Own Steps the level shown is the one set.
+  - **The in-game menu:** its volume bar (`pw_volume`, `pw_view_volume` in each style) gets a
+    scale (`max`): the brightness bar is the same object on a scale of 100, fed from the
+    backlight every frame, drawn upright at the left with a sun - Classic the strip of steps (20),
+    Modern the pill mirrored to the left edge, Minimal an upright line and the number.
+- **Alternatives considered:** learning the five levels' values as they appear (the first press
+  after a start would show nothing sure); a separate drawer for the brightness in the hub (the
+  game plugin's debug build has 1.8 KB left; sharing the volume bar's code cost 1.3 KB).
+- **Consequences:** `ui/volume.{c,h}` (`max`, `PW_BRIGHT_MAX`), `ui/ui.c` (`bright_tick`),
+  `ui/views*.c`, `perf/src/overlay.c` (`pw_osd_text` gives the level), Home's `osd_bright`.
+  Previews `hub-bright` (each style), `home-osd`. The game plugin's debug build now has 588
+  bytes of kernel RAM left (RISK-005). Device tests H19 (the menu), HM34, PF3.
+
+## ADR-062 — The editor's steps are ones the eye sees, and a step only recolours
+
+- **Status:** Accepted (2026-10-29), [#10](https://github.com/semiloker/pocketwatch/issues/10).
+  Supersedes the step of 5 and the scales of
+  [ADR-060](#adr-060--the-photo-editor-is-laid-out-as-a-professional-editor).
+- **Context (owner, HM39 on the PSP):** the Adjust tools - light, colour, vignette, sharpen - did
+  not visibly change the photo; Filters and Crop did. `home.log`: 83-114 ms per key in the editor.
+  **Cause (VERIFIED on the host):** the edit reaches the picture (an experiment: vignette 40
+  darkens the canvas' corner from `A05A78` to `65384B`), but a press of 5 on ADR-060's scales
+  moved a mid tone by one to four levels in 255 (exposure +5 about 3 %, highlights +5 about one
+  level, vignette +5 7/256 at the corner), so a few presses showed nothing, each 85 ms late;
+  Filters and Crop are whole changes. And every step remade the canvas' picture: the full
+  480 x 272 turned, cropped and scaled again before its colours.
+- **Decision:** steps of 10; scales on which a press is a step one sees and 100 a strong edit:
+  exposure in stops (up to 2.5 brighter with a soft shoulder that keeps white white, 1.7 darker),
+  contrast a slope of 1 + 4 % a point up, highlights and shadows up to 128 levels over their
+  whole half, saturation 3 % a point, vibrance twice ADR-060's, warmth 70 and tint 60 levels at
+  100, the vignette to black corners, sharpening 1.5x the edge at 100. The looks re-tuned to the
+  new scales. The canvas' picture (`hm_edit_frame`: turned, cropped, fitted) is kept between
+  steps and remade only when the Crop tab changes; a step copies it into the screen buffer and
+  recolours it there (`hm_edit_compose`), Compare uses one made once at the start.
+- **Alternatives considered:** acceleration while a key is held (keeps fine steps but the first
+  presses still show nothing); a smaller preview (the canvas is already 1.8x smaller than the
+  screen picture).
+- **Consequences:** `photo_edit.c` (`make_tables`, `hm_edit_frame`, `hm_edit_compose`), `main.c`
+  (`ed_frame`, `ed_orig`, `ed_geom`); host test `photo_edit_one_press_is_a_step_one_sees`. HM39
+  again: each press changes the photo, and the editor's `slow:` entries in `home.log` should be
+  gone (RESEARCH REQUIRED: the step's time on the PSP).
+
+## ADR-063 — The brightness bars fill by the SCREEN step; Home draws the in-game menu's bar
+
+- **Status:** Accepted (2026-10-29), [#11](https://github.com/semiloker/pocketwatch/issues/11).
+  Supersedes what the bars show in [ADR-061](#adr-061--the-brightness-bars-follow-the-backlights-level-the-in-game-menu-has-its-own) (the level as a number and a fill); the
+  level stays their source, never impose's step.
+- **Context (owner, 2026-10-29, after round 12's build):** "I really love how the brightness bar
+  looks in the XMB menu when a game is launched [the in-game menu; the owner's style is Modern],
+  do the same in the default menu [Pocketwatch Home, the PSP's start screen: `start = home`]. But
+  the fill of the bar should be its size / the number of brightness steps, because 1/5 is a 50 %
+  fill." ADR-061 filled every bar by the level 0-100. The PSP-3000's firmware levels are 44 60
+  72 84 (BetterBright's README, the "OEM" levels of the 3000/Go,
+  <https://github.com/hobbo91/BetterBright>; INFERRED for this PSP: the owner's "1/5 is 50 %"
+  fits 44), and ARK-4's fifth step is brighter than 84 (#6). Home drew its own bar: a wider
+  black pill, the level on top, an accent fill.
+- **Decision:**
+  - **The step, k of n:** a level is the step it is nearest to (`pw_backlight_step` in
+    `ui/volume.h`: 1 below 52, 2 below 66, 3 below 78, 4 up to 84, 5 above), n = 5; with Own
+    Steps the nearest of `perf.txt`'s levels, n their count (`pw_osd_bright`). Every bar fills
+    k/n: the in-game menu (`pw_volume` on a scale of `PW_BRIGHT_STEPS`; Classic's 20 steps, four
+    to each), Home, the overlay module (n steps, k lit; games, and the XMB with Everywhere).
+    Where a number shows (Minimal, the module's box) it is the step, "3".
+  - **Home draws the in-game menu's bar** in each style (`osd_bright` in `home_view.c`, the sizes
+    and colours of `pw_view_volume` upright): Classic the dark strip of 20 steps, the one just
+    reached glowing; Modern the slim pill that swells at a change; Minimal a line and the step's
+    number. The fill glides to the step (`pw_ease`, as the menu's).
+  - **The table is checked on the PSP:** Home writes the levels it saw and the step each was
+    given with its stats line (`home brightness: level=step 44=1/5 ...`), no card write at the
+    press.
+- **Alternatives considered:** impose's step for the first four and the level only for the
+  fifth (two readings for what the table gives alone); learning the levels as they appear
+  (ADR-061: the first press after a start would show nothing sure); the in-game menu reading
+  `perf.txt` for Own Steps (kernel RAM: 532 bytes left in the debug build) - there the bar shows
+  the nearest of the system's five (OPEN QUESTION: worth it only if the owner turns Own Steps on).
+- **Consequences:** `ui/volume.h` (`PW_BRIGHT_STEPS` moved here from `overlay.h`,
+  `pw_backlight_step`), `ui/ui.c`, `ui/views*.c` (the brightness is `max > 0`),
+  `perf/src/overlay.{c,h}` (`pw_osd_bright`; `pw_osd`'s `bright` is the step), `perf/src/main.c`,
+  Home's `main.c` (`av_frame`, `seen_level`) and `home_view.c`. The game plugin's debug build has
+  532 bytes of kernel RAM left (RISK-005). Host tests
+  `brightness_step_is_the_nearest_of_the_firmware_levels`,
+  `brightness_bar_step_is_the_systems_or_pocketwatchs`; previews `home-osd` and `hub-bright` in
+  each style. Device tests HM34, PF3, H19 again.

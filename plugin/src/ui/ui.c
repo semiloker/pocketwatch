@@ -17,6 +17,7 @@
 /* core/stubs/sceImpose_driver.S; the parameter numbers are PSPSDK's pspimpose_driver.h */
 int sceImposeGetLanguageMode(int *lang, int *button);
 int sceImposeGetParam(int param);
+int sceDisplayGetBrightness(int *level, int *unk); /* pspdisplay_driver */
 #define IMPOSE_MAIN_VOLUME 0x1
 #define IMPOSE_MUTE        0x8
 
@@ -33,14 +34,34 @@ static int volume_tick(pw_ui *ui, unsigned int buttons)
     return pw_volume_update(&ui->volume, level, muted > 0, pressed, pw_ui_now_ms());
 }
 
-/* Over every frame just before it is shown (pw_fb_present), so every screen has the bar. */
+/* The step of the backlight's level (0-100) into the brightness bar: the level changes at each of
+   the SCREEN button's steps, the fifth too (impose's step does not, #6), the bar fills by the step
+   (#11); the screen off (0) is no change. */
+static int bright_tick(pw_ui *ui)
+{
+    int level = 0, unk = 0, step;
+
+    if (sceDisplayGetBrightness(&level, &unk) < 0 || level <= 0) {
+        if (!ui->bright.known)
+            return 0;
+        step = ui->bright.level;
+    } else {
+        step = pw_backlight_step(level);
+    }
+    return pw_volume_update(&ui->bright, step, 0, 0, pw_ui_now_ms());
+}
+
+/* Over every frame just before it is shown (pw_fb_present), so every screen has the bars. */
 static void draw_overlay(pw_canvas *c, void *ctx)
 {
     pw_ui *ui = ctx;
 
     volume_tick(ui, pw_ui_buttons());
+    bright_tick(ui);
     if (ui->volume.alpha > 0)
         pw_view_volume(c, ui, &ui->volume);
+    if (ui->bright.alpha > 0)
+        pw_view_volume(c, ui, &ui->bright);
 }
 
 unsigned int pw_ui_now_ms(void)
@@ -78,6 +99,9 @@ void pw_ui_init(pw_ui *ui)
     ui->back = ui->cross_enter ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
     ui->t_tick = 0;
     pw_volume_reset(&ui->volume);
+    pw_volume_reset(&ui->bright);
+    ui->volume.max = 0; /* (PW_VOLUME_MAX) */
+    ui->bright.max = PW_BRIGHT_STEPS;
     ui->vol_held = pw_ui_buttons() & VOL_KEYS;
     pw_fb_set_overlay(draw_overlay, ui);
     pw_ui_flush_input(ui);
@@ -103,7 +127,7 @@ unsigned int pw_ui_poll(pw_ui *ui)
         unsigned int buttons = pw_ui_buttons(),
                      ev = pw_keys_update(&ui->keys, buttons, DPAD, sceKernelGetSystemTimeLow());
 
-        if (volume_tick(ui, buttons))
+        if (volume_tick(ui, buttons) | bright_tick(ui))
             ev |= PW_UI_EV_FRAME;
 
 #ifdef PW_DEBUG

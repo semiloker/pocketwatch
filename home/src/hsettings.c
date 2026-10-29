@@ -696,7 +696,7 @@ static int five(void)
 {
     return 5;
 }
-#define BRIGHT_MAX 4 /* the PSP's backlight: five levels, 0-4 (device, PSP-3000) */
+#define BRIGHT_MAX (PW_BRIGHT_STEPS - 1) /* the PSP's backlight: five levels, 0-4 (overlay.h) */
 static int get_bright(void)
 {
     int v = impose(0, IMPOSE_BRIGHTNESS, 0);
@@ -777,10 +777,11 @@ static int set_perf(int o)
 static char g_plugins[2][PLUGINS_SIZE];
 
 /* The overlay module's settings (perf.txt, ADR-045): the numbers in games, the volume and
-   brightness indicator, the boost - Home uses the last two too. The module's line in PLUGINS.TXT
-   is on while a game needs it: the numbers, the indicator in games, a boost. */
+   brightness indicator, the boost - Home uses the last two too. The module's game (UMD) line in
+   PLUGINS.TXT is on while a game needs it: the numbers, the indicator in games, a boost; its VSH
+   line while the indicator is Everywhere (the brightness bar in the XMB, ADR-059). */
 static pw_perf_cfg g_pc;
-static int g_pc_read, g_pc_line; /* read; the module's game line is on */
+static int g_pc_read, g_pc_line, g_pc_vsh; /* read; the module's game line, its VSH line on */
 
 static int pc_write(const pw_perf_cfg *c);
 static int pc_line(const char *runlevel, int on);
@@ -794,16 +795,16 @@ const pw_perf_cfg *hs_perf_cfg(void)
 
         pw_perf_cfg_parse(t, m > 0 ? m : 0, &g_pc);
         g_pc_line = n > 0 && hm_plugins_get(g_plugins[0], n, "UMD", PERF_PRX) == 1;
+        g_pc_vsh = n > 0 && hm_plugins_get(g_plugins[0], n, "VSH", PERF_PRX) == 1;
         if (!g_pc_line) /* (not loaded: no numbers in games, whatever the file says) */
             g_pc.mode = PW_PERF_OFF;
         g_pc_read = 1;
-        /* an old VSH line (ADR-047, before the module became games-only) turned off once */
-        if (n > 0 && hm_plugins_get(g_plugins[0], n, "VSH", PERF_PRX) == 1)
-            pc_line("VSH", 0);
-        { /* the module's one line (games) as the settings want it: once */
+        { /* the module's lines as the settings want them: once (an old VSH line of ADR-047's
+             goes off unless the indicator is Everywhere) */
             int bright = g_pc.boost > 0 || g_pc.steps;
 
-            if (g_pc_line != (g_pc.mode != PW_PERF_OFF || g_pc.osd == PW_OSD_ALL || bright))
+            if (g_pc_line != (g_pc.mode != PW_PERF_OFF || g_pc.osd >= PW_OSD_ALL || bright) ||
+                g_pc_vsh != (g_pc.osd == PW_OSD_EVERY))
                 pc_write(&g_pc);
         }
     }
@@ -822,13 +823,15 @@ static int pc_line(const char *runlevel, int on)
 
 static int pc_write(const pw_perf_cfg *c)
 {
-    static const char *const mode[3] = {"off", "fps", "full"}, *const osd[3] = {"off", "home",
-                                                                                "all"};
+    static const char *const mode[3] = {"off", "fps", "full"}, *const osd[4] = {"off", "home",
+                                                                                "all",
+                                                                                "everywhere"};
     char t[192];
     int bright = c->boost > 0 || c->steps,
-        line = c->mode != PW_PERF_OFF || c->osd == PW_OSD_ALL || bright, /* games only (ADR-049) */
+        line = c->mode != PW_PERF_OFF || c->osd >= PW_OSD_ALL || bright, /* games */
+        vsh = c->osd == PW_OSD_EVERY, /* the XMB: the brightness bar only (ADR-059) */
         k = stbsp_snprintf(t, sizeof(t), "mode = %s\nosd = %s\nboost = %d\nsteps = %s\nlevels =",
-                           mode[c->mode % 3], osd[c->osd % 3], c->boost, c->steps ? "on" : "off");
+                           mode[c->mode % 3], osd[c->osd % 4], c->boost, c->steps ? "on" : "off");
 
     for (int i = 0; i < c->nlevels && k < (int)sizeof(t) - 8; i++)
         k += stbsp_snprintf(t + k, (int)sizeof(t) - k, " %d", c->levels[i]);
@@ -838,6 +841,9 @@ static int pc_write(const pw_perf_cfg *c)
     if (line != g_pc_line && pc_line("UMD", line) < 0)
         return -1;
     g_pc_line = line;
+    if (vsh != g_pc_vsh && pc_line("VSH", vsh) < 0)
+        return -1;
+    g_pc_vsh = vsh;
     g_pc = *c;
     return 0;
 }
@@ -854,7 +860,8 @@ static int set_perf_game(int o)
     return pc_write(&c) < 0 ? -1 : HS_NEXT_GAME;
 }
 
-/* The volume and brightness indicator (HOM-REQ-034): off, over Home, over games too. */
+/* The volume and brightness indicator (HOM-REQ-034): off, over Home, over games too, and the
+   brightness in the XMB as well (Everywhere, ADR-059: from the XMB's next start). */
 static int get_osd(void)
 {
     return hs_perf_cfg()->osd;
@@ -864,14 +871,15 @@ static int set_osd(int o)
     pw_perf_cfg c = *hs_perf_cfg();
 
     c.osd = o;
-    return pc_write(&c) < 0 ? -1 : o == PW_OSD_ALL ? HS_NEXT_GAME : 0;
+    return pc_write(&c) < 0 ? -1 : o >= PW_OSD_ALL ? HS_NEXT_GAME : 0;
 }
 static void text_osd(int o, char *out, int cap)
 {
     stbsp_snprintf(out, cap, "%s",
-                   pw_tr(o == PW_OSD_HOME  ? PW_S_HS_OSD_HOME
-                         : o == PW_OSD_ALL ? PW_S_HS_OSD_ALL
-                                           : PW_S_OFF));
+                   pw_tr(o == PW_OSD_HOME    ? PW_S_HS_OSD_HOME
+                         : o == PW_OSD_ALL   ? PW_S_HS_OSD_ALL
+                         : o == PW_OSD_EVERY ? PW_S_HS_OSD_EVERY
+                                             : PW_S_OFF));
 }
 
 /* The brightness (ADR-045, ADR-047): the system's steps, boosted halfway up to the most or to
@@ -957,7 +965,7 @@ static const row k_rows[] = {
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_SOUNDS, 0, two, hs_sounds, set_sounds, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BRIGHTNESS, 0, five, get_bright, set_bright, text_bright},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_BOOST, 0, four, get_boost, set_boost, text_boost},
-    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_OSD, 0, three, get_osd, set_osd, text_osd},
+    {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_OSD, 0, four, get_osd, set_osd, text_osd},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_AVLS, 0, two, get_avls, set_avls, on_off},
     {HS_CAT_SOUND, HS_CHOICE, PW_S_HS_HOLD, 0, three, get_hold, set_hold, text_hold},
     {HS_CAT_TIME, HS_CHOICE, PW_S_HS_DATE_FORMAT, 0, three, get_date, set_date, text_date},

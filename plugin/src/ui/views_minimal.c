@@ -218,24 +218,33 @@ void pw_minimal_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const 
     }
 }
 
-/* A thin line at the bottom and the number, nothing else. */
+/* A thin line at the bottom and the number, nothing else; the brightness an upright line at the
+   left, its number above it (#9). */
 void pw_minimal_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {
-    int a = v->alpha, w = 160, x = (SCREEN_W - w) / 2 - 14, y = SCREEN_H - 40, /* over the hints */
-        fill = w * v->shown / (PW_VOLUME_MAX * 256);
+    int up = v->max > 0, max = up ? v->max : PW_VOLUME_MAX, a = v->alpha, w = 160,
+        x = up ? 20 : (SCREEN_W - w) / 2 - 14, y = up ? (SCREEN_H - w) / 2 + 10 : SCREEN_H - 40,
+        fill = w * v->shown / (max * 256), lv = v->level, k = 0; /* (the volume: over the hints) */
     char num[4];
 
     if (a <= 0)
         return;
-    pw_draw_blend(c, x, y, w, 2, C_DIM, a * 90 / 256);
-    pw_draw_blend(c, x, y, fill, 2, v->muted ? C_DIM : C_TEXT, a);
+    pw_draw_blend(c, x, y, up ? 2 : w, up ? w : 2, C_DIM, a * 90 / 256);
+    if (up)
+        pw_draw_blend(c, x, y + w - fill, 2, fill, C_TEXT, a);
+    else
+        pw_draw_blend(c, x, y, fill, 2, v->muted ? C_DIM : C_TEXT, a);
     if (v->muted) {
-        num[0] = num[1] = '-';
-        num[2] = 0;
+        num[k++] = '-';
+        num[k++] = '-';
     } else {
-        num[0] = (char)(v->level >= 10 ? '0' + v->level / 10 : '0' + v->level);
-        num[1] = (char)(v->level >= 10 ? '0' + v->level % 10 : 0);
-        num[2] = 0;
+        if (lv >= 100)
+            num[k++] = (char)('0' + lv / 100);
+        if (lv >= 10)
+            num[k++] = (char)('0' + lv / 10 % 10);
+        num[k++] = (char)('0' + lv % 10);
     }
-    pw_text_draw(c, ui->body, x + w + 10, y + 6, num, v->flash ? C_TEXT : C_DIM, a, 0);
+    num[k] = 0;
+    pw_text_draw(c, ui->body, up ? x - 8 : x + w + 10, up ? y - 8 : y + 6, num,
+                 v->flash ? C_TEXT : C_DIM, a, 0);
 }

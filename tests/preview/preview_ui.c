@@ -26,6 +26,7 @@
 #include "gfx_cpu.h"
 #include "hm_icons.h"
 #include "home_view.h"
+#include "photo_edit.h"
 #include "xmbart.h"
 
 #define W      480
@@ -218,12 +219,6 @@ static void home_previews(const pw_image *sky_img)
     static const unsigned int tint[4] = {PW_RGB(170, 40, 40), PW_RGB(40, 110, 190),
                                          PW_RGB(60, 150, 80), PW_RGB(150, 110, 40)};
     static hm_art art;
-    static const int ed_glyph[9] = {HM_ICON_ROTATE,  HM_ICON_FLIP,     HM_ICON_FILTER,
-                                    HM_ICON_SUN,     HM_ICON_CONTRAST, HM_ICON_DROP,
-                                    HM_ICON_PALETTE, HM_ICON_VIGNETTE, HM_ICON_CHECK};
-    static const char *const ed_names[9] = {"Rotate",     "Mirror",   "Filter",
-                                            "Brightness", "Contrast", "Saturation",
-                                            "Warmth",     "Vignette", "Save a Copy"};
     const char *rco = getenv("PW_PREVIEW_RCO"), *fg = getenv("PW_PREVIEW_FG");
     hm_tile games[5] = {
         {"Castlevania: The Dracula X Chronicles", "ULUS10277   Played 12 h 30 min   Save states: 3",
@@ -501,7 +496,7 @@ static void home_previews(const pw_image *sky_img)
         v.mu_cur = 1;
         v.mu_cover = cover;
         v.mu_repeat = 1;
-        v.mu_focus = -1;
+        v.mu_flash = -1;
         v.mu_now_label = "Now Playing";
         v.bg = cl ? sky : coverbg;
         v.wave = cl ? 256 : 0;
@@ -513,29 +508,23 @@ static void home_previews(const pw_image *sky_img)
         p.layout = HM_PAGE_NOW;
         p.title = "Now Playing";
         over(&v, &root, &p);
-        /* the player's focus (main.c now_keys): on Next, then on the time bar */
-        v.hint_enter = "OK";
+        /* the player's fixed keys (main.c now_keys, ADR-057): down just pressed, Next flashing */
+        v.hint_enter = "Pause";
         v.hint_square = v.hint_options = 0;
         v.hint_back = "Back";
-        v.hint_lr = "Choose";
-        v.hint_ud = "Seek";
-        v.mu_shuffle = 1;
-        v.mu_focus = HM_MU_NEXT;
-        v.mu_btn_pos = HM_MU_NEXT * 256;
-        v.mu_bar_t = 0;
-        v.mu_focus_text = "Next Track";
-        hshot(&v, "home-now-playing");
-        v.mu_cover = 0; /* without a cover, the time bar chosen */
-        v.mu_focus = HM_MU_BAR;
-        v.mu_bar_t = 256;
-        v.mu_seek = 1;
-        v.hint_enter = "Pause";
         v.hint_lr = "Seek";
-        v.hint_ud = "Controls";
+        v.hint_ud = "Track";
+        v.mu_shuffle = 1;
+        v.mu_flash = HM_MU_NEXT;
+        v.mu_flash_a = 256;
+        v.mu_flash_text = "Next Track";
+        hshot(&v, "home-now-playing");
+        v.mu_cover = 0; /* without a cover, right held: seeking */
+        v.mu_flash = -1;
+        v.mu_flash_text = 0;
+        v.mu_seek = 1;
         hshot(&v, "home-now-no-cover");
         v.mu_seek = 0;
-        v.mu_focus = -1;
-        v.mu_focus_text = 0;
         v.hint_lr = v.hint_ud = 0;
         { /* Home's keyboard (the nickname), its Cyrillic page, the question on Back */
             hm_kb kb;
@@ -594,11 +583,18 @@ static void home_previews(const pw_image *sky_img)
             hshot(&v, "home-calibration");
             v.cal = 0;
             v.depth = v.depth_pos = 0;
-            v.osd = 256;
+            v.osd = 256; /* the brightness: the in-game menu's bar at the left, step 3 of 5 (#11) */
             v.osd_glyph = HM_ICON_SUN;
-            v.osd_level = 92 * 256 / 100;
-            v.osd_text = "4/4   92%";
+            v.osd_level = 3 * 256 / 5;
+            v.osd_text = "3";
+            v.osd_step = 3;
+            v.osd_steps = 5;
+            v.osd_up = 1;
             hshot(&v, "home-osd");
+            v.osd_glyph = HM_ICON_SPEAKER; /* the volume: the pill at the bottom */
+            v.osd_level = 18 * 256 / 30;
+            v.osd_text = "18";
+            hshot(&v, "home-osd-volume");
             v.osd = 0;
         }
         v.depth = v.depth_pos = 0;
@@ -639,16 +635,104 @@ static void home_previews(const pw_image *sky_img)
         v.viewer_slideshow = "Slideshow";
         v.viewer_wallpaper = "Set as wallpaper";
         hshot(&v, "home-viewer");
-        v.editor = 256;
-        v.ed_count = 9;
-        for (int i = 0; i < 9; i++)
-            v.ed_tools[i] = ed_names[i];
-        v.ed_glyphs = ed_glyph;
-        v.ed_sel = v.ed_pos = 3;
-        v.ed_pos = 3 * 256;
-        v.ed_value = "+2";
-        v.ed_hint = "Left / Right: tool   Up / Down: change";
-        hshot(&v, "home-editor");
+        { /* the editor (ADR-060): each tab over hm_edit_compose's screen, as main.c draws it */
+            static unsigned int src[HM_W * HM_H], edbg[512 * HM_H], *thumb;
+            static unsigned char hist[HM_HIST_BINS];
+            static const int adj_glyph[HM_ADJS] = {
+                HM_ICON_EXPOSURE, HM_ICON_CONTRAST, HM_ICON_HIGHLIGHTS, HM_ICON_SHADOWS,
+                HM_ICON_DROP,     HM_ICON_VIBRANCE, HM_ICON_WARMTH,     HM_ICON_TINT,
+                HM_ICON_VIGNETTE, HM_ICON_SHARPEN};
+            static const int crop_glyph[HM_CROPS] = {HM_ICON_ROTATE, HM_ICON_FLIP, HM_ICON_CROP};
+            hm_edit e;
+            int tw = 0, th = 0, cw = HM_H * HM_ED_THUMBW / HM_ED_THUMBH, fw = 0, fh = 0;
+            unsigned int *frame;
+
+            for (int y = 0; y < HM_H; y++)
+                memcpy(src + y * HM_W, photo + y * 512, HM_W * 4);
+            {
+                static unsigned int part[HM_W * HM_H];
+
+                for (int y = 0; y < HM_H; y++) /* the middle at the thumbnail's shape */
+                    memcpy(part + y * cw, src + y * HM_W + (HM_W - cw) / 2, (size_t)cw * 4);
+                thumb = hm_edit_fit(part, cw, HM_H, HM_ED_THUMBW, HM_ED_THUMBH, &tw, &th);
+            }
+            hm_edit_init(&e);
+            e.adj[HM_ADJ_EXPOSURE] = 15;
+            e.adj[HM_ADJ_HIGHLIGHTS] = -30;
+            e.adj[HM_ADJ_VIBRANCE] = 25;
+            e.adj[HM_ADJ_VIGNETTE] = 40;
+            v.editor = 256;
+            v.ed_title = "Edit Photo";
+            v.ed_cancel = "Cancel";
+            v.ed_save = "Save a Copy";
+            v.ed_compare_text = "Compare";
+            v.ed_reset_text = "Reset";
+            v.ed_badge = "Original";
+            v.ed_tabs[0] = "Adjust";
+            v.ed_tabs[1] = "Filters";
+            v.ed_tabs[2] = "Crop";
+            v.ed_hist = hist;
+            /* Adjust: Highlights -30 */
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_ADJUST, 0, edbg, hist);
+            free(frame);
+            v.bg = edbg;
+            v.ed_tab = HM_EDT_ADJUST;
+            v.ed_count = HM_ADJS;
+            v.ed_glyphs = adj_glyph;
+            v.ed_set = 1u << HM_ADJ_EXPOSURE | 1u << HM_ADJ_HIGHLIGHTS | 1u << HM_ADJ_VIBRANCE |
+                       1u << HM_ADJ_VIGNETTE;
+            v.ed_sel = HM_ADJ_HIGHLIGHTS;
+            v.ed_pos = HM_ADJ_HIGHLIGHTS * 256;
+            v.ed_name = "Highlights";
+            v.ed_value = "-30";
+            v.ed_slider = -30;
+            v.ed_one_sided = 0;
+            hshot(&v, "home-editor");
+            /* Compare: Square held */
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_ADJUST, 1, edbg, hist);
+            free(frame);
+            v.ed_compare = 1;
+            hshot(&v, "home-editor-compare");
+            v.ed_compare = 0;
+            /* Filters: Noir at 80 */
+            e.filter = HM_FL_NOIR;
+            e.strength = 80;
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_FILTERS, 0, edbg, hist);
+            free(frame);
+            v.ed_tab = HM_EDT_FILTERS;
+            v.ed_count = HM_FILTERS;
+            v.ed_glyphs = 0;
+            v.ed_set = 1u << HM_FL_NOIR;
+            v.ed_sel = HM_FL_NOIR;
+            v.ed_pos = HM_FL_NOIR * 256;
+            v.ed_name = "Noir";
+            v.ed_value = "80";
+            v.ed_slider = 80;
+            v.ed_one_sided = 1;
+            hshot(&v, "home-editor-filters");
+            /* Crop: 16:9 */
+            e.aspect = HM_AR_16_9;
+            frame = hm_edit_frame(&e, src, HM_W, HM_H, &fw, &fh);
+            hm_edit_compose(&e, frame, fw, fh, thumb, tw, th, HM_EDT_CROP, 0, edbg, hist);
+            free(frame);
+            v.ed_tab = HM_EDT_CROP;
+            v.ed_count = HM_CROPS;
+            v.ed_glyphs = crop_glyph;
+            v.ed_set = 1u << HM_CROP_ASPECT;
+            v.ed_sel = HM_CROP_ASPECT;
+            v.ed_pos = HM_CROP_ASPECT * 256;
+            v.ed_name = "Aspect Ratio";
+            v.ed_value = "16:9";
+            v.ed_slider = HM_ED_NO_SLIDER;
+            v.ed_choices = HM_ARS;
+            v.ed_choice = HM_AR_16_9;
+            hshot(&v, "home-editor-crop");
+            v.ed_choices = 0;
+            free(thumb);
+        }
         v.editor = v.viewer = 0;
         v.toast = 256;
         v.toast_text = "Saved as a new photo";
@@ -955,7 +1039,7 @@ int main(void)
         save("hub-moving");
         {
             /* the volume bar while a step fills in, and muted */
-            pw_volume vol = {1, 1, 18, 0, 17 * 256 + 160, 256, 200, 1, 0, 0};
+            pw_volume vol = {1, 1, 18, 0, 17 * 256 + 160, 256, 200, 1, 0, 0, 0};
 
             c = begin(1500);
             pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
@@ -970,6 +1054,16 @@ int main(void)
             pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
             pw_view_volume(&c, &ui, &vol);
             save("hub-volume-muted");
+        }
+        { /* the brightness bar (#9): the volume bar upright at the left, a sun; step 3 of 5 (#11)
+           */
+            pw_volume br = {1, 1, 3, 0, 3 * 256, 256, 0, 1, 0, 0, PW_BRIGHT_STEPS};
+
+            c = begin(1500);
+            pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);
+            pw_view_hub(&c, &ui, &cat, rows, 5, 0, 256);
+            pw_view_volume(&c, &ui, &br);
+            save("hub-bright");
         }
         rows[2].enabled = 0;
         rows[2].desc = pw_tr(PW_S_NO_SAVED_STATE);

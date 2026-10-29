@@ -81,6 +81,10 @@ risk; close it with the evidence.
   screen, and the strings only the XMB shows left the game build: release 175 KB loaded, under the
   old budgets again. The game keeps only the play-time counter (P9 block). The XMB plugin has its
   own budget (56 KB file / 64 KB loaded).
+  2026-10-29: the in-game menu's brightness bar (ADR-061, 1.3 KB) leaves the game plugin 3.3 KB
+  of its release budget and **588 bytes** of the debug one (196,020 of 196,608 loaded): the next
+  feature in the game plugin needs room made first. The bar by the step (ADR-063) took 56 more:
+  **532 bytes** left in the debug build.
 
 ## RISK-006 — Cross-boot load into a different environment
 
@@ -329,4 +333,8 @@ risk; close it with the evidence.
 - **Mitigation:** ADR-049 - the module's thread runs only in a real disc/ISO game
   (`is_disc_apitype`), never in Home or the XMB, so it cannot affect boot; a ~2 s grace period
   before the first write; the framebuffer-size and internal-framebuffer guards; off by default. To
-  be validated in one game (PF1/PF4) before it is recommended.
+  be validated in one game (PF1/PF4) before it is recommended. Since ADR-059 (2026-10-29) the
+  module runs in the XMB again, only with the indicator set to Everywhere and only to draw the
+  brightness bar: its thread sleeps 5 s in a delay before anything (asleep through the boot's
+  handoff to Home), never blocks in a driver (ADR-053), never sets the backlight there; PF5 after
+  PF-FREEZE; recovery: hold START at power-on.

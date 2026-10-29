@@ -49,7 +49,7 @@ flowchart LR
 | [E4 — file-system integrity gate](#e4--file-system-integrity-gate) | Validation | P1 | Planned (protocol in the testing guide) |
 | [M5 — States UX on native saved data](#m5--states-ux-on-native-saved-data) | Implementation | P1 | In Progress (implemented, device tests M1-M12 pending) |
 | [M6 — hardening, v0.1.0](#m6--hardening-v010) | Validation | P1 | In Progress (release build, changelog, testing guide) |
-| [M7 — XMB integration](#m7--xmb-integration) | Implementation | P2 | In Progress (variant B, GAME side implemented) |
+| [M7 — XMB integration](#m7--xmb-integration) | Implementation | P2 | In Progress (variant B: GAME side implemented; the △ menu in research, probe X2) |
 | [Speed backlog S1-S7](#speed-backlog) | Research | P2 | Planned |
 | [FW — independent firmware research](#fw--independent-firmware-research) | Research | P3 | Planned |
 
@@ -150,7 +150,8 @@ Compatibility matrix on the owner's 22 ISOs (`docs/compat.md`), error handling, 
 changelog, tag → CI release. Release gate: 100 cycles on 5 games without failure; every refusal
 native; settings and card intact.
 
-Pre-releases before the gate: `v0.1.0-alpha.1` (2026-10-29, after PR #4) - a `v*-<suffix>` tag
+Pre-releases before the gate: `v0.1.0-alpha.1` (2026-10-29, after PR #4), `v0.1.0-alpha.2`
+(2026-10-29, after PR #13) - a `v*-<suffix>` tag
 publishes a GitHub pre-release with the zip of every part (game, XMB and overlay modules,
 translations, Home and its `ARK_01234/PWHOME.PBP` copy) and the notes in `.github/release-notes.md`
 (install, known issues, reporting). The known issues there are kept current with this file.
@@ -159,7 +160,10 @@ translations, Home and its `ARK_01234/PWHOME.PBP` copy) and the notes in `.githu
 
 Continue a game from a state from the XMB: "Continue from Save State" in the game's △ menu
 (ADR-020), the ISO launched the XMB's way, the slot loaded once the game runs (GAME side done:
-`continue.txt`, test V1). Next: research the XMB's △ menu call sites, then the VSH PRX.
+`continue.txt`, test V1). The △ menu: research started 2026-10-29 (the owner kept variant B):
+sources read, the device probe `tools/xmbprobe/` built, test X2 next
+([m7-xmb-context-menu](research/m7-xmb-context-menu.md)); then an ADR, the hook, the slot list and
+the launch.
 [vsh-integration](subsystems/vsh-integration.md). Also under M7 since 2026-10-20: Home keeping
 the clock, Pocketwatch's battery calibration and the performance overlay (ADR-041..043, device
 tests HM29-HM31, PF1-PF2; [perf-overlay](subsystems/perf-overlay.md)); Wi-Fi in Home, the volume
