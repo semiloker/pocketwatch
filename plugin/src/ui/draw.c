@@ -32,7 +32,7 @@ void pw_draw_fill(pw_canvas *c, int x, int y, int w, int h, unsigned int color)
 }
 
 /* dst..src by alpha 0-256, two channels per multiply (the menu's inner loops all end here). */
-static unsigned int mix(unsigned int dst, unsigned int src, int alpha)
+PW_PIXEL unsigned int mix(unsigned int dst, unsigned int src, int alpha)
 {
     unsigned int a = (unsigned int)alpha, na = 256 - a;
     unsigned int rb = (((dst & 0xFF00FF) * na + (src & 0xFF00FF) * a) >> 8) & 0xFF00FF;
@@ -42,7 +42,7 @@ static unsigned int mix(unsigned int dst, unsigned int src, int alpha)
 }
 
 /* An 8-bit coverage or alpha (0-255) times alpha (0-256) as 0-256, without a division. */
-static unsigned int scale_a(unsigned int v, int alpha)
+PW_PIXEL unsigned int scale_a(unsigned int v, int alpha)
 {
     return ((v + (v >> 7)) * (unsigned int)alpha) >> 8;
 }

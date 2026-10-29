@@ -171,6 +171,28 @@ static const pw_glyph_slot *glyph(pw_font *f, unsigned int code)
     return s;
 }
 
+#ifdef PW_I18N_HOME
+int pw_font_cap(pw_font *f)
+{
+    const pw_glyph_slot *s = f->pgf ? glyph(f, 'H') : 0;
+
+    if (!f->pgf) /* the built-in 8x8: capitals 7 px tall, scaled */
+        return f->ascent;
+    return s && !s->missing && s->top > 0 ? s->top : f->ascent * 3 / 4;
+}
+
+int pw_font_glyph_metrics(pw_font *f, unsigned int code, int *w, int *left)
+{
+    const pw_glyph_slot *s = f->pgf ? glyph(f, code) : 0;
+
+    if (!s || s->missing)
+        return -1;
+    *w = s->w;
+    *left = s->left;
+    return s->adv;
+}
+#endif
+
 static int advance_fallback(const pw_font *f)
 {
     return 8 * f->scale;

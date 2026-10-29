@@ -78,7 +78,19 @@ static void any_open(void)
     g_opens++;
 }
 
-static int c_pending = 1;
+static int c_pending = 1, c_ticks, c_quits;
+static unsigned int c_last_tick;
+
+static void c_tick(unsigned int now_ms)
+{
+    c_ticks++;
+    c_last_tick = now_ms;
+}
+
+static void c_quit(void)
+{
+    c_quits++;
+}
 
 static int c_startup_pending(void)
 {
@@ -107,7 +119,9 @@ static const pw_complication C = {.id = "c",
                                   .run = run_none,
                                   .changed = c_changed,
                                   .startup_pending = c_startup_pending,
-                                  .startup = c_startup};
+                                  .startup = c_startup,
+                                  .tick = c_tick,
+                                  .on_quit = c_quit};
 static const pw_complication *const LIST[] = {&A, &B, &C};
 
 PW_TEST(registry_collects_rows_in_table_order)
@@ -148,4 +162,14 @@ PW_TEST(registry_finds_a_pending_startup)
     C.startup(NULL);
     CHECK(pw_registry_startup(LIST, 3) == NULL);
     CHECK(pw_registry_startup(LIST, 2) == NULL); /* A and B have none */
+}
+
+PW_TEST(registry_ticks_and_quits_those_that_ask)
+{
+    c_ticks = c_quits = 0;
+    pw_registry_tick(LIST, 3, 1234);
+    pw_registry_quit(LIST, 3);
+    CHECK_EQ(c_ticks, 1);
+    CHECK_EQ(c_last_tick, 1234u);
+    CHECK_EQ(c_quits, 1);
 }

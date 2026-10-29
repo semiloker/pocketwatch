@@ -8,6 +8,8 @@
 #include <psploadcore.h>
 #include <string.h>
 
+#include "xbattery.h"
+#include "xboot.h"
 #include "xlog.h"
 #include "xmb.h"
 
@@ -28,6 +30,7 @@ static int flush_later(SceSize args, void *argp)
     (void)argp;
     for (int i = 0; i < 30; i++) {
         sceKernelDelayThread(2 * 1000 * 1000);
+        pwx_boot_tidy();
         pwx_log_flush();
     }
     sceKernelExitDeleteThread(0);
@@ -43,9 +46,10 @@ static int on_module_start(SceModule *mod)
     int vsh = strcmp(mod->modname, "vsh_module") == 0,
         sysconf = strcmp(mod->modname, "sysconf_plugin_module") == 0, ret = 0;
 
-    if (vsh)
+    if (vsh) {
+        pwx_boot_xmb_starts();
         pw_xmb_vsh_before(mod->text_addr, mod->text_size);
-    else if (sysconf)
+    } else if (sysconf)
         pw_xmb_sysconf_before(mod->text_addr, mod->text_size);
     if (g_previous)
         ret = g_previous(mod);
@@ -53,6 +57,7 @@ static int on_module_start(SceModule *mod)
         pw_xmb_vsh_after();
     else if (sysconf)
         pw_xmb_sysconf_after();
+    pwx_boot_module(mod->modname); /* after the older handlers: ARK-4's processSettings ran */
     return ret;
 }
 
@@ -61,7 +66,11 @@ int module_start(SceSize args, void *argp)
     (void)args;
     (void)argp;
     pwx_log("Pocketwatch XMB " PW_VERSION);
+    /* Before the XMB starts: maybe Pocketwatch Home instead. The rest is set up either way, so a
+       start that still ends in the XMB has the plugin's pages. */
+    pwx_boot_decide();
     g_previous = sctrlHENSetStartModuleHandler(on_module_start);
+    pwx_battery_start(); /* readings from the XMB's start: the Battery page has history */
     {
         SceUID th = sceKernelCreateThread("PocketwatchXmbLog", flush_later, 0x30, 0x1000, 0, 0);
 

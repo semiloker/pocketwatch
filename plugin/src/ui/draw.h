@@ -16,6 +16,10 @@ typedef struct {
 
 #define PW_RGB(r, g, b) (0xFF000000u | ((unsigned int)(b) << 16) | ((g) << 8) | (r))
 
+/* A helper called for every pixel (ADR-029): inlined even at -Os, where a call per pixel cost a
+   frame 10-35 % more (host bench, make -C tests bench BENCH_OPT=-Os). */
+#define PW_PIXEL static inline __attribute__((always_inline))
+
 /* PSP display pixel formats (PSP_DISPLAY_PIXEL_FORMAT_*). */
 enum { PW_FMT_565 = 0, PW_FMT_5551 = 1, PW_FMT_4444 = 2, PW_FMT_8888 = 3 };
 

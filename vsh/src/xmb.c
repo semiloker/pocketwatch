@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Pocketwatch's entry in the XMB (VSH-REQ-006, ADR-021): Settings -> "Pocketwatch" opens the
- * plugin's settings as the XMB's own option list.
+ * Pocketwatch in the XMB (VSH-REQ-006..008, ADR-021, ADR-024): Settings -> "Pocketwatch" (the
+ * plugin's settings) and "Battery", Game -> "Play Time", each as the XMB's own option list.
  *
  * The mechanism is ARK-4's xmbctrl's, which shows "Custom Firmware Settings" the same way
  * (extras/modules/xmbctrl/main.c; XmbControl by Total_Noob, Frostegater, codestation and the
@@ -20,14 +20,26 @@
 #include "xlog.h"
 #include "xmb.h"
 #include "xmbtypes.h"
+#include "ui/i18n.h"
 #include "xsettings.h"
 
-#define TEXT_KEY     "pw_xmb_settings"              /* our column item's text */
-#define CONSOLE_ITEM "msgtop_sysconf_console"       /* System Settings: ours goes right after it */
-#define VALUES_PAGE  "page_psp_config_umd_autoboot" /* the RCO page that lists a row's values */
-#define ITEM_ID      90                             /* xmbctrl uses 81-84 */
-#define ACTION_ARG   0x1500                         /* xmbctrl uses 0x1000-0x1005 */
-#define MAGIC_TEXT   0xDEAD /* an RCO text that is a pointer to our UTF-8 (as xmbctrl's) */
+#define CONSOLE_ITEM   "msgtop_sysconf_console" /* System Settings: Pocketwatch, Battery after it */
+#define SAVEDATA_ITEM  "msgtop_game_savedata"   /* Saved Data Utility: Play Time after it */
+#define VALUES_PAGE    "page_psp_config_umd_autoboot" /* the RCO page that lists a row's values */
+#define CONSOLE_ACTION 2 /* System Settings' action when it was not seen yet (xmbctrl main.h) */
+
+/* Our items: text keys, ids (xmbctrl uses 81-84), action arguments (xmbctrl 0x1000-0x1005); each
+   opens System Settings' page with the rows of one of our pages. */
+enum { ITEM_SETTINGS, ITEM_BATTERY, ITEM_PLAYTIME, ITEMS };
+static const struct {
+    const char *key;
+    int id, arg, page;
+} g_ours[ITEMS] = {
+    {"pw_xmb_settings", 90, 0x1500, PWX_PAGE_SETTINGS},
+    {"pw_xmb_battery", 91, 0x1501, PWX_PAGE_BATTERY},
+    {"pw_xmb_playtime", 92, 0x1502, PWX_PAGE_PLAYTIME},
+};
+#define MAGIC_TEXT 0xDEAD /* an RCO text that is a pointer to our UTF-8 (as xmbctrl's) */
 
 #define LW(a)        (*(volatile unsigned int *)(a))
 #define SW(v, a)     (*(volatile unsigned int *)(a) = (unsigned int)(v))
@@ -135,30 +147,50 @@ static struct {
 } g_vsh;
 
 static unsigned int g_next_add, g_next_exec, g_next_unload, g_next_text_vsh;
-static int g_added;                         /* our item is in this vsh_module's column */
+static int g_added;                         /* 1 << ITEM_*: in this vsh_module's columns */
 static int g_console_action, g_console_arg; /* what System Settings does */
 static int g_open;                          /* sysconf_plugin is showing our page */
 static int g_unload;                        /* sysconf_plugin must load anew (other rows) */
-static pw_xmb_item g_item;
+static int g_texts;                         /* the translations were read */
+static pw_xmb_item g_item[ITEMS];
+
+/* Add ours[which] after `like` (whose icon it takes) in the same column. */
+static void add_ours(int (*next)(void *, int, pw_xmb_item *), void *a0, int topitem,
+                     const pw_xmb_item *like, int which)
+{
+    pw_xmb_item *it = &g_item[which];
+
+    memcpy(it, like, sizeof(*it));
+    it->id = g_ours[which].id;
+    it->action = g_console_action ? g_console_action : CONSOLE_ACTION;
+    it->action_arg = g_ours[which].arg;
+    it->play_sound = 1;
+    it->context = 0;
+    strcpy(it->text, g_ours[which].key);
+    next(a0, topitem, it);
+    g_added |= 1 << which;
+}
 
 static int add_item(void *a0, int topitem, pw_xmb_item *item)
 {
     int (*next)(void *, int, pw_xmb_item *) = (void *)g_next_add;
     int ret = next(a0, topitem, item);
 
-    if (!g_added && strcmp(item->text, CONSOLE_ITEM) == 0) {
-        g_added = 1;
+    if (!g_texts) { /* the column names are asked for as soon as the items exist */
+        g_texts = 1;
+        pwx_texts_load();
+    }
+    if (!(g_added & (1 << ITEM_SETTINGS)) && strcmp(item->text, CONSOLE_ITEM) == 0) {
         g_console_action = item->action;
         g_console_arg = item->action_arg;
-        memcpy(&g_item, item, sizeof(g_item)); /* System Settings' icon */
-        g_item.id = ITEM_ID;
-        g_item.action_arg = ACTION_ARG;
-        g_item.play_sound = 1;
-        g_item.context = 0;
-        strcpy(g_item.text, TEXT_KEY);
-        next(a0, topitem, &g_item);
-        pwx_log("xmb: item added after System Settings (action %d, arg %d)", g_console_action,
-                g_console_arg);
+        add_ours(next, a0, topitem, item, ITEM_SETTINGS);
+        add_ours(next, a0, topitem, item, ITEM_BATTERY);
+        pwx_log("xmb: Pocketwatch and Battery added after System Settings (action %d, arg %d)",
+                g_console_action, g_console_arg);
+        pwx_log_flush();
+    } else if (!(g_added & (1 << ITEM_PLAYTIME)) && strcmp(item->text, SAVEDATA_ITEM) == 0) {
+        add_ours(next, a0, topitem, item, ITEM_PLAYTIME);
+        pwx_log("xmb: Play Time added after Saved Data Utility");
         pwx_log_flush();
     }
     return ret;
@@ -167,20 +199,22 @@ static int add_item(void *a0, int topitem, pw_xmb_item *item)
 static int execute_action(int action, int arg)
 {
     int (*next)(int, int) = (void *)g_next_exec;
+    int console = g_console_action ? g_console_action : CONSOLE_ACTION;
 
-    if (g_added && action == g_console_action) { /* a Settings page */
-        int ours = arg == ACTION_ARG;
+    if (g_added && action == console) { /* a Settings page */
+        int page = PWX_PAGE_NONE;
 
-        if (ours)
-            arg = g_console_arg; /* System Settings' page, with our rows */
-        if (ours != g_open) {
-            g_open = ours;
+        for (int i = 0; i < ITEMS; i++)
+            if (arg == g_ours[i].arg)
+                page = g_ours[i].page;
+        if (page != PWX_PAGE_NONE)
+            arg = g_console_arg ? g_console_arg : CONSOLE_ACTION; /* System Settings' page */
+        if (page != pwx_page())
             g_unload = 1; /* its rows are cached: load it anew */
-        }
-        if (ours) {
-            pwx_settings_load();
+        g_open = page != PWX_PAGE_NONE;
+        pwx_page_open(page);
+        if (g_open)
             pwx_log_flush();
-        }
     }
     return next(action, arg);
 }
@@ -200,8 +234,12 @@ static pw_wchar *get_text_vsh(void *a0, char *name)
 {
     pw_wchar *(*next)(void *, char *) = (void *)g_next_text_vsh;
 
-    if (name && strcmp(name, TEXT_KEY) == 0)
+    if (name && strcmp(name, g_ours[ITEM_SETTINGS].key) == 0)
         return ucs2("Pocketwatch");
+    if (name && strcmp(name, g_ours[ITEM_BATTERY].key) == 0)
+        return ucs2(pw_tr(PW_S_BATTERY));
+    if (name && strcmp(name, g_ours[ITEM_PLAYTIME].key) == 0)
+        return ucs2(pw_tr(PW_S_PLAYTIME));
     return next(a0, name);
 }
 
@@ -252,7 +290,8 @@ void pw_xmb_vsh_after(void)
     g_next_exec = exec;
     g_next_unload = unload;
     g_next_text_vsh = text;
-    g_added = g_open = g_unload = 0;
+    g_added = g_open = g_unload = g_texts = 0;
+    g_console_action = g_console_arg = 0;
     point_to(&g_vsh.add, OP_JAL, add_item);
     point_to(&g_vsh.exec, OP_JAL, execute_action);
     point_to(&g_vsh.unload, OP_JAL, unload_module);
@@ -301,7 +340,7 @@ static void on_init_menu(int a0, int a1, int a2, int a3)
 {
     if (g_open) {
         if (((unsigned int *)g_opt)[2] == 0)
-            for (int row = 0; row < PWX_ROW_COUNT; row++)
+            for (int row = 0; row < pwx_rows(); row++)
                 add_row(row);
         pwx_log_flush();
         return;
@@ -435,7 +474,7 @@ static pw_wchar *get_text_sc(void *a0, char *name)
         if (row >= 0)
             return ucs2(pwx_row_label(row));
         if (strcmp(name, CONSOLE_ITEM) == 0) /* the page's title */
-            return ucs2("Pocketwatch");
+            return ucs2(pwx_page_title());
     }
     return next(a0, name);
 }

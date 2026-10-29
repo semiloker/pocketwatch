@@ -29,6 +29,7 @@
 #define QUIT_WAIT_MS      5000        /* the game's own exit callback, then ARK's way */
 #define STARTUP_SETTLE_MS 1500        /* a start-up action waits this long after the takeover */
 #define STARTUP_MAX_MS    30000       /* and gives up when the screen could not open for so long */
+#define TICK_MS           1000        /* the complications' background tick */
 #define GAME_BUTTONS      0x0000FFFFu /* what the game can see; masked while the hub is open */
 #define ANY_BUTTON        (GAME_BUTTONS | PSP_CTRL_HOME | PSP_CTRL_NOTE)
 
@@ -109,6 +110,7 @@ static void quit_game(void)
 
     pw_log("shell: Quit Game");
     pw_engine_prepare_exit(); /* drops any state, checks the IPL seeds, flushes the log */
+    pw_registry_quit(pw_complications, pw_complication_count); /* their last card writes */
     if (sceKernelCheckExitCallback() != 0) {
         /* The system HOME screen's own way: the game's exit callback ends the game. */
         int ret = sceKernelInvokeExitCallback();
@@ -142,6 +144,8 @@ static void open_screen(const pw_complication *startup, unsigned int t_press)
     t_frozen = sceKernelGetSystemTimeLow();
     if (frozen.count == 0) { /* no game running (or someone else froze it) */
         pw_thaw_game(&frozen);
+        if (frozen.card_busy)
+            pw_log("shell: HOME ignored: the game kept the Memory Stick busy for %u ms", frozen.ms);
         return;
     }
     g_open = 1;
@@ -170,10 +174,10 @@ static void open_screen(const pw_complication *startup, unsigned int t_press)
     result = startup ? pw_hub_startup(&frozen, startup) : pw_hub_run(&frozen);
 
     if (pw_fb_first_frame_us())
-        pw_log("shell: open: freeze %u ms, GE %u ms, screen %u ms, first frame %u ms after the "
-               "press",
-               (t_frozen - t_press) / 1000, (t_ge - t_frozen) / 1000, (t_screen - t_ge) / 1000,
-               (pw_fb_first_frame_us() - t_press) / 1000);
+        pw_log("shell: open: freeze %u ms (the card held %d time(s)), GE %u ms, screen %u ms, "
+               "first frame %u ms after the press",
+               (t_frozen - t_press) / 1000, frozen.card_tries, (t_ge - t_frozen) / 1000,
+               (t_screen - t_ge) / 1000, (pw_fb_first_frame_us() - t_press) / 1000);
     pw_fb_close();
     /* The game must not see the button that closed us: wait until everything is up. */
     for (unsigned int t0 = now_ms(); (buttons() & ANY_BUTTON) && now_ms() - t0 < RELEASE_WAIT_MS;)
@@ -244,7 +248,7 @@ static void run_startup(unsigned int ready_ms)
 static int shell_thread(SceSize args, void *argp)
 {
     pw_tap tap = {0, 0, 0};
-    unsigned int start = now_ms(), last_check = 0, ready = 0, t_poll;
+    unsigned int start = now_ms(), last_check = 0, ready = 0, t_poll, last_tick = 0;
     int home_was_down = 0;
 
     (void)args;
@@ -255,6 +259,10 @@ static int shell_thread(SceSize args, void *argp)
         sceKernelDelayThread(POLL_US);
         b = buttons();
         t_poll = sceKernelGetSystemTimeLow();
+        if (now_ms() - last_tick >= TICK_MS && !pw_engine_busy()) {
+            last_tick = now_ms();
+            pw_registry_tick(pw_complications, pw_complication_count, last_tick);
+        }
         if (g_home == HOME_WAITING) {
             take_home(start, b);
             ready = now_ms();

@@ -1,0 +1,28 @@
+# Device numbers, build 5811f00 (Home on the GE, 32-bit stamps in RAM, backgrounds 8888 in RAM), PSP-3000.
+# Read from the card 2026-10-19 (PSP clock 2011).
+
+## seplugins/pocketwatch/home.log
+home leaving: 1335 frames in 29664 ms (45 fps), CPU 4823 us + GE 12652 us a frame, longest frame 2736 ms
+home running: 1425 frames in 30009 ms (47 fps), CPU 4436 us + GE 11843 us a frame, longest frame 2719 ms
+home running: 1429 frames in 30014 ms (47 fps), CPU 4480 us + GE 10919 us a frame, longest frame 2719 ms
+home before a game: 511 frames in 10310 ms (49 fps), CPU 2668 us + GE 11254 us a frame, longest frame 117 ms
+home leaving: 192 frames in 3872 ms (49 fps), CPU 2892 us + GE 13273 us a frame, longest frame 115 ms
+
+## pocketwatch.log, the hub (build of 2026-10-18)
+cpu: hub, 1229373 ms: PocketwatchShell 2% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0% main_thread 0% ScePowerBattery 0%
+shell: open: freeze 0 ms, GE 0 ms, screen 276 ms, first frame 312 ms after the press
+hub: style 1, 18073 ms: 237 frames drawn in 515 vblank waits; a frame: backdrop 4717 us, content 8731 us, present 31 us, worst 34149 us; waiting 11252 us a loop
+cpu: hub, 18087 ms: PocketwatchShell 32% ScePowerMain 0% SceImpose 0% cwcheat_main 0% noumd_main 0% ScePowerBattery 0%
+shell: open: freeze 0 ms, GE 0 ms, screen 274 ms, first frame 308 ms after the press
+hub: style 1, 5939 ms: 154 frames drawn in 349 vblank waits; a frame: backdrop 4555 us, content 8748 us, present 31 us, worst 34149 us; waiting 11410 us a loop
+cpu: hub, 11136 ms: PocketwatchShell 37% ScePowerMain 3% SceImpose 1% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0%
+shell: open: freeze 0 ms, GE 0 ms, screen 274 ms, first frame 308 ms after the press
+
+## boot.txt
+2011-01-15 06:41:24 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 06:42:21 start: XMB (the XMB asked from Home), layout 0
+2011-01-15 07:07:25 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 07:08:05 start: XMB (the XMB asked from Home), layout 0
+2011-01-15 07:48:48 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 07:50:30 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 07:50:44 start: XMB (the XMB asked from Home), layout 0

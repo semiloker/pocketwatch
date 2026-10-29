@@ -1,0 +1,95 @@
+# Pocketwatch Home - a home screen of our own (homebrew application, docs/subsystems/home.md)
+#
+#   make        build EBOOT.PBP (install as ms0:/PSP/GAME/PocketwatchHome/EBOOT.PBP)
+#   make clean
+
+TARGET = pocketwatch_home
+
+# Our drawing, fonts, texts and models are the plugin's own portable code, built again here
+# (into build/, so the plugin's objects next to the sources stay apart).
+OBJS = build/main.o build/hw.o build/library.o build/launch.o build/texts.o build/home_view.o \
+       build/disc.o build/hm_image.o build/gfx_gu.o build/sprites.o build/usb.o build/usb_link.o \
+       build/view_classic.o build/view_modern.o build/view_minimal.o build/hm_icons.o \
+       build/xmbart.o build/rco.o build/rlz.o build/image.o build/xmbbg.o \
+       build/hsettings.o build/keyboard.o build/dialogs.o build/states.o build/platform_home.o build/music.o \
+       build/music_name.o build/sound.o build/sound_synth.o build/net.o build/stubs.o \
+       build/draw.o build/shapes.o build/icons.o build/font8x8.o build/input.o build/i18n.o \
+       build/text.o build/pgf.o build/sfo.o build/playtime.o build/crc32.o build/stb_sprintf.o \
+       build/config.o build/langnames.o build/hcfg.o build/pages.o build/savedata.o \
+       build/savedata_text.o build/photo_edit.o build/hm_imgwrite.o build/clockfix.o \
+       build/battcal.o build/battmodel.o build/plugins_txt.o build/wifi_list.o build/overlay.o
+
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+
+INCDIR  = src lib ../plugin/src ../plugin/lib ../perf/src
+CFLAGS  = -O2 -G0 -Wall -Wextra -Werror -DPW_I18N_HOME -DPW_VERSION=\"$(VERSION)\"
+ASFLAGS = $(CFLAGS)
+LIBS    = -lpspgu -lpspusb -lpspusbstor -lpsphttp -lpspssl -lpspnet_apctl build/apctl_scan.o \
+          -lpspnet_resolver -lpspnet_inet -lpspnet -lpspwlan -lpspmp3 -lpspaudio -lpsppower -lpsprtc \
+          -lpsputility
+# newlib's glue (libcglue: recv, send, close) wants three more sceNetInet stubs, linked last: out
+# of order, psp-fixup-imports counted them into sceNetInet's table over sceNet's and sceWlanDrv's
+# stubs - the loader then unlinked sceNetInit (0x8002013A, 2026-10-20). Taken with the others.
+LDFLAGS = -Wl,-u,sceNetInetRecv -Wl,-u,sceNetInetSend -Wl,-u,sceNetInetGetErrno
+
+BUILD_PRX      = 1
+PSP_FW_VERSION = 660
+EXTRA_TARGETS  = EBOOT.PBP
+PSP_EBOOT_TITLE = Pocketwatch Home
+PSP_EBOOT_ICON  = res/ICON0.PNG
+PSP_EBOOT_PIC1  = res/PIC1.PNG
+
+VPATH = src ../plugin/src/ui ../plugin/src/gfx ../plugin/src/core \
+        ../plugin/src/complications/states ../plugin/lib ../perf/src
+
+PSPSDK = $(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+build:
+	mkdir -p build
+
+build/%.o: %.c | build
+	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
+
+build/%.o: %.S | build
+	$(CC) $(ASFLAGS) -c -o $@ $<
+
+# (order-only: on the link line through LIBS, after -lpspnet_apctl - not in $^ - its stubs
+# follow the library's)
+$(TARGET).elf: | build/apctl_scan.o
+
+# Third-party code keeps its own style.
+build/hm_image.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-parameter \
+                            -Wno-implicit-fallthrough -Wno-unused-but-set-variable
+build/stb_sprintf.o: CFLAGS += -Wno-sign-compare
+build/hm_imgwrite.o: CFLAGS += -Wno-unused-function -Wno-sign-compare -Wno-unused-parameter \
+                               -Wno-implicit-fallthrough -Wno-unused-but-set-variable \
+                               -Wno-missing-field-initializers -Wno-type-limits
+
+# main.o and pages.o again whenever the version string changes (System -> About names the build).
+build/main.o build/pages.o: build/.version
+build/.version: FORCE | build
+	@echo '$(VERSION)' | cmp -s - $@ || echo '$(VERSION)' > $@
+
+# `make check`: imports (user libraries and ARK-4's, ../tools/check_prx.py) and the budgets. Home is
+# a user program: its RAM is the 24 MB user partition, not kernel RAM; 2 MB loaded (the GE's
+# display list alone is 512 KB) keeps it lean beside its textures and the firmware's dialogs.
+# The file itself only costs load time (768 KB since the pages, the editor and its JPEG writer,
+# 2026-10-20: 521 KB).
+MAX_PRX_SIZE = 786432
+MAX_MEM      = 2097152
+
+check: $(EXTRA_TARGETS)
+	python3 ../tools/check_prx.py --elf $(TARGET).elf --prx $(TARGET).prx \
+		--nid-table ../tools/nids/ark4_660.tsv --allowlist ../tools/nids/allowlist.tsv \
+		--max-prx-size $(MAX_PRX_SIZE) --max-mem $(MAX_MEM)
+
+.PHONY: FORCE check
+
+-include $(wildcard build/*.d)
+
+clean: clean-local
+clean-local:
+	-rm -rf build
+
+.PHONY: clean-local

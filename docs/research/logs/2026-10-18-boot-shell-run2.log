@@ -1,0 +1,20 @@
+# Run 2 of the start screen (build 1fefdef, ADR-027), PSP-3000, ARK-4.
+# Owner: "Pocketwatch Home changed [came up]; the menu lags a lot; pressing HOME shows the
+# default XMB, not the custom one". boot.txt read over USB afterwards (PSP clock: 2011).
+
+## seplugins/pocketwatch/boot.txt
+start: XMB (the XMB asked from Home), ARK-4 config check 0
+2011-01-15 06:41:24 start: Pocketwatch Home (Pocketwatch Home), layout 0
+2011-01-15 06:42:21 start: XMB (the XMB asked from Home), layout 0
+
+## seplugins/pocketwatch/xmb.log (06:42:21)
+Pocketwatch XMB df27d0d-dirty
+2011-01-15 06:42:21 start: XMB (the XMB asked from Home), layout 0
+xmb: battery 87% present 1 charging 0 online 0 system 350 min; 1403/1790 mAh 4134 mV 20 C; syscon -224 mA 0 cycles
+xmb: vsh_module patched (add 0880BBF4 exec 0880C408 unload 0880A740 text 0880B1C0)
+xmb: Pocketwatch and Battery added after System Settings (action 2, arg 2)
+xmb: Play Time added after Saved Data Utility
+
+# Reading: 06:41:24 the PSP started in Home (the owner saw it); 57 s later Home was left through
+# HOME -> the system's quit dialog, which wrote a fresh xmb-once: the XMB, as designed then.
+# (The first line is run 1's, in the old format.)

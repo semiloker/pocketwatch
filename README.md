@@ -30,16 +30,26 @@ Do not run Pocketwatch States together with another savestate plugin
 
 ## Install
 
-1. Download `pocketwatch-<version>.zip` from [Releases](../../releases) and copy its
-   `seplugins` folder to the root of the Memory Stick.
-2. Add this line to `ms0:/seplugins/PLUGINS.TXT` (`ef0:` on the PSP Go internal storage):
+1. Download `pocketwatch-<version>.zip` from [Releases](../../releases). Copy the `seplugins`
+   and `PSP` folders from inside its folder to the root of the Memory Stick, merging them with
+   the folders already there. That installs the game plugin, the XMB plugin, the overlay module
+   and the translations to `seplugins/pocketwatch/`, and Pocketwatch Home to
+   `PSP/GAME/PocketwatchHome/` and `PSP/SAVEDATA/ARK_01234/PWHOME.PBP`.
+2. Add these lines to `ms0:/seplugins/PLUGINS.TXT` (`ef0:` on the PSP Go internal storage):
 
    ```
    UMD, ms0:/seplugins/pocketwatch/pocketwatch.prx, on
+   VSH, ms0:/seplugins/pocketwatch/pocketwatch_xmb.prx, on
    ```
 
-   `UMD` loads it for retail games only (UMD and ISO); ARK-4's `GAME` would include homebrew too.
-3. Start a game. `ms0:/seplugins/pocketwatch/pocketwatch.log` shows the loaded version.
+   `UMD` loads the game plugin for retail games only (UMD and ISO); ARK-4's `GAME` would include
+   homebrew too. Add no line for `pocketwatch_perf.prx`: Home → Settings → Pocketwatch → Overlay
+   in Games writes it.
+3. Restart the PSP. XMB → Settings → Pocketwatch has the settings, including Start screen →
+   Pocketwatch Home. Hold START at power-on to load no plugins, or L to get the XMB once.
+4. Start a game. `ms0:/seplugins/pocketwatch/pocketwatch.log` shows the loaded version.
+
+Each release's notes list the known issues and how to report a problem.
 
 ## Build
 
@@ -73,6 +83,9 @@ plugin/                  kernel PRX (Makefile, exports.exp)
   src/core/selfcheck.c   on-device check that every import resolved
   src/core/platform*.c   OS services, so portable modules also build on the host
   lib/                   third-party code (stb_sprintf)
+vsh/                     XMB plugin (Settings -> Pocketwatch / Battery, Game -> Play Time)
+home/                    Pocketwatch Home, the home-screen application (EBOOT.PBP)
+perf/                    in-game performance overlay module
 tests/                   host unit tests
 tools/check_prx.py       static import/size checks; NID tables in tools/nids/
 scripts/                 build, deploy and format helpers

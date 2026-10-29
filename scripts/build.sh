@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the Pocketwatch PRX files (plugin/ for games, vsh/ for the XMB) with the PSPDEV toolchain.
+# Build Pocketwatch (plugin/ for games, vsh/ for the XMB, home/ the Home application) with PSPDEV.
 #
 #   scripts/build.sh [make-target] [version] [debug: 1 = debug build (default), 0 = release]
 #
@@ -30,3 +30,16 @@ if [ -n "${2:-}" ]; then
     vargs+=("VERSION=$2")
 fi
 make -C "$ROOT/vsh" "${vargs[@]}"
+# Pocketwatch Home (home/): the same targets ("check": imports and its budgets).
+hargs=("${1:-all}")
+if [ -n "${2:-}" ]; then
+    hargs+=("VERSION=$2")
+fi
+make -C "$ROOT/home" "${hargs[@]}"
+# The performance overlay for games (perf/, ADR-043): a kernel module of its own, loaded only when
+# Home turns its PLUGINS.TXT line on.
+pargs=("${1:-all}")
+if [ -n "${2:-}" ]; then
+    pargs+=("VERSION=$2")
+fi
+make -C "$ROOT/perf" "${pargs[@]}"

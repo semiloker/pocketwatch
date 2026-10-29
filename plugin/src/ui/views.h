@@ -49,17 +49,6 @@ typedef struct {
 void pw_view_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const char *game,
                    const pw_slot_row *rows, int count, int selpos, int can_delete, int appear);
 
-/* Settings: the XMB's option list; while choosing (opt_sel >= 0) the options of row sel are listed
-   on a darker panel on the right, like the XMB's option popup. */
-typedef struct {
-    const char *label, *value;
-    int toggle; /* -1: a value; 0/1: an off/on switch (drawn as one in the modern style) */
-} pw_setting_row;
-
-void pw_view_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
-                      const pw_setting_row *rows, int count, int sel, const char *const *options,
-                      int n_options, int opt_sel, int opt_appear);
-
 enum { PW_VIEW_CONFIRM, PW_VIEW_MESSAGE };
 
 /* The HOME screen's dialog: line2 may be NULL; yes = the selected choice (confirm); appear: its

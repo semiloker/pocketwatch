@@ -34,4 +34,6 @@ if ($Target -eq 'all') {
     if ($Release) { $profileName = 'release' }
     Write-Host "Built $prx ($version, $profileName)"
     Write-Host "Built $(Join-Path $root 'vsh\pocketwatch_xmb.prx') ($version)"
+    Write-Host "Built $(Join-Path $root 'home\EBOOT.PBP') ($version)"
+    Write-Host "Built $(Join-Path $root 'perf\pocketwatch_perf.prx') ($version)"
 }

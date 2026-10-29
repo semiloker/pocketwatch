@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-16. Update this file whenever a milestone, a blocker or the next action
+Last updated: 2026-10-29. Update this file whenever a milestone, a blocker or the next action
 changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 
 ## Where we are
@@ -13,11 +13,13 @@ changes ([workflow](AI_WORKFLOW.md#4-keeping-documentation-true)).
 | Native look (M4) | **Implemented, owner review pending**: XMB background and wave, ltn0, RCO icons and button pictures, clock/battery, the system language (7 translations + Ukrainian, ADR-018) | [ui](ui/README.md), [m4-native-icons](research/m4-native-icons.md) |
 | States on the card (E3) + state list (M5) | **Implemented and host-tested, device tests pending** | [states storage](subsystems/states-storage.md), [testing guide](testing.md#4-states-on-the-memory-stick) |
 | Complication framework (CPL) | **Implemented** 2026-10-17: the hub builds its rows from `complications/table.c` (System, States, Settings, debug card test); host-tested, device run of the refactored hub pending | [complications](subsystems/complications.md) |
-| UI styles (ADR-019) | **Implemented, device review pending**: Classic (XMB, default), Modern, Minimal; Settings → Style | [styles](ui/styles.md), [testing guide](testing.md#settings) ST5 |
-| Settings (CPL-REQ-006) | **Implemented, device tests pending**: Fast Save and Load, Clock and Battery, Language; `config.txt` | [complications](subsystems/complications.md), [testing guide](testing.md#settings) |
+| UI styles (ADR-019) | **Implemented, device review pending**: Classic (XMB, default), Modern, Minimal; XMB → Settings → Pocketwatch → Style | [styles](ui/styles.md), [testing guide](testing.md#settings-in-the-xmb-since-adr-024) ST5 |
+| Settings (CPL-REQ-006) | **Implemented, device tests pending**: Fast Save and Load, Clock and Battery, Style, Language; changed in the XMB (ADR-024), `config.txt` | [complications](subsystems/complications.md), [testing guide](testing.md#settings-in-the-xmb-since-adr-024) |
 | Guards (M3b) | **Implemented, device tests pending**: battery, USB, WLAN, highmem, Custom Home / PSPStates; redraw after a sleep | [game shell](subsystems/game-shell.md), [testing guide](testing.md#7-guards) |
-| Release preparation (M6) | **In progress**: release build switch, changelog rewritten, testing guide, [compatibility matrix](compat.md) prepared for the owner's 22 games; filling it and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
+| Release preparation (M6) | **In progress**: pre-release `v0.1.0-alpha.1` published 2026-10-29 (CI zip with every part, install steps and known issues in `.github/release-notes.md`); release build switch, changelog, testing guide, [compatibility matrix](compat.md) prepared for the owner's 22 games; filling it and the 100-cycle gate need the device | [roadmap](roadmap.md#m6--hardening-v010) |
 | XMB integration (M7) | **In progress**: variant B chosen (ADR-020); the GAME side (load a slot named in `continue.txt` once the game runs) implemented, device test V1 pending; the XMB plugin (`vsh/`, ADR-021) adds Settings → Pocketwatch with the XMB's own option list - builds and passes `make check`, device test X1 pending; the game's △ menu entry next | [vsh-integration](subsystems/vsh-integration.md) |
+| Battery (BAT), Play Time (PLT) | **Implemented, on `main` since PR #4 (2026-10-29):** XMB → Settings → Battery, XMB → Game → Play Time (ADR-024); play time counted in the game (first file written on the device); device tests B1, P1 pending | [overhaul](psp-xmb-overhaul/README.md), [battery](subsystems/battery.md), [playtime](subsystems/playtime.md) |
+| Pocketwatch Home (HOM) | **On `main` since PR #4 (2026-10-29)** (ADR-025, ADR-026): our own home screen in the Modern style - ISO/CSO, homebrew and PS1 games with their art, play time, states, battery, card. **The PSP starts in it instead of the XMB** (XMB → Settings → Pocketwatch → Start screen; VERIFIED on the device 2026-10-18, run 2). **Drawn by the GE since ADR-028** (the CPU version was "very laggy"); HOME opens Home's own panel; USB Connection inside Home (2026-10-19). First device numbers of the GE version: 45-49 fps, GE 11-13 ms (log 2026-10-19) - backgrounds moved to VRAM, stamps 8-bit, the free-space count off the loop (ADR-029/030), checked in PPSSPP. Settings, System Information, a game's states, Saved Data and Information, Music, Photos (slideshow, wallpaper), sorting, PSN EBOOTs, key sounds and the Internet Browser in Home (2026-10-19, [m7-xmb-inventory](research/m7-xmb-inventory.md)). Home's heap had left only 512 KB to the firmware (not 4 MB, HOM-NFR-002, fixed 2026-10-19 - the keyboard, Saved Data, music and the network may have failed on the PSP for it). Device round 2026-10-19 (`78e3690`, [log](research/logs/2026-10-19-home-hm10-run2.log)): the GE now 0.4-8.5 ms a frame, but a ~300 ms stall about every second (30-36 fps, 5-7 fps while changing settings) - the slow reads moved off the frame loop (ADR-031). Round 3 (`c3f3699`, [log](research/logs/2026-10-19-home-hm10-run3.log)): **59-60 fps, CPU about 1 ms a frame** (ADR-031 VERIFIED; left: one 209 ms first build of the Settings rows); USB in Home did not connect (fixed: activated once as ARK-4's menu, Connect Again by hand); the style setting did not change Home and Music, Photos, Play Time and Settings looked bad (owner) - answered: the three styles in Home, Classic as the XMB with the system's pictures (ADR-033), HM20-HM21. Round 4 (`b5cab03`, [log](research/logs/2026-10-19-home-round4.log)): USB in Home failed beside RemoteJoyLite (`80243001` / `80243006`; fixed, ADR-034); 5 of 11 system pictures and no sky in Home (the plugin reads them: now each read is logged); asked for: categories and pages that slide, themes, colours, the battery's percent, backgrounds, Home's own Saved Data, music covers and seeking, photo albums by game and an editor - done 2026-10-20 (ADR-035, ADR-036; PPSSPP 57-60 fps), HM22-HM25 | [home](subsystems/home.md), [m7-full-ui](research/m7-full-ui.md), [m7-boot-shell](research/m7-boot-shell.md) |
 | Documentation system (DOC-1) | **Done** (kept current with every change) | this file |
 | Firmware feasibility | **Research** — FW-G1 partial | [feasibility study](firmware/independent-firmware-feasibility.md) |
 
@@ -64,8 +66,243 @@ measures and stages first; a refusal now logs each differing field. T3 must be r
 the hub opened 291-308 ms after the press (UI-NFR-001 target 300 ms; 262-274 ms of it is
 `screen`: the frame capture and the backdrop). No `xmb.log` appeared (see X1).
 
+## Device results 2026-10-19, round 3 (owner, build `c3f3699`)
+
+- Home: 59-60 fps with 0-5 late frames in 30 s ([log](research/logs/2026-10-19-home-hm10-run3.log)); the
+  battery's cycle count costs 35 ms (on its thread), the first Settings rows 209 ms (once).
+- HOME in Need for Speed: Most Wanted froze the game for good (the next session opened the hub):
+  a frozen thread inside a card read held the FAT driver (ADR-032, SHL-REQ-013, test H17).
+- USB Connection in Home did nothing on the PC; the XMB's worked (HOM-REQ-011 changed: no
+  automatic re-activation; `home usb:` lines in `home.log`).
+- Changing the style changes nothing in Home (HOM-REQ-006 was still planned); Music, Photos, Play
+  Time and Settings "look bad, not like they should".
+
+## Device results 2026-10-20, round 5 (owner, build `cee6786`, spoken; no log sent)
+
+- HOME → Screenshot works and the picture is in All Photos; its name (`ULUS10277_<date>_<time>`)
+  did not fit and did not say which game it came from. Answered (ADR-039): a game's pictures are
+  named by date and time under the game's title, and the game's page lists its Photos.
+- Play Time: a second of Castlevania showed nothing. Cause (code): Home listed only games with
+  a minute or more, and a session under a second is never written. Answered: seconds are shown.
+- Music: no way found to seek, no hint of the keys; covers slow, track changes lag. Answered:
+  left / right seek, up / down the track, both in the hints; the playing track tagged first;
+  `home.log` now times a cover and a track's start (RESEARCH REQUIRED: the numbers, HM24).
+- Photos: right "after the third" went "somewhere". Cause (code): Modern's grids scrolled by the
+  selection divided by the columns (a quarter row per step). Fixed. If the owner was in Classic,
+  right at the top of Photos is the next section (as in the XMB) - OPEN QUESTION, HM25.
+- The nickname's firmware keyboard and its question should be Pocketwatch's, "in games and in
+  the menu". Home: its own keyboard (HOM-REQ-030). Games: OPEN QUESTION (ADR-039: a separate
+  PRX, the kernel plugin has 2 KB left).
+- Not built for the PSP in this change: the WSL toolchain (`~/pspdev`) was missing on the
+  machine; host tests, previews and the format check pass.
+
+## Device results 2026-10-20, round 6 (owner, build `ead1320`, Modern, [log](research/logs/2026-10-20-home-round6.log))
+
+- Photos still "jerky, jumps, I cannot look through a folder", and "micro freezes". Causes
+  (code, reproduced in PPSSPP with the owner's 15 photos in 7 folders): the albums' grid had
+  one row on screen while its scroll assumed two (the choice went off screen after the third
+  album), and the grids' scroll waited for the selection's motion, then jumped. Fixed (ADR-040).
+- The log: 500-1035 ms frames (about one in 30 s) and 10-30 late frames in 30 s, no part named;
+  RESEARCH REQUIRED: the next `home.log`'s `slow:` entries (ADR-040). No `home music:` line:
+  music was not tested in this round.
+- The card's clock: the PSP reads 2011-01-16/17 (`xmb.log`, the files' dates) - lost and passed
+  through the firmware's date screen (see below, ADR-041).
+
+## 2026-10-20: the clock, the battery, the performance overlay (owner's requests)
+
+- **Clock** (ADR-041, HOM-REQ-031/032, [m7-clock](research/m7-clock.md)): implemented in Home -
+  a lost clock (kernel error, or before 2016) set at the start to the newest file time; then SNTP
+  over Wi-Fi, by itself after a restore and by hand in Settings → Date and Time. Host tests;
+  PPSSPP: the "Wi-Fi switch is off" answer. Not run on the PSP; the network in Home is RESEARCH
+  REQUIRED (the browser's `sceNetInit` failed there with 0x8002013A; the clock's path is NTPSP's).
+- **Battery** (ADR-042, BAT-REQ-008..010, [m7-battery-calibration](research/m7-battery-calibration.md)):
+  Home's Battery page shows the current and our estimate; a calibration run measures the
+  capacity the battery delivers. Host tests; PPSSPP: the page and the run's first steps.
+- **Performance overlay** (ADR-043, PRF-REQ-001..005, [perf-overlay](subsystems/perf-overlay.md)):
+  over Home (PPSSPP checked: 59 fps, the frame's CPU and GE time, clocks, memory); in games
+  `pocketwatch_perf.prx` (perf/, 9.7 KB loaded, `make check` passed), turned on in Home's
+  Settings through PLUGINS.TXT (PPSSPP: the line written and turned off again). Not run on the PSP.
+- Budgets unchanged: game plugin 194 552 / 196 608 (debug), XMB plugin 65 261 / 65 536; Home
+  1 621 916 / 2 097 152.
+
+## Device results 2026-10-20, round 7 (owner, build `615e6d5`, [log](research/logs/2026-10-20-round7-home.log))
+
+- **The clock was put back** at the first start (VERIFIED: `home clock: lost (0x00000000,
+  1295231352 s); the card's newest time 1792512064 s of 13 files`, set and read back; the files
+  since are dated 2026-10-20). HM29's internet part: no saved connection (`profile=0`).
+- **"The overlay does not work in the game"**: `pocketwatch_perf.prx` was not on the card - Home
+  put `seplugins/pocketwatch/` back from its cache after USB (VERIFIED by chkdsk's lost chain;
+  ADR-046, fixed: the cache dropped).
+- **"Wi-Fi does not work"**: no connection saved, and Home's network was broken by its own build
+  (VERIFIED: the `sceNetInet` import table over `sceNet`'s; ADR-044, fixed, `make check` guards
+  it). Home now searches networks and makes connections (HOM-REQ-033, [m7-wifi](research/m7-wifi.md)).
+- Asked for: the calibration as a whole screen (BAT-REQ-011), more brightness and a volume and
+  brightness indicator in the menu and games (ADR-045, HOM-REQ-034, PRF-REQ-006..008) - done the
+  same day; previews `home-calibration.png`, `home-osd.png`; PPSSPP: the Wi-Fi search, the
+  settings' files.
+
+## Device results 2026-10-21, round 9 (owner, build `b91f3e3`, `home.log`, chkdsk)
+
+- "Pocketwatch does not start with the console; in games neither the hub nor the overlay": the
+  card's `pocketwatch.prx` and `pocketwatch_xmb.prx` were broken - Home's write after USB came
+  from the stale FAT tables again, because ADR-046's cache drop is refused to a user program
+  (`cache dropped 800200D1`). VERIFIED by chkdsk ("first allocation unit is not valid", 5 lost
+  chains). Fixed: after USB Home starts again before any write (ADR-048). The card: `chkdsk /F`,
+  then a deploy.
+- **After the card was repaired, Home still did not start** (black screen, the guard fell to the
+  XMB): the now-valid overlay module loaded for the first time (its VSH line + when Home launched)
+  and its kernel thread crashed Home before its first frame. VERIFIED by elimination - the same
+  Home starts perfectly in PPSSPP, and with the module's lines off the console boots Home reliably
+  (owner confirmed 2026-10-21). Fixed (ADR-049): the module runs only in a real game, never in Home
+  or the XMB.
+- With the module on in a game the owner found the overlay "terrible", "flickers constantly", too
+  big, and the indicator not shown in-game. The flicker is the PSP's double-buffering - the overlay
+  now goes into every framebuffer the game shows (PRF-REQ-011), not one. The overlay is a compact
+  vertical card with a labelled row each ("60 FPS", "CPU 43%", ...) like Home's, rounded, about
+  half the old width (host render in scratchpad). The 8x8 font cannot match Home's (it is drawn
+  pixel-by-pixel into the game's frame, no GE); whether the flicker is gone is RESEARCH REQUIRED
+  (not reproducible off the device). Home's own overlay stays the reliable one.
+
+## Device results 2026-10-20, round 8 (owner, build `f36f0f5`, spoken and `home.log`)
+
+- "The overlay and the indicator are still not seen in games": `pocketwatch_perf.prx` was lost
+  once more - the old Home (615e6d5) ended the deploy's USB (VERIFIED: its USB line without "cache
+  dropped", chkdsk a second lost chain of 32 KB); the new Home's USB line carries it. Redeployed.
+- VERIFIED on the device: Home's network comes up now - Search for Networks found 2
+  (`home net: search 0 ... seen=2`); no connection made yet. New: the browser's
+  `sceUtilityHtmlViewerInitStart` 0x800200D9 (OPEN QUESTION, not asked for now).
+- Asked for: no brightness slider in the XMB; remove bright3 and do its job in Pocketwatch; the
+  numbers overlay "terrible, not understandable" - done (ADR-047): Own Steps, the module in the
+  XMB, the overlay redrawn; bright3's lines off, its levels moved to `perf.txt`.
+
+## 2026-10-23: a new dark theme for Home, in stages (ADR-050)
+
+A new dark look for Home's Modern style, built in checkable stages (owner's request with reference
+screenshots), each tried in PPSSPP, none touching boot or the plugins:
+
+- **Stage 1 (done):** a near-black starry sky with gentle wave ribbons - `background = nebula`
+  (hcfg), computed once, no per-frame cost (`hm_make_nebula`, home_view.c).
+- **Stage 2 (done):** the performance overlay is a compact green pill on its own row at the top
+  left (FPS + frame time); Modern makes room below it when on.
+- **Stage 3 (done):** the settings are two panes in Modern - a sidebar of categories on the left,
+  the chosen category's options (switches, choices) on the right, the focused pane highlighted
+  (`draw_settings` view_modern.c, `settings_keys` main.c). Classic and Minimal keep the drill-down.
+- **Stage 4 (done):** a game with no ICON0 gets a coloured card with its initial in Modern (a
+  deterministic hue per title, `game_card`); the Games row reads as colourful cards on the dark
+  sky. Games with real art keep it; Classic and Minimal keep the plain disc card.
+- **Stage 5 (done):** the HOME panel is a control centre - each action a row with its icon in a
+  tinted square (Close, USB, Exit to the XMB, Sleep, Restart, Turn Off), a battery bar at the
+  bottom; a new Restart relaunches Home. Preview `home-panel` (all three styles).
+- **Stage 6 (done):** the Games section's root is a landing launcher in Modern - a Resume hero for
+  the most recent game (art, title, line, Play), a status card (clock + battery bar), and a row of
+  section tiles below (Games, Music, Photos, Settings, System; focus `opt_sel`, 0 hero / 1..5
+  tiles). The Games tile opens the full library (the plain carousel). Classic and Minimal keep the
+  plain carousel/list. `home-games` preview (Modern shows the launcher).
+- **Stage 7 (done):** the control centre gained a **brightness slider** (top row; left/right adjust
+  the 0-4 system backlight via `hm_bright_get`/`hm_bright_set`, the same level Settings' Brightness
+  row changes). The redundant Close row was dropped (Back/HOME closes). Device test pending: adjust
+  it in a game-free session and confirm the backlight changes and sticks (boost off).
+- **Deferred:** a volume slider (no safe user-mode volume setter on the PSP) and the Wi-Fi/CPU
+  toggles the reference shows (need their own device-tested flows).
+
+All on `feature/psp-xmb-overhaul`, verified in PPSSPP only; owner review on the device pending.
+
+## 2026-10-25: device round 11 (owner) - in-game freeze, brightness, start-up animation
+
+Owner tested on the device ([m7-ingame-freeze](research/m7-ingame-freeze.md)):
+
+- **In-game HOME froze the console** (reboot needed); with RemoteJoyLite off it blurred then froze.
+  **Root cause (VERIFIED by inspection):** the performance overlay wrote the FPS onto the hub's own
+  framebuffer (a buffer in the plugin's kernel RAM it does not own) every vblank - a kernel fault
+  that hangs the PSP. **Fixed (ADR-051):** the overlay only writes to the game's own buffers, only
+  while the game is on screen. Overlay left **off** on the owner's card until the device test
+  (PF-FREEZE) confirms. **RemoteJoyLite and the overlay were switched off in the owner's PLUGINS.TXT
+  to isolate it.**
+- **Brightness had four levels, device has five.** Fixed: 0-4 everywhere (`BRIGHT_MAX`), the slider
+  and Settings choice scale to `hm_bright_max()`.
+- **Start-up animation (ADR-052):** a wordmark intro fading to the launcher, skippable. Preview
+  `home-intro`.
+- **Performance from `home.log`:** 1200x1200 ID3 album covers decode in ~1.2-2.5 s on the loader
+  thread (slow to *appear*, not a frame stall); a downscaled/`sceJpeg` decode is a separate backlog
+  task. The `slow:` frames are game launches and setting applies, not a per-frame regression
+  (steady 52-58 fps).
+
+**Round 11b (same day):** with the fixed overlay on, (a) the overlay was **invisible** - the first
+fix's `top == game` test excluded normal play (games display from a back buffer). Now it draws onto
+**only VRAM buffers** (`is_vram`), the region that is the game's and never the hub's. (b) **Quitting
+a game black-screened and powered the PSP off** - `module_stop` hung on the vblank-blocked thread
+during the display tear-down; now it force-ends the thread after ~120 ms. Both in ADR-051.
+
+**Round 11c (2026-10-26):** the VRAM filter worked - the overlay **shows in games and HOME no longer
+freezes**. But **quitting a game to the XMB still black-screened and powered the PSP off**; the 11b
+`module_stop` terminate did nothing. Root cause (INFERRED, test pending): 11b drew onto every VRAM
+buffer **every vblank regardless of what is on screen**, so while quitting (hub on screen, game
+rebooting to the XMB) the perf thread keeps writing VRAM that `reboot.bin` is loading into. **Fixed
+(ADR-053):** draw only while a VRAM buffer is the one *on screen* (read the displayed buffer,
+`is_vram`); nothing is written while the hub owns the screen or the display is torn down.
+`module_stop` no longer force-terminates. **Both parts of this fix were wrong (round 11d).**
+
+**Round 11d (2026-10-26, log attached) - real root cause VERIFIED:** the 11c build still powered off
+on quit, and its overlay was invisible. The log shows the power-off is **independent of drawing** -
+the 11c build drew nothing (`PocketwatchPerf 0%` CPU) yet still powered off - so it is not a
+framebuffer write. Cause: the overlay **thread** paced on `sceDisplayWaitVblankStart` (a display
+driver call) and is the only Pocketwatch thread that blocks in a driver. On quit the kernel unloads
+the module, but the thread is stuck in the display driver as it is torn down for the reboot, so it
+**outlives `module_stop`** - a thread in unloaded memory faults the reboot (`plugin/src/core/main.c`:
+"no thread of ours may outlive this function"). That is why the `module_stop` edits changed nothing.
+And `sceDisplayGetFrameBufferInternal` returned no usable address here, which is why the 11c gate hid
+the overlay. **Fixed (ADR-053, corrected):** the thread paces on `sceKernelDelayThread` (~15 ms) and
+re-checks `g_run` - never blocked in a driver, so `module_stop` ends it within a frame; the
+displayed-buffer gate is removed (overlay writes every tracked VRAM buffer again). Deployed
+(`pocketwatch_perf.prx` 15898 bytes). RemoteJoyLite removed from the card at the owner's request.
+
+**Next device test (PF-FREEZE):** `Overlay in Games` is on (Full). Launch a game - the FPS pill shows
+in the game; HOME - the hub opens, no pill over it, no freeze; **Quit Game - the XMB comes up** (no
+black screen/power-off); send `pocketwatch.log`.
+
+## 2026-10-27: the UI round (owner: "the look, what is missing, artefacts, and the player")
+
+From the card's `home.log` ([log](research/logs/2026-10-27-home-round12.log), builds up to
+`60171bf`, the owner's Modern / Glass / Aurora) and previews of every screen: the player's keys did not match what it drew (ADR-054); text placed by offsets
+tuned to the previews' font, rows of lists and grids under the hints, a photo's name under its
+buttons, cramped two-line rows, a see-through HOME panel (ADR-055); 90-120 ms first frames, a
+1.9 s game page and 95-116 ms settings frames, all waiting for the Memory Stick (ADR-055); and
+the system's pictures refused to Home (0x8001000D) - now read through the kernel (ADR-056).
+The same log, VERIFIED on the device: the battery's calibration ran
+to the end (`measured 1849 mAh in 33601 s (100% to 1%)`, HM30); USB from Home connected every time
+(`start bus 0 (ours)`, HM32); a track starts in 37-64 ms (HM24); a 1200 x 1200 tag cover takes
+1.2-1.4 s to decode on the loader (slow to appear, no stall - backlog). Verified on the host (146 tests, previews of every screen) and in PPSSPP (the GE path: music,
+the player, settings, 59-60 fps); not yet on the PSP: HM35-HM37. Home builds with this
+machine's older PSPSDK as with the laptop's newer one (`union SceNetApctlInfo`).
+
 ## Next actions (in order)
 
+0. **Owner (2026-10-27, the UI round on the card):** HM35 (the player), HM36 (lists, text, the
+   settings' speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`,
+   `slow:`). Then PF-FREEZE above if not done.
+   **Before (round 10, build with ADR-049):** boot the console a few times - it must always reach
+   Home (the module can no longer touch boot). Then, to try the in-game overlay safely: Settings →
+   Pocketwatch → Overlay in Games → Full, start ONE game, check it, Quit. bright3 stays off; for XMB
+   brightness the owner can re-enable bright3 (its own plugin). **Earlier (still open):** PF4 (Own Steps in Home and a game), PF1 and PF3 (the overlay and the
+   indicator in a game), HM33 (Wi-Fi: make the connection), HM32 (USB, now with the new Home);
+   send `home.log`. **Before (round 8):** deploy, then **turn the PSP off from Home's USB screen** (the old Home's
+   exit from USB would undo the deploy once more); HM32 (USB), HM33 (Wi-Fi: make the home network's
+   connection), HM29 again (the internet's time), HM34 and PF3 (the indicator, the boost), PF1
+   (the numbers in games), HM30 (the calibration's screen), PF2; send `home.log`,
+   `pocketwatch.log`. **Before (round 7):** deploy (`scripts\deploy.cmd`), then HM29 (the clock: the first start
+   should fix the 2011 date), HM31 and PF1 (the overlays; overlay off again before state tests),
+   HM30 (a calibration run, hours), PF2; and HM25 again (ADR-040) with `home.log`; HM24, HM27, HM28.
+   **Before that (round 6):**
+   **owner:** HM24, HM25, HM27, HM28 (ADR-039) with `home.log`; name the games that open the
+   PSP's keyboard (for G1 of [m7-game-keyboard](research/m7-game-keyboard.md), and choose its
+   option A / B / C). Then:
+   **Owner (2026-10-20, build `cee6786` on the card, ADR-034..038):** HM12 (USB from Home with
+   RemoteJoyLite on), HM22 (the settings' categories and pages, the themes, accents and
+   backgrounds), HM23 (a game's Saved Data and Save States - delete only a copy), HM24 (music:
+   tags, covers, seeking, repeat and shuffle), HM25 (albums, the editor), HM26 (HOLD, the sleep
+   timer, the clock, favourites, the Aurora), H18 (HOME → Screenshot), then H17, HM20-HM21 and
+   HM11, HM13-HM19; send `home.log` (its `home art:` line names every flash0 read) and
+   `pocketwatch.log`. Then the list below.
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
 2. **Dev, meanwhile:** M7 XMB side: research the 6.61 XMB's △ menu (call sites, how xmbctrl

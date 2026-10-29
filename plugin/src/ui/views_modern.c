@@ -58,12 +58,6 @@ static void text_center(pw_canvas *c, pw_font *f, int cx, int y, const char *s, 
     pw_text_draw_fit(c, f, cx - w / 2, y, s, max, color, alpha, 0);
 }
 
-static void text_right(pw_canvas *c, pw_font *f, int x1, int y, const char *s, unsigned int color,
-                       int alpha)
-{
-    pw_text_draw(c, f, x1 - pw_text_width(f, s), y, s, color, alpha, 0);
-}
-
 void pw_modern_hints(pw_canvas *c, const pw_ui *ui, const char *enter_label, const char *back_label,
                      int alpha)
 {
@@ -257,60 +251,6 @@ void pw_modern_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const c
         pw_view_button(c, ui, PW_BTN_TRIANGLE, 22, 260, 256);
         pw_text_draw(c, ui->body, 32, 264, pw_tr(PW_S_DELETE), C_SUB, 256, 0);
     }
-}
-
-/* Settings: one card of rows, the chosen row lit; on/off values are switches. */
-#define CARD_X 64
-#define CARD_W 352
-#define ROW_H  40
-#define CARD_Y 64
-
-static void toggle(pw_canvas *c, int x, int y, int on)
-{
-    rrect(c, x, y, 36, 20, 10, on ? C_ON : C_KNOB, 256);
-    pw_shape_disc(c, PW_FX(on ? x + 26 : x + 10), PW_FX(y + 10), PW_FX(8), C_TEXT, 256);
-}
-
-void pw_modern_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
-                        const pw_setting_row *rows, int count, int sel, const char *const *options,
-                        int n_options, int opt_sel, int opt_appear)
-{
-    int editing = opt_sel >= 0 && options && n_options > 0;
-
-    pw_icon_draw(c, PW_ICON_GEAR, 32, 30, 22, C_TEXT, 256);
-    if (cat->label)
-        pw_text_draw_fit(c, ui->title, 50, 36, cat->label, 300, C_TEXT, 256, 0);
-    rrect(c, CARD_X, CARD_Y, CARD_W, count * ROW_H + 8, 14, C_CARD, 215);
-    for (int i = 0; i < count; i++) {
-        int y = CARD_Y + 4 + i * ROW_H;
-
-        if (i == sel)
-            rrect(c, CARD_X + 6, y + 2, CARD_W - 12, ROW_H - 4, 9, C_TEXT, 34);
-        pw_text_draw_fit(c, ui->title, CARD_X + 18, y + 25, rows[i].label, CARD_W - 140, C_TEXT,
-                         i == sel ? 256 : 200, 0);
-        if (rows[i].toggle >= 0)
-            toggle(c, CARD_X + CARD_W - 54, y + 10, rows[i].toggle);
-        else if (rows[i].value)
-            text_right(c, ui->body, CARD_X + CARD_W - 18, y + 24, rows[i].value, C_SUB, 256);
-    }
-    if (editing) { /* the choices on their own card, centred on the chosen one */
-        int show = n_options < 7 ? n_options : 7,
-            first = clampi(opt_sel - show / 2, 0, n_options - show);
-        int a = clampi(opt_appear, 0, 256), h = show * 28 + 12;
-        int y = SCREEN_H / 2 - h / 2 - 8 + (256 - a) * 12 / 256;
-
-        pw_draw_blend(c, 0, 0, SCREEN_W, SCREEN_H, PW_RGB(0, 0, 0), 80 * a / 256);
-        rrect(c, 140, y, 200, h, 14, C_CARD, 245 * a / 256);
-        for (int k = first; k < first + show; k++) {
-            int ry = y + 6 + (k - first) * 28;
-
-            if (k == opt_sel)
-                rrect(c, 146, ry, 188, 28, 9, C_TEXT, a);
-            text_center(c, ui->title, SCREEN_W / 2, ry + 19, options[k], 176,
-                        k == opt_sel ? C_INK : C_TEXT, a);
-        }
-    }
-    pw_modern_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
 }
 
 /* A pill on the right edge, filled from the bottom, that swells a little at each change. */

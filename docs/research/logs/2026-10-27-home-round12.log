@@ -1,0 +1,351 @@
+# home.log from the owner's PSP-3000, copied 2026-10-27 (builds up to 60171bf, Modern / Glass /
+# Aurora; the night's battery calibration). Steady 60 fps lines collapsed, every other line as written.
+home leaving: 1335 frames in 29664 ms (45 fps), CPU 4823 us + GE 12652 us a frame, longest frame 2736 ms
+home running: 1425 frames in 30009 ms (47 fps), CPU 4436 us + GE 11843 us a frame, longest frame 2719 ms
+home running: 1429 frames in 30014 ms (47 fps), CPU 4480 us + GE 10919 us a frame, longest frame 2719 ms
+home before a game: 511 frames in 10310 ms (49 fps), CPU 2668 us + GE 11254 us a frame, longest frame 117 ms
+home leaving: 192 frames in 3872 ms (49 fps), CPU 2892 us + GE 13273 us a frame, longest frame 115 ms
+home running: 964 frames in 30331 ms (31 fps), 44 late; a frame: CPU 15442 us, warm 971 us, GE wait 7118 us; longest 2819 ms; stamps 112 made, 112 kept (239 KB); heap 3193 of 3356 KB, outside 4096 KB
+home running: 948 frames in 30003 ms (31 fps), 35 late; a frame: CPU 12995 us, warm 1032 us, GE wait 8472 us; longest 2987 ms; stamps 23 made, 135 kept (283 KB); heap 3238 of 3368 KB, outside 4096 KB
+home running: 222 frames in 30002 ms (7 fps), 81 late; a frame: CPU 120599 us, warm 1117 us, GE wait 4130 us; longest 417 ms; stamps 23 made, 158 kept (362 KB); heap 4685 of 4936 KB, outside 4096 KB
+home running: 1109 frames in 30013 ms (36 fps), 60 late; a frame: CPU 11711 us, warm 1163 us, GE wait 419 us; longest 350 ms; stamps 32 made, 190 kept (420 KB); heap 3871 of 3876 KB, outside 4096 KB
+home running: 934 frames in 30150 ms (30 fps), 67 late; a frame: CPU 17344 us, warm 1338 us, GE wait 764 us; longest 634 ms; stamps 17 made, 207 kept (451 KB); heap 4413 of 5344 KB, outside 4096 KB
+home running: 167 frames in 30153 ms (5 fps), 82 late; a frame: CPU 169140 us, warm 1256 us, GE wait 1312 us; longest 467 ms; stamps 12 made, 219 kept (476 KB); heap 3928 of 3932 KB, outside 4080 KB
+home running: 743 frames in 30016 ms (24 fps), 74 late; a frame: CPU 25096 us, warm 1299 us, GE wait 5605 us; longest 401 ms; stamps 24 made, 243 kept (530 KB); heap 3937 of 4008 KB, outside 4080 KB
+home before a game: 600 frames in 25160 ms (23 fps), 40 late; a frame: CPU 26425 us, warm 998 us, GE wait 3658 us; longest 2736 ms; stamps 124 made, 124 kept (275 KB); heap 3365 of 3516 KB, outside 4096 KB
+home running: 997 frames in 30021 ms (33 fps), 30 late; a frame: CPU 14321 us, warm 873 us, GE wait 5220 us; longest 2586 ms; stamps 87 made, 87 kept (174 KB); heap 2813 of 3060 KB, outside 4096 KB
+home running: 937 frames in 30003 ms (31 fps), 31 late; a frame: CPU 16329 us, warm 928 us, GE wait 5396 us; longest 2586 ms; stamps 108 made, 108 kept (216 KB); heap 2507 of 3012 KB, outside 4096 KB
+home leaving: 661 frames in 19153 ms (34 fps), 20 late; a frame: CPU 13343 us, warm 934 us, GE wait 5461 us; longest 1218 ms; stamps 7 made, 115 kept (232 KB); heap 2872 of 3060 KB, outside 4096 KB
+home reads: first settings rows 209294 us, system rows 51 us; battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34850 us
+home running: 1780 frames in 30006 ms (59 fps), 2 late; a frame: CPU 976 us, warm 965 us, GE wait 3734 us; longest 337 ms; rows 209345 us; stamps 123 made, 123 kept (265 KB); heap 3400 of 3491 KB, outside 4096 KB
+home before a game: 1784 frames in 29870 ms (59 fps), 5 late; a frame: CPU 842 us, warm 1100 us, GE wait 3959 us; longest 50 ms; rows 603 us; stamps 76 made, 199 kept (540 KB); heap 4446 of 4487 KB, outside 4096 KB
+home reads: first settings rows 208868 us, system rows 53 us; battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34877 us
+home before a game: 941 frames in 16005 ms (58 fps), 2 late; a frame: CPU 1125 us, warm 1001 us, GE wait 5823 us; longest 334 ms; rows 208921 us; stamps 119 made, 119 kept (309 KB); heap 4183 of 5079 KB, outside 4096 KB
+home reads: first settings rows 208697 us, system rows 53 us; battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34880 us
+home running: 1780 frames in 30003 ms (59 fps), 2 late; a frame: CPU 957 us, warm 910 us, GE wait 5313 us; longest 335 ms; rows 208750 us; stamps 86 made, 86 kept (172 KB); heap 2811 of 3099 KB, outside 4096 KB
+[archive: 2 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home leaving: 124 frames in 2064 ms (60 fps), 0 late; a frame: CPU 1068 us, warm 1009 us, GE wait 4654 us; longest 17 ms; rows 522 us; stamps 0 made, 117 kept (238 KB); heap 2878 of 3099 KB, outside 4096 KB
+home art: 5 system picture(s), sky 0 (theme colour 1) not found, 60 ms
+home reads: first settings rows 290356 us, system rows 51 us; battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 33884 us
+home running: 1734 frames in 30001 ms (57 fps), 52 late; a frame: CPU 1255 us, warm 930 us, GE wait 4170 us; longest 83 ms; rows 752 us; stamps 194 made, 194 kept (505 KB); heap 3812 of 3912 KB, outside 4096 KB
+home running: 1791 frames in 30006 ms (59 fps), 5 late; a frame: CPU 1463 us, warm 1946 us, GE wait 1803 us; longest 100 ms; rows 754 us; stamps 114 made, 256 kept (751 KB); heap 4375 of 4420 KB, outside 4096 KB
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home browser http://frogfind.com/: 0x8002013A, switch=0 free_kb=4096 modules_free_kb=3200 init=0x8002013A step=0
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home running: 2341 frames in 40894 ms (57 fps), 8 late; a frame: CPU 2439 us, warm 1067 us, GE wait 143 us; longest 917 ms; rows 757 us; stamps 146 made, 91 kept (221 KB); heap 2337 of 3976 KB, outside 4096 KB
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+home usb: modules semawm 421D439 usbstor 4219A57 usbstormgr 4217575 usbstorms 4214213 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001, storage 80243006; activate 1;; 0 again by hand
+[archive: 1 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1797 frames in 30016 ms (59 fps), 1 late; a frame: CPU 1947 us, warm 1140 us, GE wait 279 us; longest 67 ms; rows 2708 us; stamps 90 made, 183 kept (419 KB); heap 3727 of 3976 KB, outside 4080 KB
+home running: 1789 frames in 30015 ms (59 fps), 7 late; a frame: CPU 2106 us, warm 1476 us, GE wait 2792 us; longest 66 ms; rows 988 us; stamps 67 made, 250 kept (614 KB); heap 4327 of 4368 KB, outside 4080 KB
+[archive: 2 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1785 frames in 30003 ms (59 fps), 15 late; a frame: CPU 1899 us, warm 1345 us, GE wait 4509 us; longest 34 ms; rows 792 us; stamps 4 made, 256 kept (626 KB); heap 4340 of 4368 KB, outside 4080 KB
+[archive: 5 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1681 frames in 30003 ms (56 fps), 38 late; a frame: CPU 2706 us, warm 1676 us, GE wait 299 us; longest 84 ms; rows 752 us; stamps 16 made, 256 kept (626 KB); heap 4849 of 5300 KB, outside 4080 KB
+home running: 1408 frames in 79484 ms (17 fps), 19 late; a frame: CPU 1623 us, warm 1507 us, GE wait 6311 us; longest 52654 ms; rows 775 us; stamps 38 made, 256 kept (669 KB); heap 4562 of 4928 KB, outside 4080 KB
+home leaving: 186 frames in 3107 ms (59 fps), 1 late; a frame: CPU 1953 us, warm 1777 us, GE wait 5684 us; longest 21 ms; rows 747 us; stamps 11 made, 256 kept (668 KB); heap 4561 of 4928 KB, outside 4080 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 96 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home reads: battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 35594 us
+home running: 1540 frames in 30002 ms (51 fps), 11 late; a frame: CPU 4488 us, warm 688 us, GE wait 1116 us; longest 1167 ms; rows 509 us; stamps 146 made, 146 kept (316 KB); heap 8764 of 13213 KB, outside 4080 KB
+home running: 1780 frames in 30003 ms (59 fps), 5 late; a frame: CPU 2001 us, warm 541 us, GE wait 2434 us; longest 133 ms; rows 279 us; stamps 112 made, 256 kept (541 KB); heap 3590 of 3757 KB, outside 4080 KB
+[archive: 47 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1798 frames in 30020 ms (59 fps), 3 late; a frame: CPU 2549 us, warm 379 us, GE wait 25 us; longest 34 ms; rows 89 us; stamps 0 made, 256 kept (519 KB); heap 3569 of 3757 KB, outside 4080 KB
+home running: 1705 frames in 30010 ms (56 fps), 25 late; a frame: CPU 2934 us, warm 619 us, GE wait 375 us; longest 267 ms; rows 271 us; stamps 49 made, 256 kept (495 KB); heap 3544 of 3757 KB, outside 4080 KB
+home running: 1704 frames in 30000 ms (56 fps), 18 late; a frame: CPU 2763 us, warm 678 us, GE wait 1003 us; longest 884 ms; rows 236 us; stamps 7 made, 256 kept (488 KB); heap 3537 of 3757 KB, outside 4080 KB
+home usb: modules semawm 4203F37 usbstor 4201555 usbstormgr 41FF473 usbstorms 3DC8911 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 211 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 4203F37 usbstor 4201555 usbstormgr 41FF473 usbstorms 3DC8911 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 211 (other device off 0), storage 0 after 1 tries; activate 0; 111 at 0 ms 211 at 250 ms 221 at 7257 ms 121 at 11811 ms 221 at 12012 ms 222 at 17267 ms; 1 again by hand
+home running: 2842 frames in 48054 ms (59 fps), 16 late; a frame: CPU 3050 us, warm 541 us, GE wait 124 us; longest 200 ms; rows 147 us; stamps 20 made, 256 kept (471 KB); heap 3265 of 4653 KB, outside 4080 KB
+home running: 1514 frames in 30000 ms (50 fps), 17 late; a frame: CPU 2654 us, warm 601 us, GE wait 43 us; longest 3870 ms; rows 232 us; stamps 203 made, 256 kept (574 KB); heap 3488 of 3741 KB, outside 4080 KB
+home running: 1645 frames in 30000 ms (54 fps), 19 late; a frame: CPU 3218 us, warm 700 us, GE wait 2776 us; longest 500 ms; rows 223 us; stamps 90 made, 256 kept (583 KB); heap 3632 of 3901 KB, outside 4080 KB
+home before a game: 450 frames in 7642 ms (58 fps), 3 late; a frame: CPU 1955 us, warm 719 us, GE wait 4149 us; longest 100 ms; rows 166 us; stamps 8 made, 256 kept (587 KB); heap 3726 of 3985 KB, outside 4080 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 96 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home reads: battery: percent 6 us, life time 5 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 35647 us
+home running: 1675 frames in 30013 ms (55 fps), 111 late; a frame: CPU 1111 us, warm 361 us, GE wait 12070 us; longest 144 ms; rows 224 us; stamps 95 made, 95 kept (215 KB); heap 4073 of 4101 KB, outside 4096 KB
+home running: 1471 frames in 30004 ms (49 fps), 308 late; a frame: CPU 727 us, warm 365 us, GE wait 9188 us; longest 50 ms; rows 128 us; stamps 6 made, 101 kept (228 KB); heap 4086 of 4101 KB, outside 4096 KB
+home running: 1711 frames in 30000 ms (57 fps), 26 late; a frame: CPU 1518 us, warm 362 us, GE wait 904 us; longest 100 ms; rows 196 us; stamps 43 made, 144 kept (299 KB); heap 4158 of 4257 KB, outside 4096 KB
+home running: 1795 frames in 30015 ms (59 fps), 2 late; a frame: CPU 1288 us, warm 528 us, GE wait 417 us; longest 67 ms; rows 313 us; stamps 42 made, 186 kept (370 KB); heap 3438 of 4257 KB, outside 4080 KB
+home running: 1471 frames in 30000 ms (49 fps), 8 late; a frame: CPU 5798 us, warm 914 us, GE wait 288 us; longest 1651 ms; rows 1036 us; stamps 40 made, 226 kept (469 KB); heap 4073 of 5153 KB, outside 4080 KB
+home running: 1794 frames in 30014 ms (59 fps), 6 late; a frame: CPU 1491 us, warm 488 us, GE wait 6794 us; longest 34 ms; rows 191 us; stamps 5 made, 231 kept (480 KB); heap 3574 of 4257 KB, outside 4080 KB
+home running: 1778 frames in 30000 ms (59 fps), 19 late; a frame: CPU 1627 us, warm 421 us, GE wait 6545 us; longest 66 ms; rows 231 us; stamps 32 made, 256 kept (533 KB); heap 3852 of 4257 KB, outside 4080 KB
+home running: 547 frames in 40077 ms (13 fps), 2 late; a frame: CPU 2258 us, warm 415 us, GE wait 648 us; longest 30914 ms; rows 236 us; stamps 9 made, 256 kept (524 KB); heap 3844 of 4257 KB, outside 4080 KB
+home running: 1748 frames in 30014 ms (58 fps), 21 late; a frame: CPU 1869 us, warm 649 us, GE wait 4139 us; longest 267 ms; rows 233 us; stamps 88 made, 256 kept (679 KB); heap 4538 of 4613 KB, outside 4080 KB
+home usb: modules semawm 4205951 usbstor 420266F usbstormgr 420000D usbstorms 443802B usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 4205951 usbstor 420266F usbstormgr 420000D usbstorms 443802B usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 0; 121 at 0 ms 221 at 250 ms 121 at 3737 ms 221 at 3854 ms 222 at 4354 ms 224 at 107207 ms 211 at 107457 ms; 1 again by hand
+[archive: 1 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 95 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 2 us, cycles 34315 us
+home running: 1791 frames in 30009 ms (59 fps), 3 late; a frame: CPU 1496 us, warm 489 us, GE wait 3594 us; longest 127 ms; rows 237 us; stamps 143 made, 143 kept (335 KB); heap 3898 of 4430 KB, outside 4096 KB
+home running: 1769 frames in 30004 ms (58 fps), 24 late; a frame: CPU 1432 us, warm 439 us, GE wait 6330 us; longest 100 ms; rows 149 us; stamps 35 made, 178 kept (405 KB); heap 3459 of 3582 KB, outside 4096 KB
+home running: 1777 frames in 30002 ms (59 fps), 17 late; a frame: CPU 1932 us, warm 706 us, GE wait 444 us; longest 117 ms; rows 234 us; stamps 25 made, 203 kept (452 KB); heap 3506 of 3582 KB, outside 4096 KB
+home running: 1751 frames in 30015 ms (58 fps), 15 late; a frame: CPU 3634 us, warm 640 us, GE wait 1707 us; longest 500 ms; rows 237 us; stamps 147 made, 256 kept (471 KB); heap 3751 of 3886 KB, outside 4096 KB
+home running: 1725 frames in 30003 ms (57 fps), 32 late; a frame: CPU 2741 us, warm 696 us, GE wait 159 us; longest 150 ms; rows 36318 us; stamps 212 made, 256 kept (566 KB); heap 3846 of 3890 KB, outside 4096 KB
+home before a game: 357 frames in 5941 ms (60 fps), 0 late; a frame: CPU 1816 us, warm 1164 us, GE wait 3031 us; longest 18 ms; rows 210 us; stamps 36 made, 256 kept (588 KB); heap 3868 of 3910 KB, outside 4096 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 98 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 1 us, remaining 2 us, full 1 us, cycles 33162 us
+home running: 1789 frames in 30002 ms (59 fps), 5 late; a frame: CPU 1275 us, warm 448 us, GE wait 6474 us; longest 122 ms; rows 246 us; stamps 126 made, 126 kept (307 KB); heap 3495 of 3514 KB, outside 4096 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 95 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34350 us
+home running: 1747 frames in 30012 ms (58 fps), 7 late; a frame: CPU 1733 us, warm 601 us, GE wait 854 us; longest 534 ms; rows 285 us; stamps 228 made, 228 kept (540 KB); heap 3549 of 3646 KB, outside 4096 KB
+home running: 1785 frames in 30006 ms (59 fps), 8 late; a frame: CPU 1266 us, warm 689 us, GE wait 2184 us; longest 133 ms; rows 239 us; stamps 198 made, 256 kept (1097 KB); heap 4577 of 4726 KB, outside 4096 KB
+home browser http://frogfind.com/: 0x8002013A, switch=0 free_kb=4096 modules_free_kb=3200 init=0x8002013A step=0
+home browser http://frogfind.com/: 0x8002013A, switch=0x8002013A free_kb=4096 modules_free_kb=3200 init=0x8002013A step=0
+home running: 1718 frames in 30015 ms (57 fps), 8 late; a frame: CPU 2027 us, warm 687 us, GE wait 2025 us; longest 593 ms; rows 240 us; stamps 268 made, 67 kept (122 KB); heap 3561 of 4134 KB, outside 4096 KB
+home running: 1784 frames in 30000 ms (59 fps), 9 late; a frame: CPU 1566 us, warm 471 us, GE wait 1728 us; longest 117 ms; rows 862 us; stamps 128 made, 195 kept (491 KB); heap 3815 of 4134 KB, outside 4096 KB
+home running: 1660 frames in 30000 ms (55 fps), 16 late; a frame: CPU 3114 us, warm 809 us, GE wait 1201 us; longest 717 ms; rows 239 us; stamps 39 made, 234 kept (561 KB); heap 4156 of 4178 KB, outside 4096 KB
+home running: 1729 frames in 30012 ms (57 fps), 23 late; a frame: CPU 2595 us, warm 788 us, GE wait 1041 us; longest 250 ms; rows 239 us; stamps 26 made, 256 kept (596 KB); heap 4191 of 4202 KB, outside 4096 KB
+home running: 1782 frames in 30015 ms (59 fps), 14 late; a frame: CPU 1689 us, warm 671 us, GE wait 2300 us; longest 83 ms; rows 808 us; stamps 102 made, 256 kept (699 KB); heap 4564 of 4638 KB, outside 4096 KB
+home usb: modules semawm 421F759 usbstor 4213477 usbstormgr 420FC15 usbstorms 420C433 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 211 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 421F759 usbstor 4213477 usbstormgr 420FC15 usbstorms 420C433 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 211 (other device off 0), storage 0 after 1 tries; activate 0; 111 at 0 ms 211 at 250 ms; 0 again by hand
+home before a game: 896 frames in 16521 ms (54 fps), 23 late; a frame: CPU 2909 us, warm 771 us, GE wait 6133 us; longest 1035 ms; rows 238 us; stamps 29 made, 256 kept (712 KB); heap 3767 of 4586 KB, outside 4096 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 60 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm 422130D usbstor 421242B usbstormgr 420FF49 usbstorms 420CC67 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 422130D usbstor 421242B usbstormgr 420FF49 usbstorms 420CC67 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 0; 121 at 0 ms 221 at 251 ms 222 at 751 ms 224 at 2352350 ms 211 at 2352851 ms; 0 again by hand
+home reads: battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 34431 us
+home running: 142332 frames in 2375668 ms (59 fps), 20 late; a frame: CPU 2025 us, warm 523 us, GE wait 1891 us; longest 251 ms; rows 36449 us; stamps 199 made, 199 kept (377 KB); heap 3086 of 4194 KB, outside 4096 KB
+home running: 1769 frames in 30004 ms (58 fps), 8 late; a frame: CPU 1508 us, warm 632 us, GE wait 4162 us; longest 250 ms; rows 141 us; stamps 23 made, 222 kept (412 KB); heap 3152 of 3286 KB, outside 4096 KB
+home usb: modules semawm 422130D usbstor 421242B usbstormgr 420FF49 usbstorms 420CC67 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 422130D usbstor 421242B usbstormgr 420FF49 usbstorms 420CC67 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 0; 121 at 0 ms 221 at 250 ms 222 at 501 ms 224 at 375876 ms 222 at 4292868773 ms; 0 again by hand
+[archive: 1 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home clock: lost (0x00000000, 1295231352 s); the card's newest time 1792512064 s of 13 files
+home clock: set to 1792512064 s: 0x00000000, reads 1792512064 s
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 7 us, life time 2 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 22358 us
+home running: 1792 frames in 30006 ms (59 fps), 2 late; a frame: CPU 1134 us, warm 530 us, GE wait 6903 us; longest 123 ms; rows 122 us; stamps 70 made, 70 kept (177 KB); heap 2914 of 3059 KB, outside 4096 KB; slow: [110 ms p0 keys 91 rows 0 state 0 draw 7 warm 4 ge 0 st 5]
+home running: 1719 frames in 30003 ms (57 fps), 61 late; a frame: CPU 1759 us, warm 451 us, GE wait 10184 us; longest 51 ms; rows 191 us; stamps 53 made, 123 kept (287 KB); heap 3339 of 3343 KB, outside 4096 KB
+home browser http://frogfind.com/: 0x8002013A, switch=0 free_kb=4096 modules_free_kb=3200 init=0x8002013A step=0
+home running: 1748 frames in 30000 ms (58 fps), 7 late; a frame: CPU 1846 us, warm 658 us, GE wait 1102 us; longest 581 ms; rows 157 us; stamps 153 made, 60 kept (112 KB); heap 3146 of 3331 KB, outside 4096 KB; slow: [100 ms p12 keys 72 rows 0 state 0 draw 7 warm 4 ge 0 st 17]
+home before a game: 965 frames in 16820 ms (57 fps), 39 late; a frame: CPU 1431 us, warm 746 us, GE wait 5468 us; longest 83 ms; rows 244 us; stamps 126 made, 186 kept (482 KB); heap 4301 of 4335 KB, outside 4096 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34782 us
+home before a game: 1337 frames in 22472 ms (59 fps), 5 late; a frame: CPU 1789 us, warm 543 us, GE wait 3079 us; longest 130 ms; rows 243 us; stamps 159 made, 159 kept (463 KB); heap 3336 of 3419 KB, outside 4096 KB; slow: [116 ms p0 keys 91 rows 0 state 0 draw 5 warm 4 ge 0 st 3]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 60 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 7 us, life time 2 us, volt 2 us, temp 1 us, remaining 2 us, full 1 us, cycles 34462 us
+home before a game: 791 frames in 13517 ms (58 fps), 9 late; a frame: CPU 2269 us, warm 582 us, GE wait 3336 us; longest 122 ms; rows 245 us; stamps 166 made, 166 kept (524 KB); heap 3352 of 3635 KB, outside 4096 KB; slow: [104 ms p0 keys 91 rows 0 state 0 draw 5 warm 4 ge 0 st 3]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 7 us, life time 2 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 34397 us
+home running: 1793 frames in 30016 ms (59 fps), 2 late; a frame: CPU 1293 us, warm 538 us, GE wait 8110 us; longest 122 ms; rows 163 us; stamps 106 made, 106 kept (465 KB); heap 3202 of 3231 KB, outside 4096 KB; slow: [103 ms p0 keys 91 rows 0 state 0 draw 5 warm 4 ge 0 st 3]
+[archive: 23 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home before a game: 1624 frames in 27080 ms (59 fps), 0 late; a frame: CPU 1216 us, warm 530 us, GE wait 7755 us; longest 20 ms; rows 113 us; stamps 1 made, 256 kept (1605 KB); heap 4345 of 4455 KB, outside 4096 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 60 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm 421B745 usbstor 4215063 usbstormgr 4223301 usbstorms 4220E1F usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 421B745 usbstor 4215063 usbstormgr 4223301 usbstorms 4220E1F usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 0; 121 at 0 ms 221 at 250 ms 222 at 501 ms; 0 again by hand
+home reads: battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 1 us, cycles 34284 us
+home running: 5534 frames in 92637 ms (59 fps), 3 late; a frame: CPU 1764 us, warm 632 us, GE wait 8447 us; longest 217 ms; rows 161 us; stamps 196 made, 196 kept (1064 KB); heap 3772 of 5063 KB, outside 4096 KB; slow: [111 ms p0 keys 91 rows 0 state 0 draw 5 warm 4 ge 0 st 3] [217 ms p0 keys 188 rows 0 state 0 draw 4 warm 0 ge 7 st 6] [1068 ms p0 keys 1043 rows 0 state 0 draw 1 warm 0 ge 8 st 0]
+home clock: from the internet -2: switch=0
+home clock: from the internet -2: switch=0
+home running: 1773 frames in 30004 ms (59 fps), 12 late; a frame: CPU 2320 us, warm 630 us, GE wait 2012 us; longest 83 ms; rows 71326 us; stamps 138 made, 256 kept (1033 KB); heap 3818 of 4299 KB, outside 4096 KB
+home clock: from the internet -3: switch=1 profile=0
+home clock: from the internet -3: switch=1 profile=0
+home clock: from the internet -3: switch=1 profile=0
+home clock: from the internet -3: switch=1 profile=0
+home browser http://frogfind.com/: 0x8002013A, switch=0 free_kb=4096 modules_free_kb=3200 init=0x8002013A step=0
+home running: 1457 frames in 30002 ms (48 fps), 302 late; a frame: CPU 2029 us, warm 536 us, GE wait 5660 us; longest 594 ms; rows 144 us; stamps 149 made, 117 kept (396 KB); heap 3438 of 3959 KB, outside 4096 KB
+home running: 901 frames in 30016 ms (30 fps), 899 late; a frame: CPU 2052 us, warm 488 us, GE wait 14195 us; longest 34 ms; rows 134 us; stamps 33 made, 150 kept (663 KB); heap 3705 of 3959 KB, outside 4096 KB
+home running: 903 frames in 30017 ms (30 fps), 897 late; a frame: CPU 2078 us, warm 504 us, GE wait 14155 us; longest 34 ms; rows 134 us; stamps 38 made, 188 kept (953 KB); heap 3996 of 4047 KB, outside 4096 KB
+home usb: modules semawm 421B745 usbstor 4215063 usbstormgr 4223301 usbstorms 4220E1F usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home usb: modules semawm 421B745 usbstor 4215063 usbstormgr 4223301 usbstorms 4220E1F usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 0; 121 at 0 ms 221 at 267 ms 222 at 534 ms 224 at 626492 ms 222 at 1057323 ms 224 at 1090690 ms 222 at 1440639 ms 222 at 1811516 ms; 0 again by hand
+home running: 253725 frames in 4294843325 ms (0 fps), 253723 late; a frame: CPU 2728 us, warm 605 us, GE wait 14192 us; longest 4290672363 ms; rows 361 us; stamps 839 made, 256 kept (1187 KB); heap 4326 of 5403 KB, outside 4096 KB; slow: [100 ms p8 keys 68 rows 0 state 0 draw 5 warm 0 ge 13 st 6] [4290672363 ms p8 keys 0 rows 0 state 0 draw 2 warm 0 ge 14 st 0] [4290672362 ms p8 keys 0 rows 0 state 0 draw 2 warm 0 ge 13 st 0] [1067 ms p8 keys 1040 rows 0 state 0 draw 3 warm 4 ge 6 st 4]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home net: search 0: switch=1 common=0 inet_mod=0 scan_state=0 seen=2
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 35330 us
+home running: 1781 frames in 30014 ms (59 fps), 9 late; a frame: CPU 2060 us, warm 523 us, GE wait 2367 us; longest 128 ms; rows 254 us; stamps 191 made, 191 kept (529 KB); heap 3268 of 3275 KB, outside 4096 KB; slow: [117 ms p0 keys 92 rows 0 state 0 draw 17 warm 3 ge 0 st 24]
+home running: 1747 frames in 30006 ms (58 fps), 17 late; a frame: CPU 2662 us, warm 645 us, GE wait 1073 us; longest 84 ms; rows 895 us; stamps 32 made, 223 kept (589 KB); heap 3328 of 3331 KB, outside 4096 KB
+home running: 1732 frames in 30002 ms (57 fps), 17 late; a frame: CPU 2656 us, warm 747 us, GE wait 930 us; longest 84 ms; rows 892 us; stamps 13 made, 236 kept (607 KB); heap 3346 of 3351 KB, outside 4096 KB
+[archive: 1 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home before a game: 260 frames in 4408 ms (58 fps), 1 late; a frame: CPU 2218 us, warm 701 us, GE wait 4828 us; longest 100 ms; rows 212 us; stamps 42 made, 256 kept (621 KB); heap 3406 of 3547 KB, outside 4096 KB; slow: [100 ms p1 keys 71 rows 0 state 0 draw 10 warm 0 ge 4 st 11]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 60 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 9 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 35586 us
+home before a game: 917 frames in 15577 ms (58 fps), 12 late; a frame: CPU 1956 us, warm 674 us, GE wait 5179 us; longest 123 ms; rows 226 us; stamps 173 made, 173 kept (568 KB); heap 3666 of 3671 KB, outside 4096 KB; slow: [111 ms p0 keys 92 rows 0 state 0 draw 5 warm 4 ge 0 st 3]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home browser http://frogfind.com/: 0x800200D9, switch=0 free_kb=4096 modules_free_kb=3200 pool_mb=10 start=0x800200D9
+home usb: modules semawm 4213E53 usbstor 4211D71 usbstormgr 420FC0F usbstorms 3DD852D usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand; cache dropped 1
+home usb: modules semawm 4213E53 usbstor 4211D71 usbstormgr 420FC0F usbstorms 3DD852D usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 0; 121 at 0 ms 221 at 251 ms 222 at 501 ms; 0 again by hand; cache dropped 800200D1
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34793 us
+home running: 227825 frames in 3801873 ms (59 fps), 6 late; a frame: CPU 2348 us, warm 539 us, GE wait 2952 us; longest 690 ms; rows 223 us; stamps 681 made, 256 kept (1238 KB); heap 3938 of 5219 KB, outside 4096 KB; slow: [108 ms p0 keys 91 rows 0 state 0 draw 5 warm 4 ge 0 st 3] [201 ms p13 keys 178 rows 0 state 0 draw 5 warm 0 ge 0 st 8] [1051 ms p13 keys 1036 rows 0 state 0 draw 2 warm 4 ge 0 st 3]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 1 us, remaining 1 us, full 2 us, cycles 34679 us
+home running: 1786 frames in 30006 ms (59 fps), 9 late; a frame: CPU 2128 us, warm 545 us, GE wait 2057 us; longest 117 ms; rows 253 us; stamps 170 made, 170 kept (349 KB); heap 3087 of 3111 KB, outside 4096 KB; slow: [109 ms p0 keys 92 rows 0 state 0 draw 5 warm 4 ge 0 st 3]
+home before a game: 430 frames in 7233 ms (59 fps), 1 late; a frame: CPU 2518 us, warm 637 us, GE wait 3221 us; longest 100 ms; rows 206 us; stamps 25 made, 195 kept (402 KB); heap 3276 of 3355 KB, outside 4096 KB; slow: [100 ms p1 keys 74 rows 0 state 0 draw 10 warm 0 ge 4 st 12]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 60 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm F0E91B usbstor EF9439 usbstormgr EF5C57 usbstorms F09F75 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 221 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 2 us, volt 2 us, temp 2 us, remaining 1 us, full 1 us, cycles 34659 us
+home before a game: 931 frames in 15744 ms (59 fps), 4 late; a frame: CPU 2424 us, warm 565 us, GE wait 3077 us; longest 123 ms; rows 251 us; stamps 173 made, 173 kept (358 KB); heap 3231 of 3304 KB, outside 4096 KB; slow: [111 ms p0 keys 90 rows 0 state 0 draw 5 warm 4 ge 0 st 3] [100 ms p1 keys 72 rows 0 state 0 draw 10 warm 0 ge 3 st 15]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 34595 us
+home before a game: 770 frames in 13045 ms (59 fps), 5 late; a frame: CPU 2141 us, warm 635 us, GE wait 4668 us; longest 127 ms; rows 256 us; stamps 172 made, 172 kept (374 KB); heap 4301 of 4400 KB, outside 4096 KB; slow: [116 ms p0 keys 91 rows 0 state 0 draw 5 warm 4 ge 0 st 3]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm EFA719 usbstor F0D637 usbstormgr F09E55 usbstorms EF5D73 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34655 us
+home running: 1710 frames in 30012 ms (56 fps), 68 late; a frame: CPU 2352 us, warm 633 us, GE wait 3309 us; longest 123 ms; rows 307 us; stamps 244 made, 244 kept (499 KB); heap 3734 of 4361 KB, outside 4096 KB; slow: [116 ms p0 keys 91 rows 0 state 0 draw 6 warm 4 ge 0 st 3]
+home running: 1746 frames in 30003 ms (58 fps), 41 late; a frame: CPU 2420 us, warm 713 us, GE wait 2166 us; longest 67 ms; rows 325 us; stamps 38 made, 256 kept (488 KB); heap 3723 of 4361 KB, outside 4096 KB
+home usb: modules semawm F0E953 usbstor EF9471 usbstormgr EF5C0F usbstorms F09F2D usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 224 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34655 us
+home running: 1793 frames in 30003 ms (59 fps), 2 late; a frame: CPU 2541 us, warm 688 us, GE wait 1638 us; longest 114 ms; rows 187 us; stamps 83 made, 83 kept (163 KB); heap 2892 of 3091 KB, outside 4096 KB; slow: [107 ms p0 keys 91 rows 0 state 0 draw 6 warm 4 ge 0 st 3]
+[archive: 1 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home music: a track started in 37 ms
+home cover: 1200x1200 (tag), read and decoded 1365 ms, all 2353 ms
+home music: a track started in 58 ms
+home music: a track started in 52 ms
+home cover: 1200x1200 (tag), read and decoded 1194 ms, all 1943 ms
+home cover: 1200x1200 (tag), read and decoded 1322 ms, all 2259 ms
+home running: 1713 frames in 30000 ms (57 fps), 6 late; a frame: CPU 3256 us, warm 850 us, GE wait 990 us; longest 1335 ms; rows 1502 us; stamps 96 made, 188 kept (365 KB); heap 7499 of 7519 KB, outside 4080 KB; slow: [1334 ms p7 keys 0 rows 0 state 1324 draw 1 warm 0 ge 0 st 0]
+home cover: 1200x1200 (tag), read and decoded 1242 ms, all 2025 ms
+home cover: 1200x1200 (tag), read and decoded 1347 ms, all 2096 ms
+home cover: 1200x1200 (tag), read and decoded 1188 ms, all 1937 ms
+home music: a track started in 53 ms
+home cover: 1200x1200 (tag), read and decoded 1175 ms, all 1924 ms
+home cover: 1200x1200 (tag), read and decoded 1340 ms, all 2437 ms
+home running: 1573 frames in 30013 ms (52 fps), 6 late; a frame: CPU 5106 us, warm 853 us, GE wait 1223 us; longest 1101 ms; rows 1104 us; stamps 144 made, 256 kept (539 KB); heap 3588 of 3619 KB, outside 4080 KB; slow: [751 ms p7 keys 0 rows 1 state 732 draw 4 warm 2 ge 0 st 5] [967 ms p7 keys 0 rows 0 state 952 draw 4 warm 2 ge 0 st 5] [1100 ms p7 keys 0 rows 0 state 1093 draw 4 warm 2 ge 0 st 5] [967 ms p7 keys 0 rows 0 state 963 draw 1 warm 0 ge 0 st 0]
+home before a game: 734 frames in 12580 ms (58 fps), 14 late; a frame: CPU 3325 us, warm 751 us, GE wait 1692 us; longest 83 ms; rows 314 us; stamps 154 made, 256 kept (489 KB); heap 3673 of 3751 KB, outside 4080 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 2 us, cycles 34313 us
+home before a game: 632 frames in 11926 ms (52 fps), 9 late; a frame: CPU 4810 us, warm 728 us, GE wait 1258 us; longest 1068 ms; rows 311 us; stamps 202 made, 202 kept (417 KB); heap 3287 of 3375 KB, outside 4096 KB; slow: [114 ms p0 keys 91 rows 0 state 0 draw 7 warm 4 ge 0 st 3] [1068 ms p11 keys 1049 rows 0 state 0 draw 3 warm 1 ge 0 st 4] [100 ms p1 keys 72 rows 0 state 0 draw 10 warm 1 ge 0 st 14]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34636 us
+home before a game: 200 frames in 3423 ms (58 fps), 2 late; a frame: CPU 2811 us, warm 820 us, GE wait 3790 us; longest 114 ms; rows 233 us; stamps 86 made, 86 kept (190 KB); heap 2927 of 3083 KB, outside 4096 KB; slow: [103 ms p0 keys 91 rows 0 state 0 draw 6 warm 3 ge 0 st 2]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 2 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34611 us
+home running: 1704 frames in 30003 ms (56 fps), 24 late; a frame: CPU 4131 us, warm 753 us, GE wait 1741 us; longest 118 ms; rows 232 us; stamps 140 made, 140 kept (263 KB); heap 3041 of 3131 KB, outside 4096 KB; slow: [107 ms p0 keys 91 rows 0 state 0 draw 6 warm 3 ge 0 st 2] [100 ms p1 keys 72 rows 0 state 0 draw 10 warm 1 ge 0 st 16]
+home usb: modules semawm EFA737 usbstor F0D655 usbstormgr F09E73 usbstorms EF5D11 usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 211 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 59 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34485 us
+home running: 1757 frames in 30016 ms (58 fps), 14 late; a frame: CPU 4031 us, warm 631 us, GE wait 766 us; longest 167 ms; rows 35967 us; stamps 327 made, 256 kept (438 KB); heap 3173 of 3212 KB, outside 4096 KB; slow: [103 ms p0 keys 91 rows 0 state 0 draw 6 warm 3 ge 0 st 2] [167 ms p11 keys 148 rows 0 state 0 draw 3 warm 1 ge 0 st 2]
+home before a game: 796 frames in 13625 ms (58 fps), 10 late; a frame: CPU 3292 us, warm 886 us, GE wait 1081 us; longest 100 ms; rows 311 us; stamps 215 made, 256 kept (525 KB); heap 4363 of 5060 KB, outside 4096 KB; slow: [100 ms p1 keys 72 rows 0 state 0 draw 10 warm 1 ge 0 st 11]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 1 us, cycles 34202 us
+home leaving: 1586 frames in 28248 ms (56 fps), 80 late; a frame: CPU 2274 us, warm 626 us, GE wait 2717 us; longest 167 ms; rows 311 us; stamps 225 made, 225 kept (429 KB); heap 3208 of 4000 KB, outside 4096 KB; slow: [103 ms p0 keys 91 rows 0 state 0 draw 6 warm 3 ge 0 st 2] [167 ms p11 keys 148 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm F0E933 usbstor EF9451 usbstormgr EF5C6F usbstorms F09F0D usbstoreflash 80010002 usbstorboot 8002013C; start bus 80243001 (another's), before 211 (other device off 0), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34653 us
+home before a game: 454 frames in 9541 ms (47 fps), 3 late; a frame: CPU 6372 us, warm 725 us, GE wait 2907 us; longest 1885 ms; rows 273 us; stamps 117 made, 117 kept (250 KB); heap 3123 of 3260 KB, outside 4096 KB; slow: [114 ms p0 keys 90 rows 0 state 0 draw 18 warm 3 ge 0 st 32] [1885 ms p1 keys 1862 rows 0 state 0 draw 10 warm 3 ge 4 st 17]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm CACA75 usbstor CA8B13 usbstormgr 4769F31 usbstorms 476514F usbstoreflash 80010002 usbstorboot 8002013C; start bus 0 (ours), before 111 (other device off 1), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 1 us, temp 2 us, remaining 1 us, full 1 us, cycles 34289 us
+home before a game: 429 frames in 7430 ms (57 fps), 5 late; a frame: CPU 2740 us, warm 752 us, GE wait 4783 us; longest 150 ms; rows 307 us; stamps 185 made, 185 kept (388 KB); heap 3262 of 4191 KB, outside 4096 KB; slow: [123 ms p0 keys 92 rows 0 state 0 draw 10 warm 3 ge 0 st 6] [150 ms p1 keys 131 rows 0 state 0 draw 8 warm 1 ge 5 st 12]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 1 us, cycles 34305 us
+home before a game: 536 frames in 9128 ms (58 fps), 5 late; a frame: CPU 2861 us, warm 690 us, GE wait 1346 us; longest 130 ms; rows 275 us; stamps 180 made, 180 kept (363 KB); heap 3187 of 3191 KB, outside 4096 KB; slow: [119 ms p0 keys 92 rows 0 state 0 draw 10 warm 3 ge 0 st 6]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 65 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 35427 us
+home running: 1793 frames in 30011 ms (59 fps), 2 late; a frame: CPU 2382 us, warm 674 us, GE wait 1673 us; longest 126 ms; rows 186 us; stamps 89 made, 89 kept (180 KB); heap 2912 of 3103 KB, outside 4096 KB; slow: [115 ms p0 keys 91 rows 0 state 0 draw 10 warm 3 ge 0 st 6]
+home music: a track started in 37 ms
+home cover: 1200x1200 (tag), read and decoded 1304 ms, all 2269 ms
+home music: a track started in 64 ms
+home cover: 1200x1200 (tag), read and decoded 1275 ms, all 2247 ms
+home running: 1760 frames in 30003 ms (58 fps), 36 late; a frame: CPU 2306 us, warm 873 us, GE wait 1702 us; longest 67 ms; rows 539 us; stamps 121 made, 210 kept (383 KB); heap 4127 of 4199 KB, outside 4080 KB
+home running: 1652 frames in 30006 ms (55 fps), 100 late; a frame: CPU 3429 us, warm 639 us, GE wait 3766 us; longest 117 ms; rows 468 us; stamps 97 made, 256 kept (463 KB); heap 3667 of 4335 KB, outside 4080 KB; slow: [116 ms p11 keys 99 rows 0 state 0 draw 4 warm 0 ge 0 st 2] [100 ms p11 keys 95 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [100 ms p11 keys 94 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [100 ms p11 keys 83 rows 0 state 0 draw 5 warm 0 ge 0 st 2] [100 ms p11 keys 95 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+home usb: modules semawm 1908E2D usbstor F17F4B usbstormgr F13169 usbstorms F0F507 usbstoreflash 80010002 usbstorboot 8002013C; start bus 0 (ours), before 111 (other device off 1), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 2 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 34506 us
+home before a game: 1512 frames in 25462 ms (59 fps), 10 late; a frame: CPU 2270 us, warm 784 us, GE wait 1685 us; longest 128 ms; rows 334 us; stamps 180 made, 180 kept (358 KB); heap 3407 of 3415 KB, outside 4096 KB; slow: [120 ms p0 keys 92 rows 0 state 0 draw 10 warm 3 ge 0 st 6]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm 1909873 usbstor CA8B13 usbstormgr 4769F31 usbstorms 476514F usbstoreflash 80010002 usbstorboot 8002013C; start bus 0 (ours), before 111 (other device off 1), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 34441 us
+home before a game: 155 frames in 2691 ms (57 fps), 2 late; a frame: CPU 2944 us, warm 812 us, GE wait 2172 us; longest 130 ms; rows 189 us; stamps 83 made, 83 kept (170 KB); heap 2903 of 3087 KB, outside 4096 KB; slow: [122 ms p0 keys 92 rows 0 state 0 draw 9 warm 3 ge 0 st 6]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home usb: modules semawm 3DD1D6B usbstor 190AF09 usbstormgr 1908E27 usbstorms CACA45 usbstoreflash 80010002 usbstorboot 8002013C; start bus 0 (ours), before 111 (other device off 1), storage 0 after 1 tries; activate 1;; 0 again by hand
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 1 us, cycles 34244 us
+home before a game: 76 frames in 1358 ms (55 fps), 2 late; a frame: CPU 3598 us, warm 974 us, GE wait 2361 us; longest 115 ms; rows 188 us; stamps 81 made, 81 kept (169 KB); heap 2901 of 3103 KB, outside 4096 KB; slow: [107 ms p0 keys 92 rows 0 state 0 draw 10 warm 3 ge 0 st 6]
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 5 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 2 us, cycles 34363 us
+home running: 1780 frames in 30009 ms (59 fps), 6 late; a frame: CPU 3097 us, warm 522 us, GE wait 1270 us; longest 124 ms; rows 316 us; stamps 241 made, 241 kept (490 KB); heap 3315 of 3319 KB, outside 4096 KB; slow: [112 ms p0 keys 92 rows 0 state 0 draw 10 warm 3 ge 0 st 6]
+[archive: 56 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home battery: calibration run started
+[archive: 85 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1531 frames in 4290697859 ms (0 fps), 2 late; a frame: CPU 3400 us, warm 442 us, GE wait 894 us; longest 4290672345 ms; rows 239 us; stamps 2 made, 256 kept (330 KB); heap 3155 of 3439 KB, outside 4096 KB; slow: [4290672345 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1777 frames in 4290701946 ms (0 fps), 1 late; a frame: CPU 2548 us, warm 582 us, GE wait 23 us; longest 4290672345 ms; rows 155 us; stamps 0 made, 256 kept (356 KB); heap 3181 of 3439 KB, outside 4096 KB; slow: [4290672345 ms p13 keys 0 rows 0 state 0 draw 2 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1779 frames in 4290701994 ms (0 fps), 1 late; a frame: CPU 2536 us, warm 573 us, GE wait 23 us; longest 4290672346 ms; rows 155 us; stamps 1 made, 256 kept (316 KB); heap 3141 of 3439 KB, outside 4096 KB; slow: [4290672346 ms p13 keys 0 rows 0 state 0 draw 2 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1782 frames in 4290702030 ms (0 fps), 1 late; a frame: CPU 2549 us, warm 579 us, GE wait 23 us; longest 4290672346 ms; rows 156 us; stamps 2 made, 256 kept (283 KB); heap 3109 of 3439 KB, outside 4096 KB; slow: [4290672346 ms p13 keys 0 rows 0 state 0 draw 2 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1781 frames in 4290702013 ms (0 fps), 1 late; a frame: CPU 2578 us, warm 573 us, GE wait 24 us; longest 4290672346 ms; rows 155 us; stamps 0 made, 256 kept (284 KB); heap 3109 of 3439 KB, outside 4096 KB; slow: [4290672346 ms p13 keys 0 rows 0 state 0 draw 2 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1780 frames in 4290702010 ms (0 fps), 1 late; a frame: CPU 3578 us, warm 418 us, GE wait 198 us; longest 4290672345 ms; rows 247 us; stamps 4 made, 256 kept (378 KB); heap 3203 of 3439 KB, outside 4096 KB; slow: [4290672345 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1770 frames in 4290701843 ms (0 fps), 1 late; a frame: CPU 3628 us, warm 418 us, GE wait 198 us; longest 4290672345 ms; rows 267 us; stamps 4 made, 256 kept (378 KB); heap 3203 of 3411 KB, outside 4096 KB; slow: [4290672345 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+[archive: 142 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1747 frames in 4290701462 ms (0 fps), 2 late; a frame: CPU 3646 us, warm 416 us, GE wait 199 us; longest 4290672345 ms; rows 242 us; stamps 8 made, 256 kept (376 KB); heap 3201 of 3411 KB, outside 4096 KB; slow: [4290672345 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+[archive: 19 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1770 frames in 30002 ms (58 fps), 8 late; a frame: CPU 3178 us, warm 689 us, GE wait 424 us; longest 250 ms; rows 320 us; stamps 156 made, 256 kept (455 KB); heap 3460 of 3751 KB, outside 4096 KB; slow: [250 ms p20 keys 0 rows 0 state 0 draw 246 warm 0 ge 0 st 0] [189 ms p20 keys 0 rows 0 state 0 draw 2 warm 0 ge 0 st 0]
+[archive: 8 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1773 frames in 30002 ms (59 fps), 4 late; a frame: CPU 3648 us, warm 522 us, GE wait 766 us; longest 267 ms; rows 197 us; stamps 9 made, 256 kept (446 KB); heap 3451 of 3851 KB, outside 4096 KB; slow: [267 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [197 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+[archive: 3 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1773 frames in 30000 ms (59 fps), 3 late; a frame: CPU 3782 us, warm 536 us, GE wait 679 us; longest 254 ms; rows 198 us; stamps 9 made, 256 kept (423 KB); heap 3428 of 3739 KB, outside 4096 KB; slow: [254 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [213 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+home running: 1773 frames in 30001 ms (59 fps), 4 late; a frame: CPU 3557 us, warm 545 us, GE wait 818 us; longest 257 ms; rows 169 us; stamps 6 made, 256 kept (418 KB); heap 3423 of 3739 KB, outside 4096 KB; slow: [257 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [213 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+home battery: measured 1849 mAh in 33601 s (100% to 1%)
+home running: 1757 frames in 30001 ms (58 fps), 10 late; a frame: CPU 3646 us, warm 551 us, GE wait 689 us; longest 267 ms; rows 216 us; stamps 25 made, 256 kept (423 KB); heap 3428 of 3739 KB, outside 4096 KB; slow: [196 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [267 ms p20 keys 246 rows 0 state 0 draw 3 warm 0 ge 0 st 0] [199 ms p20 keys 0 rows 0 state 0 draw 4 warm 0 ge 0 st 0]
+[archive: 106 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home running: 1759 frames in 4290701659 ms (0 fps), 1 late; a frame: CPU 3534 us, warm 490 us, GE wait 766 us; longest 4290672345 ms; rows 168 us; stamps 4 made, 256 kept (336 KB); heap 3341 of 3739 KB, outside 4096 KB; slow: [4290672345 ms p20 keys 0 rows 0 state 0 draw 3 warm 0 ge 0 st 0]
+[archive: 58 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home before a game: 1262 frames in 21106 ms (59 fps), 4 late; a frame: CPU 3451 us, warm 936 us, GE wait 702 us; longest 34 ms; rows 354 us; stamps 152 made, 256 kept (456 KB); heap 3507 of 3627 KB, outside 4096 KB
+home art: 5 system picture(s) (7C0, 0 items), sky 0 (theme colour 1) not found, 66 ms; topmenu_icon.rco 8001000D not taken system_plugin_fg.rco 8620 01-12_03g.bmp 8001000D not taken 01-12.bmp 80010002 not taken
+home cover: 0x0 (file), read and decoded 0 ms, all 0 ms
+home reads: battery: percent 6 us, life time 3 us, volt 2 us, temp 1 us, remaining 1 us, full 1 us, cycles 34385 us
+home running: 1793 frames in 30015 ms (59 fps), 2 late; a frame: CPU 2371 us, warm 672 us, GE wait 1679 us; longest 130 ms; rows 236 us; stamps 86 made, 86 kept (177 KB); heap 2909 of 3083 KB, outside 4096 KB; slow: [119 ms p0 keys 92 rows 0 state 0 draw 9 warm 3 ge 0 st 6]
+[archive: 1 steady "home running" lines (1799-1800 frames in 30 s, 0-5 late, no slow frame) left out here]
+home usb: modules semawm 190AF2B usbstor 1908E49 usbstormgr CACA67 usbstorms CA8B05 usbstoreflash 80010002 usbstorboot 8002013C; start bus 0 (ours), before 111 (other device off 1), storage 0 after 1 tries; activate 1;; 0 again by hand

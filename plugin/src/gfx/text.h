@@ -57,4 +57,12 @@ int pw_text_draw(pw_canvas *c, pw_font *f, int x, int y, const char *utf8, unsig
 int pw_text_draw_fit(pw_canvas *c, pw_font *f, int x, int y, const char *utf8, int max_w,
                      unsigned int color, int alpha, int shadow);
 
+#ifdef PW_I18N_HOME
+/* Pocketwatch Home: how tall the font's capitals are (H's top above the baseline, pixels), so text
+   is centred in a box by the font itself, not by numbers tuned to one font; and the advance and
+   bitmap width of a glyph (home.log names them: the previews' font is not the PSP's). */
+int pw_font_cap(pw_font *f);
+int pw_font_glyph_metrics(pw_font *f, unsigned int code, int *w, int *left);
+#endif
+
 #endif

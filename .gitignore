@@ -6,6 +6,11 @@
 plugin/exports.c
 vsh/exports.c
 vsh/build/
+perf/exports.c
+perf/build/
+home/build/
+home/EBOOT.PBP
+home/PARAM.SFO
 plugin/.version
 plugin/.buildflags
 dist/

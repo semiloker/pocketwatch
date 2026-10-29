@@ -3,8 +3,10 @@
     Copies the built PRX files to a PSP connected over USB.
 
 .DESCRIPTION
-    Installs plugin\pocketwatch.prx (and vsh\pocketwatch_xmb.prx when it is built) to
-    <PSP>\seplugins\pocketwatch\.
+    Installs plugin\pocketwatch.prx (and vsh\pocketwatch_xmb.prx, perf\pocketwatch_perf.prx when
+    they are built) to
+    <PSP>\seplugins\pocketwatch\, and home\EBOOT.PBP (Pocketwatch Home) to
+    <PSP>\PSP\GAME\PocketwatchHome\.
     With -Enable it also registers the game plugin in seplugins\PLUGINS.TXT (ARK-4 format);
     with -EnableXmb the XMB plugin (the Pocketwatch entry under Settings). If the XMB ever fails
     to start because of a plugin, hold START while the PSP boots: ARK-4 then loads no plugins.
@@ -52,6 +54,29 @@ Write-Host "Copied pocketwatch.prx -> $dest"
 if (Test-Path $xmbPrx) {
     Copy-Item -Path $xmbPrx -Destination $dest -Force
     Write-Host "Copied pocketwatch_xmb.prx -> $dest"
+}
+# The performance overlay for games (ADR-043): copied only; Home's Settings -> Overlay in Games
+# writes its PLUGINS.TXT line.
+$perfPrx = Join-Path $root 'perf\pocketwatch_perf.prx'
+if (Test-Path $perfPrx) {
+    Copy-Item -Path $perfPrx -Destination $dest -Force
+    Write-Host "Copied pocketwatch_perf.prx -> $dest"
+}
+
+# Pocketwatch Home: a homebrew application, started from Game -> Memory Stick.
+$homeEboot = Join-Path $root 'home\EBOOT.PBP'
+if (Test-Path $homeEboot) {
+    $homeDest = Join-Path $pspRoot 'PSP\GAME\PocketwatchHome'
+    New-Item -ItemType Directory -Force -Path $homeDest | Out-Null
+    Copy-Item -Path $homeEboot -Destination $homeDest -Force
+    Write-Host "Copied EBOOT.PBP -> $homeDest"
+    # The start screen (ADR-026): ARK-4 starts a launcher named relative to its own folder, so
+    # Home is also there as PWHOME.PBP. Turned on in XMB -> Settings -> Pocketwatch.
+    $arkDir = Join-Path $pspRoot 'PSP\SAVEDATA\ARK_01234'
+    if (Test-Path $arkDir) {
+        Copy-Item -Path $homeEboot -Destination (Join-Path $arkDir 'PWHOME.PBP') -Force
+        Write-Host "Copied EBOOT.PBP -> $arkDir\PWHOME.PBP"
+    }
 }
 
 # Translations: the plugins read lang\<code>.txt for the system language (English is built in).

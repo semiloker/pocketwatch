@@ -218,45 +218,6 @@ void pw_minimal_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const 
     }
 }
 
-/* Settings: "name ........ value" lines; choosing lists the values in place of the value. */
-#define LABEL_X 70
-#define VALUE_X 410
-#define SET_PIT 30
-
-void pw_minimal_settings(pw_canvas *c, const pw_ui *ui, const pw_hub_cat *cat,
-                         const pw_setting_row *rows, int count, int sel, const char *const *options,
-                         int n_options, int opt_sel, int opt_appear)
-{
-    int editing = opt_sel >= 0 && options && n_options > 0;
-    int top = LIST_CY - (count - 1) * SET_PIT / 2;
-
-    if (cat->label)
-        pw_text_draw_fit(c, ui->body, 20, 24, cat->label, 200, C_DIM, 256, 0);
-    for (int i = 0; i < count; i++) {
-        int y = top + i * SET_PIT, alpha = i == sel ? 256 : editing ? FAINT / 2 : FAINT;
-
-        pw_text_draw_fit(c, ui->title, LABEL_X, y, rows[i].label, 230, C_TEXT, alpha, 0);
-        if (editing) /* the values of the chosen row take the whole value column */
-            continue;
-        if (rows[i].value)
-            pw_text_draw(c, ui->body, VALUE_X - pw_text_width(ui->body, rows[i].value), y,
-                         rows[i].value, C_TEXT, alpha * 3 / 4, 0);
-    }
-    if (editing) { /* the values stacked on the chosen row, the current one bright */
-        int y0 = top + sel * SET_PIT;
-
-        for (int k = 0; k < n_options; k++) {
-            int y = y0 + (k - opt_sel) * 20;
-
-            if (y < 36 || y > SCREEN_H - 30)
-                continue;
-            pw_text_draw(c, ui->body, VALUE_X - pw_text_width(ui->body, options[k]), y, options[k],
-                         C_TEXT, (k == opt_sel ? 256 : 80) * clampi(opt_appear, 0, 256) / 256, 0);
-        }
-    }
-    pw_minimal_hints(c, ui, pw_tr(PW_S_ENTER), pw_tr(PW_S_BACK), 256);
-}
-
 /* A thin line at the bottom and the number, nothing else. */
 void pw_minimal_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {

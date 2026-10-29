@@ -1446,6 +1446,10 @@ static int load_impl(const pw_freeze_set *held)
         h->load_threads = (unsigned int)held->count;
     } else {
         pw_freeze_game(&g_load_freeze, FREEZE_TIMEOUT_MS);
+        if (g_load_freeze.card_busy) { /* thawed: the game runs and keeps the card (ADR-032) */
+            pw_log("engine: LOAD refused: the game keeps the card, it could not be frozen");
+            return -1;
+        }
     }
     mark(&h->load_t, P_FREEZE);
     if (!held)
@@ -1609,6 +1613,10 @@ static int selftest_round(int copy)
     h->guard = 0;
 
     pw_freeze_game(&frozen, FREEZE_TIMEOUT_MS);
+    if (frozen.card_busy) { /* thawed: the game runs and keeps the card (ADR-032) */
+        pw_log("engine: self-test round %d refused: the game keeps the card", copy);
+        return -1;
+    }
     h->ge_selftest = ge_wait_idle();
     pw_log("engine: self-test round %d (%s): suspending...", copy,
            copy ? "blob + 4 MB kernel copy" : "blob without copy");
@@ -1774,9 +1782,9 @@ int pw_engine_env_for_load(pw_engine_env *e)
 
 void pw_engine_env_log(const char *who, const pw_engine_env *saved, const pw_engine_env *now)
 {
-    static const char *const names[] = {"layout", "build",   "header",  "model",   "devkit",
-                                        "P9",     "P8 base", "P8 size", "ME base", "ME size",
-                                        "assets", "prx crc", "sfo",     "extra3"};
+    static const char *const names[] = {
+        "layout",  "build",   "header", "model",   "devkit", "P9",       "P8 base", "P8 size",
+        "ME base", "ME size", "assets", "prx crc", "sfo",    "playtime", "battery", "extra5"};
     const unsigned int *a = (const unsigned int *)saved, *b = (const unsigned int *)now;
     int n = (int)(sizeof(*saved) / sizeof(unsigned int)), any = 0;
 

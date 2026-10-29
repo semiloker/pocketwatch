@@ -50,6 +50,7 @@ static const struct {
        reads them from the PSP's files and from themes) */
     {PW_ART_BATTERY, 1, "tex_battery"},
     {PW_ART_FOCUS, 0, "FL"},
+    {PW_ART_PHOTO, 0, "AL"},
 };
 
 static pw_mem_block g_block;

@@ -34,12 +34,67 @@ The project's full workflow is imported here and applies to every session:
   Settings -> Pocketwatch, ADR-021; log `seplugins/pocketwatch/xmb.log`); build.sh builds both. Its
   patches must keep the chaining rule: find every site before the previous start-module handler
   (ARK-4's xmbctrl) runs, wrap what is there after it. A broken VSH plugin: hold START at boot.
+- `home/` builds Pocketwatch Home (`home/EBOOT.PBP`, a homebrew application, ADR-025; deploy copies
+  it to `PSP/GAME/PocketwatchHome/` and to `PSP/SAVEDATA/ARK_01234/PWHOME.PBP`). Its art:
+  `python tools/make_home_art.py home/res` (ours, never Sony's). Previews: `home-*.png` from
+  `make -C tests preview`. Home draws through `hm_gfx` (ADR-028): the GE on the PSP
+  (`home/src/gfx_gu.c`), the CPU renderer for previews (`gfx_cpu.c`) - every operation needs both,
+  drawing the same pixels. Home has the three styles too (ADR-033: `view_classic.c` - the XMB,
+  with the system's pictures from flash0 via `xmbart.c` - `view_modern.c`, `view_minimal.c`);
+  previews: `home-*.png`, `modern-home-*.png`, `minimal-home-*.png` (`RCO=` for the system's
+  icons; Modern in each theme: `modern-home-theme-*.png`). Every section is a stack of pages
+  (ADR-035): `pages.c` builds them (rows, tiles, what Enter does), `main.c` keeps the stack and
+  the keys; Home's own settings (theme, accent, background, music modes) are `home.txt`
+  (`hcfg.c`), never `config.txt` (the XMB plugin's parser, RISK-022). Text in a pill, row or
+  button: baseline `hm_mid(font, box centre)` (the font's capitals, ADR-055), never offsets tuned
+  to the previews' font (PPSSPP's Liberation, not the PSP's ltn0); a list or grid is cut with
+  `g->clip` above the hints; no card I/O on a key press (settings saved by `hs_save_pending`).
+  Frame rate: `seplugins/pocketwatch/home.log`. Nothing slow in its frame
+  loop (ADR-031): the battery comes from `hw.c`'s thread, the system's parameters from
+  `hm_hw_param` (kept). Home's strings are the
+  `PW_I18N_HOME` tier (after `PW_S_HOME_FIRST`); the XMB plugin builds without them.
+- `perf/` builds `pocketwatch_perf.prx`, the performance overlay in games (ADR-043): a kernel
+  module of its own that ARK-4 loads only while its PLUGINS.TXT line is on - Home → Settings →
+  Pocketwatch → Overlay in Games writes that line and `perf.txt`; in a game L+R+SELECT held 1 s
+  cycles Off / FPS / Full; deploy copies it. Home has its own overlay (`home.txt perf`).
+- The overlay module also shows the volume and brightness indicator in games and keeps the
+  brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all`,
+  `boost = 0-100`, written by Home's Settings (Sound and Display), its PLUGINS.TXT line on while a
+  game needs one of them; Home shows the indicator and applies the boost itself. Own Steps
+  (ADR-047, `steps = on`, `levels = ...`): SCREEN taps go through Pocketwatch's levels (bright3's
+  job, which is off now). The module runs ONLY in a real disc/ISO game (ADR-049:
+  `is_disc_apitype` in `module_start`) - never in Home or the XMB, so it cannot affect boot; one
+  game (UMD) line, no VSH line. In-game it is still experimental; validate in one game before
+  trusting it. For XMB brightness there is no Pocketwatch option - bright3 remains the safe way.
+- Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,
+  the firmware's netparam calls; `home net:` lines). Imports: never an `IMPORT_START` of a library
+  PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs
+  out of order" built Home's `sceNetInet` table over `sceNet`'s (0x8002013A); `make check` fails
+  on a stub in two tables. Extra NIDs of an SDK library: `IMPORT_FUNC`s linked right after it
+  (`home/src/apctl_scan.S`). After USB Home writes nothing and starts again (ADR-048): the FAT driver's stale tables
+  broke the card's PRXs once (a user program may not drop them, 0x800200D1).
+- Home keeps the clock (ADR-041): at its start, before any write, a lost clock (the kernel refuses
+  it, or it reads before 2016) is set to the newest file time of 2016 or later; Settings → Date and
+  Time → Set Time from Internet (SNTP on a thread); `home clock:` lines in `home.log`. Home's
+  battery calibration (ADR-042): `battery-cal.txt` (the run), `battery.txt` (the result).
+- Performance (ADR-029): `make -C tests bench FONT=<a .pgf> BENCH_OPT=-Os` is a frame of each
+  hub style as the PSP draws it, plus Home's stamp cost. Per-pixel helpers are `PW_PIXEL`
+  (always inlined; the plugin is `-Os` and its kernel RAM budget has no room for `-O2`). Check
+  Home's GE path in PPSSPP before a device round (`C:\Program Files\PPSSPP`, run
+  `home\EBOOT.PBP`, capture the window).
+- Start screen (ADR-026, ADR-027): `config.txt` `start = home`: the XMB plugin decides in
+  `module_start` (`boot.txt`) and writes ARK-4's launcher field (`PWHOME.PBP`) from its start-module
+  handler for sceMediaSync, after the older handlers - a write in `module_start` is cleared by
+  ARK-4's processSettings. Never write any other `ARKConfig` field, and only after
+  `pw_boot_ark_check`. The XMB instead: hold L at power-on, Home's Exit / HOME -> Quit (`xmb-once`
+  with an RTC tick, valid 120 s), a start of Home that never showed a frame (`boot-pending`); hold
+  START at power-on for no plugins at all. The XMB plugin is at its 64 KB budget.
 - Device test protocols for every feature: `docs/testing.md`.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
-  State / Load State / Settings / Quit Game; debug builds add Memory Stick Test = T1). Settings
-  (style, fast save and load, clock and battery, language) live in `seplugins/pocketwatch/config.txt` and
-  `language.txt`. Styles: Classic (XMB, default), Modern, Minimal (`docs/ui/styles.md`); every
+  State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Settings (style, fast
+  save and load, clock and battery, language) are changed in the XMB and live in
+  `seplugins/pocketwatch/config.txt` and `language.txt`. Styles: Classic (XMB, default), Modern, Minimal (`docs/ui/styles.md`); every
   `pw_view_*` must have all three (previews write `modern-` / `minimal-` PNGs too). Save/Load open a list of
   five slots per game (`ms0:/PSP/SAVEDATA/PW<DISCID><NN>/`, triangle deletes). Enter/Back follow the
   system setting; HOME or Back closes it. If the game or a plugin had already turned the system HOME
@@ -92,6 +147,13 @@ The project's full workflow is imported here and applies to every session:
   version, the PRX file's CRC, model, P9/P8/ME layout, the assets and PARAM.SFO block addresses): never relax it
   without a device test (T5).
 - Public symbols use the `pw_` prefix; modules live in `plugin/src/<area>/` (core, gfx, ui, complications/*).
+- Background work of a complication goes through its `tick` (once a second from the shell, hub
+  closed, engine idle) and `on_quit`; never its own thread. State that must survive a load
+  (counters) lives in a P9 block whose address goes into the fingerprint (`pw_engine_set_env_extra`,
+  [3] play time). Play time files: `seplugins/pocketwatch/playtime-a.txt` / `-b.txt`.
+- Settings, Battery and Play Time pages are in the XMB (ADR-024), not in the hub: XMB → Settings →
+  Pocketwatch / Battery, XMB → Game → Play Time (`vsh/src/xsettings.c` builds their rows). Strings
+  only the XMB shows come after `PW_S_XMB_FIRST` in `ui/i18n.h` (the game build drops them).
 - A hub feature is a complication: its folder under `complications/` with a `pw_complication`
   (`complications/complication.h`) and one line in `complications/table.c`; the hub (`ui/hub.c`)
   must not learn about any feature.

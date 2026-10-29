@@ -37,12 +37,27 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 | `DBG` | Debug tooling | Done | [subsystems/debug-tooling.md](subsystems/debug-tooling.md) |
 | `BLD` | Build and verification | Done | [subsystems/build-and-verification.md](subsystems/build-and-verification.md) |
 | `VSH` | XMB integration | In progress (M7, ADR-020/021): the XMB plugin with the Settings entry and the GAME-side start-up load implemented (device tests X1, V1 pending); the game's △ menu entry planned | [subsystems/vsh-integration.md](subsystems/vsh-integration.md) |
+| `BAT` | Battery (readings, estimates, the Battery page, Pocketwatch's calibration run) | XMB → Settings → Battery (ADR-024); Home's Battery page with the current, our estimate and the calibration run (ADR-042) with a screen of its own (BAT-REQ-011, 2026-10-20); device tests B1, HM30 pending | [subsystems/battery.md](subsystems/battery.md) |
+| `PRF` | Performance overlay (over Home; in games as a module of its own), the volume and brightness indicator and the brightness boost | Implemented 2026-10-20 (ADR-043, ADR-045); PPSSPP checked (Home); device tests HM31, HM34, PF1-PF3 pending | [subsystems/perf-overlay.md](subsystems/perf-overlay.md) |
+| `PLT` | Play time per game | Implemented in the hub (same branch), device test P1 pending | [subsystems/playtime.md](subsystems/playtime.md) |
+| `HOM` | Pocketwatch Home (our own home screen, ADR-025; the PSP can start in it, ADR-026) | On `main` since PR #4 (2026-10-29), the three styles (Classic is the XMB, ADR-033): games, music, photos, play time, settings, system, browser, USB, key sounds, its own keyboard (ADR-039); boot into Home and 60 fps (ADR-031) VERIFIED on the device; HM11-HM28 pending | [subsystems/home.md](subsystems/home.md) |
 | `FW` | Independent firmware feasibility | Research | [firmware/independent-firmware-feasibility.md](firmware/independent-firmware-feasibility.md) |
+
+Branch overview of the XMB overhaul (audit, what the platform allows, status): [psp-xmb-overhaul](psp-xmb-overhaul/README.md).
 
 UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual references](ui/references.md), [customization architecture](ui/customization.md),
 [concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md).
 
 ## Research notes
+
+- [m7-full-ui](research/m7-full-ui.md): cxmb, themes, and the way to a full UI of our own (2026-10-18)
+- [m7-boot-shell](research/m7-boot-shell.md): how ARK-4 boots the VSH, and starting the PSP in Pocketwatch Home (2026-10-18)
+- [m7-xmb-inventory](research/m7-xmb-inventory.md): every element of the XMB and its place in Pocketwatch Home (2026-10-19)
+- [m7-game-keyboard](research/m7-game-keyboard.md): Pocketwatch's keyboard inside games instead of the firmware's OSK - the contract, options, the probe (2026-10-20)
+- [m7-clock](research/m7-clock.md): why the PSP forgets the date after weeks unused, and how Home puts it back - the card's last time, then the internet's (2026-10-20)
+- [m7-battery-calibration](research/m7-battery-calibration.md): what the battery's gauge says, and Pocketwatch's own measurement of the capacity (2026-10-20)
+- [m7-perf-overlay](research/m7-perf-overlay.md): a performance overlay over Home and in games, as a kernel module of its own (2026-10-20)
+- [m7-wifi](research/m7-wifi.md): why Home's network never came up (its own import table), and Wi-Fi connections made from Home (2026-10-20)
 
 | Note | Question | Status |
 |---|---|---|

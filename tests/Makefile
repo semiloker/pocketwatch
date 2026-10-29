@@ -7,13 +7,17 @@
 CC      ?= gcc
 SRC_DIR  = ../plugin/src
 LIB_DIR  = ../plugin/lib
+HOME_DIR = ../home/src
+PERF_DIR = ../perf/src
 BUILD    = build
 
-CFLAGS  = -std=gnu11 -g -O1 -Wall -Wextra -Werror -I$(SRC_DIR) -I$(LIB_DIR) -I. \
+CFLAGS  = -std=gnu11 -g -O1 -Wall -Wextra -Werror -I$(SRC_DIR) -I$(LIB_DIR) -I$(HOME_DIR) -I$(PERF_DIR) -I. \
           -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
 LDFLAGS = -fsanitize=address,undefined
 # Rebuild objects when a header they include changes (a stale object once hid a new enum value).
 CFLAGS += -MMD -MP
+# Every string, the XMB plugin's and Home's too: the tests check each key in every translation.
+CFLAGS += -DPW_I18N_HOME
 
 # Portable plugin modules under test (must not include PSP headers).
 PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32.c $(SRC_DIR)/core/stubinfo.c \
@@ -23,12 +27,16 @@ PLUGIN_SRCS = $(SRC_DIR)/core/ring.c $(SRC_DIR)/core/log.c $(SRC_DIR)/core/crc32
               $(SRC_DIR)/gfx/pgf.c $(SRC_DIR)/gfx/text.c $(SRC_DIR)/gfx/rlz.c $(SRC_DIR)/gfx/rco.c \
               $(SRC_DIR)/gfx/image.c $(SRC_DIR)/ui/xmbbg.c $(SRC_DIR)/complications/states/store.c $(SRC_DIR)/ui/i18n.c \
               $(SRC_DIR)/complications/registry.c $(SRC_DIR)/ui/backdrop.c \
-              $(SRC_DIR)/ui/views_modern.c $(SRC_DIR)/ui/views_minimal.c $(SRC_DIR)/ui/volume.c $(SRC_DIR)/ui/langnames.c \
+              $(SRC_DIR)/ui/views_modern.c $(SRC_DIR)/ui/views_minimal.c $(SRC_DIR)/ui/volume.c $(SRC_DIR)/ui/langnames.c $(SRC_DIR)/core/battmodel.c $(SRC_DIR)/core/playtime.c $(SRC_DIR)/core/bootpick.c \
+              $(HOME_DIR)/disc.c $(HOME_DIR)/home_view.c $(HOME_DIR)/view_classic.c $(HOME_DIR)/view_modern.c $(HOME_DIR)/view_minimal.c $(HOME_DIR)/hm_icons.c $(HOME_DIR)/xmbart.c $(HOME_DIR)/gfx_cpu.c $(HOME_DIR)/sprites.c $(HOME_DIR)/usb_link.c $(HOME_DIR)/music_name.c $(HOME_DIR)/sound_synth.c \
+              $(HOME_DIR)/hcfg.c $(HOME_DIR)/savedata_text.c $(HOME_DIR)/photo_edit.c $(HOME_DIR)/keyboard.c \
+              $(HOME_DIR)/clockfix.c $(HOME_DIR)/battcal.c $(HOME_DIR)/plugins_txt.c $(PERF_DIR)/overlay.c \
+              $(HOME_DIR)/wifi_list.c \
               $(LIB_DIR)/stb_sprintf.c
 TEST_SRCS   = main.c platform_host.c $(wildcard test_*.c)
 
 OBJS = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(TEST_SRCS) $(PLUGIN_SRCS)))
-vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications $(SRC_DIR)/complications/states $(SRC_DIR)/ui $(SRC_DIR)/gfx $(LIB_DIR)
+vpath %.c . $(SRC_DIR)/core $(SRC_DIR)/complications $(SRC_DIR)/complications/states $(SRC_DIR)/ui $(SRC_DIR)/gfx $(LIB_DIR) $(HOME_DIR) $(PERF_DIR)
 
 all: run
 
@@ -62,13 +70,14 @@ $(BUILD)/preview_ui.o: preview/preview_ui.c | $(BUILD)
 preview: $(PREVIEW_OBJS)
 	$(CC) $(LDFLAGS) -o $(BUILD)/preview_ui $^
 	mkdir -p $(BUILD)/preview
-	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
+	ASAN_OPTIONS=detect_leaks=0 PW_PREVIEW_FONT=$(FONT) PW_PREVIEW_RCO=$(RCO) PW_PREVIEW_FG=$(FG) PW_PREVIEW_SKY=$(SKY) PW_PREVIEW_MONTH=$(MONTH) PW_PREVIEW_LANG=$(UI_LANG) ./$(BUILD)/preview_ui
 
 # Frame cost by part (tests/bench/bench_ui.c), -O2 without sanitizers: only the proportions matter.
+BENCH_OPT ?= -O2
 BENCH_SRCS = bench/bench_ui.c $(filter-out %/store.c %/log.c %/ring.c,$(PLUGIN_SRCS))
 bench: | $(BUILD)
-	$(CC) -std=gnu11 -O2 -I$(SRC_DIR) -I$(LIB_DIR) -I. -Wno-sign-compare -o $(BUILD)/bench_ui $(BENCH_SRCS) platform_host.c
-	./$(BUILD)/bench_ui
+	$(CC) -std=gnu11 $(BENCH_OPT) -I$(SRC_DIR) -I$(LIB_DIR) -I$(HOME_DIR) -I. -DPW_I18N_HOME -Wno-sign-compare -o $(BUILD)/bench_ui $(BENCH_SRCS) platform_host.c
+	PW_BENCH_FONT=$(FONT) ./$(BUILD)/bench_ui
 
 clean:
 	rm -rf $(BUILD)

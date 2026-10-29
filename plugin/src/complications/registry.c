@@ -66,3 +66,17 @@ const pw_complication *pw_registry_startup(const pw_complication *const *list, i
             return list[i];
     return 0;
 }
+
+void pw_registry_tick(const pw_complication *const *list, int n, unsigned int now_ms)
+{
+    for (int i = 0; i < n; i++)
+        if (list[i] && list[i]->tick)
+            list[i]->tick(now_ms);
+}
+
+void pw_registry_quit(const pw_complication *const *list, int n)
+{
+    for (int i = 0; i < n; i++)
+        if (list[i] && list[i]->on_quit)
+            list[i]->on_quit();
+}

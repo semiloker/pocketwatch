@@ -12,7 +12,7 @@ jobs:
     name: Host tests and formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install clang-format 18.1.8
         run: pipx install clang-format==18.1.8
@@ -35,7 +35,7 @@ jobs:
       - name: Install tools
         run: apk add --no-cache zip python3
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so `git describe` sees tags
 
@@ -55,21 +55,29 @@ jobs:
         run: |
           PKG="pocketwatch-$(cat plugin/.version)"
           mkdir -p "dist/$PKG/seplugins/pocketwatch"
-          cp plugin/pocketwatch.prx "dist/$PKG/seplugins/pocketwatch/"
+          cp plugin/pocketwatch.prx vsh/pocketwatch_xmb.prx perf/pocketwatch_perf.prx \
+            "dist/$PKG/seplugins/pocketwatch/"
+          mkdir -p "dist/$PKG/PSP/GAME/PocketwatchHome"
+          cp home/EBOOT.PBP "dist/$PKG/PSP/GAME/PocketwatchHome/"
+          # The start screen (ADR-026): ARK-4 starts the launcher from its own folder.
+          mkdir -p "dist/$PKG/PSP/SAVEDATA/ARK_01234"
+          cp home/EBOOT.PBP "dist/$PKG/PSP/SAVEDATA/ARK_01234/PWHOME.PBP"
           mkdir -p "dist/$PKG/seplugins/pocketwatch/lang"
           cp plugin/lang/*.txt "dist/$PKG/seplugins/pocketwatch/lang/"
           cp README.md LICENSE "dist/$PKG/"
           (cd dist && zip -r "$PKG.zip" "$PKG")
           echo "name=$PKG" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.package.outputs.name }}
           path: dist/${{ steps.package.outputs.name }}/
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/${{ steps.package.outputs.name }}.zip
+          body_path: .github/release-notes.md # install, known issues, reporting; then the PRs
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }} # v0.1.0-alpha.1 and the like

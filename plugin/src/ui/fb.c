@@ -24,8 +24,8 @@
 
 static pw_mem_block g_mem;
 static unsigned int *g_game, *g_sky, *g_page[2];
-static unsigned int *g_moving; /* g_sky with the wave on it; half the wave renewed each frame */
-static int g_half;
+static unsigned int *g_moving; /* g_sky with the wave on it; a band of it renewed each frame */
+static int g_band;
 static int g_back;
 static pw_canvas g_canvas;
 static const pw_image *g_sky_img;
@@ -33,6 +33,7 @@ static int g_style;
 static pw_fb_overlay g_overlay;
 static void *g_overlay_ctx;
 static unsigned int g_first_us;
+static unsigned int g_version; /* backdrops made */
 
 static void make_backdrop(void)
 {
@@ -41,21 +42,28 @@ static void make_backdrop(void)
     pw_canvas moving = {g_moving, PW_FB_W, PW_FB_H, FB_STRIDE};
 
     pw_backdrop_make(&sky, &game, g_sky_img, g_style);
+    g_version++;
     if (pw_backdrop_moves(g_style)) {
         memcpy(g_moving, g_sky, FB_BYTES);
         pw_backdrop_frame(&moving, 0, g_style);
     }
 }
 
-/* Renew one half of the wave in g_moving: the sky under those rows, then the wave at t_ms. Half
-   the work per frame, and the crest moves less than a pixel a frame, so no seam shows. */
+/* Renew one of WAVE_BANDS bands of the wave in g_moving: the sky under those rows, then the wave
+   at t_ms. The crest drifts at most ~0.12 px a frame (xmbbg.c: the main sine swings 14 px and
+   turns once in ~12 s), so a band renewed every fourth frame lags its neighbour by under half a
+   pixel: no seam shows, and a frame does a quarter of the wave (ADR-029; it was half, the largest
+   cost of the XMB style). */
+#define WAVE_BANDS 4
+
 static void move_backdrop(unsigned int t_ms)
 {
-    const int mid = (PW_XMBBG_WAVE_TOP + PW_FB_H) / 2;
-    int y0 = g_half ? mid : PW_XMBBG_WAVE_TOP, y1 = g_half ? PW_FB_H : mid;
+    const int span = PW_FB_H - PW_XMBBG_WAVE_TOP;
+    int y0 = PW_XMBBG_WAVE_TOP + span * g_band / WAVE_BANDS,
+        y1 = PW_XMBBG_WAVE_TOP + span * (g_band + 1) / WAVE_BANDS;
     pw_canvas moving = {g_moving, PW_FB_W, PW_FB_H, FB_STRIDE};
 
-    g_half ^= 1;
+    g_band = (g_band + 1) % WAVE_BANDS;
     memcpy(g_moving + y0 * FB_STRIDE, g_sky + y0 * FB_STRIDE,
            (unsigned int)(y1 - y0) * FB_STRIDE * 4);
     pw_backdrop_frame_rows(&moving, t_ms, g_style, y0, y1);
@@ -205,4 +213,19 @@ void pw_fb_close(void)
     pw_icon_cache(NULL, 0);
     pw_mem_free(&g_mem);
     g_game = g_sky = g_page[0] = g_page[1] = g_moving = NULL;
+}
+
+unsigned int *pw_fb_spare(unsigned int *bytes)
+{
+    if (g_game == NULL || pw_backdrop_moves(g_style)) {
+        *bytes = 0;
+        return NULL;
+    }
+    *bytes = FB_BYTES;
+    return g_moving;
+}
+
+unsigned int pw_fb_backdrop_version(void)
+{
+    return g_version;
 }
