@@ -156,8 +156,9 @@ no `Co-Authored-By` or other AI attribution lines, push only when the owner asks
 feature or a rework they ask for, a problem found while working - is tracked as a GitHub issue in
 `semiloker/pocketwatch` before the work starts:
 
-1. `gh issue create` with a short title, what the owner saw or asked (their words), the label
-   (`bug`, `enhancement`, `documentation`), and the device test that will confirm it.
+1. `gh issue create --assignee semiloker` with a short title, what the owner saw or asked (their
+   words), the label (`bug`, `enhancement`, `documentation`), and the device test that will
+   confirm it. Every issue is assigned to the owner.
 2. Work against it as usual (research, ADR, code, tests, docs); one issue per independent problem,
    several commits per issue when the work is large.
 3. The commit message names it in its body: `Fixes #N` when the commit resolves the issue,
@@ -165,5 +166,11 @@ feature or a rework they ask for, a problem found while working - is tracked as 
    the branch is pushed, and closes a `Fixes` issue when the commit reaches `main`.
 4. A comment on the issue (`gh issue comment N`) records the root cause, what changed and the
    device test still open; a fix that is only built, not yet confirmed on the PSP, says so.
+
+5. A pull request (only when the owner asks for one) is assigned to the owner and asks the owner
+   for the code review: `gh pr create --assignee semiloker --reviewer semiloker`, its body listing
+   the issues it fixes (`Fixes #N`). GitHub refuses a review request from a pull request's own
+   author; a pull request opened from the owner's account therefore carries the assignment, and
+   the owner reviews it before it is merged - never merged without the owner's review.
 
 Not for: a typo or a change made while working on another issue (it goes in that issue's commit).

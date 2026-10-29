@@ -170,4 +170,6 @@ The project's full workflow is imported here and applies to every session:
   semiloker/pocketwatch (`gh issue create`: what the owner saw or asked, then the cause or plan once
   known), and the commit that does the work names it - `Fixes #N` when it resolves the issue,
   `Refs #N` for part of it (GitHub closes a `Fixes` issue when the commit reaches `main`). A comment
-  on the issue records the cause and what changed. Details: `docs/AI_WORKFLOW.md` section 11.
+  on the issue records the cause and what changed. Every issue and every pull request is assigned
+  to the owner (`--assignee semiloker`) and the owner is the reviewer of every pull request
+  (`--reviewer semiloker`). Details: `docs/AI_WORKFLOW.md` section 11.
