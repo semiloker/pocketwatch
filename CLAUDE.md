@@ -90,6 +90,9 @@ The project's full workflow is imported here and applies to every session:
   with an RTC tick, valid 120 s), a start of Home that never showed a frame (`boot-pending`); hold
   START at power-on for no plugins at all. The XMB plugin is at its 64 KB budget.
 - Device test protocols for every feature: `docs/testing.md`.
+- `tools/xmbprobe/` is an M7 research tool (logs vsh_module's context-menu calls, dumps vsh_module and
+  game_plugin_module; `make -C tools/xmbprobe`, `scripts\deploy.cmd -Probe` / `-ProbeOff`): never built by
+  build.sh, never shipped; its dumps are Sony's code and never go into the repository.
 - On-device log: `<drive>:\seplugins\pocketwatch\pocketwatch.log` (first lines include the import self-check)
 - In a game, HOME opens Pocketwatch's hub instead of the system HOME screen (Resume Game / Save
   State / Load State / Quit Game; debug builds add Memory Stick Test = T1). Settings (style, fast

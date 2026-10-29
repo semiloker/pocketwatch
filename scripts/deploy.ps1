@@ -10,10 +10,13 @@
     With -Enable it also registers the game plugin in seplugins\PLUGINS.TXT (ARK-4 format);
     with -EnableXmb the XMB plugin (the Pocketwatch entry under Settings). If the XMB ever fails
     to start because of a plugin, hold START while the PSP boots: ARK-4 then loads no plugins.
+    With -Probe it also installs the M7 research tool tools\xmbprobe\xmbprobe.prx and turns its
+    VSH line on (docs/research/m7-xmb-context-menu.md); -ProbeOff turns that line off again.
 
 .EXAMPLE
     .\scripts\deploy.ps1
     .\scripts\deploy.ps1 -Drive E -Enable -EnableXmb
+    .\scripts\deploy.ps1 -Probe
 #>
 param(
     # Drive letter of the PSP. Auto-detected when there is exactly one PSP connected.
@@ -22,6 +25,9 @@ param(
     [switch]$Enable,
     # Add the XMB plugin to seplugins\PLUGINS.TXT if it is not listed yet.
     [switch]$EnableXmb,
+    # The M7 research tool (xmbprobe.prx): copy it and turn its VSH line on, or turn it off.
+    [switch]$Probe,
+    [switch]$ProbeOff,
     # Storage device as seen by the PSP: ms0 (Memory Stick) or ef0 (PSP Go internal).
     [ValidateSet('ms0', 'ef0')]
     [string]$Device = 'ms0'
@@ -131,4 +137,22 @@ Register-Plugin "UMD, ${Device}:/seplugins/pocketwatch/pocketwatch.prx, on" `
 if (Test-Path $xmbPrx) {
     Register-Plugin "VSH, ${Device}:/seplugins/pocketwatch/pocketwatch_xmb.prx, on" `
         '(?m)^[^#\r\n]*seplugins/pocketwatch/pocketwatch_xmb\.prx[^\r\n]*$' $EnableXmb.IsPresent 'EnableXmb'
+}
+
+# The M7 research tool: only for its test round (X2). Its line goes after the XMB plugin's, so its
+# start-module handler wraps what the others patched.
+$probePrx = Join-Path $root 'tools\xmbprobe\xmbprobe.prx'
+if ($Probe -or $ProbeOff) {
+    $state = 'on'
+    if ($ProbeOff) { $state = 'off' }
+    if ($Probe) {
+        if (-not (Test-Path $probePrx)) {
+            Write-Error "Not built yet: $probePrx. Run make in tools/xmbprobe (WSL) first."
+            exit 1
+        }
+        Copy-Item -Path $probePrx -Destination $dest -Force
+        Write-Host "Copied xmbprobe.prx -> $dest"
+    }
+    Register-Plugin "VSH, ${Device}:/seplugins/pocketwatch/xmbprobe.prx, $state" `
+        '(?m)^[^#\r\n]*seplugins/pocketwatch/xmbprobe\.prx[^\r\n]*$' $true 'Probe'
 }

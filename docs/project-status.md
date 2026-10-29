@@ -290,7 +290,9 @@ the GE: test HM38.
 
 0. **Owner (2026-10-29):** HM38 (the player's fixed keys), HM36 (lists, text, the settings'
    speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`, `slow:`).
-   Then PF-FREEZE above if not done.
+   Then PF-FREEZE above if not done. **M7:** X2, the XMB probe (`scripts\deploy.cmd -Probe`, hold
+   L at power-on, △ on games; send the `probe` folder directly, it holds firmware code), then
+   `-ProbeOff` ([m7-xmb-context-menu](research/m7-xmb-context-menu.md)).
    **Before (round 10, build with ADR-049):** boot the console a few times - it must always reach
    Home (the module can no longer touch boot). Then, to try the in-game overlay safely: Settings →
    Pocketwatch → Overlay in Games → Full, start ONE game, check it, Quit. bright3 stays off; for XMB
@@ -316,8 +318,9 @@ the GE: test HM38.
    `pocketwatch.log`. Then the list below.
 1. **Owner:** run the [testing guide](testing.md) sections 1-8 with a card backup and send the
    log and the results (section 9).
-2. **Dev, meanwhile:** M7 XMB side: research the 6.61 XMB's △ menu (call sites, how xmbctrl
-   chains, the selected item's path), then the VSH PRX ([vsh-integration](subsystems/vsh-integration.md#f-implementation-plan)).
+2. **Dev, meanwhile:** M7 XMB side: started 2026-10-29 - sources read (xmbctrl, Game Categories
+   Lite), the device probe built; after X2: disassemble the dumps, record the design as an ADR,
+   then the hook, the slot list and the launch ([vsh-integration](subsystems/vsh-integration.md#f-implementation-plan)).
 3. **Dev, after the results:** fix what they show; then, with the [compatibility
    matrix](compat.md) filled and the 100-cycle gate passed, the v0.1.0 tag. Release build: 94 % of its PRX
    budget (RISK-005).
