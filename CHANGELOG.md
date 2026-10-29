@@ -6,7 +6,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-10-29
+
+The first pre-release, tested on one PSP-3000 with ARK-4 on 6.61. The release's notes
+(`.github/release-notes.md`) list its known issues.
+
 ### Added
+- The release zip holds every part: the game plugin, the XMB plugin, the overlay module, the
+  translations and Pocketwatch Home, including its start-screen copy in `PSP/SAVEDATA/ARK_01234`.
 - Pocketwatch Home: the player is driven by what it shows - up / down between the time bar and
   its five buttons, left / right seek or choose a button (in a ring, its name under it), Enter
   presses it; START pauses on the music pages.
@@ -152,3 +159,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Exiting a game hung on "Please wait...": `module_stop` now stops and joins all plugin threads.
 - Quitting after a fast save hung on a black screen: the IPL's seeds are put back after every
   touch-and-go suspend.
+
+[Unreleased]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.1...HEAD
+[0.1.0-alpha.1]: https://github.com/semiloker/pocketwatch/releases/tag/v0.1.0-alpha.1

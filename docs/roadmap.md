@@ -150,6 +150,11 @@ Compatibility matrix on the owner's 22 ISOs (`docs/compat.md`), error handling, 
 changelog, tag → CI release. Release gate: 100 cycles on 5 games without failure; every refusal
 native; settings and card intact.
 
+Pre-releases before the gate: `v0.1.0-alpha.1` (2026-10-29, after PR #4) - a `v*-<suffix>` tag
+publishes a GitHub pre-release with the zip of every part (game, XMB and overlay modules,
+translations, Home and its `ARK_01234/PWHOME.PBP` copy) and the notes in `.github/release-notes.md`
+(install, known issues, reporting). The known issues there are kept current with this file.
+
 ## M7 — XMB integration
 
 Continue a game from a state from the XMB: "Continue from Save State" in the game's △ menu
