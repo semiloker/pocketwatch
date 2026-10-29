@@ -6,6 +6,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-10-29
+
 ### Changed
 - Pocketwatch Home's photo editor, reworked in a professional layout (#8): the picture in its own
   canvas with a histogram, a top bar with Cancel and Save a Copy, three tabs (Adjust, Filters,
@@ -22,6 +24,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   Home draws the in-game menu's brightness bar, in each style (#11).
 
 ### Added
+- Screenshots of Pocketwatch Home in the README, taken in PPSSPP with demo content (#12).
 - Pocketwatch's in-game menu shows a brightness bar at the left, upright, drawn like that style's
   volume bar with a sun (#9).
 - The brightness is a vertical bar at the left - its step on top, the steps lit from the bottom,
@@ -201,5 +204,6 @@ The first pre-release, tested on one PSP-3000 with ARK-4 on 6.61. The release's 
 - Quitting after a fast save hung on a black screen: the IPL's seeds are put back after every
   touch-and-go suspend.
 
-[Unreleased]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.1...HEAD
+[Unreleased]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.2...HEAD
+[0.1.0-alpha.2]: https://github.com/semiloker/pocketwatch/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/semiloker/pocketwatch/releases/tag/v0.1.0-alpha.1

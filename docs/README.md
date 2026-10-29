@@ -46,7 +46,8 @@ Evidence labels used everywhere: **VERIFIED**, **INFERRED**, **PROPOSED**, **OPE
 Branch overview of the XMB overhaul (audit, what the platform allows, status): [psp-xmb-overhaul](psp-xmb-overhaul/README.md).
 
 UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual references](ui/references.md), [customization architecture](ui/customization.md),
-[concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md).
+[concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md),
+[screenshots of Home in PPSSPP](assets/screenshots/README.md).
 
 ## Research notes
 
