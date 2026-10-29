@@ -423,8 +423,8 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page *pg,
         stext(g, ui->body, x, 122, v->mu_artist, w, C_TEXT, a * 220 / 256);
     if (v->mu_album)
         stext(g, ui->body, x, 138, v->mu_album, w, C_TEXT, a * 170 / 256);
-    { /* the time: a line, thicker with a knob while it is chosen (left / right seek it) */
-        int f = v->mu_focus >= 0 ? v->mu_bar_t : 0, th = 2 + 2 * f / 256,
+    { /* the time: a line, thicker with a knob while left / right seek it */
+        int f = v->mu_seek ? 256 : 0, th = 2 + 2 * f / 256,
             k = w * hm_clampi(v->mu_bar < 0 ? 0 : v->mu_bar, 0, 256) / 256;
         /* off shuffle / repeat: grey on the XMB's sky (they were white at a third) */
         hm_player_look look = {62,     14,     18, 0,   C_TEXT, PW_RGB(150, 160, 182),
@@ -439,7 +439,7 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_page *pg,
         if (v->mu_time)
             stext(g, ui->body, x, 176, v->mu_time, 0, C_TEXT, a * 220 / 256);
         stext_right(g, ui->body, x + w, 176, v->mu_length, C_TEXT, a * 220 / 256);
-        hm_player(g, ui->body, v, &look, x + w / 2, 200, a);
+        hm_player(g, ui, v, &look, x + w / 2, 200, a);
     }
 }
 

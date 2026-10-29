@@ -51,6 +51,8 @@ enum {
     HM_ICON_LAYERS, /* themes */
     HM_ICON_LR,     /* the d-pad's left and right: two triangles apart */
     HM_ICON_UD,     /* its up and down */
+    HM_ICON_UP,     /* the d-pad's up alone: one triangle */
+    HM_ICON_DOWN,
     HM_ICON_LAST
 };
 

@@ -73,10 +73,11 @@ PSP_HEAP_THRESHOLD_SIZE_KB(4096);
 #define INTRO_HOLD_MS 650 /* the start-up wordmark holds, then fades out over INTRO_FADE_MS */
 #define INTRO_FADE_MS 450
 #define TOAST_MS      1800
-#define HOLD_MS       450 /* left / right held this long: seeking, not the next track */
+#define HOLD_MS       450 /* left / right held this long: seeking on by steps */
 #define SEEK_EVERY    220
 #define SEEK_STEP     5    /* s */
 #define SEEK_TAP      10   /* s: one press of left / right */
+#define FLASH_MS      800  /* the ring on the player's button a key just worked */
 #define EDIT_SIDE     1600 /* an edited copy's longest side at most (memory) */
 #define REPEAT        (PSP_CTRL_LEFT | PSP_CTRL_RIGHT | PSP_CTRL_UP | PSP_CTRL_DOWN)
 
@@ -638,9 +639,10 @@ static struct {
     int launching, launch_slot, leave, usb, usb_state, popup, popup_row;
     int viewer, slideshow, photo; /* the photo shown whole (its index) */
     int confirm, confirm_arg;
-    int hold_dir; /* left / right held on the player's time bar */
+    int hold_dir; /* left / right held on Now Playing: seeking */
     unsigned int hold_t0, hold_last;
-    int mu_focus, mu_btn; /* Now Playing: MU_BAR or a button; the button last chosen */
+    int mu_flash;                     /* Now Playing: the button a key just worked, -1 */
+    unsigned int mu_flash_t, mu_keys; /* when; the buttons down at its last frame */
     unsigned int t_fade, t_open, t_caption, t_slide, t_toast, t_usb;
     int editor, ed_dirty;
     hm_edit ed;
@@ -1531,70 +1533,71 @@ static int enter_row(int r, unsigned int now, int *nickname, int *browser, int *
 
 static void music_mode_toggle(int shuffle);
 
-static void now_opened(void) /* the player opens on Play / Pause */
+static void now_opened(void)
 {
-    g_s.mu_focus = g_s.mu_btn = HM_MU_PLAY;
+    g_s.mu_flash = -1;
+    g_s.mu_keys = ~0u; /* a key still down from the page before is not a press */
 }
 
-/* Now Playing: the keys move through what is on the screen - the time bar and the five buttons
-   under it (owner 2026-10-27: the d-pad's keys "all seem to do the same", the player was hard to
-   understand: left / right sought on every music page, up / down changed the track, and the
-   buttons drawn could not be chosen). Up / down: the bar or the buttons; left / right: seek on
-   the bar (a press SEEK_TAP, held a step every SEEK_EVERY), else the next button; Enter presses
-   the chosen one (on the bar: pause). */
+static void now_flash(int btn, unsigned int now)
+{
+    g_s.mu_flash = btn;
+    g_s.mu_flash_t = now;
+}
+
+/* Now Playing (ADR-057): each key does one thing, whatever was pressed before - left / right
+   seek (a press SEEK_TAP, held a step every SEEK_EVERY), up / down the track before / after (as
+   up / down move in the track list), Enter plays or pauses, Square and Triangle shuffle and repeat
+   (page_keys). Owner 2026-10-29: with ADR-054's focus (up / down to the bar or the buttons, left /
+   right seeking on one, choosing on the other) "up and right do the same, down and left too".
+   Every button shows its key; the one a key works flashes. Only presses count for the d-pad: its
+   repeats every 100 ms sought 10 s each and would skip a track each. */
 static unsigned int now_keys(unsigned int ev, unsigned int buttons, unsigned int now)
 {
-    unsigned int lr = PSP_CTRL_LEFT | PSP_CTRL_RIGHT;
-    int f = g_s.mu_focus;
+    unsigned int lr = PSP_CTRL_LEFT | PSP_CTRL_RIGHT, ud = PSP_CTRL_UP | PSP_CTRL_DOWN,
+                 press = ev & ~g_s.mu_keys;
 
-    if ((ev & PSP_CTRL_UP) && f != HM_MU_BAR) {
-        g_s.mu_focus = HM_MU_BAR;
-        g_s.snd = HM_SND_MOVE;
-    } else if ((ev & PSP_CTRL_DOWN) && f == HM_MU_BAR) {
-        g_s.mu_focus = g_s.mu_btn;
-        g_s.snd = HM_SND_MOVE;
-    } else if (f == HM_MU_BAR && (ev & lr)) {
-        g_s.hold_dir = ev & PSP_CTRL_LEFT ? -1 : 1;
+    g_s.mu_keys = buttons;
+    if (press & lr) {
+        g_s.hold_dir = press & PSP_CTRL_LEFT ? -1 : 1;
         g_s.hold_t0 = g_s.hold_last = now;
         hm_music_seek(g_s.hold_dir * SEEK_TAP);
-    } else if (f != HM_MU_BAR && (ev & lr)) {
-        int to = f + (ev & PSP_CTRL_LEFT ? -1 : 1);
+    } else if ((press & ud) && hm_music_current() >= 0) {
+        int up = (press & PSP_CTRL_UP) != 0;
 
-        to = to < HM_MU_SHUFFLE ? HM_MU_SHUFFLE : to > HM_MU_REPEAT ? HM_MU_REPEAT : to;
-
-        if (to != f)
-            g_s.mu_focus = g_s.mu_btn = to, g_s.snd = HM_SND_MOVE;
+        hm_music_skip(up ? -1 : 1);
+        now_flash(up ? HM_MU_PREV : HM_MU_NEXT, now);
+        g_s.snd = HM_SND_MOVE;
     } else if (ev & g_enter) {
-        if (hm_music_current() < 0) { /* nothing yet: the first track (the hint says Play) */
-            if (hm_music_count() > 0)
-                hm_music_play(0), g_s.snd = HM_SND_OPEN;
-        } else if (f == HM_MU_BAR || f == HM_MU_PLAY)
-            hm_music_toggle(), g_s.snd = HM_SND_OPEN;
-        else if (f == HM_MU_PREV || f == HM_MU_NEXT)
-            hm_music_skip(f == HM_MU_PREV ? -1 : 1), g_s.snd = HM_SND_MOVE;
-        else
-            music_mode_toggle(f == HM_MU_SHUFFLE);
+        if (hm_music_current() >= 0)
+            hm_music_toggle();
+        else if (hm_music_count() > 0) /* nothing yet: the first track (the hint says Play) */
+            hm_music_play(0);
+        now_flash(HM_MU_PLAY, now);
+        g_s.snd = HM_SND_OPEN;
     }
-    if (f == HM_MU_BAR && g_s.hold_dir && (buttons & lr)) {
+    if (g_s.hold_dir && (buttons & (g_s.hold_dir < 0 ? PSP_CTRL_LEFT : PSP_CTRL_RIGHT))) {
         if (now - g_s.hold_t0 >= HOLD_MS && now - g_s.hold_last >= SEEK_EVERY) {
             hm_music_seek(g_s.hold_dir * SEEK_STEP);
             g_s.hold_last = now;
         }
-    } else if (!(ev & lr)) {
+    } else {
         g_s.hold_dir = 0;
     }
     g_v.mu_seek = g_s.hold_dir;
-    return ev & ~(lr | PSP_CTRL_UP | PSP_CTRL_DOWN | g_enter);
+    return ev & ~(lr | ud | g_enter);
 }
 
-/* The player's words for what is chosen: "Shuffle: On", "Repeat: All", "Next Track"... */
-static void now_texts(void)
+/* What the key just pressed did, under the buttons while its ring fades ("Shuffle: On",
+   "Repeat: All", "Next Track"), and the keys in the hints. */
+static void now_texts(unsigned int now)
 {
     static char text[48];
     const hm_cfg *c = hm_cfg_get();
-    int playing = hm_music_current() >= 0 && !hm_music_paused();
+    int playing = hm_music_current() >= 0 && !hm_music_paused(), el = (int)(now - g_s.mu_flash_t),
+        flash = el < FLASH_MS ? g_s.mu_flash : -1;
 
-    switch (g_s.mu_focus) {
+    switch (flash) {
     case HM_MU_SHUFFLE:
         stbsp_snprintf(text, sizeof(text), "%s: %s", pw_tr(PW_S_HS_SHUFFLE),
                        pw_tr(c->shuffle ? PW_S_ON : PW_S_OFF));
@@ -1608,7 +1611,7 @@ static void now_texts(void)
     case HM_MU_PREV:
     case HM_MU_NEXT:
         stbsp_snprintf(text, sizeof(text), "%s",
-                       pw_tr(g_s.mu_focus == HM_MU_PREV ? PW_S_HM_PREV_TRACK : PW_S_HM_NEXT_TRACK));
+                       pw_tr(flash == HM_MU_PREV ? PW_S_HM_PREV_TRACK : PW_S_HM_NEXT_TRACK));
         break;
     case HM_MU_PLAY:
         stbsp_snprintf(text, sizeof(text), "%s", pw_tr(playing ? PW_S_HM_PAUSE : PW_S_HM_PLAY));
@@ -1620,13 +1623,12 @@ static void now_texts(void)
         g_v.hint_enter = hm_music_count() > 0 ? pw_tr(PW_S_HM_PLAY) : 0;
         return;
     }
-    g_v.mu_focus = g_s.mu_focus;
-    g_v.mu_focus_text = text[0] ? text : 0;
-    g_v.hint_enter = g_s.mu_focus == HM_MU_BAR || g_s.mu_focus == HM_MU_PLAY
-                         ? pw_tr(playing ? PW_S_HM_PAUSE : PW_S_HM_PLAY)
-                         : pw_tr(PW_S_OK);
-    g_v.hint_lr = pw_tr(g_s.mu_focus == HM_MU_BAR ? PW_S_HM_SEEK : PW_S_HM_CHOOSE);
-    g_v.hint_ud = pw_tr(g_s.mu_focus == HM_MU_BAR ? PW_S_HM_CONTROLS : PW_S_HM_SEEK);
+    g_v.mu_flash = flash;
+    g_v.mu_flash_a = el < FLASH_MS / 2 ? 256 : (FLASH_MS - el) * 512 / FLASH_MS;
+    g_v.mu_flash_text = text[0] ? text : 0;
+    g_v.hint_enter = pw_tr(playing ? PW_S_HM_PAUSE : PW_S_HM_PLAY);
+    g_v.hint_lr = pw_tr(PW_S_HM_SEEK);
+    g_v.hint_ud = pw_tr(PW_S_HM_TRACK);
 }
 
 static void music_mode_toggle(int shuffle)
@@ -1675,6 +1677,8 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
     }
     if ((id == P_MUSIC || id == P_NOW) && (ev & PSP_CTRL_START) && hm_music_count()) {
         hm_music_toggle(); /* START: pause or play on both music pages */
+        if (id == P_NOW)
+            now_flash(HM_MU_PLAY, now);
         g_s.snd = HM_SND_OPEN;
         return;
     }
@@ -1778,11 +1782,11 @@ static void page_keys(unsigned int ev, unsigned int buttons, unsigned int now, i
             g_s.snd = HM_SND_OPEN;
         }
         break;
-    case P_NOW: /* (the d-pad and Enter: now_keys) the shortcuts of the two ends */
-        if (ev & PSP_CTRL_SQUARE)
-            music_mode_toggle(1);
-        else if (ev & PSP_CTRL_TRIANGLE)
-            music_mode_toggle(0);
+    case P_NOW: /* (the d-pad and Enter: now_keys) the buttons at the two ends */
+        if (ev & (PSP_CTRL_SQUARE | PSP_CTRL_TRIANGLE)) {
+            music_mode_toggle((ev & PSP_CTRL_SQUARE) != 0);
+            now_flash(ev & PSP_CTRL_SQUARE ? HM_MU_SHUFFLE : HM_MU_REPEAT, now);
+        }
         break;
     default: /* the rows */
         if (ev & PSP_CTRL_UP)
@@ -1906,8 +1910,8 @@ static void page_hints(void)
         a = hm_page_act(g_stack[g_v.depth], p->row_sel);
     g_v.hint_enter = g_v.hint_options = g_v.hint_square = 0;
     g_v.hint_lr = g_v.hint_ud = 0;
-    g_v.mu_focus = -1; /* (the player's focus: now_texts) */
-    g_v.mu_focus_text = 0;
+    g_v.mu_flash = -1; /* (the player's: now_texts) */
+    g_v.mu_flash_text = 0;
     g_v.hint_back = g_v.depth > 0 ? pw_tr(PW_S_BACK) : 0;
     switch (id) {
     case P_GAMES:
@@ -1947,7 +1951,7 @@ static void page_hints(void)
         break;
     }
     case P_NOW:
-        now_texts();
+        now_texts(hm_hw_now_ms());
         break;
     default:
         if (a.act == A_OPEN || a.act == A_USB || a.act == A_BROWSER)
@@ -2537,9 +2541,6 @@ int main(void)
             p->opt_focus_pos = pw_ease(p->opt_focus_pos, p->opt_focus * 256, dt, tau, 6);
         }
         g_v.depth_pos = pw_ease(g_v.depth_pos, g_v.depth * 256, dt, tau * 3 / 2, 6);
-        g_v.mu_btn_pos = pw_ease(g_v.mu_btn_pos ? g_v.mu_btn_pos : g_s.mu_btn * 256,
-                                 g_s.mu_btn * 256, dt, tau, 6);
-        g_v.mu_bar_t = pw_ease(g_v.mu_bar_t, g_s.mu_focus == HM_MU_BAR ? 256 : 0, dt, tau, 6);
         g_v.tab_pos = pw_ease(g_v.tab_pos, g_v.tab * 256, dt, tau, 6);
         g_v.panel = pw_ease(g_v.panel, g_s.panel_open ? 256 : 0, dt, tau, 6);
         g_v.panel_pos = pw_ease(g_v.panel_pos, g_v.panel_sel * 256, dt, tau, 6);

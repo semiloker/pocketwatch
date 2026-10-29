@@ -421,8 +421,6 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_PERF_RAM] = {"perf_ram", "Free memory"},
     [PW_S_HM_PREV_TRACK] = {"hm_prev_track", "Previous Track"},
     [PW_S_HM_NEXT_TRACK] = {"hm_next_track", "Next Track"},
-    [PW_S_HM_CHOOSE] = {"hm_choose", "Choose"},
-    [PW_S_HM_CONTROLS] = {"hm_controls", "Controls"},
 #endif
 };
 

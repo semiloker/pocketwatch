@@ -177,24 +177,37 @@ void hm_cover_draw(hm_gfx *g, const unsigned int *cover, int x, int y, int size,
             alpha);
 }
 
-void hm_player(hm_gfx *g, pw_font *f, const hm_view *v, const hm_player_look *k, int cx, int y,
+void hm_player(hm_gfx *g, const hm_ui *ui, const hm_view *v, const hm_player_look *k, int cx, int y,
                int a)
 {
-    int xs[5], pos = hm_clampi(v->mu_btn_pos - 256, 0, 4 * 256), i = pos / 256, fr = pos % 256, hx,
-               fa = v->mu_focus <= HM_MU_BAR ? 0 : a * (256 - hm_clampi(v->mu_bar_t, 0, 256)) / 256,
-               rr[5];
+    /* the keys: Square, up, Enter, down, Triangle (main.c now_keys) */
+    static const int key[5] = {PW_BTN_SQUARE, HM_ICON_UP, -1, HM_ICON_DOWN, PW_BTN_TRIANGLE};
+    enum { KEY = 16 }; /* (12, as in the hints, read Square as Circle and the arrows as dots) */
+    int xs[5], rr[5], i = v->mu_flash,
+                      fa = i >= 0 && i < 5 ? a * hm_clampi(v->mu_flash_a, 0, 256) / 256 : 0,
+                      ky = k->label_y - pw_font_cap(ui->body) / 2, ka = (a - fa) * 200 / 256;
 
     for (int b = 0; b < 5; b++) {
         xs[b] = cx + (b - 2) * k->gap;
         rr[b] = b == 2 && k->disc ? k->disc + 5 : k->icon / 2 + 9;
     }
-    /* the focus: a ring gliding from button to button, gone while the bar is chosen */
+    /* the button a key just worked: a ring that fades */
     if (fa > 0) {
-        int j = i < 4 ? i + 1 : 4, r = hm_lerp(rr[i], rr[j], fr);
+        g->rrect(g, xs[i] - rr[i], y - rr[i], 2 * rr[i], 2 * rr[i], rr[i], 0, k->hl,
+                 fa * k->hl_a / 256);
+        g->rrect(g, xs[i] - rr[i], y - rr[i], 2 * rr[i], 2 * rr[i], rr[i], PW_FX(2), k->ink, fa);
+    }
+    /* each button's key under it; what a key just did in their place while its ring fades */
+    for (int b = 0; b < 5 && k->label_y && ka > 0; b++) {
+        if (key[b] >= HM_ICON_GAMES) { /* the d-pad's: its arrow in a ring like the buttons' */
+            int r = KEY * 28 / 64;
 
-        hx = hm_lerp(xs[i], xs[j], fr);
-        g->rrect(g, hx - r, y - r, 2 * r, 2 * r, r, 0, k->hl, fa * k->hl_a / 256);
-        g->rrect(g, hx - r, y - r, 2 * r, 2 * r, r, PW_FX(2), k->ink, fa);
+            g->rrect(g, xs[b] - r, ky - r, 2 * r, 2 * r, r, PW_FX(1), k->ink, ka);
+            g->icon(g, key[b], xs[b], ky, KEY * 3 / 4, k->ink, ka);
+        } else {
+            g->button(g, key[b] < 0 ? (ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE) : key[b],
+                      xs[b], ky, KEY, k->ink, ka);
+        }
     }
     g->icon(g, HM_ICON_SHUFFLE, xs[0], y, k->icon, v->mu_shuffle ? k->acc : k->dim, a);
     g->icon(g, HM_ICON_PREV, xs[1], y, k->icon, k->ink, a);
@@ -205,8 +218,8 @@ void hm_player(hm_gfx *g, pw_font *f, const hm_view *v, const hm_player_look *k,
     g->icon(g, HM_ICON_NEXT, xs[3], y, k->icon, k->ink, a);
     g->icon(g, v->mu_repeat == 2 ? HM_ICON_REPEAT1 : HM_ICON_REPEAT, xs[4], y, k->icon,
             v->mu_repeat ? k->acc : k->dim, a);
-    if (k->label_y && v->mu_focus_text)
-        hm_text_center(g, f, cx, k->label_y, v->mu_focus_text, 5 * k->gap, k->label, fa);
+    if (k->label_y && v->mu_flash_text)
+        hm_text_center(g, ui->body, cx, k->label_y, v->mu_flash_text, 5 * k->gap, k->label, fa);
 }
 
 void hm_art_draw(hm_gfx *g, const pw_image *img, int cx, int cy, int alpha)

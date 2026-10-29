@@ -6,6 +6,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Pocketwatch Home's player: every key does one thing, always. Left / right seek (held: on in
+  steps), up / down the previous / next track, Enter play / pause, Square shuffle, Triangle
+  repeat. Each button shows its key under it, and the one you press lights up with what it did.
+  Before, up and right (and down and left) could do the same, depending on what was chosen.
+
+### Fixed
+- Pocketwatch Home's player: holding left / right no longer jumps 10 s every tenth of a second.
+
 ## [0.1.0-alpha.1] - 2026-10-29
 
 The first pre-release, tested on one PSP-3000 with ARK-4 on 6.61. The release's notes

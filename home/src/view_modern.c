@@ -742,8 +742,8 @@ static void now(hm_gfx *g, const hm_ui *ui, const hm_palette *p, const hm_view *
         g->text(g, ui->title, x, 106, v->mu_artist, w, p->dim, a);
     if (v->mu_album)
         g->text(g, ui->body, x, 124, v->mu_album, w, p->sub, a);
-    progress(g, ui, p, v, x, 146, w, v->mu_focus >= 0 ? v->mu_bar_t : 0, a);
-    hm_player(g, ui->body, v, &k, x + w / 2, 198, a);
+    progress(g, ui, p, v, x, 146, w, v->mu_seek ? 256 : 0, a);
+    hm_player(g, ui, v, &k, x + w / 2, 198, a);
 }
 
 /* The two-pane settings (ADR-050): a sidebar of categories on the left, the chosen category's

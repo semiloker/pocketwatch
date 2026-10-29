@@ -402,5 +402,3 @@ perf_cpu = Процесор
 perf_ram = Вільно пам'яті
 hm_prev_track = Попередній трек
 hm_next_track = Наступний трек
-hm_choose = Вибір
-hm_controls = Кнопки

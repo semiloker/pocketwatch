@@ -501,7 +501,7 @@ static void home_previews(const pw_image *sky_img)
         v.mu_cur = 1;
         v.mu_cover = cover;
         v.mu_repeat = 1;
-        v.mu_focus = -1;
+        v.mu_flash = -1;
         v.mu_now_label = "Now Playing";
         v.bg = cl ? sky : coverbg;
         v.wave = cl ? 256 : 0;
@@ -513,29 +513,23 @@ static void home_previews(const pw_image *sky_img)
         p.layout = HM_PAGE_NOW;
         p.title = "Now Playing";
         over(&v, &root, &p);
-        /* the player's focus (main.c now_keys): on Next, then on the time bar */
-        v.hint_enter = "OK";
+        /* the player's fixed keys (main.c now_keys, ADR-057): down just pressed, Next flashing */
+        v.hint_enter = "Pause";
         v.hint_square = v.hint_options = 0;
         v.hint_back = "Back";
-        v.hint_lr = "Choose";
-        v.hint_ud = "Seek";
-        v.mu_shuffle = 1;
-        v.mu_focus = HM_MU_NEXT;
-        v.mu_btn_pos = HM_MU_NEXT * 256;
-        v.mu_bar_t = 0;
-        v.mu_focus_text = "Next Track";
-        hshot(&v, "home-now-playing");
-        v.mu_cover = 0; /* without a cover, the time bar chosen */
-        v.mu_focus = HM_MU_BAR;
-        v.mu_bar_t = 256;
-        v.mu_seek = 1;
-        v.hint_enter = "Pause";
         v.hint_lr = "Seek";
-        v.hint_ud = "Controls";
+        v.hint_ud = "Track";
+        v.mu_shuffle = 1;
+        v.mu_flash = HM_MU_NEXT;
+        v.mu_flash_a = 256;
+        v.mu_flash_text = "Next Track";
+        hshot(&v, "home-now-playing");
+        v.mu_cover = 0; /* without a cover, right held: seeking */
+        v.mu_flash = -1;
+        v.mu_flash_text = 0;
+        v.mu_seek = 1;
         hshot(&v, "home-now-no-cover");
         v.mu_seek = 0;
-        v.mu_focus = -1;
-        v.mu_focus_text = 0;
         v.hint_lr = v.hint_ud = 0;
         { /* Home's keyboard (the nickname), its Cyrillic page, the question on Back */
             hm_kb kb;

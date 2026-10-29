@@ -1196,7 +1196,8 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-054 — Home's player: the keys move through what the screen shows
 
-- **Status:** Accepted (2026-10-27). Owner, after using the player on the PSP: the d-pad's keys
+- **Status:** Superseded by [ADR-057](#adr-057--the-players-keys-are-fixed-each-button-shows-its-key)
+  (2026-10-29). Accepted 2026-10-27. Owner, after using the player on the PSP: the d-pad's keys
   "all seem to do the same", the interface and the controls are hard to understand and "work
   very badly".
 - **Context (code):** since 2026-10-20 left / right sought on every music page (the track list
@@ -1281,3 +1282,36 @@ decision was taken; the evidence column links the research behind it.
 - **Alternatives considered:** copying the files to the Memory Stick (Sony's files on the card,
   a copy per firmware); asking the game plugin for them (it is not loaded in Home).
 - **Consequences:** device test HM37: Classic's category icons and the month's sky in Home.
+
+## ADR-057 — The player's keys are fixed; each button shows its key
+
+- **Status:** Accepted (2026-10-29). Supersedes the keys of ADR-054.
+- **Context (owner, 2026-10-29, the player on the PSP):** "the up arrow and right arrow have the
+  same function, the down arrow and left too". **Cause (code):** ADR-054's focus. Up / down moved
+  it between the time bar and the buttons, and left / right sought on one and chose a button on
+  the other. So what a key did depended on an earlier key, and two keys could do the same thing.
+  Also, the d-pad's auto-repeat (every 100 ms after 400 ms) reached the seek, so a held left /
+  right sought 10 s every 100 ms instead of the planned 5 s steps.
+- **Decision:** Now Playing has no focus. Each key does one thing, always:
+
+  | Key | Does |
+  |---|---|
+  | ◄ / ► | seek 10 s back / on per press; held, 5 s every 220 ms after 450 ms |
+  | ▲ / ▼ | the track before / after (as ▲ / ▼ move in the track list); ▲ more than 3 s in: this track from its start |
+  | Enter | play / pause (nothing playing: the first track) |
+  | □ / △ | shuffle on / off; repeat off / all / one |
+  | START | play / pause (both music pages) |
+
+  Only presses count for the d-pad on this page (its repeats would also skip a track every
+  100 ms). Under the five buttons there is a row of their keys (□ ▲ Enter ▼ △, 16 px; at 12 px
+  Square read as Circle and the arrows as dots). The button a key works gets a ring for 0.8 s, and
+  what it did ("Next Track", "Repeat: All") replaces the key row meanwhile. The time bar shows its
+  knob while left / right seek. The hints: ◄► Seek, ▲▼ Track, Enter Play / Pause.
+- **Alternatives considered:** keeping ADR-054's focus and drawing it more clearly. The owner
+  found two models of focus unclear in a row (2026-10-20, 2026-10-27). The PSP's own player
+  (◄ / ► the tracks, held a seek): seeking hidden behind a hold was what the owner could not find
+  on 2026-10-20.
+- **Consequences:** `main.c now_keys`, `home_view.c hm_player`, new icons `HM_ICON_UP` /
+  `HM_ICON_DOWN`; the strings `hm_choose` and `hm_controls` dropped. Previews
+  `home-now-playing` (▼ just pressed), `home-now-no-cover` (seeking, the key row) in each style.
+  Device test HM38 replaces HM35.

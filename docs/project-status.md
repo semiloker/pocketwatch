@@ -275,11 +275,22 @@ to the end (`measured 1849 mAh in 33601 s (100% to 1%)`, HM30); USB from Home co
 the player, settings, 59-60 fps); not yet on the PSP: HM35-HM37. Home builds with this
 machine's older PSPSDK as with the laptop's newer one (`union SceNetApctlInfo`).
 
+## 2026-10-29: the player's keys fixed (ADR-057)
+
+Owner, after HM35 on the PSP: "the up arrow and right arrow have the same function, the down
+arrow and left too". Cause (code): ADR-054's focus - up / down moved it between the time bar and
+the buttons, left / right sought on one and chose on the other - plus the d-pad's auto-repeat
+seeking 10 s every 100 ms while held. Now every key does one thing (left / right seek, up / down
+the track, Enter play / pause, Square shuffle, Triangle repeat), each button shows its key, the
+one pressed flashes. Host previews in each style; the PPSSPP check of the GE path was not
+completed (its keyboard input arrived late or twice), so the device round is the first run on
+the GE: test HM38.
+
 ## Next actions (in order)
 
-0. **Owner (2026-10-27, the UI round on the card):** HM35 (the player), HM36 (lists, text, the
-   settings' speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`,
-   `slow:`). Then PF-FREEZE above if not done.
+0. **Owner (2026-10-29):** HM38 (the player's fixed keys), HM36 (lists, text, the settings'
+   speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`, `slow:`).
+   Then PF-FREEZE above if not done.
    **Before (round 10, build with ADR-049):** boot the console a few times - it must always reach
    Home (the module can no longer touch boot). Then, to try the in-game overlay safely: Settings →
    Pocketwatch → Overlay in Games → Full, start ONE game, check it, Quit. bright3 stays off; for XMB

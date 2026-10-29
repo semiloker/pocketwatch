@@ -400,5 +400,3 @@ perf_cpu = Processore
 perf_ram = Memoria libera
 hm_prev_track = Brano precedente
 hm_next_track = Brano successivo
-hm_choose = Scegli
-hm_controls = Comandi
