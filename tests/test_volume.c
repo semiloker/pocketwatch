@@ -62,16 +62,31 @@ PW_TEST(volume_press_at_the_end_and_mute_show_it)
     CHECK_EQ(v.up, 0);
 }
 
-PW_TEST(brightness_bar_is_the_volume_bar_on_a_scale_of_100)
+PW_TEST(brightness_bar_is_the_volume_bar_on_a_scale_of_the_steps)
 {
     pw_volume v = {0};
 
-    v.max = PW_BRIGHT_MAX;
+    v.max = PW_BRIGHT_STEPS;
     pw_volume_reset(&v);
-    CHECK_EQ(pw_volume_update(&v, 44, 0, 0, 1000), 0); /* the first reading: nothing */
-    CHECK_EQ(run(&v, 100, 0, 1016, 2000), 1);          /* the fifth step (#6): its own level */
-    CHECK_EQ(v.level, 100);                            /* not cut at the volume's 30 */
-    CHECK(v.shown > 90 * 256 && v.alpha == 256);
-    CHECK_EQ(run(&v, 150, 0, 2016, 2100), 1);
-    CHECK_EQ(v.level, PW_BRIGHT_MAX); /* (cut at its own top) */
+    CHECK_EQ(pw_volume_update(&v, 1, 0, 0, 1000), 0); /* the first reading: nothing */
+    CHECK_EQ(run(&v, 5, 0, 1016, 2000), 1);           /* the fifth step (#6) */
+    CHECK_EQ(v.level, 5);
+    CHECK(v.shown > 4 * 256 && v.alpha == 256); /* the bar full: 5 of 5 (#11) */
+    CHECK_EQ(run(&v, 9, 0, 2016, 2100), 1);
+    CHECK_EQ(v.level, PW_BRIGHT_STEPS); /* (cut at its own top) */
+}
+
+PW_TEST(brightness_step_is_the_nearest_of_the_firmware_levels)
+{
+    /* the PSP-3000's 44 60 72 84 and ARK-4's fifth above them (#11): 1 of 5 is a fifth */
+    CHECK_EQ(pw_backlight_step(44), 1);
+    CHECK_EQ(pw_backlight_step(60), 2);
+    CHECK_EQ(pw_backlight_step(72), 3);
+    CHECK_EQ(pw_backlight_step(84), 4);
+    CHECK_EQ(pw_backlight_step(100), 5);
+    CHECK_EQ(pw_backlight_step(90), 5);
+    CHECK_EQ(pw_backlight_step(51), 1); /* a level between: the nearest */
+    CHECK_EQ(pw_backlight_step(53), 2);
+    CHECK_EQ(pw_backlight_step(77), 3);
+    CHECK_EQ(pw_backlight_step(20), 1);
 }

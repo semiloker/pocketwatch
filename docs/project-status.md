@@ -286,6 +286,17 @@ one pressed flashes. Host previews in each style; the PPSSPP check of the GE pat
 completed (its keyboard input arrived late or twice), so the device round is the first run on
 the GE: test HM38.
 
+## 2026-10-29 (late): #11 - the brightness bar by the step, Home's like the in-game menu's
+
+Owner, after round 12's build: the in-game menu's brightness bar (Modern) is the look wanted,
+"do the same in the default menu" (Home, the start screen), and "1/5 is a 50 % fill". Cause: the
+bars filled by the backlight's level, and the PSP-3000's first step is 44 of 100 (its firmware
+levels 44 60 72 84, BetterBright's README; INFERRED for this PSP). Now (ADR-063): every bar fills
+by the SCREEN step, k of 5 (Own Steps: of its count), the step the nearest of those levels; Home
+draws the in-game menu's bar in each style; Home's stats line lists each level seen and its step
+(`home brightness: level=step ...`) so the next round checks the table. Host: 156 tests,
+previews `home-osd` / `hub-bright` in each style. Not yet on the PSP: HM34, PF3, H19.
+
 ## Device results 2026-10-29, round 12 (owner, build `f6de885`, `home.log`)
 
 - **HM38 passed:** the keys and the seek (#5 VERIFIED: `home music: seek to 13 s, frame 497 of
@@ -326,8 +337,9 @@ All four are built, host-tested (152 tests) and previewed; none is confirmed on 
 
 ## Next actions (in order)
 
-0. **Owner (2026-10-29, round 13):** HM39 again (each press shows, #10), HM34 and PF3 (the
-   level, the fifth step too, #6), H19 (the bar in the in-game menu, each style, #9), then
+0. **Owner (2026-10-29, round 13):** HM39 again (each press shows, #10), HM34 and PF3 (a
+   fifth more at each step, the fifth full, Home's bar like the in-game menu's, #6, #11), H19
+   (the bar in the in-game menu, each style, #9, #11), then
    PF-FREEZE and only after it PF5; X2 (hold L at power-on, Triangle on games). Send `home.log`.
    **Round 12 (2026-10-29):** HM38 passed; HM39, HM34, PF3 failed (fixed above).
    **Before (2026-10-29, later):** HM38 (the keys and now the seek, #5), HM39 (the photo editor,

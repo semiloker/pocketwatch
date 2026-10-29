@@ -465,7 +465,7 @@ void pw_view_sun(pw_canvas *c, int cx, int cy, unsigned int color, int alpha)
                          PW_FX(cx + k[i][0]), PW_FX(cy + k[i][1]), PW_FX(1), color, alpha);
 }
 
-#define BRIGHT_STEPS 20 /* the brightness bar: a step of 5 % */
+#define BRIGHT_STEPS 20 /* the brightness bar: four to each SCREEN step (#11) */
 
 void pw_view_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {
@@ -478,12 +478,12 @@ void pw_view_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
         return;
     }
     /* the brightness (#9): the same strip stood up at the left, 20 steps, a sun under them */
-    int up = v->max > PW_VOLUME_MAX, n = up ? BRIGHT_STEPS : PW_VOLUME_MAX,
+    int up = v->max > 0, n = up ? BRIGHT_STEPS : PW_VOLUME_MAX,
         s = up ? v->shown * BRIGHT_STEPS / v->max : v->shown, a = v->alpha,
         pitch = VOL_STEP_W + VOL_STEP_GAP, len = n * pitch - VOL_STEP_GAP + 44,
         x = up ? 10 : (SCREEN_W - len) / 2, y = up ? (SCREEN_H - len) / 2 : VOL_BAR_Y,
         full = s / 256, part = s % 256, on = v->muted ? 110 : 235,
-        flash = v->up ? (up ? (v->level * BRIGHT_STEPS + 99) / v->max : v->level) - 1
+        flash = v->up ? (up ? (v->level * BRIGHT_STEPS + v->max - 1) / v->max : v->level) - 1
                       : (up ? v->level * BRIGHT_STEPS / v->max : v->level);
 
     if (a <= 0)

@@ -583,10 +583,13 @@ static void home_previews(const pw_image *sky_img)
             hshot(&v, "home-calibration");
             v.cal = 0;
             v.depth = v.depth_pos = 0;
-            v.osd = 256; /* the brightness: vertical at the left (#7), by its level (#6) */
+            v.osd = 256; /* the brightness: the in-game menu's bar at the left, step 3 of 5 (#11) */
             v.osd_glyph = HM_ICON_SUN;
-            v.osd_level = 72 * 256 / 100;
-            v.osd_text = "72";
+            v.osd_level = 3 * 256 / 5;
+            v.osd_text = "3";
+            v.osd_step = 3;
+            v.osd_steps = 5;
+            v.osd_up = 1;
             hshot(&v, "home-osd");
             v.osd_glyph = HM_ICON_SPEAKER; /* the volume: the pill at the bottom */
             v.osd_level = 18 * 256 / 30;
@@ -1052,8 +1055,9 @@ int main(void)
             pw_view_volume(&c, &ui, &vol);
             save("hub-volume-muted");
         }
-        { /* the brightness bar (#9): the volume bar upright at the left, a sun */
-            pw_volume br = {1, 1, 72, 0, 72 * 256, 256, 0, 1, 0, 0, PW_BRIGHT_MAX};
+        { /* the brightness bar (#9): the volume bar upright at the left, a sun; step 3 of 5 (#11)
+           */
+            pw_volume br = {1, 1, 3, 0, 3 * 256, 256, 0, 1, 0, 0, PW_BRIGHT_STEPS};
 
             c = begin(1500);
             pw_view_status(&c, &ui, "10/16 14:05", 80, 0, 256, 0);

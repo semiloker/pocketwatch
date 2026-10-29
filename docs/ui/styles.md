@@ -84,10 +84,13 @@ each change. Minimal: a line above the hints and the number (`--` when muted). P
 
 ## The brightness bar (UI-REQ-018)
 
-The volume bar's object (`pw_volume`) on a scale of 100 (`max`), fed with the backlight's level
-(`sceDisplayGetBrightness`) every frame; the views draw it upright at the left with a sun:
-Classic the dark strip with 20 steps, Modern the pill on the left edge, Minimal an upright line
-with the number above it (ADR-061). Previews: `hub-bright.png` per style.
+The volume bar's object (`pw_volume`) on a scale of the SCREEN button's steps (`max` =
+`PW_BRIGHT_STEPS`), fed every frame with the step of the backlight's level
+(`sceDisplayGetBrightness` -> `pw_backlight_step`); the views draw it upright at the left with a
+sun, filled k of 5: Classic the dark strip with 20 steps (four to each), Modern the pill on the
+left edge, Minimal an upright line with the step's number above it (ADR-061, ADR-063). Pocketwatch
+Home draws the same bar in each style (`osd_bright`). Previews: `hub-bright.png` and
+`home-osd.png` per style.
 
 ## Adding a style
 

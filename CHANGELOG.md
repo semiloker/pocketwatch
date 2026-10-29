@@ -17,6 +17,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   repeat. Each button shows its key under it, and the one you press lights up with what it did.
   Before, up and right (and down and left) could do the same, depending on what was chosen.
 
+- The brightness bars fill by the SCREEN button's step: the first of five fills a fifth of the
+  bar, the fifth all of it (before, the first filled 44 %, the backlight's level). Pocketwatch
+  Home draws the in-game menu's brightness bar, in each style (#11).
+
 ### Added
 - Pocketwatch's in-game menu shows a brightness bar at the left, upright, drawn like that style's
   volume bar with a sun (#9).
@@ -26,8 +30,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   module, which does nothing else there (#7, ADR-059; test it after PF-FREEZE).
 
 ### Fixed
-- The brightness bars follow the backlight's real level (a number, as the volume's): the
-  system's step reads the same at the fourth and fifth levels, so the bar stopped at 4/5 (#6).
+- The brightness bars follow every step, the fifth too: the system's step reads the same at
+  the fourth and fifth levels, so the bar stopped at 4/5 (#6).
 - Pocketwatch Home's photo editor: each press of an Adjust tool now visibly changes the photo
   (steps of 10 on stronger scales; before, a few presses changed it by a level or two), and a step
   no longer remakes the turned and scaled picture, only its colours (#10).

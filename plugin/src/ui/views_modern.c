@@ -257,7 +257,7 @@ void pw_modern_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const c
    brightness's on the left edge with a sun (#9). */
 void pw_modern_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {
-    int sun = v->max > PW_VOLUME_MAX, max = sun ? v->max : PW_VOLUME_MAX, a = v->alpha,
+    int sun = v->max > 0, max = sun ? v->max : PW_VOLUME_MAX, a = v->alpha,
         bump = v->flash * 3 / 256, w = 22 + 2 * bump, h = 136 + 2 * bump,
         x = sun ? 26 - w / 2 : SCREEN_W - 26 - w / 2, y = 68 - bump, cx = x + w / 2, top = y + 14,
         bottom = y + h - 36, level = bottom - (bottom - top) * v->shown / (max * 256);

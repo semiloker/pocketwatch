@@ -9,6 +9,8 @@
  * Portable (no PSP headers, host-tested): perf/src/main.c measures and finds the frame.
  */
 
+#include "ui/volume.h" /* PW_BRIGHT_STEPS, pw_backlight_step */
+
 enum { PW_PERF_OFF, PW_PERF_FPS, PW_PERF_FULL };
 
 #define PW_PERF_NA   (-32768) /* a value not known */
@@ -56,10 +58,10 @@ int pw_perf_next(int mode);
    instead of the system's PW_BRIGHT_STEPS, ADR-047: up to PW_STEPS_MAX levels of 1-100). What is
    missing or not known: full, home, 0, off, PW_STEPS_DEFAULT. */
 enum { PW_OSD_OFF, PW_OSD_HOME, PW_OSD_ALL, PW_OSD_EVERY };
-/* The system's own steps for SCREEN: impose's brightness 0-4 (#6). ARK-4 makes
-   scePowerGetBacklightMaximum always 4 (core/compat/psp/syspatch.c, patch_scePower_Service): the
-   fifth step, which the firmware keeps for the AC adapter, on battery too. */
-#define PW_BRIGHT_STEPS  5
+/* The system's own steps for SCREEN: impose's brightness 0-4 (#6), PW_BRIGHT_STEPS of them
+   (ui/volume.h: ARK-4 makes scePowerGetBacklightMaximum always 4, core/compat/psp/syspatch.c,
+   patch_scePower_Service - the fifth step, which the firmware keeps for the AC adapter, on battery
+   too). */
 #define PW_STEPS_MAX     10
 #define PW_STEPS_DEFAULT {20, 30, 40, 50, 60, 70, 85, 100}
 typedef struct {
@@ -103,6 +105,9 @@ typedef struct {
 } pw_steps;
 /* The step whose level is nearest to level. */
 int pw_steps_nearest(const pw_perf_cfg *c, int level);
+/* The brightness bar's step for the backlight's level (1..*n, #11): of Pocketwatch's steps when
+   they are on, else of the system's PW_BRIGHT_STEPS (pw_backlight_step); *n their count. */
+int pw_osd_bright(const pw_perf_cfg *c, int level, int *n);
 /* SCREEN now (held 1 / 0): 1 when the step changed. */
 int pw_steps_button(pw_steps *s, int held, int n, unsigned int now_ms);
 
@@ -111,7 +116,7 @@ int pw_steps_button(pw_steps *s, int held, int n, unsigned int now_ms);
 enum { PW_OSD_NONE, PW_OSD_VOLUME, PW_OSD_BRIGHT };
 #define PW_OSD_MS 1500 /* shown this long after the last change */
 typedef struct {
-    int vol, mute, bright; /* as last read (-1 not known); bright: the backlight's level, 1-100 */
+    int vol, mute, bright; /* as last read (-1 not known); bright: the step, 1.. (pw_osd_bright) */
     int kind;              /* PW_OSD_*: what changed last */
     unsigned int t;        /* when */
     int primed;            /* (the first reading only remembered) */
@@ -121,8 +126,8 @@ int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms);
 /* What to show now: the kind within PW_OSD_MS of its change, else PW_OSD_NONE. */
 int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
 /* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", or the brightness
-   bar's level "72". The level, not the system's step: impose's step reads the same at the
-   PSP-3000's fourth and fifth (device, 2026-10-29, #6), the backlight's level changes at each. */
+   bar's step "3". The step of the backlight's level, not impose's: that reads the same at the
+   PSP-3000's fourth and fifth (device, 2026-10-29, #6), the level changes at each. */
 void pw_osd_text(const pw_osd *o, char out[PW_PERF_COLS + 1]);
 
 /* ---- the game's display framebuffers ----
@@ -148,14 +153,12 @@ void pw_fbset_add(pw_fbset *s, unsigned int fb, int w, int f);
 void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
                  int n);
 
-/* The brightness as a vertical bar at the left (#7, ADR-059), the shape of Home's: a black box
-   with a white edge, its level ("72") at the top, n steps from the bottom up with k of them lit
-   (PW_VBAR_STEPS of 5 %), a sun under them; the volume keeps the box at the bottom (format, clip:
-   pw_perf_draw's). */
-#define PW_VBAR_STEPS 20
-#define PW_VBAR_X     10
-#define PW_VBAR_W     34
-#define PW_VBAR_H     150
+/* The brightness as a vertical bar at the left (#7, ADR-059): a black box with a white edge, its
+   step ("3") at the top, n steps from the bottom up with k of them lit (the SCREEN button's, #11),
+   a sun under them; the volume keeps the box at the bottom (format, clip: pw_perf_draw's). */
+#define PW_VBAR_X 10
+#define PW_VBAR_W 34
+#define PW_VBAR_H 150
 void pw_osd_draw_vbar(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
                       int n);
 

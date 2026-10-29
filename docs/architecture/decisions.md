@@ -1455,6 +1455,8 @@ decision was taken; the evidence column links the research behind it.
 - **Status:** Accepted (2026-10-29), [#6](https://github.com/semiloker/pocketwatch/issues/6),
   [#9](https://github.com/semiloker/pocketwatch/issues/9). Supersedes the step counter ("3/5")
   of [ADR-059](#adr-059--the-brightness-is-a-vertical-bar-at-the-left-with-everywhere-the-overlay-module-shows-it-in-the-xmb).
+  What the bars show (the level as a number and a fill) superseded by [ADR-063](#adr-063--the-brightness-bars-fill-by-the-screen-step-home-draws-the-in-game-menus-bar); the
+  level stays their source.
 - **Context (owner, 2026-10-29, HM34 / PF3 on the PSP):** the bar climbed to 4/5 and stopped; the
   next SCREEN press made the screen brighter with the bar still at 4/5, the press after showed 1/5.
   So impose's brightness step reads the same at the PSP-3000's fourth and fifth levels (INFERRED
@@ -1508,3 +1510,45 @@ decision was taken; the evidence column links the research behind it.
   (`ed_frame`, `ed_orig`, `ed_geom`); host test `photo_edit_one_press_is_a_step_one_sees`. HM39
   again: each press changes the photo, and the editor's `slow:` entries in `home.log` should be
   gone (RESEARCH REQUIRED: the step's time on the PSP).
+
+## ADR-063 — The brightness bars fill by the SCREEN step; Home draws the in-game menu's bar
+
+- **Status:** Accepted (2026-10-29), [#11](https://github.com/semiloker/pocketwatch/issues/11).
+  Supersedes what the bars show in [ADR-061](#adr-061--the-brightness-bars-follow-the-backlights-level-the-in-game-menu-has-its-own) (the level as a number and a fill); the
+  level stays their source, never impose's step.
+- **Context (owner, 2026-10-29, after round 12's build):** "I really love how the brightness bar
+  looks in the XMB menu when a game is launched [the in-game menu; the owner's style is Modern],
+  do the same in the default menu [Pocketwatch Home, the PSP's start screen: `start = home`]. But
+  the fill of the bar should be its size / the number of brightness steps, because 1/5 is a 50 %
+  fill." ADR-061 filled every bar by the level 0-100. The PSP-3000's firmware levels are 44 60
+  72 84 (BetterBright's README, the "OEM" levels of the 3000/Go,
+  <https://github.com/hobbo91/BetterBright>; INFERRED for this PSP: the owner's "1/5 is 50 %"
+  fits 44), and ARK-4's fifth step is brighter than 84 (#6). Home drew its own bar: a wider
+  black pill, the level on top, an accent fill.
+- **Decision:**
+  - **The step, k of n:** a level is the step it is nearest to (`pw_backlight_step` in
+    `ui/volume.h`: 1 below 52, 2 below 66, 3 below 78, 4 up to 84, 5 above), n = 5; with Own
+    Steps the nearest of `perf.txt`'s levels, n their count (`pw_osd_bright`). Every bar fills
+    k/n: the in-game menu (`pw_volume` on a scale of `PW_BRIGHT_STEPS`; Classic's 20 steps, four
+    to each), Home, the overlay module (n steps, k lit; games, and the XMB with Everywhere).
+    Where a number shows (Minimal, the module's box) it is the step, "3".
+  - **Home draws the in-game menu's bar** in each style (`osd_bright` in `home_view.c`, the sizes
+    and colours of `pw_view_volume` upright): Classic the dark strip of 20 steps, the one just
+    reached glowing; Modern the slim pill that swells at a change; Minimal a line and the step's
+    number. The fill glides to the step (`pw_ease`, as the menu's).
+  - **The table is checked on the PSP:** Home writes the levels it saw and the step each was
+    given with its stats line (`home brightness: level=step 44=1/5 ...`), no card write at the
+    press.
+- **Alternatives considered:** impose's step for the first four and the level only for the
+  fifth (two readings for what the table gives alone); learning the levels as they appear
+  (ADR-061: the first press after a start would show nothing sure); the in-game menu reading
+  `perf.txt` for Own Steps (kernel RAM: 532 bytes left in the debug build) - there the bar shows
+  the nearest of the system's five (OPEN QUESTION: worth it only if the owner turns Own Steps on).
+- **Consequences:** `ui/volume.h` (`PW_BRIGHT_STEPS` moved here from `overlay.h`,
+  `pw_backlight_step`), `ui/ui.c`, `ui/views*.c` (the brightness is `max > 0`),
+  `perf/src/overlay.{c,h}` (`pw_osd_bright`; `pw_osd`'s `bright` is the step), `perf/src/main.c`,
+  Home's `main.c` (`av_frame`, `seen_level`) and `home_view.c`. The game plugin's debug build has
+  532 bytes of kernel RAM left (RISK-005). Host tests
+  `brightness_step_is_the_nearest_of_the_firmware_levels`,
+  `brightness_bar_step_is_the_systems_or_pocketwatchs`; previews `home-osd` and `hub-bright` in
+  each style. Device tests HM34, PF3, H19 again.

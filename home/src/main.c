@@ -193,6 +193,24 @@ static void stats_frame(stats *st, unsigned int now, unsigned int cpu_us, unsign
 /* What the battery's calls cost: once, so a slow one shows by name. */
 static int g_costs_written;
 
+/* The backlight's levels seen and the step each was given (#11, av_frame): a line with the stats,
+   so a round checks pw_backlight_step's table on the PSP without a card write at the key press. */
+#define SEEN_MAX 10
+static int g_seen[SEEN_MAX][3], g_nseen; /* level, step, steps */
+
+static void seen_write(void)
+{
+    char line[200];
+    int k = stbsp_snprintf(line, sizeof(line), "home brightness: level=step");
+
+    for (int i = 0; i < g_nseen; i++)
+        k += stbsp_snprintf(line + k, sizeof(line) - (size_t)k, " %d=%d/%d", g_seen[i][0],
+                            g_seen[i][1], g_seen[i][2]);
+    stbsp_snprintf(line + k, sizeof(line) - (size_t)k, "\n");
+    hm_hw_log(line);
+    g_nseen = 0;
+}
+
 static void stats_write(stats *st, unsigned int now, const char *why)
 {
     char line[720];
@@ -225,6 +243,8 @@ static void stats_write(stats *st, unsigned int now, const char *why)
                        st->slow);
     }
     hm_hw_log(line);
+    if (g_nseen)
+        seen_write();
     memset(st, 0, sizeof(*st));
     st->t0 = st->last = hm_hw_now_ms();
 }
@@ -880,14 +900,33 @@ static void cal_texts(void)
 static pw_osd g_osd;
 static pw_bright g_bright;
 static pw_steps g_steps;
+static int g_bright_n = PW_BRIGHT_STEPS; /* the brightness bar's steps (#11) */
+
+/* A backlight level seen and the step it was given (#11): written with the next stats line. */
+static void seen_level(int level, int step, int steps)
+{
+    for (int i = 0; i < g_nseen; i++)
+        if (g_seen[i][0] == level)
+            return;
+    if (g_nseen < SEEN_MAX) {
+        g_seen[g_nseen][0] = level;
+        g_seen[g_nseen][1] = step;
+        g_seen[g_nseen][2] = steps;
+        g_nseen++;
+    }
+}
+
+#define BRIGHT_FLASH_MS 250 /* (the in-game menu's PW_VOLUME_FLASH_MS) */
 
 static void av_frame(unsigned int now, unsigned int buttons)
 {
-    static unsigned int t_av, t_screen;
-    static int told, steps_set;
+    static unsigned int t_av, t_screen, t_prev;
+    static int told, steps_set, shown; /* shown: the brightness bar, 1/256 steps, gliding */
     static char text[32];
     const pw_perf_cfg *c = hs_perf_cfg();
-    int kind, set, tap = 0, lv;
+    int kind, set, tap = 0, lv, dt = (int)(now - t_prev), k;
+
+    t_prev = now;
 
     if (g_s.screen_off ||
         (c->osd == PW_OSD_OFF && c->boost == 0 && !c->steps && g_bright.set < 0)) {
@@ -917,13 +956,26 @@ static void av_frame(unsigned int now, unsigned int buttons)
             hm_hw_log("home brightness: another plugin sets its level back: the boost gave up\n");
             told = 1;
         }
-        if (c->osd != PW_OSD_OFF) /* the backlight's level (#6); the screen off is no change */
-            pw_osd_step(&g_osd, av.vol, av.mute, lv > 0 ? lv : g_osd.bright, now);
+        if (c->osd != PW_OSD_OFF) { /* the step of the backlight's level (#6, #11); the screen
+                                       off is no change */
+            int was = g_osd.bright;
+
+            if (pw_osd_step(&g_osd, av.vol, av.mute,
+                            lv > 0 ? pw_osd_bright(c, lv, &g_bright_n) : was, now) &&
+                g_osd.kind == PW_OSD_BRIGHT) {
+                g_v.osd_up = g_osd.bright > was;
+                seen_level(lv, g_osd.bright, g_bright_n);
+            }
+        }
     }
     kind = c->osd != PW_OSD_OFF ? g_osd.kind : PW_OSD_NONE; /* (its words stay as it fades) */
     g_v.osd = !kind                       ? 0
               : now - g_osd.t < PW_OSD_MS ? 256
                                           : 256 - pw_ramp(now, g_osd.t + PW_OSD_MS, 300);
+    /* the brightness bar glides to its step while it shows, as the in-game menu's (#11) */
+    k = g_osd.bright < 1 ? 1 : g_osd.bright > g_bright_n ? g_bright_n : g_osd.bright;
+    shown = kind == PW_OSD_BRIGHT && g_v.osd > 0 ? pw_ease(shown, k * 256, dt, PW_ANIM_TAU_MS, 4)
+                                                 : k * 256;
     if (kind == PW_OSD_VOLUME) {
         g_v.osd_glyph = HM_ICON_SPEAKER;
         g_v.osd_level =
@@ -934,11 +986,16 @@ static void av_frame(unsigned int now, unsigned int buttons)
             stbsp_snprintf(text, sizeof(text), "%d", g_osd.vol);
         g_v.osd_text = text;
     } else if (kind == PW_OSD_BRIGHT) {
-        int pct = g_osd.bright < 0 ? 0 : g_osd.bright > 100 ? 100 : g_osd.bright;
+        unsigned int since = now - g_osd.t;
 
-        g_v.osd_glyph = HM_ICON_SUN; /* a vertical bar at the left (#7), by the level (#6) */
-        g_v.osd_level = pct * 256 / 100;
-        stbsp_snprintf(text, sizeof(text), "%d", pct); /* (as the volume: the number) */
+        g_v.osd_glyph =
+            HM_ICON_SUN; /* the in-game menu's bar at the left (#7), by the step (#11) */
+        g_v.osd_step = k;
+        g_v.osd_steps = g_bright_n;
+        g_v.osd_level = shown / g_bright_n;
+        g_v.osd_flash = since < BRIGHT_FLASH_MS ? 256 - (int)(since * 256 / BRIGHT_FLASH_MS) : 0;
+        stbsp_snprintf(text, sizeof(text), "%d",
+                       k); /* (Minimal shows it, as the volume's number) */
         g_v.osd_text = text;
     }
 }

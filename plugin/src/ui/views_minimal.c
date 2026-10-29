@@ -222,7 +222,7 @@ void pw_minimal_slots(pw_canvas *c, const pw_ui *ui, const char *heading, const 
    left, its number above it (#9). */
 void pw_minimal_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v)
 {
-    int up = v->max > PW_VOLUME_MAX, max = up ? v->max : PW_VOLUME_MAX, a = v->alpha, w = 160,
+    int up = v->max > 0, max = up ? v->max : PW_VOLUME_MAX, a = v->alpha, w = 160,
         x = up ? 20 : (SCREEN_W - w) / 2 - 14, y = up ? (SCREEN_H - w) / 2 + 10 : SCREEN_H - 40,
         fill = w * v->shown / (max * 256), lv = v->level, k = 0; /* (the volume: over the hints) */
     char num[4];

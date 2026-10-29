@@ -848,24 +848,57 @@ static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     }
 }
 
-/* The brightness: the volume's pill stood up at the left (#7) - its level on top, the bar filled
-   from the bottom by the backlight's level (#6), the sun under it; the overlay module draws the
-   same shape in games and the XMB (ADR-059). */
-static void osd_bright(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a, unsigned int acc)
+/* The brightness: the in-game menu's bar at the left in each style (#11, pw_view_volume upright in
+   plugin/src/ui/views*.c), filled from the bottom by the SCREEN step (k of n) and gliding there, a
+   sun under it - Classic a dark strip of 20 steps, four to each SCREEN step, the one just reached
+   glowing; Modern the slim pill that swells a little at each change; Minimal a line and the step's
+   number. */
+#define OSD_SEGS 20
+#define OSD_GREY PW_RGB(150, 150, 150) /* (Minimal's dim in the in-game menu) */
+static void osd_bright(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a)
 {
-    int w = 34, h = 150, x = 10, y = (HM_H - h) / 2, cx = x + w / 2, top = y + 32, bot = y + h - 34,
-        lit = (bot - top) * hm_clampi(v->osd_level, 0, 256) / 256;
+    int fill = hm_clampi(v->osd_level, 0, 256), n = v->osd_steps > 0 ? v->osd_steps : 1;
 
-    g->rrect(g, x, y, w, h, w / 2, 0, C_BLACK, a * 215 / 256);
-    hm_text_center(g, ui->body, cx, hm_mid(ui->body, y + 18), v->osd_text, w - 2, C_TEXT, a);
-    g->rrect(g, cx - 2, top, 4, bot - top, 2, 0, C_KNOB, a);
-    if (lit > 0)
-        g->rrect(g, cx - 2, bot - lit, 4, lit, 2, 0, acc, a);
-    g->icon(g, HM_ICON_SUN, cx, y + h - 18, 16, C_TEXT, a);
+    if (v->style == HM_STYLE_MODERN) {
+        int bump = v->osd_flash * 3 / 256, w = 22 + 2 * bump, h = 136 + 2 * bump, x = 26 - w / 2,
+            y = (HM_H - h) / 2, cx = x + w / 2, top = y + 14, bot = y + h - 36,
+            lit = (bot - top) * fill / 256;
+
+        g->rrect(g, x, y, w, h, w / 2, 0, C_CARD, a * 210 / 256);
+        g->rrect(g, cx - 3, top - 3, 6, bot - top + 6, 3, 0, C_KNOB, a); /* the track */
+        if (fill > 0)
+            g->rrect(g, cx - 3, bot - lit - 3, 6, lit + 6, 3, 0, C_TEXT, a);
+        g->icon(g, HM_ICON_SUN, cx, y + h - 20, 15, C_TEXT, a);
+    } else if (v->style == HM_STYLE_MINIMAL) {
+        int len = 160, x = 20, y = (HM_H - len) / 2 + 10, lit = len * fill / 256;
+
+        g->fill(g, x, y, 2, len, OSD_GREY, a * 90 / 256);
+        if (lit > 0)
+            g->fill(g, x, y + len - lit, 2, lit, C_TEXT, a);
+        hm_text_center(g, ui->body, x + 1, hm_mid(ui->body, y - 12), v->osd_text, 40,
+                       v->osd_flash ? C_TEXT : OSD_GREY, a);
+    } else {
+        int pitch = 7, len = OSD_SEGS * pitch - 2 + 44, x = 10, y = (HM_H - len) / 2,
+            s = fill * OSD_SEGS, full = s / 256, part = s % 256,
+            mark =
+                v->osd_up ? (v->osd_step * OSD_SEGS + n - 1) / n - 1 : v->osd_step * OSD_SEGS / n;
+
+        g->rrect(g, x, y, 24, len, 4, 0, C_BLACK, a * 150 / 256);
+        g->icon(g, HM_ICON_SUN, x + 12, y + len - 18, 15, C_TEXT, a);
+        for (int i = 0; i < OSD_SEGS; i++) { /* the steps; the one being reached fills in */
+            int on = i < full ? 256 : i == full ? part : 0, ry = y + len - 34 - i * pitch - 5;
+
+            g->fill(g, x + 7, ry, 10, 5, C_TEXT, a * 55 / 256);
+            if (on)
+                g->fill(g, x + 7, ry, 10, 5, C_TEXT, a * 235 / 256 * on / 256);
+            if (v->osd_flash && i == mark)
+                g->fill(g, x + 6, ry - 2, 12, 9, C_TEXT, a * v->osd_flash / 512);
+        }
+    }
 }
 
 /* The volume and brightness indicator (HOM-REQ-034): the volume a pill at the bottom middle, the
-   brightness a vertical pill at the left; over everything but the overlay. */
+   brightness the in-game menu's bar at the left; over everything but the overlay. */
 static void osd(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = hm_clampi(v->osd, 0, 256), w = 250, h = 30, x = (HM_W - w) / 2, y = HM_H - 76, tw,
@@ -875,7 +908,7 @@ static void osd(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     if (a <= 0 || !v->osd_text)
         return;
     if (v->osd_glyph == HM_ICON_SUN) {
-        osd_bright(g, ui, v, a, acc);
+        osd_bright(g, ui, v, a);
         return;
     }
     tw = pw_text_width(ui->body, v->osd_text);

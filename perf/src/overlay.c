@@ -334,6 +334,16 @@ int pw_steps_nearest(const pw_perf_cfg *c, int level)
     return best;
 }
 
+int pw_osd_bright(const pw_perf_cfg *c, int level, int *n)
+{
+    if (c->steps && c->nlevels > 0) {
+        *n = c->nlevels;
+        return pw_steps_nearest(c, level) + 1;
+    }
+    *n = PW_BRIGHT_STEPS;
+    return pw_backlight_step(level);
+}
+
 int pw_steps_button(pw_steps *s, int held, int n, unsigned int now_ms)
 {
     int was = s->down;
@@ -387,7 +397,7 @@ void pw_osd_text(const pw_osd *o, char out[PW_PERF_COLS + 1])
         put(&l, "VOL ");
         put_int(&l, o->vol < 0 ? 0 : o->vol);
     } else if (o->kind == PW_OSD_BRIGHT) { /* the vertical bar's top: the sun says what it is */
-        put_int(&l, o->bright < 0 ? 0 : o->bright); /* (as the volume's: the number) */
+        put_int(&l, o->bright < 0 ? 0 : o->bright); /* (the step, as the volume's number) */
     }
 }
 

@@ -137,11 +137,29 @@ PW_TEST(indicator_shows_what_changed_for_a_while)
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5000), 1);
     CHECK_EQ(pw_osd_shown(&o, 5100), PW_OSD_BRIGHT);
     pw_osd_text(&o, t);
-    CHECK_STR(t, "3"); /* the level (#6) as given */
+    CHECK_STR(t, "3"); /* the step (#11) as given */
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5200), 0);
-    CHECK_EQ(pw_osd_step(&o, 19, 1, 100, 5300), 1); /* the fifth step: its own level */
+    CHECK_EQ(pw_osd_step(&o, 19, 1, 5, 5300), 1); /* the fifth step (#6) */
     pw_osd_text(&o, t);
-    CHECK_STR(t, "100");
+    CHECK_STR(t, "5");
+}
+
+PW_TEST(brightness_bar_step_is_the_systems_or_pocketwatchs)
+{
+    static const char t[] = "steps = on\nlevels = 28 40 50 60 70 80 90 100\n";
+    pw_perf_cfg c;
+    int n = 0;
+
+    pw_perf_cfg_parse("", 0, &c); /* the system's five (#11): 44 is the first of 5 */
+    CHECK_EQ(pw_osd_bright(&c, 44, &n), 1);
+    CHECK_EQ(n, PW_BRIGHT_STEPS);
+    CHECK_EQ(pw_osd_bright(&c, 84, &n), 4);
+    CHECK_EQ(pw_osd_bright(&c, 100, &n), 5);
+    pw_perf_cfg_parse(t, (int)sizeof(t) - 1, &c); /* Own Steps: of its levels */
+    CHECK_EQ(pw_osd_bright(&c, 28, &n), 1);
+    CHECK_EQ(n, 8);
+    CHECK_EQ(pw_osd_bright(&c, 70, &n), 5);
+    CHECK_EQ(pw_osd_bright(&c, 100, &n), 8);
 }
 
 PW_TEST(perf_overlay_draws_white_letters_in_a_black_outline_in_every_format)
@@ -191,12 +209,12 @@ PW_TEST(brightness_bar_is_vertical_at_the_left_lit_from_the_bottom)
     pw_perf_mask m;
     int x0 = PW_VBAR_X, y0 = (272 - PW_VBAR_H) / 2, cx = x0 + PW_VBAR_W / 2, lit = 0, grey = 0;
 
-    pw_perf_render("2/5", &m);
+    pw_perf_render("2", &m);
     memset(fb, 0x55, sizeof(fb));
-    pw_osd_draw_vbar(fb, 480, 3, 480, 272, &m, 2, 5);
-    CHECK_EQ(fb[y0 * 480 + x0], 0xFFFFFFFFu);                    /* the edge */
-    CHECK_EQ(fb[(y0 + 2) * 480 + x0 + 2], 0xFF000000u);          /* inside */
-    CHECK_EQ(fb[(y0 - 1) * 480 + x0], 0x55555555u);              /* above: untouched */
+    pw_osd_draw_vbar(fb, 480, 3, 480, 272, &m, 2, 5);   /* step 2 of the SCREEN button's 5 */
+    CHECK_EQ(fb[y0 * 480 + x0], 0xFFFFFFFFu);           /* the edge */
+    CHECK_EQ(fb[(y0 + 2) * 480 + x0 + 2], 0xFF000000u); /* inside */
+    CHECK_EQ(fb[(y0 - 1) * 480 + x0], 0x55555555u);     /* above: untouched */
     CHECK_EQ(fb[(y0 + 20) * 480 + x0 + PW_VBAR_W], 0x55555555u); /* right of it: untouched */
     CHECK_EQ(fb[(y0 + PW_VBAR_H - 14) * 480 + cx], 0xFFFFFFFFu); /* the sun's middle */
     for (int y = y0; y < y0 + PW_VBAR_H; y++) {                  /* the steps' column */

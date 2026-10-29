@@ -59,8 +59,9 @@ void pw_view_busy(pw_canvas *c, const pw_ui *ui, const char *text, unsigned int 
 
 /* The volume bar over any screen while v->alpha > 0 (ui/volume.h): Classic after the PSP's own
    (a speaker and 30 steps on a dark strip at the bottom), Modern a pill on the right edge, Minimal
-   a line and the number. The brightness bar (v->max PW_BRIGHT_MAX, #9) is the same bar upright at
-   the left with a sun: Classic 20 steps, Modern the pill mirrored, Minimal an upright line. */
+   a line and the number. The brightness bar (v->max PW_BRIGHT_STEPS, #9, #11) is the same bar
+   upright at the left with a sun, filled by the SCREEN step: Classic 20 steps (four to each),
+   Modern the pill mirrored, Minimal an upright line and the step's number. */
 void pw_view_volume(pw_canvas *c, const pw_ui *ui, const pw_volume *v);
 
 /* Shared pieces. */

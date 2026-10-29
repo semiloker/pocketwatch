@@ -66,9 +66,12 @@ The project's full workflow is imported here and applies to every session:
   `module_start`) and, only with Volume and Brightness → Everywhere (`osd = everywhere`, its VSH
   line), in the XMB, where it draws nothing but the brightness bar after sleeping 5 s (ADR-059);
   never in Home. The brightness is a vertical bar at the left in Home, games, the XMB and the
-  in-game menu (there: the volume bar's `pw_volume` on a scale of 100), the volume a pill at the
-  bottom; every brightness bar shows the backlight's level (`sceDisplayGetBrightness`, 0-100),
-  never impose's step, which reads the same at the PSP-3000's fourth and fifth (ADR-061).
+  in-game menu (there: the volume bar's `pw_volume` on a scale of the steps), the volume a pill
+  at the bottom; Home draws the in-game menu's bar in each style. Every brightness bar fills by
+  the SCREEN step, k of n, taken from the backlight's level (`sceDisplayGetBrightness` ->
+  `pw_backlight_step` in `ui/volume.h`: the nearest of the firmware's 44 60 72 84, above 84 the
+  fifth; Own Steps: `pw_osd_bright`), never from impose's step, which reads the same at the
+  PSP-3000's fourth and fifth (ADR-061, ADR-063).
   In-game it is still experimental; validate in one game before trusting it; the XMB part only
   after PF-FREEZE (test PF5).
 - Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,

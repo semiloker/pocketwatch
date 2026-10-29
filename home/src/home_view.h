@@ -264,9 +264,13 @@ typedef struct {
     int perf_n;
 
     /* The volume and brightness indicator (HOM-REQ-034): while osd > 0, the volume a pill at the
-       bottom, the brightness (osd_glyph HM_ICON_SUN) a vertical pill at the left (#7, ADR-059) */
-    int osd, osd_glyph, osd_level; /* 0-256 fading; its icon; the bar (0-256) */
-    const char *osd_text;          /* "18", "Muted", "72" */
+       bottom, the brightness (osd_glyph HM_ICON_SUN) the in-game menu's bar at the left in each
+       style (#7, #11) */
+    int osd, osd_glyph,
+        osd_level;        /* 0-256 fading; its icon; the bar (0-256; the brightness glides) */
+    const char *osd_text; /* "18", "Muted", the brightness step "3" */
+    int osd_step, osd_steps, osd_up; /* the brightness: step k of n; the last change went up */
+    int osd_flash; /* 0-256: it just changed (Modern swells, Classic's step glows) */
 
     const hm_calview *cal; /* the calibration's screen (a HM_PAGE_CAL page), or NULL */
 

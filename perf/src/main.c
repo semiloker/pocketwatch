@@ -156,10 +156,11 @@ static void lines(const pw_perf_stats *s)
 static pw_osd g_osd;
 static pw_bright g_bright;
 static pw_steps g_steps;
-static pw_fbset g_fbs;          /* the game's display buffers: the overlay goes into all of them */
-static int g_steps_set;         /* the first step taken from the level */
-static int g_level = -1;        /* the backlight's level as last read */
-static unsigned int g_t_screen; /* SCREEN held last (a change of the owner's) */
+static pw_fbset g_fbs;   /* the game's display buffers: the overlay goes into all of them */
+static int g_steps_set;  /* the first step taken from the level */
+static int g_level = -1; /* the backlight's level as last read */
+static int g_bright_n = PW_BRIGHT_STEPS; /* the brightness bar's steps (#11) */
+static unsigned int g_t_screen;          /* SCREEN held last (a change of the owner's) */
 
 static void av_step(unsigned int now)
 {
@@ -181,8 +182,8 @@ static void av_step(unsigned int now)
         g_level = set;
     }
     if (g_cfg.osd == PW_OSD_EVERY || (g_cfg.osd == PW_OSD_ALL && !g_xmb)) {
-        /* the backlight's level (#6); the screen off (0) is no change of it */
-        int bright = g_level > 0 ? g_level : g_osd.bright;
+        /* the step of the backlight's level (#6, #11); the screen off (0) is no change of it */
+        int bright = g_level > 0 ? pw_osd_bright(&g_cfg, g_level, &g_bright_n) : g_osd.bright;
 
         if (pw_osd_step(&g_osd, sceImposeGetParam(IMPOSE_VOLUME), sceImposeGetParam(IMPOSE_MUTE),
                         bright, now)) {
@@ -204,8 +205,7 @@ static void osd_draw(void *top, int bufw, int fmt, unsigned int now, int hub)
         pw_osd_draw(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
                     g_osd.mute == 1 ? 0 : g_osd.vol, 30);
     else if (kind == PW_OSD_BRIGHT)
-        pw_osd_draw_vbar(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask,
-                         (g_osd.bright * PW_VBAR_STEPS + 50) / 100, PW_VBAR_STEPS);
+        pw_osd_draw_vbar(top, bufw, fmt, SCREEN_W, SCREEN_H, &g_osd_mask, g_osd.bright, g_bright_n);
 }
 
 /* A narrow card at the top left, a labelled row each (like Home's overlay): compact, not a wide
