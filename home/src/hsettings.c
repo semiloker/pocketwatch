@@ -696,7 +696,7 @@ static int five(void)
 {
     return 5;
 }
-#define BRIGHT_MAX 4 /* the PSP's backlight: five levels, 0-4 (device, PSP-3000) */
+#define BRIGHT_MAX (PW_BRIGHT_STEPS - 1) /* the PSP's backlight: five levels, 0-4 (overlay.h) */
 static int get_bright(void)
 {
     int v = impose(0, IMPOSE_BRIGHTNESS, 0);

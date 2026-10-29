@@ -880,7 +880,7 @@ static void av_frame(unsigned int now, unsigned int buttons)
     static int level = -1, told, steps_set;
     static char text[32];
     const pw_perf_cfg *c = hs_perf_cfg();
-    int kind, set, tap = 0, n = c->steps ? c->nlevels : 4;
+    int kind, set, tap = 0, n = c->steps ? c->nlevels : hm_bright_max() + 1;
 
     if (g_s.screen_off ||
         (c->osd == PW_OSD_OFF && c->boost == 0 && !c->steps && g_bright.set < 0)) {

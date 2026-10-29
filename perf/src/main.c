@@ -155,7 +155,7 @@ static unsigned int g_t_screen; /* SCREEN held last (a change of the owner's) */
 
 static int steps_n(void)
 {
-    return g_cfg.steps ? g_cfg.nlevels : 4;
+    return g_cfg.steps ? g_cfg.nlevels : PW_BRIGHT_STEPS;
 }
 
 static void av_step(unsigned int now)

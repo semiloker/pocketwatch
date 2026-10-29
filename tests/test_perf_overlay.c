@@ -134,11 +134,14 @@ PW_TEST(indicator_shows_what_changed_for_a_while)
     CHECK_STR(t, "MUTE");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5000), 1);
     CHECK_EQ(pw_osd_shown(&o, 5100), PW_OSD_BRIGHT);
-    pw_osd_text(&o, 92, 4, t);
-    CHECK_STR(t, "BRIGHT 4/4 92%");
+    pw_osd_text(&o, 92, PW_BRIGHT_STEPS, t);
+    CHECK_STR(t, "BRIGHT 4/5 92%"); /* the system's five steps (#6), not four */
     pw_osd_text(&o, 92, 8, t);
     CHECK_STR(t, "BRIGHT 4/8 92%");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5200), 0);
+    CHECK_EQ(pw_osd_step(&o, 19, 1, 4, 5300), 1); /* the fifth step (ARK-4: on battery too) */
+    pw_osd_text(&o, 100, PW_BRIGHT_STEPS, t);
+    CHECK_STR(t, "BRIGHT 5/5 100%");
 }
 
 PW_TEST(perf_overlay_draws_white_letters_in_a_black_outline_in_every_format)

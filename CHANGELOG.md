@@ -17,6 +17,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Pocketwatch Home's player: left / right seek on from the new time; the track no longer starts
   again from 0:00 (with Repeat: All it skipped to the next one). Seeking uses the MP3 library's
   own call (#5). An MPEG-2 MP3 (16-24 kHz) shows its real length, not twice it.
+- The volume and brightness indicator counts the PSP's five brightness steps, not four ("4/4"
+  at the fourth): in Home and in games (#6).
 - `scripts\deploy.cmd` finds PLUGINS.TXT lines that end in CRLF (the file after an editor saved
   it): it reported them as missing, and `-Enable` / `-ProbeOff` would have added a second line
   instead of changing the first. It now also appends in the file's own line endings.

@@ -52,9 +52,14 @@ int pw_perf_next(int mode);
    numbers), "osd = off|home|all" (the volume and brightness indicator: none, over Home only, over
    games too), "boost = <0-100>" (the backlight: that share of the way from the system's level up
    to the most, ADR-045), "steps = on|off" and "levels = 20 30 ..." (Pocketwatch's own brightness
-   steps for the SCREEN button instead of the system's four, ADR-047: up to PW_STEPS_MAX levels of
-   1-100). What is missing or not known: full, home, 0, off, PW_STEPS_DEFAULT. */
+   steps for the SCREEN button instead of the system's PW_BRIGHT_STEPS, ADR-047: up to
+   PW_STEPS_MAX levels of 1-100). What is missing or not known: full, home, 0, off,
+   PW_STEPS_DEFAULT. */
 enum { PW_OSD_OFF, PW_OSD_HOME, PW_OSD_ALL };
+/* The system's own steps for SCREEN: impose's brightness 0-4 (#6). ARK-4 makes
+   scePowerGetBacklightMaximum always 4 (core/compat/psp/syspatch.c, patch_scePower_Service): the
+   fifth step, which the firmware keeps for the AC adapter, on battery too. */
+#define PW_BRIGHT_STEPS  5
 #define PW_STEPS_MAX     10
 #define PW_STEPS_DEFAULT {20, 30, 40, 50, 60, 70, 85, 100}
 typedef struct {
@@ -115,8 +120,8 @@ typedef struct {
 int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms);
 /* What to show now: the kind within PW_OSD_MS of its change, else PW_OSD_NONE. */
 int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
-/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", "BRIGHT 3/4 92%" -
-   o->bright of steps (the system's four, or Pocketwatch's). */
+/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", "BRIGHT 3/5 92%" -
+   o->bright of steps (the system's PW_BRIGHT_STEPS, or Pocketwatch's). */
 void pw_osd_text(const pw_osd *o, int level, int steps, char out[PW_PERF_COLS + 1]);
 
 /* ---- the game's display framebuffers ----
