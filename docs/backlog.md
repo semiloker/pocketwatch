@@ -25,3 +25,21 @@ Rejected (see m2-speed.md): Media Engine as a second CPU, raw PLL overclock beyo
 
 - The first touch-and-go save right after a real-sleep save once never completed (speed run 6;
   not seen again in run 7). Watch the debug log for a save without "save OK".
+
+## Review of PR #4 (2026-10-29): findings left for later
+
+From the code review before the merge (most of `home/` was only spot-checked). Fixed in the
+merge: the XMB's settings labels after a language change (`vsh/src/xsettings.c`) and the debug
+load / self-test running on when the freeze gave up for a busy card (`engine.c`). Still open,
+each **INFERRED** from reading the code, none seen on the device:
+
+| # | Finding | Worth | Where |
+|---|---|---|---|
+| R1 | Five of Home's setters write on the key press (`set_boost`, `set_perf_game`, `set_osd` through `pc_write`, `set_sounds`, `set_lang`): against the "no card I/O on a key press" rule, one 50-100 ms frame per step on those rows | smooth stepping on five rows | `home/src/hsettings.c`; defer as `hs_save_pending` does, PLUGINS.TXT included |
+| R2 | Home's `sort` and `slideshow` live in `config.txt` (the XMB plugin's parser, RISK-022) instead of `home.txt` | bytes of the XMB plugin's 64 KB | `plugin/src/core/config.c`; move with a one-time migration |
+| R3 | The overlay's buffer set only grows (a ring of `PW_FB_MAX` = 4): a VRAM buffer the game once showed and then reuses as a texture or render target is still drawn into | no stray box in games that reuse VRAM | `perf/src/main.c`, `perf/src/overlay.c`; age entries out when not displayed for a while |
+| R4 | `boot.txt` is read back only up to `LOG_KEEP` (560) bytes, but the file written can be longer: the newest lines can be cut | complete boot decisions in the log | `vsh/src/xboot.c` `log_decision` |
+| R5 | A rescan of MUSIC while the tagger thread is still inside `tag_one` (the wait is at most 1 s) can write tags into a reordered entry, and leaves the new list untagged | right titles after a rescan | `home/src/music.c` `hm_music_scan` |
+| R6 | A duplicate PLUGINS.TXT line for the same PRX: `hm_plugins_set` changes only the first one, so the module still loads from the second | the overlay really off | `home/src/plugins_txt.c` |
+| R7 | Play Time builds its text in a P11 scratch buffer from the tick; a sleep in the middle of a write would put garbage in one file (the CRC rejects it, the other file stays) | one lost write at most | `plugin/src/complications/playtime/playtime.c` |
+| R8 | The XMB's action-argument fallback (`CONSOLE_ACTION`) is used before System Settings' own argument was seen: OPEN QUESTION whether Play Time can open before that | Play Time always opens | `vsh/src/xmb.c` `execute_action`; device test P1 answers it |

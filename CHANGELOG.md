@@ -130,6 +130,8 @@ The first pre-release, tested on one PSP-3000 with ARK-4 on 6.61. The release's 
 - Registered with runlevel `UMD` (retail games only) instead of `GAME`, which includes homebrew.
 
 ### Fixed
+- XMB → Settings → Pocketwatch: after changing the language, the rows' names showed broken text
+  until the page was opened again.
 - Pocketwatch Home: Classic's XMB icons and sky were missing in Home (the system refused the
   files to Home; they are read through the kernel now).
 - Pocketwatch Home builds with the older PSPSDK too (`union SceNetApctlInfo`).

@@ -364,7 +364,7 @@ void pwx_row_set(int row, int value)
             pw_file_remove(PWX_DIR "language.txt");
             g_code[0] = 0;
         }
-        load_lang();
+        pwx_page_open(g_page); /* the rows' labels pointed into the old translation */
         pwx_log("xmb: language %s", code ? code : "of the system");
         return;
     }
