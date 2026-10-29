@@ -151,3 +151,19 @@ recovery path.
 
 One commit per substantial finished chunk (code + tests + docs together), Conventional Commits,
 no `Co-Authored-By` or other AI attribution lines, push only when the owner asks.
+
+**Issue first** (owner, 2026-10-29). Every fix, update or upgrade - a bug the owner reports, a
+feature or a rework they ask for, a problem found while working - is tracked as a GitHub issue in
+`semiloker/pocketwatch` before the work starts:
+
+1. `gh issue create` with a short title, what the owner saw or asked (their words), the label
+   (`bug`, `enhancement`, `documentation`), and the device test that will confirm it.
+2. Work against it as usual (research, ADR, code, tests, docs); one issue per independent problem,
+   several commits per issue when the work is large.
+3. The commit message names it in its body: `Fixes #N` when the commit resolves the issue,
+   `Refs #N` when it is a part (research, a first stage). GitHub links the commit to the issue when
+   the branch is pushed, and closes a `Fixes` issue when the commit reaches `main`.
+4. A comment on the issue (`gh issue comment N`) records the root cause, what changed and the
+   device test still open; a fix that is only built, not yet confirmed on the PSP, says so.
+
+Not for: a typo or a change made while working on another issue (it goes in that issue's commit).

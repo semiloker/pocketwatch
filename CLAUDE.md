@@ -166,3 +166,8 @@ The project's full workflow is imported here and applies to every session:
   (third-party files keep their own SPDX line). Never copy code from PSPStates (no license) or intraFont (CC BY-SA).
 - One commit per substantial finished chunk (code + tests + docs together), not per micro-step
   (Conventional Commits). No `Co-Authored-By` or other AI attribution lines.
+- Issue first (owner, 2026-10-29): every fix, update or upgrade starts as a GitHub issue in
+  semiloker/pocketwatch (`gh issue create`: what the owner saw or asked, then the cause or plan once
+  known), and the commit that does the work names it - `Fixes #N` when it resolves the issue,
+  `Refs #N` for part of it (GitHub closes a `Fixes` issue when the commit reaches `main`). A comment
+  on the issue records the cause and what changed. Details: `docs/AI_WORKFLOW.md` section 11.
