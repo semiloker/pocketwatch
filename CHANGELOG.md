@@ -14,6 +14,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Pocketwatch Home's player: holding left / right no longer jumps 10 s every tenth of a second.
+- Pocketwatch Home's player: left / right seek on from the new time; the track no longer starts
+  again from 0:00 (with Repeat: All it skipped to the next one). Seeking uses the MP3 library's
+  own call (#5). An MPEG-2 MP3 (16-24 kHz) shows its real length, not twice it.
 - `scripts\deploy.cmd` finds PLUGINS.TXT lines that end in CRLF (the file after an editor saved
   it): it reported them as missing, and `-Enable` / `-ProbeOff` would have added a second line
   instead of changing the first. It now also appends in the file's own line endings.

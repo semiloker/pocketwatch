@@ -684,7 +684,8 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-036 — Home does its own saved data, music player and photo albums and editor
 
-- **Status:** Accepted (2026-10-20), from the same round: Triangle → Saved Data showed "the
+- **Status:** Accepted (2026-10-20); its seeking superseded by
+  [ADR-058](#adr-058--the-player-seeks-with-the-mp3-librarys-own-call-on-one-handle). From the same round: Triangle → Saved Data showed "the
   default PSP menu", not Pocketwatch's, and that menu "looks bad"; Music had no cover ("something
   instead of it") and no way to seek; Photos had no albums by game and nothing to edit with.
 - **Decision:**
@@ -1315,3 +1316,40 @@ decision was taken; the evidence column links the research behind it.
   `HM_ICON_DOWN`; the strings `hm_choose` and `hm_controls` dropped. Previews
   `home-now-playing` (▼ just pressed), `home-now-no-cover` (seeking, the key row) in each style.
   Device test HM38 replaces HM35.
+
+## ADR-058 — The player seeks with the MP3 library's own call, on one handle
+
+- **Status:** Accepted (2026-10-29), [issue #5](https://github.com/semiloker/pocketwatch/issues/5).
+  Supersedes the seeking of
+  [ADR-036](#adr-036--home-does-its-own-saved-data-music-player-and-photo-albums-and-editor).
+- **Context (owner, 2026-10-29, the player on the PSP):** left / right "shows +10 s, then goes back
+  to 0:00". **Cause:** VERIFIED from the owner's card and the code: `home.txt` has
+  `repeat = one`, and the time shown is the decoded samples, which only a track's start sets to 0.
+  So after the seek the track ended and repeat one started it again (with repeat all it would have
+  been the next track). ADR-036's seek reserved a **second** decoder handle at the frame's byte
+  while the first was still reserved, initialised it, released the first and decoded with the
+  second; the time showed +10 s (the second handle was made), then the next decode returned
+  nothing, which `play()` takes for the end of the file. Why the PSP's library gives no sound from
+  that second handle is not known (PPSSPP keeps the two handles apart and plays it); seeking had
+  never been run on the device before (HM24 pending).
+- **Decision:** seek with `sceMp3ResetPlayPositionByFrame(handle, frame)` on the one handle
+  (frame = the time x the rate / the samples a frame: 1152 for MPEG-1, 576 for MPEG-2 and 2.5,
+  from `sceMp3GetMaxOutputSample`). The library finds the frame's byte from the first frame's bit
+  rate and asks for the stream again from there (VERIFIED as a model only: PPSSPP's
+  `sceMp3ResetPlayPositionByFrame`, rebuilt from the real library's behaviour; the export is in
+  PSPSDK's `pspmp3.h`). A decode that gives nothing in the first four tries after a seek is not
+  the file's end: the player goes back once to the frame before the seek and logs it, so a seek
+  that fails costs the seek, never the track. `home.log` records the first seek of each track
+  (`home music: seek to N s, frame F of T (S a frame): 0`) and every refusal or failure. A track's
+  length uses the same samples a frame (an MPEG-2 file showed twice its length, INFERRED from the
+  formula).
+- **Alternatives considered:** the second handle released first, then reopened at the byte (one
+  handle at a time, but the same mid-file initialisation, whose failure is not understood); a
+  hand-written decoder (backlog S7). ADR-036 had rejected the library's call because "its
+  behaviour with the streamed input is not documented"; the device has now shown the reopening
+  fails, and PPSSPP's model shows the call re-asks for the stream from the new position.
+- **Consequences:** `home/src/music.c` (`seek_to`, `play`); the byte search after a seek
+  (`hm_mp3_find_frame`, `hm_mp3_frame_len`) and its host test are gone. On a variable bit rate
+  file the time after a seek is approximate (the library's own estimate). Device test HM38 with
+  `home.log`: a seek line ending in `0`, no "no sound after the seek" line, and the track going on
+  from the new time with repeat one.

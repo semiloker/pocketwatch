@@ -58,10 +58,4 @@ int hm_id3_read(hm_id3_read_fn read, void *ctx, hm_id3 *out);
 /* A text frame's body (its encoding byte first) as UTF-8. */
 void hm_id3_text(const unsigned char *s, unsigned int n, char *out, int cap);
 
-/* An MP3 frame's length in bytes from its 4-byte header (Layer III), or < 0. */
-int hm_mp3_frame_len(unsigned int header);
-/* The first frame in buf like ref (the file's first header: the same version, layer and rate),
-   followed by another one: its offset, or < 0. */
-int hm_mp3_find_frame(const unsigned char *buf, int n, unsigned int ref);
-
 #endif

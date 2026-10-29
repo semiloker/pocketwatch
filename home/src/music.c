@@ -13,10 +13,10 @@
 #include "music.h"
 #include "stb_sprintf.h"
 
-#define MUSIC_DIR "ms0:/MUSIC"
-#define STREAM    (16 * 1024) /* MP3 data handed to the decoder at a time */
-#define PCM       (16 * 1152) /* bytes of decoded samples (1152 stereo 16-bit samples, x4) */
-#define SYNC_READ 4096        /* bytes searched for a frame after a seek */
+#define MUSIC_DIR  "ms0:/MUSIC"
+#define STREAM     (16 * 1024) /* MP3 data handed to the decoder at a time */
+#define PCM        (16 * 1152) /* bytes of decoded samples (1152 stereo 16-bit samples, x4) */
+#define SEEK_TRIES 4           /* decodes after a seek before it counts as failed (ADR-058) */
 
 static hm_track *g_tracks;
 static int g_count;
@@ -177,6 +177,7 @@ static volatile int g_playing = -1;
 static volatile int g_paused, g_stop;
 static volatile int g_seek = -1; /* a time asked for (s) */
 static volatile unsigned int g_samples, g_rate, g_frames;
+static volatile unsigned int g_spf = 1152; /* samples a frame: 1152 (MPEG-1), 576 (MPEG-2, 2.5) */
 static volatile int g_shuffle, g_repeat = HM_REPEAT_ALL;
 static int g_ready; /* the decoder's modules loaded */
 static SceUID g_thread = -1;
@@ -239,26 +240,27 @@ static SceInt32 open_at(SceUID fd, int start, int size, SceUChar8 *stream, SceSh
     return h;
 }
 
-/* The byte of the frame nearest to second s (by the file's average rate: exact for a constant
-   bit rate), or -1. */
-static int seek_byte(SceUID fd, int data, int size, unsigned int ref, unsigned int s,
-                     unsigned int length)
+/* A time asked for (ADR-058, #5): the MP3 library's own seek on the one handle - the frame there
+   (the library finds its byte by the first frame's bit rate), the stream asked for again from it.
+   Reopening the decoder at the frame's byte on a second handle made the next decode fail on the
+   PSP, which ended the track ("+10 s, then 0:00" with repeat one). 1 when it moved. */
+static int seek_to(SceInt32 h, unsigned int frame, unsigned int s, int *logged)
 {
-    static unsigned char buf[SYNC_READ];
-    long long at;
-    int n, k;
+    int r = sceMp3ResetPlayPositionByFrame(h, frame);
 
-    if (length == 0)
-        return -1;
-    at = data + (long long)(size - data) * s / length;
-    if (at < data)
-        at = data;
-    if (at >= size - 4)
-        return -1;
-    if (sceIoLseek32(fd, (int)at, PSP_SEEK_SET) < 0 || (n = sceIoRead(fd, buf, SYNC_READ)) < 8)
-        return -1;
-    k = hm_mp3_find_frame(buf, n, ref);
-    return k < 0 ? -1 : (int)at + k;
+    if (r < 0 || !*logged) { /* the first of a track, and every refusal */
+        char line[112];
+
+        stbsp_snprintf(line, sizeof(line),
+                       "home music: seek to %u s, frame %u of %u (%u a frame): %X\n", s, frame,
+                       g_frames, g_spf, (unsigned int)r);
+        hm_hw_log(line);
+        *logged = 1;
+    }
+    if (r < 0)
+        return 0;
+    g_samples = frame * g_spf;
+    return 1;
 }
 
 /* One file, to its end or until something else is asked for: 1 at its end, 0 when stopped or
@@ -267,11 +269,11 @@ static int play(const char *path, unsigned int asked_ms)
 {
     static SceUChar8 __attribute__((aligned(64))) stream[STREAM];
     static SceShort16 __attribute__((aligned(64))) pcm[PCM / 2];
-    unsigned char head[10], first[4];
+    unsigned char head[10];
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
     SceInt32 h;
-    int size, end = 0, ch, data, reserved = 0;
-    unsigned int ref = 0;
+    int size, end = 0, ch, data, reserved = 0, spf, logged = 0, tries = 0, undone = 0;
+    unsigned int back = 0; /* the frame before a seek: put back if decoding fails after it */
 
     if (fd < 0)
         return -1;
@@ -280,9 +282,6 @@ static int play(const char *path, unsigned int asked_ms)
     memset(head, 0, sizeof(head));
     sceIoRead(fd, head, sizeof(head));
     data = (int)hm_music_id3_size(head); /* the decoder starts at the first frame */
-    if (sceIoLseek32(fd, data, PSP_SEEK_SET) >= 0 && sceIoRead(fd, first, 4) == 4)
-        ref = (unsigned int)first[0] << 24 | (unsigned int)first[1] << 16 |
-              (unsigned int)first[2] << 8 | first[3];
     g_samples = 0;
     g_seek = -1;
     if ((h = open_at(fd, data, size, stream, pcm)) < 0) {
@@ -291,8 +290,10 @@ static int play(const char *path, unsigned int asked_ms)
     }
     g_rate = (unsigned int)sceMp3GetSamplingRate(h);
     g_frames = (unsigned int)sceMp3GetFrameNum(h);
+    spf = sceMp3GetMaxOutputSample(h);
+    g_spf = spf > 0 ? (unsigned int)spf : 1152;
     ch = sceMp3GetMp3ChannelNum(h) == 1 ? 1 : 2;
-    if (g_rate == 0 || reserve(sceMp3GetMaxOutputSample(h), (int)g_rate, ch) < 0) {
+    if (g_rate == 0 || reserve((int)g_spf, (int)g_rate, ch) < 0) {
         sceMp3ReleaseMp3Handle(h);
         sceIoClose(fd);
         return -1;
@@ -302,25 +303,18 @@ static int play(const char *path, unsigned int asked_ms)
         SceShort16 *out;
         int bytes;
 
-        if (g_seek >= 0) { /* a time asked for: the decoder again from the frame there */
+        if (g_seek >= 0) {
             unsigned int s = (unsigned int)g_seek,
-                         length = g_rate
-                                      ? (unsigned int)((unsigned long long)g_frames * 1152 / g_rate)
-                                      : 0;
-            int at = s == 0 ? data : seek_byte(fd, data, size, ref, s, length);
-            SceInt32 h2;
+                         frame = (unsigned int)((unsigned long long)s * g_rate / g_spf);
 
             g_seek = -1;
-            if (at >= 0 && (h2 = open_at(fd, at, size, stream, pcm)) >= 0) {
-                sceMp3ReleaseMp3Handle(h);
-                h = h2;
-                g_samples = s * g_rate;
-            } else if (at >= 0) { /* (the old one stays) */
-                continue;
-            } else if (s > 0) { /* past the end: the next one */
+            if ((int)g_frames > 0 && frame >= g_frames) { /* past the end: the next one */
                 end = 1;
                 break;
             }
+            back = g_samples / g_spf;
+            if (seek_to(h, frame, s, &logged))
+                tries = SEEK_TRIES;
             continue;
         }
         if (g_paused) {
@@ -330,10 +324,28 @@ static int play(const char *path, unsigned int asked_ms)
         if (sceMp3CheckStreamDataNeeded(h) > 0 && feed(h, fd) < 0)
             break;
         bytes = sceMp3Decode(h, &out);
+        if (bytes <= 0 && tries > 0) { /* right after a seek: not the file's end */
+            if (--tries > 0)
+                continue;
+            if (!undone) { /* once: where it was before the seek */
+                char line[96];
+
+                stbsp_snprintf(line, sizeof(line),
+                               "home music: no sound after the seek (%X): back to frame %u\n",
+                               (unsigned int)bytes, back);
+                hm_hw_log(line);
+                undone = 1;
+                if (seek_to(h, back, back * g_spf / g_rate, &logged)) {
+                    tries = SEEK_TRIES;
+                    continue;
+                }
+            }
+        }
         if (bytes <= 0) { /* the end of the file; a broken one plays nothing */
             end = g_samples ? 1 : -1;
             break;
         }
+        tries = undone = 0;
         if (g_samples == 0 && asked_ms) { /* the first sound: how long a track takes to start */
             char line[96];
 
@@ -516,5 +528,5 @@ void hm_music_time(unsigned int *played, unsigned int *length)
     unsigned int rate = g_rate;
 
     *played = rate ? g_samples / rate : 0;
-    *length = rate ? (unsigned int)((unsigned long long)g_frames * 1152 / rate) : 0;
+    *length = rate ? (unsigned int)((unsigned long long)g_frames * g_spf / rate) : 0;
 }
