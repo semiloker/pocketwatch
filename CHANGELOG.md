@@ -14,6 +14,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Pocketwatch Home's player: holding left / right no longer jumps 10 s every tenth of a second.
+- `scripts\deploy.cmd` finds PLUGINS.TXT lines that end in CRLF (the file after an editor saved
+  it): it reported them as missing, and `-Enable` / `-ProbeOff` would have added a second line
+  instead of changing the first. It now also appends in the file's own line endings.
 
 ## [0.1.0-alpha.1] - 2026-10-29
 
