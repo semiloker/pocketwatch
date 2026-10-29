@@ -413,6 +413,7 @@ enum {
     PW_S_HS_OSD,
     PW_S_HS_OSD_HOME,
     PW_S_HS_OSD_ALL,
+    PW_S_HS_OSD_EVERY,
     PW_S_HS_BOOST,
     PW_S_HS_BOOST_HALF,
     PW_S_HS_BOOST_MAX,

@@ -253,9 +253,11 @@ typedef struct {
     const char *perf_label[6], *perf_value[6]; /* value[0] is the frame time; detailed stats */
     int perf_n;
 
-    /* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom while osd > 0 */
-    int osd, osd_glyph, osd_level; /* 0-256 fading; its icon; the bar (0-256) */
-    const char *osd_text;          /* "18", "Muted", "3/4  92%" */
+    /* The volume and brightness indicator (HOM-REQ-034): while osd > 0, the volume a pill at the
+       bottom, the brightness (osd_glyph HM_ICON_SUN) a vertical pill at the left (#7, ADR-059) */
+    int osd, osd_glyph, osd_level; /* 0-256 fading; its icon; the volume's bar (0-256) */
+    int osd_step, osd_steps;       /* the brightness: its step (1-n) of n */
+    const char *osd_text;          /* "18", "Muted", "3/5" */
 
     const hm_calview *cal; /* the calibration's screen (a HM_PAGE_CAL page), or NULL */
 

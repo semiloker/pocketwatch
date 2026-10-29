@@ -389,6 +389,7 @@ cal_stop_q = ¿Detener la medición? Solo se guarda si duró lo suficiente.
 hs_osd = Volumen y brillo
 hs_osd_home = En Home
 hs_osd_all = Home y juegos
+hs_osd_every = En todas partes
 hs_boost = Brillo extra
 hs_boost_half = Más brillante
 hs_boost_max = Máximo

@@ -58,14 +58,16 @@ The project's full workflow is imported here and applies to every session:
   Pocketwatch → Overlay in Games writes that line and `perf.txt`; in a game L+R+SELECT held 1 s
   cycles Off / FPS / Full; deploy copies it. Home has its own overlay (`home.txt perf`).
 - The overlay module also shows the volume and brightness indicator in games and keeps the
-  brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all`,
+  brightness boost (ADR-045): `perf.txt` `mode = off|fps|full`, `osd = off|home|all|everywhere`,
   `boost = 0-100`, written by Home's Settings (Sound and Display), its PLUGINS.TXT line on while a
   game needs one of them; Home shows the indicator and applies the boost itself. Own Steps
   (ADR-047, `steps = on`, `levels = ...`): SCREEN taps go through Pocketwatch's levels (bright3's
-  job, which is off now). The module runs ONLY in a real disc/ISO game (ADR-049:
-  `is_disc_apitype` in `module_start`) - never in Home or the XMB, so it cannot affect boot; one
-  game (UMD) line, no VSH line. In-game it is still experimental; validate in one game before
-  trusting it. For XMB brightness there is no Pocketwatch option - bright3 remains the safe way.
+  job, which is off now). The module runs in a real disc/ISO game (ADR-049: `is_disc_apitype` in
+  `module_start`) and, only with Volume and Brightness → Everywhere (`osd = everywhere`, its VSH
+  line), in the XMB, where it draws nothing but the brightness bar after sleeping 5 s (ADR-059);
+  never in Home. The brightness is a vertical bar at the left in Home, games and the XMB, the
+  volume a pill at the bottom. In-game it is still experimental; validate in one game before
+  trusting it; the XMB part only after PF-FREEZE (test PF5).
 - Wi-Fi in Home (ADR-044): Settings → Wi-Fi Connections (search, a password on Home's keyboard,
   the firmware's netparam calls; `home net:` lines). Imports: never an `IMPORT_START` of a library
   PSPSDK already has, and a library's stubs must be linked together - psp-fixup-imports' "stubs

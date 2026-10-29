@@ -49,13 +49,13 @@ void pw_perf_box(void *fb, int stride, int fmt, int w, int h, int x, int y, int 
 int pw_perf_next(int mode);
 
 /* perf.txt (Home writes it, the module reads it at a game's start): "mode = off|fps|full" (the
-   numbers), "osd = off|home|all" (the volume and brightness indicator: none, over Home only, over
-   games too), "boost = <0-100>" (the backlight: that share of the way from the system's level up
-   to the most, ADR-045), "steps = on|off" and "levels = 20 30 ..." (Pocketwatch's own brightness
-   steps for the SCREEN button instead of the system's PW_BRIGHT_STEPS, ADR-047: up to
-   PW_STEPS_MAX levels of 1-100). What is missing or not known: full, home, 0, off,
-   PW_STEPS_DEFAULT. */
-enum { PW_OSD_OFF, PW_OSD_HOME, PW_OSD_ALL };
+   numbers), "osd = off|home|all|everywhere" (the volume and brightness indicator: none, over Home
+   only, over games too, and the brightness in the XMB as well - ADR-059), "boost = <0-100>" (the
+   backlight: that share of the way from the system's level up to the most, ADR-045), "steps =
+   on|off" and "levels = 20 30 ..." (Pocketwatch's own brightness steps for the SCREEN button
+   instead of the system's PW_BRIGHT_STEPS, ADR-047: up to PW_STEPS_MAX levels of 1-100). What is
+   missing or not known: full, home, 0, off, PW_STEPS_DEFAULT. */
+enum { PW_OSD_OFF, PW_OSD_HOME, PW_OSD_ALL, PW_OSD_EVERY };
 /* The system's own steps for SCREEN: impose's brightness 0-4 (#6). ARK-4 makes
    scePowerGetBacklightMaximum always 4 (core/compat/psp/syspatch.c, patch_scePower_Service): the
    fifth step, which the firmware keeps for the AC adapter, on battery too. */
@@ -120,9 +120,9 @@ typedef struct {
 int pw_osd_step(pw_osd *o, int vol, int mute, int bright, unsigned int now_ms);
 /* What to show now: the kind within PW_OSD_MS of its change, else PW_OSD_NONE. */
 int pw_osd_shown(const pw_osd *o, unsigned int now_ms);
-/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", "BRIGHT 3/5 92%" -
-   o->bright of steps (the system's PW_BRIGHT_STEPS, or Pocketwatch's). */
-void pw_osd_text(const pw_osd *o, int level, int steps, char out[PW_PERF_COLS + 1]);
+/* Its words for games (the 8x8 font has no other letters): "VOL 18", "MUTE", or the brightness
+   bar's step "3/5" - o->bright of steps (the system's PW_BRIGHT_STEPS, or Pocketwatch's). */
+void pw_osd_text(const pw_osd *o, int steps, char out[PW_PERF_COLS + 1]);
 
 /* ---- the game's display framebuffers ----
 
@@ -146,5 +146,14 @@ void pw_fbset_add(pw_fbset *s, unsigned int fb, int w, int f);
 #define PW_OSD_H 24
 void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
                  int n);
+
+/* The brightness as a vertical bar at the left (#7, ADR-059), the shape of Home's: a black box
+   with a white edge, its step ("3/5") at the top, n steps from the bottom up with k of them lit,
+   a sun under them; the volume keeps the box at the bottom (format, clip: pw_perf_draw's). */
+#define PW_VBAR_X 10
+#define PW_VBAR_W 34
+#define PW_VBAR_H 150
+void pw_osd_draw_vbar(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
+                      int n);
 
 #endif

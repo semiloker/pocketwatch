@@ -238,9 +238,10 @@ void pw_perf_cfg_parse(const char *text, int len, pw_perf_cfg *c)
                           : word_is(val, n, "fps") ? PW_PERF_FPS
                                                    : PW_PERF_FULL;
             else if (word_is(text + k, key, "osd"))
-                c->osd = word_is(val, n, "off")   ? PW_OSD_OFF
-                         : word_is(val, n, "all") ? PW_OSD_ALL
-                                                  : PW_OSD_HOME;
+                c->osd = word_is(val, n, "off")          ? PW_OSD_OFF
+                         : word_is(val, n, "all")        ? PW_OSD_ALL
+                         : word_is(val, n, "everywhere") ? PW_OSD_EVERY
+                                                         : PW_OSD_HOME;
             else if (word_is(text + k, key, "boost")) {
                 int b = 0, d = 0;
 
@@ -375,7 +376,7 @@ int pw_osd_shown(const pw_osd *o, unsigned int now_ms)
     return o->kind != PW_OSD_NONE && now_ms - o->t < PW_OSD_MS ? o->kind : PW_OSD_NONE;
 }
 
-void pw_osd_text(const pw_osd *o, int level, int steps, char out[PW_PERF_COLS + 1])
+void pw_osd_text(const pw_osd *o, int steps, char out[PW_PERF_COLS + 1])
 {
     line l = {out, 0};
 
@@ -385,16 +386,10 @@ void pw_osd_text(const pw_osd *o, int level, int steps, char out[PW_PERF_COLS + 
     } else if (o->kind == PW_OSD_VOLUME) {
         put(&l, "VOL ");
         put_int(&l, o->vol < 0 ? 0 : o->vol);
-    } else if (o->kind == PW_OSD_BRIGHT) {
-        put(&l, "BRIGHT ");
+    } else if (o->kind == PW_OSD_BRIGHT) { /* the vertical bar's top: the sun says what it is */
         put_int(&l, o->bright < 0 ? 0 : o->bright + 1);
         put(&l, "/");
         put_int(&l, steps);
-        if (level > 0) {
-            put(&l, " ");
-            put_int(&l, level);
-            put(&l, "%");
-        }
     }
 }
 
@@ -456,5 +451,38 @@ void pw_osd_draw(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask
         int sx = bx + i * bw / n, sw = (i + 1) * bw / n - i * bw / n - 1;
 
         box(fb, stride, fmt, w, h, sx, y0 + 8, sw, PW_OSD_H - 16, i < k ? 1 : 2);
+    }
+}
+
+/* A sun 13 px across centred on cx, cy: a disc of radius 3 and eight rays (two pixels each, at
+   distance 5 and 6) - ours, drawn from squares, no division. */
+static void sun(void *fb, int stride, int fmt, int w, int h, int cx, int cy)
+{
+    for (int dy = -6; dy <= 6; dy++)
+        for (int dx = -6; dx <= 6; dx++) {
+            int d = dx * dx + dy * dy, ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy,
+                ray = (ax == 0 || ay == 0 || ax == ay) && d >= 25 && d <= 72;
+
+            if ((d <= 10 || ray) && cx + dx >= 0 && cx + dx < w && cy + dy >= 0 && cy + dy < h)
+                dot(fb, stride, fmt, cx + dx, cy + dy, 1);
+        }
+}
+
+void pw_osd_draw_vbar(void *fb, int stride, int fmt, int w, int h, const pw_perf_mask *label, int k,
+                      int n)
+{
+    int x0 = PW_VBAR_X, y0 = (h - PW_VBAR_H) / 2, cx = x0 + PW_VBAR_W / 2,
+        top = y0 + 6 + PW_PERF_H + 6, bot = y0 + PW_VBAR_H - 8 - 13 - 6, sw = 12;
+
+    box(fb, stride, fmt, w, h, x0, y0, PW_VBAR_W, PW_VBAR_H, 1); /* the edge */
+    box(fb, stride, fmt, w, h, x0 + 1, y0 + 1, PW_VBAR_W - 2, PW_VBAR_H - 2, 0);
+    pw_perf_draw(fb, stride, fmt, w, h, cx - label->w / 2, y0 + 6, label);
+    sun(fb, stride, fmt, w, h, cx, y0 + PW_VBAR_H - 8 - 6);
+    if (n <= 0 || bot - top < n * 2)
+        return;
+    for (int i = 0; i < n; i++) { /* step i from the bottom, a pixel apart */
+        int y1 = bot - i * (bot - top) / n, y2 = bot - (i + 1) * (bot - top) / n + 1;
+
+        box(fb, stride, fmt, w, h, cx - sw / 2, y2, sw, y1 - y2, i < k ? 1 : 2);
     }
 }

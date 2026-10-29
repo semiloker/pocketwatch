@@ -588,11 +588,16 @@ static void home_previews(const pw_image *sky_img)
             hshot(&v, "home-calibration");
             v.cal = 0;
             v.depth = v.depth_pos = 0;
-            v.osd = 256;
+            v.osd = 256; /* the brightness: vertical at the left (#7) */
             v.osd_glyph = HM_ICON_SUN;
-            v.osd_level = 92 * 256 / 100;
-            v.osd_text = "4/4   92%";
+            v.osd_step = 3;
+            v.osd_steps = 5;
+            v.osd_text = "3/5";
             hshot(&v, "home-osd");
+            v.osd_glyph = HM_ICON_SPEAKER; /* the volume: the pill at the bottom */
+            v.osd_level = 18 * 256 / 30;
+            v.osd_text = "18";
+            hshot(&v, "home-osd-volume");
             v.osd = 0;
         }
         v.depth = v.depth_pos = 0;

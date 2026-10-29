@@ -1025,8 +1025,10 @@ decision was taken; the evidence column links the research behind it.
 
 ## ADR-049 — The overlay module runs only in a real game (never in the XMB or Home)
 
-- **Status:** Accepted (2026-10-21), from the owner's round 9: after the card was fixed and the
-  module finally loaded for real, "Pocketwatch does not start with the console; in games neither
+- **Status:** Accepted (2026-10-21); its "no VSH line" superseded for the brightness bar by
+  [ADR-059](#adr-059--the-brightness-is-a-vertical-bar-at-the-left-with-everywhere-the-overlay-module-shows-it-in-the-xmb)
+  (only while the indicator is Everywhere). From the owner's round 9: after the card was fixed
+  and the module finally loaded for real, "Pocketwatch does not start with the console; in games neither
   the hub nor the overlay".
 - **Context:** VERIFIED (`home.log`, `boot.txt`, PPSSPP). The overlay was "never seen in games"
   because its file kept being wiped by the FAT bug (ADR-048); once the card was repaired the module
@@ -1353,3 +1355,48 @@ decision was taken; the evidence column links the research behind it.
   file the time after a seek is approximate (the library's own estimate). Device test HM38 with
   `home.log`: a seek line ending in `0`, no "no sound after the seek" line, and the track going on
   from the new time with repeat one.
+
+## ADR-059 — The brightness is a vertical bar at the left; with Everywhere the overlay module shows it in the XMB
+
+- **Status:** Accepted (2026-10-29), [issue #7](https://github.com/semiloker/pocketwatch/issues/7).
+  Supersedes, for the brightness bar only and only while the owner turns it on, the "no VSH line"
+  of [ADR-049](#adr-049--the-overlay-module-runs-only-in-a-real-game-never-in-the-xmb-or-home).
+- **Context (owner, 2026-10-29):** "in the XMB and in games, add the same brightness bar, but on
+  the left and vertical". In games the module showed the brightness in the volume's box at the
+  bottom middle; in the XMB nothing shows a brightness change (ADR-047's owner report too).
+  ADR-049 took the module out of the XMB after it crashed Home's start during the boot's handoff
+  from the XMB to Home. Since then ADR-053 found why the module's thread outlived its module at a
+  reboot: it was blocked in the display driver (`sceDisplayWaitVblankStart`) while the driver was
+  torn down; it now paces on `sceKernelDelayThread` (INFERRED: the same cause as ADR-049's crash,
+  which also came at a reboot - the handoff to Home - with the thread then in the same call).
+  ARK-4 loads a `VSH` line only when the apitype is 0x200 or more (VERIFIED: ARK-4
+  `core/systemctrl/src/plugin.c`, `isVshRunlevel`); Home is ARK-4's launcher, a homebrew (0x141),
+  so a VSH line never loads into Home.
+- **Decision:**
+  - **One bar, three places:** the brightness is a vertical pill at the left - its step ("3/5") on
+    top, the steps lit from the bottom, a sun under them - in Home (the GE, Home's accent), in
+    games and in the XMB (the module: black box, white edge, white and grey steps, our own 13 px
+    sun). The volume keeps its pill at the bottom middle (the XMB and the hub have their own
+    volume bar, so the module draws none there).
+  - **Everywhere:** Settings → Sound and Display → Volume and Brightness gets a fourth choice,
+    Everywhere (`perf.txt osd = everywhere`): Home and games as Home and Games, plus the XMB. Only
+    then does Home turn on the module's line `VSH, ms0:/seplugins/pocketwatch/pocketwatch_perf.prx`
+    (and off for any other choice; ADR-047's old line goes off as before).
+  - **In the XMB the module does the least:** its thread first sleeps 5 s in
+    `sceKernelDelayThread` (not even `perf.txt` is read before), so it is asleep through the
+    boot's handoff to Home and `module_stop` ends it at once; then it reads `perf.txt` and ends
+    unless the indicator is Everywhere; it never shows the numbers, never runs the L + R + SELECT
+    combo and never sets the backlight (no boost, no Own Steps: the XMB's brightness stays the
+    system's); it writes only the bar, into the XMB's own VRAM buffers (ADR-051).
+- **Alternatives considered:** the bar in pocketwatch_xmb.prx (the XMB plugin; 295 bytes left of
+  its 64 KB, RISK-022); a new VSH module of its own (the same framebuffer writes and boot path as
+  this one, and a third PLUGINS.TXT line); the bar in games only (the owner asked for the XMB
+  too).
+- **Consequences:** `perf/src/main.c` (`g_xmb`, `XMB_GRACE_MS`), `perf/src/overlay.c`
+  (`pw_osd_draw_vbar`, `pw_osd_text` gives "3/5"), `home/src/home_view.c` (`osd_bright`),
+  `home/src/hsettings.c` (the choice, the VSH line), the string `hs_osd_every`. The module's 64-bit
+  division went (its helper was 1.3 KB; the CPU share now divides a second's microseconds in
+  32 bits), so it is 14.9 KB with the bar. RISK-031 is back in the boot path while Everywhere is
+  on: device test PF5 only after PF-FREEZE passes; recovery: hold START at power-on, then any other
+  choice in Home's Settings (or the line `off` over USB). Previews `home-osd` (the bar),
+  `home-osd-volume`.

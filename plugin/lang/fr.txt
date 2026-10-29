@@ -389,6 +389,7 @@ cal_stop_q = Arrêter la mesure ? Elle n'est gardée que si elle a duré assez l
 hs_osd = Volume et luminosité
 hs_osd_home = Dans Home
 hs_osd_all = Home et jeux
+hs_osd_every = Partout
 hs_boost = Luminosité renforcée
 hs_boost_half = Plus lumineux
 hs_boost_max = Maximum

@@ -712,8 +712,25 @@ static void perf_overlay(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     }
 }
 
-/* The volume and brightness indicator (HOM-REQ-034): a pill at the bottom middle, over
-   everything but the overlay. */
+/* The brightness: a vertical pill at the left, its step on top, the steps lit from the bottom,
+   the sun under them - the shape the overlay module draws in games and the XMB (#7, ADR-059). */
+static void osd_bright(hm_gfx *g, const hm_ui *ui, const hm_view *v, int a, unsigned int acc)
+{
+    int w = 34, h = 150, x = 10, y = (HM_H - h) / 2, cx = x + w / 2, top = y + 32, bot = y + h - 34,
+        n = hm_clampi(v->osd_steps, 1, 16), k = hm_clampi(v->osd_step, 0, n), sw = 10;
+
+    g->rrect(g, x, y, w, h, w / 2, 0, C_BLACK, a * 215 / 256);
+    hm_text_center(g, ui->body, cx, hm_mid(ui->body, y + 18), v->osd_text, w - 4, C_TEXT, a);
+    for (int i = 0; i < n; i++) { /* step i from the bottom */
+        int y1 = bot - i * (bot - top) / n, y2 = bot - (i + 1) * (bot - top) / n + 2;
+
+        g->rrect(g, cx - sw / 2, y2, sw, y1 - y2, 3, 0, i < k ? acc : C_KNOB, a);
+    }
+    g->icon(g, HM_ICON_SUN, cx, y + h - 18, 16, C_TEXT, a);
+}
+
+/* The volume and brightness indicator (HOM-REQ-034): the volume a pill at the bottom middle, the
+   brightness a vertical pill at the left; over everything but the overlay. */
 static void osd(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
     int a = hm_clampi(v->osd, 0, 256), w = 250, h = 30, x = (HM_W - w) / 2, y = HM_H - 76, tw,
@@ -722,6 +739,10 @@ static void osd(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 
     if (a <= 0 || !v->osd_text)
         return;
+    if (v->osd_glyph == HM_ICON_SUN) {
+        osd_bright(g, ui, v, a, acc);
+        return;
+    }
     tw = pw_text_width(ui->body, v->osd_text);
     bw = w - 40 - 16 - tw - 12;
     lit = bw * hm_clampi(v->osd_level, 0, 256) / 256;

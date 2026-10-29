@@ -391,6 +391,7 @@ cal_stop_q = Зупинити вимірювання? Воно збережет�
 hs_osd = Індикатор звуку і яскравості
 hs_osd_home = У Home
 hs_osd_all = Home та ігри
+hs_osd_every = Скрізь
 hs_boost = Підсилення яскравості
 hs_boost_half = Яскравіше
 hs_boost_max = Максимум

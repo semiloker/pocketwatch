@@ -389,6 +389,7 @@ cal_stop_q = Meting stoppen? Ze blijft alleen als ze lang genoeg liep.
 hs_osd = Volume en helderheid
 hs_osd_home = In Home
 hs_osd_all = Home en games
+hs_osd_every = Overal
 hs_boost = Extra helderheid
 hs_boost_half = Helderder
 hs_boost_max = Maximaal

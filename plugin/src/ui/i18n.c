@@ -410,6 +410,7 @@ static const entry g_english[PW_I18N_HELD] = {
     [PW_S_HS_OSD] = {"hs_osd", "Volume and Brightness"},
     [PW_S_HS_OSD_HOME] = {"hs_osd_home", "In Home"},
     [PW_S_HS_OSD_ALL] = {"hs_osd_all", "Home and Games"},
+    [PW_S_HS_OSD_EVERY] = {"hs_osd_every", "Everywhere"},
     [PW_S_HS_BOOST] = {"hs_boost", "Brightness Boost"},
     [PW_S_HS_BOOST_HALF] = {"hs_boost_half", "Brighter"},
     [PW_S_HS_BOOST_MAX] = {"hs_boost_max", "Maximum"},

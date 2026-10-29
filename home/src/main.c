@@ -877,7 +877,7 @@ static pw_steps g_steps;
 static void av_frame(unsigned int now, unsigned int buttons)
 {
     static unsigned int t_av, t_screen;
-    static int level = -1, told, steps_set;
+    static int told, steps_set;
     static char text[32];
     const pw_perf_cfg *c = hs_perf_cfg();
     int kind, set, tap = 0, n = c->steps ? c->nlevels : hm_bright_max() + 1;
@@ -896,16 +896,14 @@ static void av_frame(unsigned int now, unsigned int buttons)
 
         t_av = now;
         hm_hw_av_read(&av);
-        level = av.level;
         if (c->steps && !steps_set && av.level > 0) {
             g_steps.cur = pw_steps_nearest(c, av.level);
             steps_set = 1;
         }
         if ((set = pw_bright_step(&g_bright, av.level, c->boost,
                                   c->steps ? c->levels[g_steps.cur % c->nlevels] : 0,
-                                  now - t_screen < 1000, now)) > 0 &&
-            hm_hw_set_level(set) == 0)
-            level = set;
+                                  now - t_screen < 1000, now)) > 0)
+            hm_hw_set_level(set);
         if (g_bright.fights >= PW_BRIGHT_FIGHTS && !told) {
             hm_hw_log("home brightness: another plugin sets its level back: the boost gave up\n");
             told = 1;
@@ -927,9 +925,10 @@ static void av_frame(unsigned int now, unsigned int buttons)
             stbsp_snprintf(text, sizeof(text), "%d", g_osd.vol);
         g_v.osd_text = text;
     } else if (kind == PW_OSD_BRIGHT) {
-        g_v.osd_glyph = HM_ICON_SUN;
-        g_v.osd_level = level < 0 ? 0 : (level > 100 ? 100 : level) * 256 / 100;
-        stbsp_snprintf(text, sizeof(text), "%d/%d   %d%%", g_osd.bright + 1, n, level);
+        g_v.osd_glyph = HM_ICON_SUN; /* a vertical bar at the left (#7) */
+        g_v.osd_step = g_osd.bright + 1;
+        g_v.osd_steps = n;
+        stbsp_snprintf(text, sizeof(text), "%d/%d", g_osd.bright + 1, n);
         g_v.osd_text = text;
     }
 }

@@ -389,6 +389,7 @@ cal_stop_q = Messung stoppen? Sie bleibt nur, wenn sie lange genug lief.
 hs_osd = Lautstärke und Helligkeit
 hs_osd_home = In Home
 hs_osd_all = Home und Spiele
+hs_osd_every = Überall
 hs_boost = Helligkeits-Boost
 hs_boost_half = Heller
 hs_boost_max = Maximum

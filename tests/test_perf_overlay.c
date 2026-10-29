@@ -48,6 +48,8 @@ PW_TEST(perf_cfg_reads_the_mode_the_indicator_and_the_boost)
     CHECK_EQ(c.boost, 0); /* (out of range) */
     pw_perf_cfg_parse("", 0, &c);
     CHECK_EQ(c.mode, PW_PERF_FULL);
+    pw_perf_cfg_parse("osd = everywhere\n", 17, &c); /* the XMB too (ADR-059) */
+    CHECK_EQ(c.osd, PW_OSD_EVERY);
 }
 
 PW_TEST(brightness_boost_follows_the_system_and_gives_up_on_a_fight)
@@ -127,21 +129,21 @@ PW_TEST(indicator_shows_what_changed_for_a_while)
     CHECK_EQ(pw_osd_step(&o, 19, 0, 2, 1000), 1);
     CHECK_EQ(pw_osd_shown(&o, 1000 + PW_OSD_MS - 1), PW_OSD_VOLUME);
     CHECK_EQ(pw_osd_shown(&o, 1000 + PW_OSD_MS), PW_OSD_NONE);
-    pw_osd_text(&o, 72, 4, t);
+    pw_osd_text(&o, 4, t);
     CHECK_STR(t, "VOL 19");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 2, 3000), 1);
-    pw_osd_text(&o, 72, 4, t);
+    pw_osd_text(&o, 4, t);
     CHECK_STR(t, "MUTE");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5000), 1);
     CHECK_EQ(pw_osd_shown(&o, 5100), PW_OSD_BRIGHT);
-    pw_osd_text(&o, 92, PW_BRIGHT_STEPS, t);
-    CHECK_STR(t, "BRIGHT 4/5 92%"); /* the system's five steps (#6), not four */
-    pw_osd_text(&o, 92, 8, t);
-    CHECK_STR(t, "BRIGHT 4/8 92%");
+    pw_osd_text(&o, PW_BRIGHT_STEPS, t);
+    CHECK_STR(t, "4/5"); /* the system's five steps (#6), not four: the bar's top */
+    pw_osd_text(&o, 8, t);
+    CHECK_STR(t, "4/8");
     CHECK_EQ(pw_osd_step(&o, 19, 1, 3, 5200), 0);
     CHECK_EQ(pw_osd_step(&o, 19, 1, 4, 5300), 1); /* the fifth step (ARK-4: on battery too) */
-    pw_osd_text(&o, 100, PW_BRIGHT_STEPS, t);
-    CHECK_STR(t, "BRIGHT 5/5 100%");
+    pw_osd_text(&o, PW_BRIGHT_STEPS, t);
+    CHECK_STR(t, "5/5");
 }
 
 PW_TEST(perf_overlay_draws_white_letters_in_a_black_outline_in_every_format)
@@ -183,6 +185,36 @@ PW_TEST(indicator_box_is_drawn_inside_the_frame)
     CHECK_EQ(fb[(y0 + 2) * 480 + x0 + 2], 0xFF000000u);    /* inside */
     CHECK_EQ(fb[(y0 - 1) * 480 + x0], 0x55555555u);        /* above it: untouched */
     CHECK_EQ(fb[(y0 + 10) * 480 + x0 + 265], 0xFF404040u); /* the last step: not lit */
+}
+
+PW_TEST(brightness_bar_is_vertical_at_the_left_lit_from_the_bottom)
+{
+    static unsigned int fb[480 * 272];
+    pw_perf_mask m;
+    int x0 = PW_VBAR_X, y0 = (272 - PW_VBAR_H) / 2, cx = x0 + PW_VBAR_W / 2, lit = 0, grey = 0;
+
+    pw_perf_render("2/5", &m);
+    memset(fb, 0x55, sizeof(fb));
+    pw_osd_draw_vbar(fb, 480, 3, 480, 272, &m, 2, 5);
+    CHECK_EQ(fb[y0 * 480 + x0], 0xFFFFFFFFu);                    /* the edge */
+    CHECK_EQ(fb[(y0 + 2) * 480 + x0 + 2], 0xFF000000u);          /* inside */
+    CHECK_EQ(fb[(y0 - 1) * 480 + x0], 0x55555555u);              /* above: untouched */
+    CHECK_EQ(fb[(y0 + 20) * 480 + x0 + PW_VBAR_W], 0x55555555u); /* right of it: untouched */
+    CHECK_EQ(fb[(y0 + PW_VBAR_H - 14) * 480 + cx], 0xFFFFFFFFu); /* the sun's middle */
+    for (int y = y0; y < y0 + PW_VBAR_H; y++) {                  /* the steps' column */
+        unsigned int p = fb[y * 480 + cx - 4];
+
+        lit += p == 0xFFFFFFFFu;
+        grey += p == 0xFF404040u;
+    }
+    CHECK(lit > 0 && grey > lit); /* two of five lit, three not */
+    /* the lowest step lit, the highest not */
+    {
+        int bot = y0 + PW_VBAR_H - 8 - 13 - 6 - 1, top = y0 + 6 + PW_PERF_H + 6 + 2;
+
+        CHECK_EQ(fb[bot * 480 + cx - 4], 0xFFFFFFFFu);
+        CHECK_EQ(fb[top * 480 + cx - 4], 0xFF404040u);
+    }
 }
 
 PW_TEST(fbset_keeps_distinct_buffers_and_drops_the_oldest)

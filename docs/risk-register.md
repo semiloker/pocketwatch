@@ -329,4 +329,8 @@ risk; close it with the evidence.
 - **Mitigation:** ADR-049 - the module's thread runs only in a real disc/ISO game
   (`is_disc_apitype`), never in Home or the XMB, so it cannot affect boot; a ~2 s grace period
   before the first write; the framebuffer-size and internal-framebuffer guards; off by default. To
-  be validated in one game (PF1/PF4) before it is recommended.
+  be validated in one game (PF1/PF4) before it is recommended. Since ADR-059 (2026-10-29) the
+  module runs in the XMB again, only with the indicator set to Everywhere and only to draw the
+  brightness bar: its thread sleeps 5 s in a delay before anything (asleep through the boot's
+  handoff to Home), never blocks in a driver (ADR-053), never sets the backlight there; PF5 after
+  PF-FREEZE; recovery: hold START at power-on.
