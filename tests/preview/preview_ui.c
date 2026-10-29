@@ -26,6 +26,7 @@
 #include "gfx_cpu.h"
 #include "hm_icons.h"
 #include "home_view.h"
+#include "photo_edit.h"
 #include "xmbart.h"
 
 #define W      480
@@ -218,12 +219,6 @@ static void home_previews(const pw_image *sky_img)
     static const unsigned int tint[4] = {PW_RGB(170, 40, 40), PW_RGB(40, 110, 190),
                                          PW_RGB(60, 150, 80), PW_RGB(150, 110, 40)};
     static hm_art art;
-    static const int ed_glyph[9] = {HM_ICON_ROTATE,  HM_ICON_FLIP,     HM_ICON_FILTER,
-                                    HM_ICON_SUN,     HM_ICON_CONTRAST, HM_ICON_DROP,
-                                    HM_ICON_PALETTE, HM_ICON_VIGNETTE, HM_ICON_CHECK};
-    static const char *const ed_names[9] = {"Rotate",     "Mirror",   "Filter",
-                                            "Brightness", "Contrast", "Saturation",
-                                            "Warmth",     "Vignette", "Save a Copy"};
     const char *rco = getenv("PW_PREVIEW_RCO"), *fg = getenv("PW_PREVIEW_FG");
     hm_tile games[5] = {
         {"Castlevania: The Dracula X Chronicles", "ULUS10277   Played 12 h 30 min   Save states: 3",
@@ -638,16 +633,95 @@ static void home_previews(const pw_image *sky_img)
         v.viewer_slideshow = "Slideshow";
         v.viewer_wallpaper = "Set as wallpaper";
         hshot(&v, "home-viewer");
-        v.editor = 256;
-        v.ed_count = 9;
-        for (int i = 0; i < 9; i++)
-            v.ed_tools[i] = ed_names[i];
-        v.ed_glyphs = ed_glyph;
-        v.ed_sel = v.ed_pos = 3;
-        v.ed_pos = 3 * 256;
-        v.ed_value = "+2";
-        v.ed_hint = "Left / Right: tool   Up / Down: change";
-        hshot(&v, "home-editor");
+        { /* the editor (ADR-060): each tab over hm_edit_compose's screen, as main.c draws it */
+            static unsigned int src[HM_W * HM_H], edbg[512 * HM_H], *thumb;
+            static unsigned char hist[HM_HIST_BINS];
+            static const int adj_glyph[HM_ADJS] = {
+                HM_ICON_EXPOSURE, HM_ICON_CONTRAST, HM_ICON_HIGHLIGHTS, HM_ICON_SHADOWS,
+                HM_ICON_DROP,     HM_ICON_VIBRANCE, HM_ICON_WARMTH,     HM_ICON_TINT,
+                HM_ICON_VIGNETTE, HM_ICON_SHARPEN};
+            static const int crop_glyph[HM_CROPS] = {HM_ICON_ROTATE, HM_ICON_FLIP, HM_ICON_CROP};
+            hm_edit e;
+            int tw = 0, th = 0, cw = HM_H * HM_ED_THUMBW / HM_ED_THUMBH;
+
+            for (int y = 0; y < HM_H; y++)
+                memcpy(src + y * HM_W, photo + y * 512, HM_W * 4);
+            {
+                static unsigned int part[HM_W * HM_H];
+
+                for (int y = 0; y < HM_H; y++) /* the middle at the thumbnail's shape */
+                    memcpy(part + y * cw, src + y * HM_W + (HM_W - cw) / 2, (size_t)cw * 4);
+                thumb = hm_edit_fit(part, cw, HM_H, HM_ED_THUMBW, HM_ED_THUMBH, &tw, &th);
+            }
+            hm_edit_init(&e);
+            e.adj[HM_ADJ_EXPOSURE] = 15;
+            e.adj[HM_ADJ_HIGHLIGHTS] = -30;
+            e.adj[HM_ADJ_VIBRANCE] = 25;
+            e.adj[HM_ADJ_VIGNETTE] = 40;
+            v.editor = 256;
+            v.ed_title = "Edit Photo";
+            v.ed_cancel = "Cancel";
+            v.ed_save = "Save a Copy";
+            v.ed_compare_text = "Compare";
+            v.ed_reset_text = "Reset";
+            v.ed_badge = "Original";
+            v.ed_tabs[0] = "Adjust";
+            v.ed_tabs[1] = "Filters";
+            v.ed_tabs[2] = "Crop";
+            v.ed_hist = hist;
+            /* Adjust: Highlights -30 */
+            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_ADJUST, 0, edbg, hist);
+            v.bg = edbg;
+            v.ed_tab = HM_EDT_ADJUST;
+            v.ed_count = HM_ADJS;
+            v.ed_glyphs = adj_glyph;
+            v.ed_set = 1u << HM_ADJ_EXPOSURE | 1u << HM_ADJ_HIGHLIGHTS | 1u << HM_ADJ_VIBRANCE |
+                       1u << HM_ADJ_VIGNETTE;
+            v.ed_sel = HM_ADJ_HIGHLIGHTS;
+            v.ed_pos = HM_ADJ_HIGHLIGHTS * 256;
+            v.ed_name = "Highlights";
+            v.ed_value = "-30";
+            v.ed_slider = -30;
+            v.ed_one_sided = 0;
+            hshot(&v, "home-editor");
+            /* Compare: Square held */
+            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_ADJUST, 1, edbg, hist);
+            v.ed_compare = 1;
+            hshot(&v, "home-editor-compare");
+            v.ed_compare = 0;
+            /* Filters: Noir at 80 */
+            e.filter = HM_FL_NOIR;
+            e.strength = 80;
+            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_FILTERS, 0, edbg, hist);
+            v.ed_tab = HM_EDT_FILTERS;
+            v.ed_count = HM_FILTERS;
+            v.ed_glyphs = 0;
+            v.ed_set = 1u << HM_FL_NOIR;
+            v.ed_sel = HM_FL_NOIR;
+            v.ed_pos = HM_FL_NOIR * 256;
+            v.ed_name = "Noir";
+            v.ed_value = "80";
+            v.ed_slider = 80;
+            v.ed_one_sided = 1;
+            hshot(&v, "home-editor-filters");
+            /* Crop: 16:9 */
+            e.aspect = HM_AR_16_9;
+            hm_edit_compose(&e, src, HM_W, HM_H, thumb, tw, th, HM_EDT_CROP, 0, edbg, hist);
+            v.ed_tab = HM_EDT_CROP;
+            v.ed_count = HM_CROPS;
+            v.ed_glyphs = crop_glyph;
+            v.ed_set = 1u << HM_CROP_ASPECT;
+            v.ed_sel = HM_CROP_ASPECT;
+            v.ed_pos = HM_CROP_ASPECT * 256;
+            v.ed_name = "Aspect Ratio";
+            v.ed_value = "16:9";
+            v.ed_slider = HM_ED_NO_SLIDER;
+            v.ed_choices = HM_ARS;
+            v.ed_choice = HM_AR_16_9;
+            hshot(&v, "home-editor-crop");
+            v.ed_choices = 0;
+            free(thumb);
+        }
         v.editor = v.viewer = 0;
         v.toast = 256;
         v.toast_text = "Saved as a new photo";

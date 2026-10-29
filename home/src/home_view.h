@@ -19,11 +19,12 @@
  * host renders previews of it.
  */
 
-#define HM_W      480
-#define HM_H      272
-#define HM_ICON_W 144
-#define HM_ICON_H 80
-#define HM_COVER  128 /* a track's cover: HM_COVER x HM_COVER */
+#define HM_W            480
+#define HM_H            272
+#define HM_ICON_W       144
+#define HM_ICON_H       80
+#define HM_COVER        128     /* a track's cover: HM_COVER x HM_COVER */
+#define HM_ED_NO_SLIDER (-1000) /* the editor's tool is a choice, not a slider */
 
 enum {
     HM_TAB_GAMES,
@@ -230,13 +231,22 @@ typedef struct {
     const char *viewer_caption, *viewer_slideshow, *viewer_wallpaper; /* Triangle, Square */
     const char *viewer_edit;                                          /* Enter: edit, or NULL */
 
-    /* The photo editor (HOM-REQ-026): its tools along the bottom, the chosen one's value */
-    int editor;               /* 0-256 while open */
-    const char *ed_tools[12]; /* the tools' names */
-    const int *ed_glyphs;     /* their icons */
-    int ed_count, ed_sel, ed_pos;
-    const char *ed_value; /* the chosen tool's value ("+2", "Sepia") */
-    const char *ed_hint;  /* what up / down do */
+    /* The photo editor (HOM-REQ-040, ADR-060): hm_edit_compose's screen is the background (the
+       picture in its canvas, the looks' thumbnails); over it the top bar, the histogram, the
+       chosen tool's name, value and slider (or its choices), the tab's strip and the tabs */
+    int editor;                     /* 0-256 while open */
+    int ed_tab;                     /* HM_EDT_* */
+    int ed_count, ed_sel, ed_pos;   /* the strip's items; the chosen one; eased, x256 */
+    const int *ed_glyphs;           /* the strip's icons; NULL: the looks' thumbnails */
+    unsigned int ed_set;            /* bit i: item i changed (a dot under it) */
+    const char *ed_name, *ed_value; /* the chosen tool's name and value ("+20", "Noir") */
+    int ed_slider;                  /* its value, -100..100, or HM_ED_NO_SLIDER */
+    int ed_one_sided;               /* the slider starts at its left end (0..100) */
+    int ed_choices, ed_choice;      /* no slider: how many choices, the one taken */
+    int ed_compare;                 /* the picture as it is shown (Square held) */
+    const unsigned char *ed_hist;   /* the canvas' histogram (photo_edit.h's bins), or NULL */
+    const char *ed_title, *ed_cancel, *ed_save, *ed_compare_text, *ed_reset_text, *ed_badge;
+    const char *ed_tabs[3]; /* Adjust, Filters, Crop */
 
     /* A message card over everything while sheet > 0 (USB, a question) */
     int sheet, sheet_busy; /* busy: dots turn (t_ms) */

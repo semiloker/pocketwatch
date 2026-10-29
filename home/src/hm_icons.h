@@ -53,6 +53,14 @@ enum {
     HM_ICON_UD,     /* its up and down */
     HM_ICON_UP,     /* the d-pad's up alone: one triangle */
     HM_ICON_DOWN,
+    HM_ICON_EXPOSURE,   /* the photo editor's tools (ADR-060): a ring, plus and minus */
+    HM_ICON_HIGHLIGHTS, /* a ring with its upper half filled */
+    HM_ICON_SHADOWS,    /* a ring with its lower half filled */
+    HM_ICON_VIBRANCE,   /* a drop and a spark */
+    HM_ICON_TINT,       /* two overlapping discs */
+    HM_ICON_SHARPEN,    /* a diamond */
+    HM_ICON_WARMTH,     /* a thermometer */
+    HM_ICON_CROP,       /* two crop corners */
     HM_ICON_LAST
 };
 

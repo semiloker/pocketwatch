@@ -3,131 +3,240 @@
 #include <string.h>
 
 #include "photo_edit.h"
+#include "ui/draw.h"
 
 static int clamp8(int v)
 {
     return v < 0 ? 0 : v > 255 ? 255 : v;
 }
 
-int hm_edit_step(hm_edit *e, int tool, int dir)
+static int clampi(int v, int lo, int hi)
 {
-    int *v = 0, lo = -HM_ED_RANGE, hi = HM_ED_RANGE, was;
+    return v < lo ? lo : v > hi ? hi : v;
+}
 
+/* ---- the model ---- */
+
+void hm_edit_init(hm_edit *e)
+{
+    memset(e, 0, sizeof(*e));
+    e->strength = 100;
+}
+
+int hm_edit_tools(int tab)
+{
+    return tab == HM_EDT_ADJUST ? HM_ADJS : tab == HM_EDT_FILTERS ? HM_FILTERS : HM_CROPS;
+}
+
+int hm_edit_one_sided(int adj)
+{
+    return adj == HM_ADJ_VIGNETTE || adj == HM_ADJ_SHARPEN;
+}
+
+int hm_edit_pick_filter(hm_edit *e, int filter)
+{
+    if (filter < 0 || filter >= HM_FILTERS || filter == e->filter)
+        return 0;
+    e->filter = filter;
+    e->strength = 100; /* a new look at its full strength */
+    return 1;
+}
+
+int hm_edit_step(hm_edit *e, int tab, int tool, int dir)
+{
+    int was;
+
+    dir = dir > 0 ? 1 : -1;
+    if (tab == HM_EDT_ADJUST && tool >= 0 && tool < HM_ADJS) {
+        was = e->adj[tool];
+        e->adj[tool] =
+            clampi(was + dir * HM_ADJ_STEP, hm_edit_one_sided(tool) ? 0 : -HM_ADJ_MAX, HM_ADJ_MAX);
+        return e->adj[tool] != was;
+    }
+    if (tab == HM_EDT_FILTERS) {
+        if (tool != e->filter)
+            return hm_edit_pick_filter(e, tool);
+        if (e->filter == HM_FL_NONE)
+            return 0;
+        was = e->strength;
+        e->strength = clampi(was + dir * HM_STR_STEP, 0, 100);
+        return e->strength != was;
+    }
     switch (tool) {
-    case HM_ED_ROTATE:
+    case HM_CROP_ROTATE:
         e->rotate = (e->rotate + (dir > 0 ? 1 : 3)) % 4;
         return 1;
-    case HM_ED_MIRROR:
+    case HM_CROP_MIRROR:
         e->mirror = !e->mirror;
         return 1;
-    case HM_ED_FILTER:
-        e->filter = (e->filter + (dir > 0 ? 1 : HM_FILTERS - 1)) % HM_FILTERS;
+    case HM_CROP_ASPECT:
+        e->aspect = (e->aspect + (dir > 0 ? 1 : HM_ARS - 1)) % HM_ARS;
         return 1;
-    case HM_ED_LIGHT:
-        v = &e->light;
-        break;
-    case HM_ED_CONTRAST:
-        v = &e->contrast;
-        break;
-    case HM_ED_SAT:
-        v = &e->sat;
-        break;
-    case HM_ED_WARMTH:
-        v = &e->warmth;
-        break;
-    case HM_ED_VIGNETTE:
-        v = &e->vignette;
-        lo = 0;
-        break;
     default:
         return 0;
     }
-    was = *v;
-    *v = *v + dir < lo ? lo : *v + dir > hi ? hi : *v + dir;
-    return *v != was;
+}
+
+int hm_edit_is_set(const hm_edit *e, int tab, int tool)
+{
+    if (tab == HM_EDT_ADJUST)
+        return tool >= 0 && tool < HM_ADJS && e->adj[tool] != 0;
+    if (tab == HM_EDT_FILTERS)
+        return tool == e->filter && tool != HM_FL_NONE && e->strength > 0;
+    return tool == HM_CROP_ROTATE   ? e->rotate != 0
+           : tool == HM_CROP_MIRROR ? e->mirror != 0
+           : tool == HM_CROP_ASPECT ? e->aspect != 0
+                                    : 0;
+}
+
+int hm_edit_reset(hm_edit *e, int tab, int tool)
+{
+    int was = hm_edit_is_set(e, tab, tool);
+
+    if (tab == HM_EDT_ADJUST && tool >= 0 && tool < HM_ADJS)
+        e->adj[tool] = 0;
+    else if (tab == HM_EDT_FILTERS) {
+        e->filter = HM_FL_NONE;
+        e->strength = 100;
+    } else if (tool == HM_CROP_ROTATE)
+        e->rotate = 0;
+    else if (tool == HM_CROP_MIRROR)
+        e->mirror = 0;
+    else if (tool == HM_CROP_ASPECT)
+        e->aspect = 0;
+    return was;
 }
 
 int hm_edit_changed(const hm_edit *e)
 {
-    return e->rotate || e->mirror || e->filter || e->light || e->contrast || e->sat || e->warmth ||
-           e->vignette;
+    for (int i = 0; i < HM_ADJS; i++)
+        if (e->adj[i])
+            return 1;
+    return (e->filter != HM_FL_NONE && e->strength > 0) || e->rotate || e->mirror || e->aspect;
 }
 
-/* Per-channel tables for what is the same for every pixel: brightness, contrast, warmth and the
-   filter's tone curve; saturation and the monochrome filters mix with the pixel's luma. */
+/* ---- the colours ---- */
+
+/* A look: what it adds to the Adjust tab at full strength (sliders' units), how grey it makes
+   the picture (0-256), a sepia tone (0-256) and how far it lifts the blacks (0-255). */
+typedef struct {
+    signed char exposure, contrast, highlights, shadows, sat, vib, warmth, tint;
+    short grey, sepia, lift;
+} look;
+
+static const look k_looks[HM_FILTERS] = {
+    [HM_FL_NONE] = {0},
+    [HM_FL_MONO] = {.contrast = 10, .grey = 256},
+    [HM_FL_SEPIA] = {.contrast = 5, .grey = 256, .sepia = 256, .lift = 10},
+    [HM_FL_VIVID] = {.contrast = 20, .sat = 35, .vib = 40, .shadows = 10},
+    [HM_FL_FADE] = {.contrast = -25, .sat = -30, .highlights = -15, .lift = 28},
+    [HM_FL_COOL] = {.warmth = -45, .tint = -5, .sat = -10, .highlights = 5},
+    [HM_FL_NOIR] = {.contrast = 55, .exposure = -10, .shadows = -20, .grey = 256},
+    [HM_FL_RETRO] = {.warmth = 35, .sat = -35, .contrast = -10, .lift = 22, .highlights = -10},
+};
+
+/* What is the same for every pixel, as tables: each channel's tone curve (exposure, contrast,
+   highlights, shadows, the lifted blacks, warmth, tint, sepia), the saturation and the vibrance
+   by how colourful a pixel already is. */
 typedef struct {
     unsigned char r[256], g[256], b[256];
-    int sat;  /* 256: as it is, 0: grey, more: richer */
-    int tint; /* 0 none, 1 sepia, 2 cool */
-    int grey; /* the filter is monochrome */
+    short vib[256]; /* added to sat, by a pixel's max - min */
+    int sat;        /* 256: as it is, 0: grey */
+    int plain;      /* nothing per pixel but the tables */
 } tables;
+
+/* The squared distance from the middle, as a weight 0..127 over half the range. */
+static int ease_sq(int d, int half)
+{
+    return d <= 0 ? 0 : d * d * 127 / (half * half);
+}
 
 static void make_tables(const hm_edit *e, tables *t)
 {
-    int light = e->light * 14, contrast = 256 + e->contrast * 30, warm = e->warmth * 6;
+    const look *k = &k_looks[e->filter >= 0 && e->filter < HM_FILTERS ? e->filter : 0];
+    int s = e->filter == HM_FL_NONE ? 0 : clampi(e->strength, 0, 100);
+    int ex = e->adj[HM_ADJ_EXPOSURE] + k->exposure * s / 100,
+        co = e->adj[HM_ADJ_CONTRAST] + k->contrast * s / 100,
+        hi = e->adj[HM_ADJ_HIGHLIGHTS] + k->highlights * s / 100,
+        sh = e->adj[HM_ADJ_SHADOWS] + k->shadows * s / 100,
+        sa = e->adj[HM_ADJ_SATURATION] + k->sat * s / 100,
+        vi = e->adj[HM_ADJ_VIBRANCE] + k->vib * s / 100,
+        wa = (e->adj[HM_ADJ_WARMTH] + k->warmth * s / 100) * 40 / 100,
+        ti = (e->adj[HM_ADJ_TINT] + k->tint * s / 100) * 30 / 100, grey = k->grey * s / 100,
+        sep = k->sepia * s / 100, lift = k->lift * s / 100;
+    int gain = ex >= 0 ? 256 + ex * 256 / 100 : 256 + ex * 128 / 100, /* 2x .. 0.5x: a stop */
+        contrast = co >= 0 ? 256 + co * 2 : 256 + co * 192 / 100;
 
-    t->sat = 256 + e->sat * 40;
-    t->tint = 0;
-    t->grey = 0;
-    switch (e->filter) {
-    case HM_FL_MONO:
-        t->grey = 1;
-        break;
-    case HM_FL_SEPIA:
-        t->grey = 1;
-        t->tint = 1;
-        break;
-    case HM_FL_VIVID:
-        t->sat += 110;
-        contrast += 40;
-        break;
-    case HM_FL_FADE:
-        t->sat -= 70;
-        contrast -= 50;
-        light += 18;
-        break;
-    case HM_FL_COOL:
-        warm -= 22;
-        t->sat -= 20;
-        break;
-    case HM_FL_NOIR:
-        t->grey = 1;
-        contrast += 110;
-        light -= 10;
-        break;
-    case HM_FL_RETRO:
-        warm += 18;
-        t->sat -= 60;
-        contrast -= 20;
-        break;
-    default:
-        break;
-    }
-    if (t->sat < 0)
-        t->sat = 0;
+    sa = clampi(sa, -100, 100);
+    t->sat = sa >= 0 ? 256 + sa * 2 : 256 + sa * 256 / 100;
+    t->sat = t->sat * (256 - grey) >> 8;
+    for (int m = 0; m < 256; m++) /* vibrance: most for the dull colours, none for the vivid */
+        t->vib[m] = (short)((vi * 2 * (255 - m) / 255) * (256 - grey) >> 8);
+    t->plain = t->sat == 256 && vi == 0;
     for (int i = 0; i < 256; i++) {
-        int v = (i - 128) * contrast / 256 + 128 + light;
+        int v = i * gain >> 8;
 
-        if (e->filter == HM_FL_FADE || e->filter == HM_FL_RETRO) /* lifted blacks */
-            v = 24 + v * 216 / 255;
-        t->r[i] = (unsigned char)clamp8(v + warm);
-        t->g[i] = (unsigned char)clamp8(v + warm / 4);
-        t->b[i] = (unsigned char)clamp8(v - warm);
+        v = 128 + (v - 128) * contrast / 256;
+        if (v > 128)
+            v += hi * ease_sq(v - 128, 127) / 200; /* the bright half */
+        else
+            v += sh * ease_sq(128 - v, 128) / 200; /* the dark half */
+        v = clamp8(v);
+        v = lift + v * (255 - lift) / 255;
+        t->r[i] = (unsigned char)clamp8(v + wa + ti / 2 + (38 * sep >> 8));
+        t->g[i] = (unsigned char)clamp8(v - ti + (14 * sep >> 8));
+        t->b[i] = (unsigned char)clamp8(v - wa + ti / 2 - (22 * sep >> 8));
     }
 }
 
-void hm_edit_colours(const hm_edit *e, unsigned int *px, int w, int h, int stride)
+/* Sharpening (an unsharp mask of the four neighbours), amount 0..100: rows kept as they were. */
+static int sharpen(unsigned int *px, int w, int h, int stride, int amount)
+{
+    unsigned int *prev, *cur;
+    int k = amount * 160 / 100; /* /256 of the difference added */
+
+    if (k <= 0 || w < 3 || h < 3)
+        return 0;
+    prev = malloc((size_t)w * 8);
+    if (!prev)
+        return -1;
+    cur = prev + w;
+    memcpy(prev, px, (size_t)w * 4);
+    for (int y = 1; y < h - 1; y++) {
+        unsigned int *row = px + y * stride;
+        const unsigned int *next = row + stride;
+
+        memcpy(cur, row, (size_t)w * 4);
+        for (int x = 1; x < w - 1; x++) {
+            unsigned int p = cur[x], out = p & 0xFF000000u;
+
+            for (int sh = 0; sh < 24; sh += 8) {
+                int c = (int)(p >> sh & 0xFF),
+                    n = (int)(prev[x] >> sh & 0xFF) + (int)(next[x] >> sh & 0xFF) +
+                        (int)(cur[x - 1] >> sh & 0xFF) + (int)(cur[x + 1] >> sh & 0xFF);
+
+                out |= (unsigned int)clamp8(c + ((c * 4 - n) * k >> 8)) << sh;
+            }
+            row[x] = out;
+        }
+        memcpy(prev, cur, (size_t)w * 4);
+    }
+    free(prev);
+    return 0;
+}
+
+int hm_edit_colours(const hm_edit *e, unsigned int *px, int w, int h, int stride)
 {
     tables t;
-    /* the vignette: darker towards the corners, by the squared distance (1/1024 of the half
-       diagonal's square), as a table over its range */
-    int vig = e->vignette * 30, cx = w / 2, cy = h / 2;
+    /* the vignette: darker towards the corners, by the squared distance (1/64 of the corner's), as
+       a table */
+    int vig = clampi(e->adj[HM_ADJ_VIGNETTE], 0, 100) * 150 / 100, cx = w / 2, cy = h / 2;
     long long norm = (long long)cx * cx + (long long)cy * cy;
     unsigned int inv = norm > 0 ? (unsigned int)((64ull << 16) / (unsigned long long)norm) : 0;
     int shade[65];
 
     make_tables(e, &t);
-    for (int k = 0; k <= 64; k++) /* k/64 of the corner's distance squared */
+    for (int k = 0; k <= 64; k++)
         shade[k] = 256 - vig * (k > 16 ? (k - 16) * (k - 16) : 0) / (48 * 48);
     for (int y = 0; y < h; y++) {
         unsigned int *row = px + y * stride;
@@ -135,20 +244,18 @@ void hm_edit_colours(const hm_edit *e, unsigned int *px, int w, int h, int strid
 
         for (int x = 0; x < w; x++) {
             unsigned int p = row[x];
-            int r = (int)(p & 0xFF), g = (int)(p >> 8 & 0xFF), b = (int)(p >> 16 & 0xFF),
-                l = (r * 77 + g * 150 + b * 29) >> 8;
+            int r = (int)(p & 0xFF), g = (int)(p >> 8 & 0xFF), b = (int)(p >> 16 & 0xFF);
 
-            if (t.grey) {
-                r = g = b = l;
-                if (t.tint == 1) { /* sepia: a warm brown */
-                    r = clamp8(l + 38);
-                    g = clamp8(l + 14);
-                    b = clamp8(l - 22);
-                }
-            } else if (t.sat != 256) {
-                r = clamp8(l + ((r - l) * t.sat >> 8));
-                g = clamp8(l + ((g - l) * t.sat >> 8));
-                b = clamp8(l + ((b - l) * t.sat >> 8));
+            if (!t.plain) {
+                int l = (r * 77 + g * 150 + b * 29) >> 8,
+                    mx = r > g ? (r > b ? r : b) : (g > b ? g : b),
+                    mn = r < g ? (r < b ? r : b) : (g < b ? g : b), s = t.sat + t.vib[mx - mn];
+
+                if (s < 0)
+                    s = 0;
+                r = clamp8(l + ((r - l) * s >> 8));
+                g = clamp8(l + ((g - l) * s >> 8));
+                b = clamp8(l + ((b - l) * s >> 8));
             }
             r = t.r[r];
             g = t.g[g];
@@ -165,7 +272,31 @@ void hm_edit_colours(const hm_edit *e, unsigned int *px, int w, int h, int strid
                 (p & 0xFF000000u) | (unsigned int)r | (unsigned int)g << 8 | (unsigned int)b << 16;
         }
     }
+    return sharpen(px, w, h, stride, clampi(e->adj[HM_ADJ_SHARPEN], 0, 100));
 }
+
+void hm_edit_histogram(const unsigned int *px, int w, int h, int stride,
+                       unsigned char out[HM_HIST_BINS])
+{
+    unsigned int bins[HM_HIST_BINS], most = 0;
+
+    memset(bins, 0, sizeof(bins));
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+            unsigned int p = px[y * stride + x];
+            int l =
+                ((int)(p & 0xFF) * 77 + (int)(p >> 8 & 0xFF) * 150 + (int)(p >> 16 & 0xFF) * 29) >>
+                8;
+
+            bins[l >> 2]++;
+        }
+    for (int i = 0; i < HM_HIST_BINS; i++)
+        most = bins[i] > most ? bins[i] : most;
+    for (int i = 0; i < HM_HIST_BINS; i++)
+        out[i] = most ? (unsigned char)(bins[i] * 255 / most) : 0;
+}
+
+/* ---- turns, mirror, crop ---- */
 
 void hm_edit_turned_size(int w, int h, int rotate, int *ow, int *oh)
 {
@@ -207,4 +338,132 @@ unsigned int *hm_edit_turn(const unsigned int *px, int w, int h, int rotate, int
             out[dy * *ow + dx] = px[y * w + sx];
         }
     return out;
+}
+
+void hm_edit_crop(int w, int h, int aspect, int *x, int *y, int *cw, int *ch)
+{
+    static const unsigned char k[HM_ARS][2] = {{0, 0}, {1, 1}, {4, 3}, {3, 2}, {16, 9}};
+    int aw, ah;
+
+    *x = *y = 0;
+    *cw = w;
+    *ch = h;
+    if (aspect <= HM_AR_ORIGINAL || aspect >= HM_ARS || w <= 0 || h <= 0)
+        return;
+    aw = h > w ? k[aspect][1] : k[aspect][0]; /* in the picture's orientation */
+    ah = h > w ? k[aspect][0] : k[aspect][1];
+    if ((long long)w * ah > (long long)h * aw) { /* wider than the ratio: the sides go */
+        *cw = h * aw / ah;
+        *x = (w - *cw) / 2;
+    } else {
+        *ch = w * ah / aw;
+        *y = (h - *ch) / 2;
+    }
+}
+
+void hm_edit_crop_in_place(unsigned int *px, int w, int x, int y, int cw, int ch)
+{
+    for (int r = 0; r < ch; r++) /* (each row moves to an earlier place: never over one unread) */
+        memmove(px + r * cw, px + (y + r) * w + x, (size_t)cw * 4);
+}
+
+/* ---- the editor's screen ---- */
+
+/* Bilinear: 8-bit weights between the four pixels around each sample. */
+static unsigned int lerp2(unsigned int a, unsigned int b, int f)
+{
+    unsigned int rb = (a & 0x00FF00FFu) * (unsigned int)(256 - f) +
+                      (b & 0x00FF00FFu) * (unsigned int)f,
+                 ag = (a >> 8 & 0x00FF00FFu) * (unsigned int)(256 - f) +
+                      (b >> 8 & 0x00FF00FFu) * (unsigned int)f;
+
+    return (rb >> 8 & 0x00FF00FFu) | (ag & 0xFF00FF00u);
+}
+
+unsigned int *hm_edit_fit(const unsigned int *src, int w, int h, int fw, int fh, int *ow, int *oh)
+{
+    unsigned int *out, sx, sy;
+    int dw = fw, dh = h * fw / w;
+
+    if (w <= 0 || h <= 0 || fw <= 0 || fh <= 0)
+        return 0;
+    if (dh > fh) {
+        dh = fh;
+        dw = w * fh / h;
+    }
+    if (dw < 1)
+        dw = 1;
+    if (dh < 1)
+        dh = 1;
+    out = malloc((size_t)dw * (size_t)dh * 4);
+    if (!out)
+        return 0;
+    sx = ((unsigned int)(w - 1) << 16) / (unsigned int)(dw > 1 ? dw - 1 : 1); /* 16.16 */
+    sy = ((unsigned int)(h - 1) << 16) / (unsigned int)(dh > 1 ? dh - 1 : 1);
+    for (int j = 0; j < dh; j++) {
+        unsigned int fy = (unsigned int)j * sy;
+        int y0 = (int)(fy >> 16), y1 = y0 + 1 < h ? y0 + 1 : y0, wy = (int)(fy >> 8 & 0xFF);
+        const unsigned int *r0 = src + y0 * w, *r1 = src + y1 * w;
+
+        for (int i = 0; i < dw; i++) {
+            unsigned int fx = (unsigned int)i * sx;
+            int x0 = (int)(fx >> 16), x1 = x0 + 1 < w ? x0 + 1 : x0, wx = (int)(fx >> 8 & 0xFF);
+
+            out[j * dw + i] =
+                lerp2(lerp2(r0[x0], r0[x1], wx), lerp2(r1[x0], r1[x1], wx), wy) | 0xFF000000u;
+        }
+    }
+    *ow = dw;
+    *oh = dh;
+    return out;
+}
+
+int hm_edit_compose(const hm_edit *e, const unsigned int *src, int w, int h,
+                    const unsigned int *thumb, int tw, int th, int tab, int original,
+                    unsigned int *bg, unsigned char hist[HM_HIST_BINS])
+{
+    pw_canvas c = {bg, HM_ED_SW, HM_ED_SH, 512};
+    hm_edit none;
+    unsigned int *t, *fit;
+    int ow, oh, x, y, cw, ch, fw, fh, r = 0;
+
+    pw_draw_fill(&c, 0, 0, HM_ED_SW, HM_ED_SH, HM_ED_DARK);
+    memset(hist, 0, HM_HIST_BINS);
+    hm_edit_init(&none);
+    if (original)
+        e = &none;
+    t = hm_edit_turn(src, w, h, e->rotate, e->mirror, &ow, &oh);
+    if (!t)
+        return -1;
+    hm_edit_crop(ow, oh, e->aspect, &x, &y, &cw, &ch);
+    hm_edit_crop_in_place(t, ow, x, y, cw, ch);
+    fit = hm_edit_fit(t, cw, ch, HM_ED_CW - 16, HM_ED_CH - 8, &fw, &fh);
+    free(t);
+    if (!fit)
+        return -1;
+    if (hm_edit_colours(e, fit, fw, fh, fw) < 0)
+        r = -1;
+    hm_edit_histogram(fit, fw, fh, fw, hist);
+    pw_draw_image_scaled(&c, fit, fw, fh, HM_ED_CX + (HM_ED_CW - fw) / 2,
+                         HM_ED_CY + (HM_ED_CH - fh) / 2, fw, fh, 256);
+    free(fit);
+    if (tab == HM_EDT_FILTERS && thumb && tw > 0 && th > 0) { /* each look on the thumbnail */
+        unsigned int *one = malloc((size_t)tw * (size_t)th * 4);
+
+        for (int i = 0; one && i < HM_FILTERS; i++) {
+            hm_edit k;
+
+            hm_edit_init(&k);
+            k.filter = i;
+            memcpy(one, thumb, (size_t)tw * (size_t)th * 4);
+            hm_edit_colours(&k, one, tw, th, tw);
+            pw_draw_image_scaled(&c, one, tw, th,
+                                 hm_edit_strip_x(HM_FILTERS, HM_ED_TPITCH, i) - HM_ED_THUMBW / 2,
+                                 HM_ED_STRIP - HM_ED_THUMBH / 2, HM_ED_THUMBW, HM_ED_THUMBH, 256);
+        }
+        if (!one)
+            r = -1;
+        free(one);
+    }
+    return r;
 }

@@ -7,6 +7,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Pocketwatch Home's photo editor, reworked in a professional layout (#8): the picture in its own
+  canvas with a histogram, a top bar with Cancel and Save a Copy, three tabs (Adjust, Filters,
+  Crop) between L and R, a ruler slider with the value, hold Square to compare with the original,
+  Triangle resets a tool. New tools: exposure, highlights, shadows, vibrance, tint, sharpening, the
+  aspect ratio; filters with thumbnails and a strength; sliders from -100 to 100.
 - Pocketwatch Home's player: every key does one thing, always. Left / right seek (held: on in
   steps), up / down the previous / next track, Enter play / pause, Square shuffle, Triangle
   repeat. Each button shows its key under it, and the one you press lights up with what it did.

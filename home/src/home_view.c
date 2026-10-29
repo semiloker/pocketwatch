@@ -5,6 +5,7 @@
 #include "ui/i18n.h"
 #include "ui/shapes.h"
 #include "ui/xmbbg.h"
+#include "photo_edit.h"
 #include "view_internal.h"
 
 /* ---- what the styles share ---- */
@@ -452,32 +453,167 @@ static void viewer(hm_gfx *g, const hm_ui *ui, const hm_view *v)
     }
 }
 
-/* The editor: the picture (the background), a bar of tools along the bottom, the chosen one
-   named above it with its value. */
+/* A key and what it does, from x: the button's glyph (or a small pill with the key's name when
+   label is set: L, R, START), then the words; the width used. */
+static int ed_key(hm_gfx *g, const hm_ui *ui, int x, int cy, int button, const char *label,
+                  const char *words, unsigned int color, int a)
+{
+    int w = 0;
+
+    if (label) {
+        w = pw_text_width(ui->body, label) + 10;
+        g->rrect(g, x, cy - 7, w, 14, 7, 0, C_KNOB, a);
+        hm_text_center(g, ui->body, x + w / 2, hm_mid(ui->body, cy), label, w, C_TEXT, a);
+    } else {
+        g->button(g, button, x + 7, cy, 14, color, a);
+        w = 14;
+    }
+    if (words) {
+        g->text(g, ui->body, x + w + 5, hm_mid(ui->body, cy), words, 0, color, a);
+        w += 5 + pw_text_width(ui->body, words);
+    }
+    return w;
+}
+
+/* The slider: a ruler with a tick every tenth, the value's span from zero (the middle, or the
+   left end for a one-sided tool) in the accent, the knob; a choice instead: a dot per choice. */
+static void ed_ruler(hm_gfx *g, const hm_view *v, unsigned int acc, int a)
+{
+    int x0 = 24, x1 = HM_W - 24, w = x1 - x0, y = HM_ED_RULE_Y;
+
+    if (v->ed_slider == HM_ED_NO_SLIDER) {
+        int n = hm_clampi(v->ed_choices, 1, 8), gap = 22, cx0 = HM_W / 2 - (n - 1) * gap / 2;
+
+        for (int i = 0; i < n; i++) {
+            int on = i == v->ed_choice, r = on ? 5 : 3;
+
+            g->rrect(g, cx0 + i * gap - r, y - r, 2 * r, 2 * r, r, 0, on ? acc : C_KNOB, a);
+        }
+        return;
+    }
+    {
+        int zero = v->ed_one_sided ? x0 : x0 + w / 2,
+            at = v->ed_one_sided ? x0 + hm_clampi(v->ed_slider, 0, 100) * w / 100
+                                 : x0 + w / 2 + hm_clampi(v->ed_slider, -100, 100) * w / 200,
+            lo = at < zero ? at : zero, hi = at < zero ? zero : at;
+
+        for (int k = 0; k <= 20; k++) { /* the ruler */
+            int tx = x0 + k * w / 20, big = k % 5 == 0;
+
+            g->fill(g, tx, y - (big ? 7 : 4), 1, big ? 5 : 3, C_SUB, a * (big ? 200 : 120) / 256);
+        }
+        g->rrect(g, x0, y - 1, w, 3, 1, 0, C_KNOB, a);
+        if (hi > lo)
+            g->rrect(g, lo, y - 1, hi - lo, 3, 1, 0, acc, a);
+        if (!v->ed_one_sided)
+            g->fill(g, zero - 1, y - 4, 2, 9, C_TEXT, a * 200 / 256); /* zero */
+        g->rrect(g, at - 6, y - 6, 12, 12, 6, 0, C_TEXT, a);
+        g->rrect(g, at - 3, y - 3, 6, 6, 3, 0, acc, a);
+    }
+}
+
+/* The photo editor (HOM-REQ-040, ADR-060), over hm_edit_compose's screen: the top bar (Cancel,
+   the title, Save a Copy), the canvas' histogram, the chosen tool's name and value with its
+   slider, the tab's strip (icons, or frames round the looks' thumbnails), and the tabs between L
+   and R with Compare and Reset at the sides. */
 void hm_draw_editor(hm_gfx *g, const hm_ui *ui, const hm_view *v)
 {
-    int p = hm_clampi(v->editor, 0, 256), n = v->ed_count, pitch = 40,
-        x0 = HM_W / 2 - (n * pitch) / 2, y = HM_H - 34 + (256 - p) * 30 / 256;
+    int a = hm_clampi(v->editor, 0, 256), n = v->ed_count, enter, back;
     unsigned int acc = ui->accent ? ui->accent : C_ON;
 
-    g->rrect(g, x0 - 10, y - 20, n * pitch + 20, 40, 20, 0, C_CARD, p * 215 / 256);
-    g->rrect(g, x0 + v->ed_pos * pitch / 256 + 4, y - 16, pitch - 8, 32, 12, 0, acc, p);
-    for (int i = 0; i < n; i++)
-        g->icon(g, v->ed_glyphs ? v->ed_glyphs[i] : HM_ICON_SLIDERS, x0 + i * pitch + pitch / 2, y,
-                18, C_TEXT, p * (i == v->ed_sel ? 256 : 190) / 256);
-    if (v->ed_sel >= 0 && v->ed_sel < n && v->ed_tools[v->ed_sel]) {
-        const char *name = v->ed_tools[v->ed_sel];
-        int w = pw_text_width(ui->title, name) +
-                (v->ed_value ? pw_text_width(ui->body, v->ed_value) + 16 : 0) + 28;
+    if (a <= 0)
+        return;
+    enter = ui->cross_enter ? PW_BTN_CROSS : PW_BTN_CIRCLE;
+    back = ui->cross_enter ? PW_BTN_CIRCLE : PW_BTN_CROSS;
+    /* the top bar */
+    g->fill(g, 0, 0, HM_W, HM_ED_TOP, C_BLACK, a * 150 / 256);
+    ed_key(g, ui, 10, HM_ED_TOP / 2, back, 0, v->ed_cancel, C_SUB, a);
+    if (v->ed_title)
+        hm_text_center(g, ui->title, HM_W / 2, hm_mid(ui->title, HM_ED_TOP / 2), v->ed_title, 180,
+                       C_TEXT, a);
+    if (v->ed_save) {
+        int w = pw_text_width(ui->body, v->ed_save) + 14 + 5 + 18;
 
-        g->rrect(g, HM_W / 2 - w / 2, y - 50, w, 24, 12, 0, C_CARD, p * 215 / 256);
-        g->text(g, ui->title, HM_W / 2 - w / 2 + 14, hm_mid(ui->title, y - 38), name, 0, C_TEXT, p);
-        if (v->ed_value)
-            hm_text_right(g, ui->body, HM_W / 2 + w / 2 - 14, hm_mid(ui->body, y - 38), v->ed_value,
-                          hm_mix(acc, C_TEXT, 120), p);
+        g->rrect(g, HM_W - 8 - w, 4, w, HM_ED_TOP - 8, (HM_ED_TOP - 8) / 2, 0, acc, a);
+        ed_key(g, ui, HM_W - 8 - w + 9, HM_ED_TOP / 2, enter, 0, v->ed_save, C_TEXT, a);
     }
-    if (v->ed_hint)
-        hm_text_center(g, ui->body, HM_W / 2, 20, v->ed_hint, HM_W - 40, C_TEXT, p * 200 / 256);
+    /* the histogram, at the canvas' top right */
+    if (v->ed_hist && !v->ed_compare) {
+        int hx = HM_W - 12 - (HM_HIST_BINS + 8), hy = HM_ED_CY + 6, hh = 30;
+
+        g->rrect(g, hx, hy, HM_HIST_BINS + 8, hh, 5, 0, C_BLACK, a * 150 / 256);
+        for (int i = 0; i < HM_HIST_BINS; i++) {
+            int k = v->ed_hist[i] * (hh - 8) / 255;
+
+            if (k > 0)
+                g->fill(g, hx + 4 + i, hy + hh - 4 - k, 1, k, C_DIM, a * 190 / 256);
+        }
+    }
+    if (v->ed_compare && v->ed_badge) { /* the picture as it is */
+        int w = pw_text_width(ui->body, v->ed_badge) + 20;
+
+        g->rrect(g, 12, HM_ED_CY + 6, w, 18, 9, 0, C_BLACK, a * 170 / 256);
+        hm_text_center(g, ui->body, 12 + w / 2, hm_mid(ui->body, HM_ED_CY + 15), v->ed_badge, w,
+                       C_TEXT, a);
+    }
+    /* the chosen tool: its name, its value, its slider */
+    if (v->ed_name)
+        g->text(g, ui->title, 24, hm_mid(ui->title, HM_ED_READ_Y), v->ed_name, 260, C_TEXT, a);
+    if (v->ed_value)
+        hm_text_right(g, ui->title, HM_W - 24, hm_mid(ui->title, HM_ED_READ_Y), v->ed_value,
+                      hm_mix(acc, C_TEXT, 110), a);
+    ed_ruler(g, v, acc, a);
+    /* the strip */
+    if (n > 0 && v->ed_glyphs) {
+        int x = hm_edit_strip_x(n, HM_ED_PITCH, 0) + v->ed_pos * HM_ED_PITCH / 256;
+
+        g->rrect(g, x - 15, HM_ED_STRIP - 15, 30, 30, 9, 0, acc, a);
+        for (int i = 0; i < n; i++) {
+            int cx = hm_edit_strip_x(n, HM_ED_PITCH, i), on = i == v->ed_sel;
+
+            g->icon(g, v->ed_glyphs[i], cx, HM_ED_STRIP, 16, C_TEXT, a * (on ? 256 : 165) / 256);
+            if (v->ed_set & (1u << i))
+                g->rrect(g, cx - 2, HM_ED_STRIP + 18, 4, 4, 2, 0, on ? C_TEXT : acc, a);
+        }
+    } else if (n > 0) { /* the looks: their thumbnails are in the background */
+        int x = hm_edit_strip_x(n, HM_ED_TPITCH, 0) + v->ed_pos * HM_ED_TPITCH / 256;
+
+        g->rrect(g, x - HM_ED_THUMBW / 2 - 3, HM_ED_STRIP - HM_ED_THUMBH / 2 - 3, HM_ED_THUMBW + 6,
+                 HM_ED_THUMBH + 6, 6, PW_FX(2), acc, a);
+        for (int i = 0; i < n; i++)
+            if (v->ed_set & (1u << i))
+                g->rrect(g, hm_edit_strip_x(n, HM_ED_TPITCH, i) - 2,
+                         HM_ED_STRIP + HM_ED_THUMBH / 2 + 4, 4, 4, 2, 0, acc, a);
+    }
+    /* the tabs, L and R round them; Compare and Reset at the sides */
+    {
+        int gap = 18, w = 0, x;
+
+        for (int i = 0; i < 3; i++)
+            w += (v->ed_tabs[i] ? pw_text_width(ui->body, v->ed_tabs[i]) : 0) + (i ? gap : 0);
+        x = HM_W / 2 - w / 2;
+        ed_key(g, ui, x - 26, HM_ED_TABS_Y, 0, "L", 0, C_TEXT, a * 200 / 256);
+        ed_key(g, ui, x + w + 8, HM_ED_TABS_Y, 0, "R", 0, C_TEXT, a * 200 / 256);
+        for (int i = 0; i < 3; i++) {
+            int tw = v->ed_tabs[i] ? pw_text_width(ui->body, v->ed_tabs[i]) : 0,
+                on = i == v->ed_tab;
+
+            if (v->ed_tabs[i])
+                g->text(g, ui->body, x, hm_mid(ui->body, HM_ED_TABS_Y), v->ed_tabs[i], 0,
+                        on ? C_TEXT : C_SUB, a * (on ? 256 : 190) / 256);
+            if (on)
+                g->rrect(g, x, HM_ED_TABS_Y + 8, tw, 2, 1, 0, acc, a);
+            x += tw + gap;
+        }
+        if (v->ed_compare_text)
+            ed_key(g, ui, 10, HM_ED_TABS_Y, PW_BTN_SQUARE, 0, v->ed_compare_text, C_SUB, a);
+        if (v->ed_reset_text) {
+            int rw = 14 + 5 + pw_text_width(ui->body, v->ed_reset_text);
+
+            ed_key(g, ui, HM_W - 10 - rw, HM_ED_TABS_Y, PW_BTN_TRIANGLE, 0, v->ed_reset_text, C_SUB,
+                   a);
+        }
+    }
 }
 
 void hm_draw_toast(hm_gfx *g, const hm_ui *ui, const hm_view *v, unsigned int card,

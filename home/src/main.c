@@ -644,10 +644,15 @@ static struct {
     int mu_flash;                     /* Now Playing: the button a key just worked, -1 */
     unsigned int mu_flash_t, mu_keys; /* when; the buttons down at its last frame */
     unsigned int t_fade, t_open, t_caption, t_slide, t_toast, t_usb;
-    int editor, ed_dirty;
+    int editor;
     hm_edit ed;
-    unsigned int *ed_src, *ed_bg; /* the picture fitted to the screen; the preview drawn */
+    unsigned int *ed_src, *ed_bg, *ed_thumb; /* the picture fitted to the screen; the editor's
+                                                screen drawn; the looks' thumbnail */
     int ed_w, ed_h;
+    int ed_sel[HM_EDT_TABS]; /* each tab's tool as it was left */
+    int ed_compare;          /* Square held: the picture as it is */
+    unsigned int t_discard;  /* Back with changes: when it said a second press discards them */
+    unsigned char ed_hist[HM_HIST_BINS];
     int snd;
     int panel_open;      /* the HOME panel (its items stay while it fades out) */
     int screen_off;      /* HOLD: the backlight off (music on) */
@@ -1068,85 +1073,92 @@ static void kb_keys(unsigned int ev)
     }
 }
 
-/* ---- the photo editor (HOM-REQ-026) ---- */
+/* ---- the photo editor (HOM-REQ-040, ADR-060) ---- */
 
-static const int k_ed_glyph[HM_ED_TOOLS] = {HM_ICON_ROTATE,  HM_ICON_FLIP,     HM_ICON_FILTER,
-                                            HM_ICON_SUN,     HM_ICON_CONTRAST, HM_ICON_DROP,
-                                            HM_ICON_PALETTE, HM_ICON_VIGNETTE, HM_ICON_CHECK};
+static const int k_adj_glyph[HM_ADJS] = {
+    HM_ICON_EXPOSURE, HM_ICON_CONTRAST, HM_ICON_HIGHLIGHTS, HM_ICON_SHADOWS,  HM_ICON_DROP,
+    HM_ICON_VIBRANCE, HM_ICON_WARMTH,   HM_ICON_TINT,       HM_ICON_VIGNETTE, HM_ICON_SHARPEN};
+static const int k_crop_glyph[HM_CROPS] = {HM_ICON_ROTATE, HM_ICON_FLIP, HM_ICON_CROP};
 
+/* What the controls say: the tabs, the strip (its dots), the chosen tool's name, value, slider or
+   choices. */
 static void editor_texts(void)
 {
-    static const int names[HM_ED_TOOLS] = {
-        PW_S_HM_ED_ROTATE, PW_S_HM_ED_MIRROR,   PW_S_HM_ED_FILTER,
-        PW_S_HM_ED_LIGHT,  PW_S_HM_ED_CONTRAST, PW_S_HM_ED_SAT,
-        PW_S_HM_ED_WARMTH, PW_S_HM_ED_VIGNETTE, PW_S_HM_ED_SAVE};
+    static const int adj[HM_ADJS] = {PW_S_HM_ED_EXPOSURE,   PW_S_HM_ED_CONTRAST,
+                                     PW_S_HM_ED_HIGHLIGHTS, PW_S_HM_ED_SHADOWS,
+                                     PW_S_HM_ED_SAT,        PW_S_HM_ED_VIBRANCE,
+                                     PW_S_HM_ED_WARMTH,     PW_S_HM_ED_TINT,
+                                     PW_S_HM_ED_VIGNETTE,   PW_S_HM_ED_SHARPEN},
+                     crop[HM_CROPS] = {PW_S_HM_ED_ROTATE, PW_S_HM_ED_MIRROR, PW_S_HM_ED_ASPECT},
+                     tabs[HM_EDT_TABS] = {PW_S_HM_ED_TAB_ADJUST, PW_S_HM_ED_TAB_FILTERS,
+                                          PW_S_HM_ED_TAB_CROP};
+    static const char *const ratio[HM_ARS] = {0, 0, "4:3", "3:2", "16:9"};
     static char value[24];
-    int t = g_v.ed_sel, n = 0;
+    const hm_edit *e = &g_s.ed;
+    int tab = g_v.ed_tab, t = g_v.ed_sel;
 
-    for (int i = 0; i < HM_ED_TOOLS; i++)
-        g_v.ed_tools[i] = pw_tr(names[i]);
-    g_v.ed_glyphs = k_ed_glyph;
-    g_v.ed_count = HM_ED_TOOLS;
+    g_v.ed_title = pw_tr(PW_S_HM_ED_TITLE);
+    g_v.ed_cancel = pw_tr(PW_S_HM_CANCEL);
+    g_v.ed_save = pw_tr(PW_S_HM_ED_SAVE);
+    g_v.ed_compare_text = pw_tr(PW_S_HM_ED_COMPARE);
+    g_v.ed_reset_text = pw_tr(PW_S_HM_ED_RESET);
+    g_v.ed_badge = pw_tr(PW_S_HM_FL_NONE); /* "Original" */
+    for (int i = 0; i < HM_EDT_TABS; i++)
+        g_v.ed_tabs[i] = pw_tr(tabs[i]);
+    g_v.ed_count = hm_edit_tools(tab);
+    g_v.ed_glyphs = tab == HM_EDT_ADJUST ? k_adj_glyph : tab == HM_EDT_CROP ? k_crop_glyph : 0;
+    g_v.ed_set = 0;
+    for (int i = 0; i < g_v.ed_count; i++)
+        if (hm_edit_is_set(e, tab, i))
+            g_v.ed_set |= 1u << i;
+    g_v.ed_compare = g_s.ed_compare;
+    g_v.ed_hist = g_s.ed_hist;
+    g_v.ed_slider = HM_ED_NO_SLIDER;
+    g_v.ed_one_sided = g_v.ed_choices = g_v.ed_choice = 0;
     value[0] = 0;
-    switch (t) {
-    case HM_ED_ROTATE:
-        stbsp_snprintf(value, sizeof(value), "%d\xC2\xB0", g_s.ed.rotate * 90);
-        break;
-    case HM_ED_MIRROR:
-        stbsp_snprintf(value, sizeof(value), "%s", pw_tr(g_s.ed.mirror ? PW_S_ON : PW_S_OFF));
-        break;
-    case HM_ED_FILTER:
-        stbsp_snprintf(value, sizeof(value), "%s", pw_tr(PW_S_HM_FL_NONE + g_s.ed.filter));
-        break;
-    case HM_ED_LIGHT:
-        n = g_s.ed.light;
-        break;
-    case HM_ED_CONTRAST:
-        n = g_s.ed.contrast;
-        break;
-    case HM_ED_SAT:
-        n = g_s.ed.sat;
-        break;
-    case HM_ED_WARMTH:
-        n = g_s.ed.warmth;
-        break;
-    case HM_ED_VIGNETTE:
-        n = g_s.ed.vignette;
-        break;
-    default:
-        break;
+    if (tab == HM_EDT_ADJUST) {
+        g_v.ed_name = pw_tr(adj[t]);
+        g_v.ed_slider = e->adj[t];
+        g_v.ed_one_sided = hm_edit_one_sided(t);
+        stbsp_snprintf(value, sizeof(value), "%s%d", e->adj[t] > 0 && !g_v.ed_one_sided ? "+" : "",
+                       e->adj[t]);
+    } else if (tab == HM_EDT_FILTERS) {
+        g_v.ed_name = pw_tr(PW_S_HM_FL_NONE + t);
+        if (t != HM_FL_NONE && t == e->filter) { /* the look's strength */
+            g_v.ed_slider = e->strength;
+            g_v.ed_one_sided = 1;
+            stbsp_snprintf(value, sizeof(value), "%d", e->strength);
+        }
+    } else if (t == HM_CROP_ROTATE) {
+        g_v.ed_name = pw_tr(crop[t]);
+        stbsp_snprintf(value, sizeof(value), "%d\xC2\xB0", e->rotate * 90);
+        g_v.ed_choices = 4;
+        g_v.ed_choice = e->rotate;
+    } else if (t == HM_CROP_MIRROR) {
+        g_v.ed_name = pw_tr(crop[t]);
+        stbsp_snprintf(value, sizeof(value), "%s", pw_tr(e->mirror ? PW_S_ON : PW_S_OFF));
+        g_v.ed_choices = 2;
+        g_v.ed_choice = e->mirror;
+    } else {
+        g_v.ed_name = pw_tr(crop[HM_CROP_ASPECT]);
+        stbsp_snprintf(value, sizeof(value), "%s",
+                       e->aspect == HM_AR_ORIGINAL ? pw_tr(PW_S_HM_FL_NONE)
+                       : e->aspect == HM_AR_SQUARE ? pw_tr(PW_S_HM_ED_SQUARE)
+                                                   : ratio[e->aspect % HM_ARS]);
+        g_v.ed_choices = HM_ARS;
+        g_v.ed_choice = e->aspect;
     }
-    if (t >= HM_ED_LIGHT && t <= HM_ED_VIGNETTE)
-        stbsp_snprintf(value, sizeof(value), "%s%d", n > 0 ? "+" : "", n);
     g_v.ed_value = value[0] ? value : 0;
-    g_v.ed_hint = pw_tr(PW_S_HM_ED_KEYS);
 }
 
-/* The preview: the fitted picture turned, its colours, centred on black - the background. */
+/* The editor's screen (hm_edit_compose: the picture in its canvas, the looks' thumbnails) as the
+   background. */
 static void editor_preview(void)
 {
-    int tw, th, fw, fh;
-    unsigned int *t;
-
     if (!g_s.ed_src || !g_s.ed_bg)
         return;
-    t = hm_edit_turn(g_s.ed_src, g_s.ed_w, g_s.ed_h, g_s.ed.rotate, g_s.ed.mirror, &tw, &th);
-    if (!t)
-        return;
-    hm_edit_colours(&g_s.ed, t, tw, th, tw);
-    fw = HM_W;
-    fh = th * HM_W / tw;
-    if (fh > HM_H) {
-        fh = HM_H;
-        fw = tw * HM_H / th;
-    }
-    {
-        pw_canvas c = {g_s.ed_bg, HM_W, HM_H, 512};
-
-        pw_draw_fill(&c, 0, 0, HM_W, HM_H, PW_RGB(0, 0, 0));
-        pw_draw_image_scaled(&c, t, tw, th, (HM_W - fw) / 2, (HM_H - fh) / 2, fw, fh, 256);
-    }
-    free(t);
+    hm_edit_compose(&g_s.ed, g_s.ed_src, g_s.ed_w, g_s.ed_h, g_s.ed_thumb, HM_ED_THUMBW,
+                    HM_ED_THUMBH, g_v.ed_tab, g_s.ed_compare, g_s.ed_bg, g_s.ed_hist);
     hm_gu_written(g_s.ed_bg, 512 * HM_H * 4);
     hm_gu_upload_bg(2, g_s.ed_bg); /* (the default background's slot, given back after) */
 }
@@ -1155,9 +1167,39 @@ static void editor_close(void)
 {
     free(g_s.ed_src);
     free(g_s.ed_bg);
-    g_s.ed_src = g_s.ed_bg = 0;
+    free(g_s.ed_thumb);
+    g_s.ed_src = g_s.ed_bg = g_s.ed_thumb = 0;
     g_s.editor = 0;
     make_default_background(); /* its slot again */
+}
+
+/* The looks' thumbnail: the middle of the picture at the thumbnail's shape, area-averaged. */
+static unsigned int *editor_thumb(const unsigned int *px, int w, int h)
+{
+    int cw = w, ch = h, cx = 0, cy = 0;
+    unsigned int *part, *out;
+
+    if (w * HM_ED_THUMBH > h * HM_ED_THUMBW) {
+        cw = h * HM_ED_THUMBW / HM_ED_THUMBH;
+        cx = (w - cw) / 2;
+    } else {
+        ch = w * HM_ED_THUMBH / HM_ED_THUMBW;
+        cy = (h - ch) / 2;
+    }
+    part = malloc((size_t)cw * (size_t)ch * 4);
+    out = malloc(HM_ED_THUMBW * HM_ED_THUMBH * 4);
+    if (!part || !out) {
+        free(part);
+        free(out);
+        return 0;
+    }
+    for (int y = 0; y < ch; y++)
+        memcpy(part + y * cw, px + (y + cy) * w + cx, (size_t)cw * 4);
+    hm_image_fit(part, cw, ch, out, HM_ED_THUMBW, HM_ED_THUMBH);
+    free(part);
+    for (int i = 0; i < HM_ED_THUMBW * HM_ED_THUMBH; i++)
+        out[i] |= 0xFF000000u;
+    return out;
 }
 
 /* Open the editor on the photo shown: its fitted copy from the viewer's background. */
@@ -1185,10 +1227,17 @@ static int editor_open(void)
     for (int y = 0; y < fh; y++) /* (the viewer made it with hm_make_photo: centred) */
         memcpy(g_s.ed_src + y * fw, whole + (y + (HM_H - fh) / 2) * 512 + (HM_W - fw) / 2,
                (size_t)fw * 4);
+    for (int i = 0; i < fw * fh; i++)
+        g_s.ed_src[i] |= 0xFF000000u;
     g_s.ed_w = fw;
     g_s.ed_h = fh;
-    memset(&g_s.ed, 0, sizeof(g_s.ed));
+    g_s.ed_thumb = editor_thumb(g_s.ed_src, fw, fh); /* (none: the looks without pictures) */
+    hm_edit_init(&g_s.ed);
+    memset(g_s.ed_sel, 0, sizeof(g_s.ed_sel));
+    g_s.ed_compare = 0;
+    g_s.t_discard = 0;
     g_s.editor = 1;
+    g_v.ed_tab = HM_EDT_ADJUST;
     g_v.ed_sel = g_v.ed_pos = 0;
     editor_preview();
     return 0;
@@ -1256,7 +1305,15 @@ static int editor_save(char *path, int cap)
     px = 0;
     if (!t)
         goto out;
-    hm_edit_colours(&g_s.ed, t, tw, th, tw);
+    { /* the aspect ratio's part, then the colours */
+        int cx, cy, cw, ch;
+
+        hm_edit_crop(tw, th, g_s.ed.aspect, &cx, &cy, &cw, &ch);
+        hm_edit_crop_in_place(t, tw, cx, cy, cw, ch);
+        tw = cw;
+        th = ch;
+    }
+    hm_edit_colours(&g_s.ed, t, tw, th, tw); /* (no memory to sharpen: the rest is done) */
     dot = strrchr(ph->path, '.');
     for (n = 0; n < 100; n++) {
         SceIoStat st;
@@ -2058,22 +2115,57 @@ static void do_delete(unsigned int now)
     build_all();
 }
 
-/* The photo editor's keys; a save's slow part after a frame that says so. */
-static void editor_keys(unsigned int ev, unsigned int now, unsigned int *t_prev)
+/* Another tab of the editor: its tool as it was left (Filters: the look taken). */
+static void editor_tab(int tab)
 {
-    int changed = 0;
+    g_s.ed_sel[g_v.ed_tab] = g_v.ed_sel;
+    g_v.ed_tab = tab;
+    g_v.ed_sel = tab == HM_EDT_FILTERS ? g_s.ed.filter : g_s.ed_sel[tab];
+    g_v.ed_pos = g_v.ed_sel * 256; /* (a new strip: no slide from the old one's place) */
+}
 
-    if (ev & PSP_CTRL_LEFT) {
-        g_v.ed_sel = g_v.ed_sel > 0 ? g_v.ed_sel - 1 : 0;
-        g_s.snd = HM_SND_MOVE;
-    } else if (ev & PSP_CTRL_RIGHT) {
-        g_v.ed_sel = g_v.ed_sel < HM_ED_TOOLS - 1 ? g_v.ed_sel + 1 : g_v.ed_sel;
-        g_s.snd = HM_SND_MOVE;
-    } else if ((ev & (PSP_CTRL_UP | PSP_CTRL_DOWN)) && g_v.ed_sel != HM_ED_SAVE) {
-        changed = hm_edit_step(&g_s.ed, g_v.ed_sel, ev & PSP_CTRL_UP ? 1 : -1);
-    } else if ((ev & g_enter) && g_v.ed_sel != HM_ED_SAVE) {
-        changed = hm_edit_step(&g_s.ed, g_v.ed_sel, 1);
-    } else if ((ev & g_enter) && g_v.ed_sel == HM_ED_SAVE) {
+/* The photo editor's keys (ADR-060): L / R the tab, left / right the tool (Filters: the look,
+   taken at once), up / down its value, Triangle resets it, Square held shows the picture as it is,
+   Enter or START saves a copy (a frame that says so before the slow part), Back closes - with
+   changes only at a second press within DISCARD_MS. */
+#define DISCARD_MS 2500
+static void editor_keys(unsigned int ev, unsigned int buttons, unsigned int now,
+                        unsigned int *t_prev)
+{
+    int redraw = 0, changed = 0, n = hm_edit_tools(g_v.ed_tab),
+        compare = (buttons & PSP_CTRL_SQUARE) != 0;
+
+    if (compare != g_s.ed_compare) {
+        g_s.ed_compare = compare;
+        redraw = 1;
+    }
+    if (ev & (PSP_CTRL_LTRIGGER | PSP_CTRL_RTRIGGER)) {
+        int tab = g_v.ed_tab + (ev & PSP_CTRL_RTRIGGER ? 1 : -1);
+
+        if (tab >= 0 && tab < HM_EDT_TABS) {
+            editor_tab(tab);
+            redraw = 1; /* (the looks' thumbnails come and go) */
+            g_s.snd = HM_SND_MOVE;
+        }
+    } else if (ev & (PSP_CTRL_LEFT | PSP_CTRL_RIGHT)) {
+        int sel = g_v.ed_sel + (ev & PSP_CTRL_RIGHT ? 1 : -1);
+
+        if (sel >= 0 && sel < n) {
+            g_v.ed_sel = sel;
+            if (g_v.ed_tab == HM_EDT_FILTERS)
+                changed = hm_edit_pick_filter(&g_s.ed, sel);
+            g_s.snd = HM_SND_MOVE;
+        }
+    } else if (ev & (PSP_CTRL_UP | PSP_CTRL_DOWN)) {
+        changed = hm_edit_step(&g_s.ed, g_v.ed_tab, g_v.ed_sel, ev & PSP_CTRL_UP ? 1 : -1);
+    } else if (ev & PSP_CTRL_TRIANGLE) {
+        changed = hm_edit_reset(&g_s.ed, g_v.ed_tab, g_v.ed_sel);
+        if (g_v.ed_tab == HM_EDT_FILTERS)
+            g_v.ed_sel = g_s.ed.filter;
+    } else if ((ev & (g_enter | PSP_CTRL_START)) && !hm_edit_changed(&g_s.ed)) {
+        toast(pw_tr(PW_S_HM_ED_NOTHING), now);
+        g_s.snd = HM_SND_ERROR;
+    } else if (ev & (g_enter | PSP_CTRL_START)) {
         char path[200];
         int r;
 
@@ -2084,7 +2176,7 @@ static void editor_keys(unsigned int ev, unsigned int now, unsigned int *t_prev)
         g_v.sheet_hint = g_v.sheet_again = 0;
         g_v.sheet_glyph = HM_ICON_CHECK;
         frame_now();
-        r = hm_edit_changed(&g_s.ed) ? editor_save(path, sizeof(path)) : -1;
+        r = editor_save(path, sizeof(path));
         g_v.sheet = 0;
         if (r == 0) {
             int k = hm_library_photo_added(path);
@@ -2102,14 +2194,24 @@ static void editor_keys(unsigned int ev, unsigned int now, unsigned int *t_prev)
             g_s.snd = HM_SND_ERROR;
         }
         *t_prev = hm_hw_now_ms();
+        return;
     } else if (ev & g_back) {
-        editor_close();
-        g_s.snd = HM_SND_BACK;
+        if (hm_edit_changed(&g_s.ed) && (!g_s.t_discard || now - g_s.t_discard > DISCARD_MS)) {
+            g_s.t_discard = now; /* the changes would go: a second press */
+            toast(pw_tr(PW_S_HM_ED_DISCARD), now);
+            g_s.snd = HM_SND_ERROR;
+        } else {
+            editor_close();
+            g_s.snd = HM_SND_BACK;
+        }
+        return;
     }
     if (changed) {
-        editor_preview();
         g_s.snd = HM_SND_MOVE;
+        g_s.t_discard = 0;
     }
+    if (changed || redraw)
+        editor_preview();
 }
 
 /* A photo whole: left / right through the album, Enter edits, Triangle a slideshow, Square the
@@ -2429,7 +2531,7 @@ int main(void)
         } else if (g_s.launching < 0 && g_s.popup) {
             popup_keys(ev);
         } else if (g_s.launching < 0 && g_s.editor) {
-            editor_keys(ev, now, &t_prev);
+            editor_keys(ev, buttons, now, &t_prev);
         } else if (g_s.launching < 0 && g_s.viewer) {
             viewer_keys(ev, now);
         } else if (g_s.launching < 0) {

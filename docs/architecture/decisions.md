@@ -685,7 +685,8 @@ decision was taken; the evidence column links the research behind it.
 ## ADR-036 — Home does its own saved data, music player and photo albums and editor
 
 - **Status:** Accepted (2026-10-20); its seeking superseded by
-  [ADR-058](#adr-058--the-player-seeks-with-the-mp3-librarys-own-call-on-one-handle). From the same round: Triangle → Saved Data showed "the
+  [ADR-058](#adr-058--the-player-seeks-with-the-mp3-librarys-own-call-on-one-handle), its editor by
+  [ADR-060](#adr-060--the-photo-editor-is-laid-out-as-a-professional-editor). From the same round: Triangle → Saved Data showed "the
   default PSP menu", not Pocketwatch's, and that menu "looks bad"; Music had no cover ("something
   instead of it") and no way to seek; Photos had no albums by game and nothing to edit with.
 - **Decision:**
@@ -1400,3 +1401,47 @@ decision was taken; the evidence column links the research behind it.
   on: device test PF5 only after PF-FREEZE passes; recovery: hold START at power-on, then any other
   choice in Home's Settings (or the line `off` over USB). Previews `home-osd` (the bar),
   `home-osd-volume`.
+
+## ADR-060 — The photo editor is laid out as a professional editor
+
+- **Status:** Accepted (2026-10-29), [issue #8](https://github.com/semiloker/pocketwatch/issues/8).
+  Supersedes the editor of
+  [ADR-036](#adr-036--home-does-its-own-saved-data-music-player-and-photo-albums-and-editor).
+- **Context (owner, 2026-10-29):** "rework the full photo edit to a real professional style".
+  ADR-036's editor was one row of nine icons over the photo filling the screen, the chosen tool's
+  name and a value from -5 to 5, and a line of key hints: no view of the picture apart from the
+  controls, no way to compare, a filter all or nothing, five steps per slider.
+- **Decision:** the layout of the mobile editors people know (Lightroom, Snapseed), at 480 x 272:
+  - **Top bar:** Cancel (Back), "Edit Photo", Save a Copy (an accent pill with the Enter glyph;
+    START too).
+  - **Canvas:** the picture fitted into 480 x 150 under the bar on the editor's dark background,
+    a brightness histogram at its top right; hold Square to see the picture as it is ("Original").
+  - **Readout and slider:** the chosen tool's name and value ("+20") over a ruler with a tick
+    every tenth, the span from zero (the middle; the left end for one-sided tools) in the accent;
+    a choice (rotate, mirror, aspect) shows a dot per choice instead.
+  - **Three tabs** under it, L / R between them, each with its strip (left / right):
+    **Adjust** - Exposure (0.5x to 2x), Contrast, Highlights and Shadows (the bright or the dark
+    half of the tone curve only), Saturation, Vibrance (most for dull colours), Warmth, Tint,
+    Vignette, Sharpen (an unsharp mask of the four neighbours), -100..100 in steps of 5 (vignette
+    and sharpen 0..100), a dot under each changed tool; **Filters** - a thumbnail of each of the
+    eight looks, taken as soon as it is chosen, up / down its strength 0..100 (a look is a set of
+    Adjust values, a grey amount, a sepia tone and lifted blacks, scaled by the strength);
+    **Crop** - Rotate (quarter turns), Mirror, Aspect Ratio (Original, Square, 4:3, 3:2, 16:9,
+    centred, in the picture's orientation).
+  - Triangle resets the chosen tool; Back with changes asks for a second press within 2.5 s.
+  - The screen behind the controls (the canvas, the thumbnails) is drawn by the portable
+    `hm_edit_compose` into the background both renderers use; the controls are `hm_gfx` drawing
+    (`hm_draw_editor`), so the GE and the previews show the same. Integer only, a table per change,
+    no division per pixel; a change redraws the canvas (the picture scaled to the canvas first,
+    bilinear, then its colours), Save a Copy applies the same to the picture itself (at most
+    1600 px on its longest side, turned, cropped).
+- **Alternatives considered:** keeping the full-screen photo with the controls over it (the
+  controls then cover a third of the picture, and a canvas is what the reference editors show); a
+  curves editor (no room for its handles on 272 px, and the PSP has no touch); per-channel
+  histograms (three overlapping charts at 64 x 22 px read as noise).
+- **Consequences:** `home/src/photo_edit.c` (the model, the colours, crop, sharpen, histogram,
+  `hm_edit_compose`, `hm_edit_fit`), `home/src/home_view.c` (`hm_draw_editor`), `home/src/main.c`
+  (the editor's state and keys, the crop in Save a Copy), eight new icons, sixteen strings (the
+  old "Filter" and key hint dropped). Previews `home-editor`, `home-editor-compare`,
+  `home-editor-filters`, `home-editor-crop` in each style. HOM-REQ-040; device test HM39. The
+  speed of a change on the PSP is not measured yet (HM39 asks).

@@ -6,6 +6,25 @@
 #include "pwtest.h"
 #include "ui/draw.h"
 
+#define R(p) ((int)((p) & 0xFF))
+#define G(p) ((int)((p) >> 8 & 0xFF))
+#define B(p) ((int)((p) >> 16 & 0xFF))
+
+static void fill(unsigned int *px, int n, unsigned int c)
+{
+    for (int i = 0; i < n; i++)
+        px[i] = c;
+}
+
+/* One pixel through an edit. */
+static unsigned int one(const hm_edit *e, unsigned int c)
+{
+    unsigned int p = c;
+
+    hm_edit_colours(e, &p, 1, 1, 1);
+    return p;
+}
+
 PW_TEST(photo_edit_turns_and_mirrors)
 {
     /* 3 x 2: 0 1 2 / 3 4 5 */
@@ -27,47 +46,209 @@ PW_TEST(photo_edit_turns_and_mirrors)
     free(t);
 }
 
-PW_TEST(photo_edit_steps_stay_in_range)
+PW_TEST(photo_edit_tools_step_reset_and_stay_in_range)
 {
     hm_edit e;
 
-    memset(&e, 0, sizeof(e));
+    hm_edit_init(&e);
     CHECK(!hm_edit_changed(&e));
-    for (int i = 0; i < 9; i++)
-        hm_edit_step(&e, HM_ED_LIGHT, 1);
-    CHECK_EQ(e.light, HM_ED_RANGE);
-    CHECK_EQ(hm_edit_step(&e, HM_ED_LIGHT, 1), 0);
-    CHECK_EQ(hm_edit_step(&e, HM_ED_VIGNETTE, -1), 0); /* 0..5 */
-    hm_edit_step(&e, HM_ED_ROTATE, -1);
+    CHECK_EQ(hm_edit_tools(HM_EDT_ADJUST), HM_ADJS);
+    CHECK_EQ(hm_edit_tools(HM_EDT_FILTERS), HM_FILTERS);
+    CHECK_EQ(hm_edit_tools(HM_EDT_CROP), HM_CROPS);
+    for (int i = 0; i < 30; i++)
+        hm_edit_step(&e, HM_EDT_ADJUST, HM_ADJ_EXPOSURE, 1);
+    CHECK_EQ(e.adj[HM_ADJ_EXPOSURE], HM_ADJ_MAX);
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_ADJUST, HM_ADJ_EXPOSURE, 1), 0);
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_ADJUST, HM_ADJ_SHADOWS, -1), 1); /* two-sided */
+    CHECK_EQ(e.adj[HM_ADJ_SHADOWS], -HM_ADJ_STEP);
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_ADJUST, HM_ADJ_VIGNETTE, -1), 0); /* 0..100 */
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_ADJUST, HM_ADJ_SHARPEN, -1), 0);
+    CHECK(hm_edit_is_set(&e, HM_EDT_ADJUST, HM_ADJ_EXPOSURE));
+    CHECK(!hm_edit_is_set(&e, HM_EDT_ADJUST, HM_ADJ_TINT));
+    CHECK_EQ(hm_edit_reset(&e, HM_EDT_ADJUST, HM_ADJ_EXPOSURE), 1);
+    CHECK_EQ(e.adj[HM_ADJ_EXPOSURE], 0);
+    CHECK_EQ(hm_edit_reset(&e, HM_EDT_ADJUST, HM_ADJ_EXPOSURE), 0); /* (already) */
+    /* Filters: a look chosen at full strength, up / down on it its strength */
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_FILTERS, HM_FL_SEPIA, 1), 1);
+    CHECK(e.filter == HM_FL_SEPIA && e.strength == 100);
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_FILTERS, HM_FL_SEPIA, -1), 1);
+    CHECK_EQ(e.strength, 100 - HM_STR_STEP);
+    CHECK_EQ(hm_edit_pick_filter(&e, HM_FL_NOIR), 1);
+    CHECK_EQ(e.strength, 100);
+    CHECK_EQ(hm_edit_step(&e, HM_EDT_FILTERS, HM_FL_NOIR, 1), 0); /* (at 100) */
+    CHECK_EQ(hm_edit_reset(&e, HM_EDT_FILTERS, HM_FL_NOIR), 1);
+    CHECK_EQ(e.filter, HM_FL_NONE);
+    /* Crop: turns and ratios go round */
+    hm_edit_step(&e, HM_EDT_CROP, HM_CROP_ROTATE, -1);
     CHECK_EQ(e.rotate, 3);
-    hm_edit_step(&e, HM_ED_FILTER, -1);
-    CHECK_EQ(e.filter, HM_FILTERS - 1);
+    hm_edit_step(&e, HM_EDT_CROP, HM_CROP_ASPECT, -1);
+    CHECK_EQ(e.aspect, HM_ARS - 1);
     CHECK(hm_edit_changed(&e));
+    hm_edit_reset(&e, HM_EDT_CROP, HM_CROP_ROTATE);
+    hm_edit_reset(&e, HM_EDT_CROP, HM_CROP_ASPECT);
+    hm_edit_reset(&e, HM_EDT_ADJUST, HM_ADJ_SHADOWS);
+    CHECK(!hm_edit_changed(&e));
 }
 
-PW_TEST(photo_edit_colours)
+PW_TEST(photo_edit_nothing_asked_leaves_the_picture_as_it_was)
+{
+    static unsigned int px[40 * 20];
+    hm_edit e;
+
+    for (int i = 0; i < 40 * 20; i++)
+        px[i] = PW_RGB(i & 0xFF, (i * 7) & 0xFF, (i * 13) & 0xFF);
+    hm_edit_init(&e);
+    CHECK_EQ(hm_edit_colours(&e, px, 40, 20, 40), 0);
+    for (int i = 0; i < 40 * 20; i++)
+        CHECK(px[i] == PW_RGB(i & 0xFF, (i * 7) & 0xFF, (i * 13) & 0xFF));
+    e.filter = HM_FL_NOIR; /* a look at strength 0: nothing either */
+    e.strength = 0;
+    CHECK(one(&e, PW_RGB(200, 60, 40)) == PW_RGB(200, 60, 40));
+}
+
+PW_TEST(photo_edit_light_tools_move_the_right_tones)
+{
+    hm_edit e;
+    unsigned int p;
+
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_EXPOSURE] = 50;
+    CHECK(R(one(&e, PW_RGB(100, 100, 100))) > 130);
+    e.adj[HM_ADJ_EXPOSURE] = -50;
+    CHECK(R(one(&e, PW_RGB(100, 100, 100))) < 90);
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_CONTRAST] = 60; /* further from the middle */
+    CHECK(R(one(&e, PW_RGB(80, 80, 80))) < 80 && R(one(&e, PW_RGB(180, 180, 180))) > 180);
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_HIGHLIGHTS] = -100; /* the bright tones down, the dark ones kept */
+    CHECK(R(one(&e, PW_RGB(230, 230, 230))) < 215);
+    CHECK_EQ(R(one(&e, PW_RGB(60, 60, 60))), 60);
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_SHADOWS] = 100; /* the dark tones up, the bright ones kept */
+    CHECK(R(one(&e, PW_RGB(30, 30, 30))) > 45);
+    CHECK_EQ(R(one(&e, PW_RGB(220, 220, 220))), 220);
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_WARMTH] = 100;
+    p = one(&e, PW_RGB(128, 128, 128));
+    CHECK(R(p) > 128 && B(p) < 128);
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_TINT] = 100; /* towards magenta: less green */
+    p = one(&e, PW_RGB(128, 128, 128));
+    CHECK(G(p) < 128 && R(p) > 128 && B(p) > 128);
+}
+
+PW_TEST(photo_edit_colour_tools_and_looks)
+{
+    hm_edit e;
+    unsigned int dull, vivid;
+
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_SATURATION] = -100; /* grey */
+    dull = one(&e, PW_RGB(200, 60, 40));
+    CHECK(R(dull) == G(dull) && G(dull) == B(dull));
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_VIBRANCE] = 100; /* the dull colour gains more than the vivid one */
+    dull = one(&e, PW_RGB(140, 120, 110));
+    vivid = one(&e, PW_RGB(250, 20, 10));
+    CHECK(R(dull) - B(dull) - (140 - 110) > R(vivid) - B(vivid) - (250 - 10));
+    CHECK(R(dull) - B(dull) > 140 - 110 + 10);
+    hm_edit_init(&e);
+    e.filter = HM_FL_MONO;
+    dull = one(&e, PW_RGB(200, 60, 40));
+    CHECK(R(dull) == G(dull) && G(dull) == B(dull));
+    e.filter = HM_FL_SEPIA; /* a warm brown */
+    dull = one(&e, PW_RGB(120, 120, 120));
+    CHECK(R(dull) > G(dull) && G(dull) > B(dull));
+    e.strength = 50; /* half the look: between */
+    vivid = one(&e, PW_RGB(200, 60, 40));
+    CHECK(R(vivid) > G(vivid) + 40);
+}
+
+PW_TEST(photo_edit_vignette_and_sharpening)
 {
     static unsigned int px[64 * 32];
     hm_edit e;
 
-    for (int i = 0; i < 64 * 32; i++)
-        px[i] = PW_RGB(200, 60, 40);
-    memset(&e, 0, sizeof(e));
-    hm_edit_colours(&e, px, 64, 32, 64); /* nothing asked: as it was */
-    CHECK(px[5] == PW_RGB(200, 60, 40));
+    fill(px, 64 * 32, PW_RGB(128, 128, 128));
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_VIGNETTE] = 100; /* the corners darker than the middle */
+    hm_edit_colours(&e, px, 64, 32, 64);
+    CHECK(R(px[0]) < R(px[16 * 64 + 32]));
+    /* an edge: dark half, bright half - sharpening pushes the two sides apart */
+    for (int y = 0; y < 32; y++)
+        for (int x = 0; x < 64; x++)
+            px[y * 64 + x] = x < 32 ? PW_RGB(100, 100, 100) : PW_RGB(150, 150, 150);
+    hm_edit_init(&e);
+    e.adj[HM_ADJ_SHARPEN] = 100;
+    CHECK_EQ(hm_edit_colours(&e, px, 64, 32, 64), 0);
+    CHECK(R(px[10 * 64 + 31]) < 100 && R(px[10 * 64 + 32]) > 150);
+    CHECK_EQ(R(px[10 * 64 + 10]), 100); /* flat: unchanged */
+    CHECK_EQ(R(px[0 * 64 + 31]), 100);  /* the border rows are left */
+}
+
+PW_TEST(photo_edit_crops_centred_in_the_pictures_orientation)
+{
+    int x, y, w, h;
+
+    hm_edit_crop(400, 300, HM_AR_ORIGINAL, &x, &y, &w, &h);
+    CHECK(x == 0 && y == 0 && w == 400 && h == 300);
+    hm_edit_crop(400, 300, HM_AR_SQUARE, &x, &y, &w, &h);
+    CHECK(x == 50 && y == 0 && w == 300 && h == 300);
+    hm_edit_crop(400, 300, HM_AR_16_9, &x, &y, &w, &h);
+    CHECK(x == 0 && w == 400 && h == 225 && y == 37);
+    hm_edit_crop(300, 400, HM_AR_16_9, &x, &y, &w, &h); /* portrait: 9:16 */
+    CHECK(y == 0 && h == 400 && w == 225 && x == 37);
+    hm_edit_crop(300, 400, HM_AR_4_3, &x, &y, &w, &h); /* already 3:4 */
+    CHECK(x == 0 && y == 0 && w == 300 && h == 400);
+    {
+        unsigned int px[4 * 3] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+
+        hm_edit_crop_in_place(px, 4, 1, 1, 2, 2); /* rows 1-2, columns 1-2 */
+        CHECK(px[0] == 5 && px[1] == 6 && px[2] == 9 && px[3] == 10);
+    }
+}
+
+PW_TEST(photo_edit_histogram_counts_brightness)
+{
+    static unsigned int px[16 * 16];
+    unsigned char h[HM_HIST_BINS];
+
+    fill(px, 16 * 16, PW_RGB(0, 0, 0));
+    fill(px, 64, PW_RGB(255, 255, 255)); /* a quarter white */
+    hm_edit_histogram(px, 16, 16, 16, h);
+    CHECK_EQ(h[0], 255);
+    CHECK_EQ(h[HM_HIST_BINS - 1], 85);
+    CHECK_EQ(h[HM_HIST_BINS / 2], 0);
+}
+
+PW_TEST(photo_edit_screen_fits_the_picture_into_the_canvas_and_shows_the_looks)
+{
+    static unsigned int bg[512 * HM_ED_SH], src[160 * 120], thumb[46 * 30];
+    unsigned char hist[HM_HIST_BINS];
+    hm_edit e;
+    int mid = (HM_ED_CY + HM_ED_CH / 2) * 512 + HM_ED_SW / 2;
+
+    fill(src, 160 * 120, PW_RGB(200, 60, 40));
+    fill(thumb, 46 * 30, PW_RGB(200, 60, 40));
+    hm_edit_init(&e);
+    CHECK_EQ(hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_ADJUST, 0, bg, hist), 0);
+    CHECK(bg[mid] == PW_RGB(200, 60, 40));                     /* the picture in the canvas */
+    CHECK(bg[(HM_ED_CY + 2) * 512 + 4] == HM_ED_DARK);         /* beside it: the background */
+    CHECK(bg[HM_ED_STRIP * 512 + HM_ED_SW / 2] == HM_ED_DARK); /* Adjust: no thumbnails */
     e.filter = HM_FL_MONO;
-    hm_edit_colours(&e, px, 64, 32, 64);
-    CHECK((px[5] & 0xFF) == (px[5] >> 8 & 0xFF) && (px[5] & 0xFF) == (px[5] >> 16 & 0xFF));
-    for (int i = 0; i < 64 * 32; i++)
-        px[i] = PW_RGB(128, 128, 128);
-    memset(&e, 0, sizeof(e));
-    e.vignette = HM_ED_RANGE; /* the corners darker than the middle */
-    hm_edit_colours(&e, px, 64, 32, 64);
-    CHECK((px[0] & 0xFF) < (px[16 * 64 + 32] & 0xFF));
-    memset(&e, 0, sizeof(e));
-    e.light = 3; /* brighter */
-    for (int i = 0; i < 4; i++)
-        px[i] = PW_RGB(100, 100, 100);
-    hm_edit_colours(&e, px, 4, 1, 4);
-    CHECK((px[0] & 0xFF) > 100);
+    hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_FILTERS, 0, bg, hist);
+    CHECK(R(bg[mid]) == G(bg[mid])); /* the look applied */
+    {
+        int x0 = hm_edit_strip_x(HM_FILTERS, HM_ED_TPITCH, HM_FL_NONE),
+            x1 = hm_edit_strip_x(HM_FILTERS, HM_ED_TPITCH, HM_FL_MONO);
+        unsigned int a = bg[HM_ED_STRIP * 512 + x0], b = bg[HM_ED_STRIP * 512 + x1];
+
+        CHECK(a == PW_RGB(200, 60, 40));     /* Original's thumbnail as it is */
+        CHECK(R(b) == G(b) && G(b) == B(b)); /* Mono's grey */
+    }
+    hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_FILTERS, 1, bg, hist); /* compare */
+    CHECK(bg[mid] == PW_RGB(200, 60, 40));
+    e.rotate = 1; /* a portrait now: narrower in the canvas */
+    hm_edit_compose(&e, src, 160, 120, thumb, 46, 30, HM_EDT_CROP, 0, bg, hist);
+    CHECK(bg[mid - 100] == HM_ED_DARK);
 }
