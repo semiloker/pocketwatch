@@ -286,9 +286,34 @@ one pressed flashes. Host previews in each style; the PPSSPP check of the GE pat
 completed (its keyboard input arrived late or twice), so the device round is the first run on
 the GE: test HM38.
 
+## 2026-10-29 (later): issues #5-#8 - the seek, the brightness, the photo editor
+
+From now on every fix starts as a GitHub issue assigned to the owner, and its commit names it
+(CLAUDE.md, AI_WORKFLOW section 11). The owner's round on the PSP (build `0d19dc6`, `home.log`):
+
+- **[#5](https://github.com/semiloker/pocketwatch/issues/5) Seek restarted the track** ("+10 s,
+  then 0:00"). VERIFIED cause: `repeat = one` on the card, and the seek's second decoder handle gave
+  no sound, which ended the track. Fixed (ADR-058): `sceMp3ResetPlayPositionByFrame` on the one
+  handle, a failed seek undone instead of ending the track, `home music: seek` lines. HM38.
+- **[#6](https://github.com/semiloker/pocketwatch/issues/6) The indicator said 4/4 with five
+  levels.** VERIFIED cause: ARK-4 makes the backlight's maximum always 4 (five steps); the
+  indicator kept four. Fixed: `PW_BRIGHT_STEPS`. HM34, PF3.
+- **[#7](https://github.com/semiloker/pocketwatch/issues/7) The brightness bar on the left,
+  vertical, in games and the XMB.** Done (ADR-059): one vertical bar in Home, games and the XMB;
+  Volume and Brightness → Everywhere turns on the overlay module's VSH line, and in the XMB the
+  module sleeps 5 s, then draws only the bar. PF5 only after PF-FREEZE.
+- **[#8](https://github.com/semiloker/pocketwatch/issues/8) The photo editor in a professional
+  style.** Done (ADR-060): canvas and histogram, top bar, Adjust / Filters / Crop tabs, ruler
+  slider, compare, reset; new tools. HM39.
+
+All four are built, host-tested (152 tests) and previewed; none is confirmed on the PSP yet.
+
 ## Next actions (in order)
 
-0. **Owner (2026-10-29):** HM38 (the player's fixed keys), HM36 (lists, text, the settings'
+0. **Owner (2026-10-29, later):** HM38 (the keys and now the seek, #5), HM39 (the photo editor,
+   #8), HM34 and PF3 (five brightness steps, the vertical bar, #6, #7), then PF-FREEZE, and only
+   after it PF5 (the bar in the XMB). X2 below still waits. Send `home.log`.
+   **Before (2026-10-29):** HM38 (the player's fixed keys), HM36 (lists, text, the settings'
    speed), HM37 (Classic's icons and sky); send `home.log` (`home art:`, `home font:`, `slow:`).
    Then PF-FREEZE above if not done. **M7:** X2, the XMB probe (`scripts\deploy.cmd -Probe`, hold
    L at power-on, △ on games; send the `probe` folder directly, it holds firmware code), then
