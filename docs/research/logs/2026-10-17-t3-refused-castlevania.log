@@ -1,6 +1,6 @@
 Pocketwatch d2579ea-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   257 KB maxfree=   221 KB
@@ -22,7 +22,7 @@ assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing
 assets: 439 KB of 640 KB kept
 i18n: language.txt asks for "en"
 i18n: English
-game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/<file> (1085312 KB)
 savedata_hash: chnnlsv loaded as 'sceChnnlsv'
 store: 5 slots for ULUS10277, PARAM.SFO hashed
 engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
@@ -57,8 +57,8 @@ engine: save: flash drivers re-initialised: ok (lflash 1 exit 0 init 0, flashfat
 engine: save: I/O enables 0308AAD2/020000D9, GPIO 00000001 at suspend; 01000202/00000019, GPIO 00000000 at resume
 engine: save: live before suspend: hold 0 wlan-sw 0 hp 0 ms-pow 1 wlan-pow 0 hr-pow 0 supply 0 batt 0 0/0 mAh
 engine: save: resume info found: size 212 wake 8C1 st 00 clock 361194 key FFCF7FFF supply 22 batt 0 1453/1790 st2 00
-engine: save: IPL seeds before suspend: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
-engine: save: IPL seeds at resume: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: save: IPL seeds before suspend: <8 words>
+engine: save: IPL seeds at resume: <8 words>
 engine: save trace, 104 event(s):
 engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
 engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
@@ -73,14 +73,14 @@ hub: style 1, 19687 ms: 130 frames drawn in 314 vblank waits; a frame: backdrop 
 cpu: hub, 19699 ms: PocketwatchShell 43% ScePowerMain 0% SceImpose 0% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0%
 shell: open: freeze 0 ms, GE 0 ms, screen 262 ms, first frame 291 ms after the press
 shell: Quit Game
-engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: exit: IPL seeds present: <8 words>
 engine: state discarded after 0 load(s)
 shell: quit: the game's exit callback was invoked (0x00000000)
 
 ==== new session ====
 Pocketwatch d2579ea-dirty loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   257 KB maxfree=   221 KB
@@ -102,7 +102,7 @@ assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing
 assets: 439 KB of 640 KB kept
 i18n: language.txt asks for "en"
 i18n: English
-game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/<file> (1085312 KB)
 savedata_hash: chnnlsv loaded as 'sceChnnlsv'
 store: 5 slots for ULUS10277, PARAM.SFO hashed
 engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once
@@ -113,5 +113,5 @@ hub: style 1, 10372 ms: 122 frames drawn in 214 vblank waits; a frame: backdrop 
 cpu: hub, 10385 ms: PocketwatchShell 66% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0% main_thread 0% ScePowerBattery 0%
 shell: open: freeze 0 ms, GE 0 ms, screen 274 ms, first frame 308 ms after the press
 shell: Quit Game
-engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: exit: IPL seeds present: <8 words>
 shell: quit: the game's exit callback was invoked (0x00000000)

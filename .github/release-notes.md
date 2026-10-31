@@ -13,10 +13,14 @@
 
 ## Install
 
-1. Unzip `pocketwatch-<version>.zip`. Copy the `seplugins` and `PSP` folders from inside its
-   folder to the root of the Memory Stick and merge them with the folders already there.
-2. Add these two lines to `seplugins/PLUGINS.TXT`. On a PSP Go's internal storage, write
-   `ef0:` instead of `ms0:`.
+**[The install guide](https://github.com/semiloker/pocketwatch/blob/main/INSTALL.md) has every step,
+how to check it worked, and what to do when it does not.** It is also in the zip as `INSTALL.md`.
+The short version, for a PSP already running ARK-4 on firmware 6.61:
+
+1. Download the zip below under **Assets** and unzip it. Copy the `seplugins` and `PSP` folders from
+   inside its folder to the root of the Memory Stick and merge them with the folders already there.
+2. Add these two lines to `seplugins/PLUGINS.TXT`. On a PSP Go's internal storage, write `ef0:`
+   instead of `ms0:` (untested).
 
    ```text
    UMD, ms0:/seplugins/pocketwatch/pocketwatch.prx, on
@@ -25,7 +29,8 @@
 
    Do not add a line for `pocketwatch_perf.prx`: Home → Settings → Pocketwatch → Overlay in Games
    writes it.
-3. Turn the PSP off and on again. Pocketwatch appears under XMB → Settings → Pocketwatch.
+3. Turn the PSP off and on again. With a Live install of ARK-4, run ARK Loader again as well.
+   Pocketwatch appears under XMB → Settings → Pocketwatch, and HOME in a game opens its menu.
 4. Optional: to start the PSP in Pocketwatch Home instead of the XMB, open XMB → Settings →
    Pocketwatch → Start screen → Pocketwatch Home. You can also start Home from Game → Memory Stick.
 
@@ -34,10 +39,11 @@
 | Hold at power-on | Result |
 |---|---|
 | START | ARK-4 loads no plugins, so you can fix `PLUGINS.TXT` |
-| L | The XMB starts this once, even when Pocketwatch Home is the start screen |
+| L | The XMB starts this once, even when Pocketwatch Home is the start screen. On a permanent ARK-4 install with DC-ARK, L may start DC-ARK instead: use Home's Exit to the XMB. |
 
-To uninstall, delete the two lines from `PLUGINS.TXT`, then the `seplugins/pocketwatch` and
-`PSP/GAME/PocketwatchHome` folders and `PSP/SAVEDATA/ARK_01234/PWHOME.PBP`.
+To uninstall, set the Start screen back to XMB, delete the two lines from `PLUGINS.TXT`, then the
+`seplugins/pocketwatch` and `PSP/GAME/PocketwatchHome` folders and
+`PSP/SAVEDATA/ARK_01234/PWHOME.PBP`.
 
 ## Known issues
 
@@ -68,3 +74,6 @@ model, your ARK-4 version and the game's ID, and attach the log that matches whe
 | In a game | `seplugins/pocketwatch/pocketwatch.log` |
 | In the XMB | `seplugins/pocketwatch/xmb.log` and `boot.txt` |
 | In Pocketwatch Home | `seplugins/pocketwatch/home.log` |
+
+A log names your game's file (`game: ... from ms0:/ISO/...`). Issues are public, so you may want to
+remove that part before you post it.

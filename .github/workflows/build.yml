@@ -64,7 +64,7 @@ jobs:
           cp home/EBOOT.PBP "dist/$PKG/PSP/SAVEDATA/ARK_01234/PWHOME.PBP"
           mkdir -p "dist/$PKG/seplugins/pocketwatch/lang"
           cp plugin/lang/*.txt "dist/$PKG/seplugins/pocketwatch/lang/"
-          cp README.md LICENSE "dist/$PKG/"
+          cp README.md INSTALL.md LICENSE "dist/$PKG/"
           (cd dist && zip -r "$PKG.zip" "$PKG")
           echo "name=$PKG" >> "$GITHUB_OUTPUT"
 

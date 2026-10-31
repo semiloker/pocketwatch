@@ -26,5 +26,8 @@ Classic draws the XMB's own icons from flash0 instead of Pocketwatch's.
 (those calls go through ARK-4), so the bar never appears there. Its look is in the host
 previews (`make -C tests preview`, `home-osd.png` per style).
 
+[`../social-preview.png`](../social-preview.png) is the repository's link preview (1280 x 640,
+uploaded by hand in GitHub's Settings → General → Social preview), made from these screenshots.
+
 Retake them after a visible change: PPSSPP with `home\EBOOT.PBP`, demo content of your own on its
 memory stick, never game icons or Sony files.

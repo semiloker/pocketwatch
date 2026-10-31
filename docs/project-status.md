@@ -286,6 +286,24 @@ one pressed flashes. Host previews in each style; the PPSSPP check of the GE pat
 completed (its keyboard input arrived late or twice), so the device round is the first run on
 the GE: test HM38.
 
+## 2026-10-31: the repository goes public (#14)
+
+Owner: "add how to correctly install on PSP, also make the repo public and full setting this repo
+for fast finding". New: [`INSTALL.md`](../INSTALL.md) (also in the zip from the next release),
+README and release notes pointing to it, `CONTRIBUTING.md`, `SECURITY.md`, a pull request template
+and the issue chooser, the repository's description and topics.
+
+An audit of the whole history before going public found no Sony files, firmware dumps, secrets,
+device serials or MAC addresses. It found the owner's local ISO file names and the IPL seeds in
+seven archived logs, and the owner's address on 104 commits. Asked (a clean new repository, a
+rewrite, or as it is), the owner chose as it is: the current files were cleaned and the rule added
+to AI_WORKFLOW section 7; **the history keeps them**. Logs in the repository are no longer byte-raw
+on those values.
+
+OPEN QUESTION: ARK-4's README says a permanent install with the new cIPL boots DC-ARK when L is held
+at power-on, the same key as Pocketwatch's "XMB once" (ADR-027). INFERRED conflict, not seen on the
+owner's PSP; the guide says so and gives Home's Exit to the XMB. HM8 on such a setup would settle it.
+
 ## 2026-10-29 (late): #11 - the brightness bar by the step, Home's like the in-game menu's
 
 Owner, after round 12's build: the in-game menu's brightness bar (Modern) is the look wanted,

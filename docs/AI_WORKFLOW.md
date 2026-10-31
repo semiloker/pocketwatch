@@ -112,7 +112,10 @@ Research notes use [`templates/research-note.md`](templates/research-note.md); d
   ARK-4, prior plugins) and the logs over trying fixes.
 - Each device experiment has a written protocol (exact buttons, expected result, what to report),
   a raw log archived in `docs/research/logs/<date>-<what>.log`, and results written back into the
-  research note the same day.
+  research note the same day. The repository is public: before a log is archived, its local file
+  names become `<file>` (the game's ID and title are what the log needs) and values read from the
+  firmware, such as the IPL seeds, become a placeholder; nothing from the owner's card, network or
+  computer goes in.
 - Cite sources (URL, file and line where possible) next to the claims they support. Respect
   licenses: never copy code from PSPStates (no license) or intraFont (CC BY-SA); never put Sony
   files or screenshots of unclear license into the repository — link them instead.

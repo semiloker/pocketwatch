@@ -31,7 +31,7 @@ afterwards returns to the XMB.
 | Shin Megami Tensei: Persona (USA) | ISO | | | | | | ok | 2026-10-17: hub (Modern) 30 fps, Quit Game ok |
 | Silent Hill: Shattered Memories (USA, PSN) | ISO | | | | | | | |
 | Tekken 6 (USA) | ISO | | | | | | | |
-| The 3rd Birthday (EUR, undub) | ISO | fail | | | | | | 2026-10-17: rebooted into the XMB during the first save's sleep (Memory Stick Test); RISK-016, isolation test M13 |
+| The 3rd Birthday (EUR) | ISO | fail | | | | | | 2026-10-17: rebooted into the XMB during the first save's sleep (Memory Stick Test); RISK-016, isolation test M13 |
 | The Legend of Heroes: Trails in the Sky (USA) | ISO | | | | | | | |
 | The Sims 2 (USA) | ISO | | | | | | | |
 

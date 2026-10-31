@@ -37,7 +37,7 @@ xmb: sysconf_plugin patched
 ==== new session ====
 Pocketwatch c3f3699 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
@@ -49,7 +49,7 @@ assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing
 assets: 439 KB of 640 KB kept
 i18n: language.txt asks for "en"
 i18n: English
-game: ULUS10036 "NEED FOR SPEED™ MOST WANTED 5-1-0" from ms0:/ISO/Need for Speed - Most Wanted 5-1-0 (USA).iso (904864 KB)
+game: ULUS10036 "NEED FOR SPEED™ MOST WANTED 5-1-0" from ms0:/ISO/<file> (904864 KB)
 savedata_hash: chnnlsv loaded as 'sceChnnlsv'
 store: 5 slots for ULUS10036, PARAM.SFO hashed
 playtime: ULUS10036 new, 0 s so far in 0 session(s)
@@ -60,7 +60,7 @@ shell: HOME opens Pocketwatch (system HOME screen was 1, now 0)
 ==== new session ====
 Pocketwatch c3f3699 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10036 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
@@ -72,7 +72,7 @@ assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing
 assets: 439 KB of 640 KB kept
 i18n: language.txt asks for "en"
 i18n: English
-game: ULUS10036 "NEED FOR SPEED™ MOST WANTED 5-1-0" from ms0:/ISO/Need for Speed - Most Wanted 5-1-0 (USA).iso (904864 KB)
+game: ULUS10036 "NEED FOR SPEED™ MOST WANTED 5-1-0" from ms0:/ISO/<file> (904864 KB)
 savedata_hash: chnnlsv loaded as 'sceChnnlsv'
 store: 5 slots for ULUS10036, PARAM.SFO hashed
 playtime: ULUS10036 new, 0 s so far in 0 session(s)
@@ -83,6 +83,6 @@ hub: style 1, 7141 ms: 176 frames drawn in 333 vblank waits; a frame: backdrop 5
 cpu: hub, 7153 ms: PocketwatchShell 45% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0% main_thread 0% SceMSstorFlush 0%
 shell: open: freeze 0 ms, GE 1 ms, screen 278 ms, first frame 314 ms after the press
 shell: Quit Game
-engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: exit: IPL seeds present: <8 words>
 playtime: 9 s this session written (Quit Game)
 shell: quit: the game's exit callback was invoked (0x00000000)

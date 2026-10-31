@@ -6,6 +6,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- An install guide, [`INSTALL.md`](INSTALL.md): what you need, every step, how to check it worked,
+  what to do when it does not, updating and uninstalling. The zip includes it (#14).
+- `CONTRIBUTING.md`, `SECURITY.md`, a pull request template and links in the issue chooser (#14).
+
+### Changed
+- The README says first what Pocketwatch is and how to get it. Its compatibility table no longer
+  says the game plugin's line is `GAME`; it is `UMD` (#14).
+- The archived device logs no longer carry local file names or the IPL seeds (#14).
+
 ## [0.1.0-alpha.2] - 2026-10-29
 
 ### Changed

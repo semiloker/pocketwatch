@@ -34,7 +34,7 @@ xmb: sysconf_plugin patched
 ## pocketwatch.log (the game run of this round, the memory probe lines left out)
 Pocketwatch 78e3690 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 103 import(s): 101 direct, 2 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 sysinfo: date format 2, time format 0, theme colour 1 (3 key(s) read)
@@ -46,7 +46,7 @@ assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing
 assets: 439 KB of 640 KB kept
 i18n: language.txt asks for "en"
 i18n: English
-game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/<file> (1085312 KB)
 savedata_hash: chnnlsv loaded as 'sceChnnlsv'
 store: 5 slots for ULUS10277, PARAM.SFO hashed
 states: continue from slot 1 once the game runs
@@ -64,7 +64,7 @@ hub: style 1, 5942 ms: 173 frames drawn in 291 vblank waits; a frame: backdrop 5
 cpu: hub, 5955 ms: PocketwatchShell 46% cwcheat_main 0% noumd_main 0% PocketwatchProbe 0% main_thread 0% ScePowerBattery 0%
 shell: open: freeze 0 ms, GE 0 ms, screen 262 ms, first frame 294 ms after the press
 shell: Quit Game
-engine: exit: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: exit: IPL seeds present: <8 words>
 engine: state discarded after 15079428 load(s)
 playtime: 1 s this session written (Quit Game)
 shell: quit: the game's exit callback was invoked (0x00000000)
