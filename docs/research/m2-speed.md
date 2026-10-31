@@ -237,7 +237,7 @@ logged.
 
 **Speed run 7 - 2026-10-16, Castlevania: root cause confirmed.** Raw log:
 [`logs/2026-10-16-speed7-castlevania.log`](logs/2026-10-16-speed7-castlevania.log). The seeds at
-`0xBFC00200` were present at boot and identical after the real wake (`A2990E43 31375773 ...`, the
+`0xBFC00200` were present at boot and identical after the real wake (the
 IPL writes the same values every time), and were all `00000000` at the first resume event of the
 touch-and-go load; the engine put them back and quitting the game reached the XMB.
 

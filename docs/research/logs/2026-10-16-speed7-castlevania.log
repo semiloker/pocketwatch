@@ -1,7 +1,7 @@
 ==== new session ====
 Pocketwatch 7a676bb loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 65 import(s): 64 direct, 1 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   351 KB maxfree=   316 KB
@@ -39,8 +39,8 @@ engine: save: flash drivers re-initialised: ok (lflash 1 exit 0 init 0, flashfat
 engine: save: I/O enables 0308AAD2/020000D9, GPIO 00000001 at suspend; 01000202/00000019, GPIO 00000000 at resume
 engine: save: live before suspend: hold 0 wlan-sw 0 hp 0 ms-pow 1 wlan-pow 0 hr-pow 0 supply 0 batt 0 0/0 mAh
 engine: save: resume info found: size 212 wake 8C1 st 00 clock 150586 key FFCF7FFF supply 22 batt 0 1379/1790 st2 00
-engine: save: IPL seeds before suspend: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
-engine: save: IPL seeds at resume: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: save: IPL seeds before suspend: <8 words>
+engine: save: IPL seeds at resume: <8 words>
 engine: save trace, 102 event(s):
 engine:  000100 000102 000210 00020F 00020E 00020D 00020C 00020B 00020A 000209 000208 000207 000206 000205 000204 000203 000202 000201 000200 000400 000401 000402 x22
 engine:  001000 00400F 00400E 00400D 00400C 00400B 00400A 004009 004008 004007 004006 004005 004004 004003 004002 004001 004000 010000 010001 010002 010003 010004
@@ -95,8 +95,8 @@ engine: save suspend 2592 ms: queries 608, power-lock retries 339 (0x402 x30), s
 engine: load: I/O enables 0300AAD2/000000D9, GPIO 00000001 at suspend; 01000002/00000098, GPIO 00000000 at resume -> put back (touch-and-go)
 engine: load: live before suspend: hold 0 wlan-sw 0 hp 0 ms-pow 1 wlan-pow 0 hr-pow 0 supply 22 batt 0 1379/1790 mAh
 engine: load: resume info found: size 0 wake 0 st 00 clock 150604 key 00000000 supply 0 batt 0 0/0 st2 00 -> filled (live + real wake)
-engine: load: IPL seeds before suspend: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
-engine: load: IPL seeds at resume (put back): 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+engine: load: IPL seeds before suspend: <8 words>
+engine: load: IPL seeds at resume (put back): <zero>
 engine: timing load (CPU 333 MHz, bus 166 MHz): verify 229 freeze 1 ge 0 suspend 3110 ram 451 vram 72 diag 0 thaw 0 = 3863 ms
 engine: load suspend 3110 ms: queries 573, power-lock retries 339 (0x402 x30), suspend phases 657, resume phases 567, flash rebuild 800; sleep+wake+rest ~974 ms
 engine: state discarded after 1 load(s)

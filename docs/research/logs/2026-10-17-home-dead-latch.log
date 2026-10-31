@@ -1,6 +1,6 @@
 Pocketwatch be14f66 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 102 import(s): 100 direct, 2 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   260 KB maxfree=   225 KB
@@ -21,7 +21,7 @@ assets: flash0:/vsh/resource/system_plugin_fg.rco: 5 image(s) decoded, 0 missing
 assets: 439 KB of 640 KB kept
 i18n: system language 8
 i18n: ru, 70 of 70 strings translated
-game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/Castlevania_Dracula_X_Chronicles_USA_INTERNAL_READNFO_PSP-pSyPSP.iso (1085312 KB)
+game: ULUS10277 "Castlevania The Dracula X Chronicles" from ms0:/ISO/<file> (1085312 KB)
 savedata_hash: chnnlsv loaded as 'sceChnnlsv'
 store: 5 slots for ULUS10277, PARAM.SFO hashed
 engine: fast mode (touch-and-go suspend, no sleep) ON - the next suspend still sleeps for real once

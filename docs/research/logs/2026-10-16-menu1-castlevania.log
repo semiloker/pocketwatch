@@ -1,7 +1,7 @@
 ==== new session ====
 Pocketwatch 1f8d6c4 loaded from ms0:/seplugins/pocketwatch/pocketwatch.prx
 selfcheck: 70 import(s): 69 direct, 1 via syscall, 0 unresolved
-engine: boot: IPL seeds present: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: boot: IPL seeds present: <8 words>
 probe: model=3 devkit=0x06060010 apitype=0x123 game=ULUS-10277 init=disc0:/PSP_GAME/SYSDIR/EBOOT.BIN
 probe: edram=2048 KB
 probe: partition  1 start=0x88000000 size=  3072 KB attr=0xC free=   346 KB maxfree=   310 KB
@@ -57,8 +57,8 @@ engine: save suspend 6668 ms: queries 578, power-lock retries 326 (0x402 x22), s
 engine: load: I/O enables 0300AAD2/000000D9, GPIO 00000001 at suspend; 01000202/00000019, GPIO 00000000 at resume
 engine: load: live before suspend: hold 0 wlan-sw 0 hp 0 ms-pow 1 wlan-pow 0 hr-pow 0 supply 22 batt 0 1269/1790 mAh
 engine: load: resume info found: size 212 wake 8C1 st 00 clock 155398 key FFCF7FFF supply 22 batt 0 1265/1790 st2 00
-engine: load: IPL seeds before suspend: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
-engine: load: IPL seeds at resume: A2990E43 31375773 5B9C22BF ECB07969 DF997BF0 FA805421 EB2D3797 94327302
+engine: load: IPL seeds before suspend: <8 words>
+engine: load: IPL seeds at resume: <8 words>
 engine: timing load (CPU 333 MHz, bus 166 MHz): verify 144 freeze 0 ge 0 suspend 7279 ram 406 vram 71 diag 0 thaw 0 = 7900 ms
 engine: load suspend 7279 ms: queries 568, power-lock retries 327 (0x402 x22), suspend phases 657, resume phases 536, flash rebuild 784; sleep+wake+rest ~5191 ms
 engine: state discarded after 1 load(s)

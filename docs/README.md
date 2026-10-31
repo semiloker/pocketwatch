@@ -49,6 +49,8 @@ UI companions: [styles (Classic, Modern, Minimal)](ui/styles.md), [visual refere
 [concepts (PROPOSED mockups)](assets/concepts/README.md), [reference image policy](assets/references/README.md),
 [screenshots of Home in PPSSPP](assets/screenshots/README.md).
 
+For users: [the install guide](../INSTALL.md). For contributors: [CONTRIBUTING](../CONTRIBUTING.md).
+
 ## Research notes
 
 - [m7-full-ui](research/m7-full-ui.md): cxmb, themes, and the way to a full UI of our own (2026-10-18)

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to install
+    url: https://github.com/semiloker/pocketwatch/blob/main/INSTALL.md
+    about: Every step, how to check it worked, and what to do when it does not.
+  - name: Downloads and known issues
+    url: https://github.com/semiloker/pocketwatch/releases
+    about: The newest pre-release, with its known issues.
+  - name: Security problem
+    url: https://github.com/semiloker/pocketwatch/security/advisories/new
+    about: Report it privately, not as a public issue.
